@@ -317,7 +317,7 @@ Describe "Test-FFUConfiguration - Range Violations" {
         try {
             $result = Test-FFUConfiguration -ConfigPath $tempFile -SchemaPath $script:SchemaPath
             $result.IsValid | Should -Be $false
-            ($result.Errors -join ';') | Should -Match "Memory.*less than minimum"
+            ($result.Errors -join ';') | Should -Match "Memory.*out of range.*below minimum"
         }
         finally {
             Remove-Item $tempFile -ErrorAction SilentlyContinue
@@ -331,7 +331,7 @@ Describe "Test-FFUConfiguration - Range Violations" {
         try {
             $result = Test-FFUConfiguration -ConfigPath $tempFile -SchemaPath $script:SchemaPath
             $result.IsValid | Should -Be $false
-            ($result.Errors -join ';') | Should -Match "Memory.*greater than maximum"
+            ($result.Errors -join ';') | Should -Match "Memory.*out of range.*above maximum"
         }
         finally {
             Remove-Item $tempFile -ErrorAction SilentlyContinue
@@ -345,7 +345,7 @@ Describe "Test-FFUConfiguration - Range Violations" {
         try {
             $result = Test-FFUConfiguration -ConfigPath $tempFile -SchemaPath $script:SchemaPath
             $result.IsValid | Should -Be $false
-            ($result.Errors -join ';') | Should -Match "Processors.*less than minimum"
+            ($result.Errors -join ';') | Should -Match "Processors.*out of range.*below minimum"
         }
         finally {
             Remove-Item $tempFile -ErrorAction SilentlyContinue
@@ -359,7 +359,7 @@ Describe "Test-FFUConfiguration - Range Violations" {
         try {
             $result = Test-FFUConfiguration -ConfigPath $tempFile -SchemaPath $script:SchemaPath
             $result.IsValid | Should -Be $false
-            ($result.Errors -join ';') | Should -Match "Processors.*greater than maximum"
+            ($result.Errors -join ';') | Should -Match "Processors.*out of range.*above maximum"
         }
         finally {
             Remove-Item $tempFile -ErrorAction SilentlyContinue
@@ -373,7 +373,7 @@ Describe "Test-FFUConfiguration - Range Violations" {
         try {
             $result = Test-FFUConfiguration -ConfigPath $tempFile -SchemaPath $script:SchemaPath
             $result.IsValid | Should -Be $false
-            ($result.Errors -join ';') | Should -Match "Disksize.*less than minimum"
+            ($result.Errors -join ';') | Should -Match "Disksize.*out of range.*below minimum"
         }
         finally {
             Remove-Item $tempFile -ErrorAction SilentlyContinue
@@ -492,7 +492,8 @@ Describe "Test-FFUConfiguration - Invalid JSON" {
     It "Reports error for invalid JSON syntax" {
         $tempFile = [System.IO.Path]::GetTempFileName()
         $tempFile = [System.IO.Path]::ChangeExtension($tempFile, ".json")
-        Set-Content -Path $tempFile -Value '{ "WindowsSKU": "Pro", }'  # Trailing comma is invalid
+        # Truly invalid JSON - missing closing brace
+        Set-Content -Path $tempFile -Value '{ "WindowsSKU": "Pro"'
         try {
             $result = Test-FFUConfiguration -ConfigPath $tempFile -SchemaPath $script:SchemaPath
             $result.IsValid | Should -Be $false
