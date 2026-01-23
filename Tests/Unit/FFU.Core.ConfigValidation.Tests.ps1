@@ -522,6 +522,89 @@ Describe "Test-FFUConfiguration - Both Parameter Sets" {
     }
 }
 
+Describe "Test-FFUConfiguration - Actionable Error Messages" -Tag 'Actionable' {
+    # REL-CORE-02: Error messages must include "To fix:" guidance
+
+    It "Invalid enum value includes valid options and fix guidance" {
+        $result = Test-FFUConfiguration -ConfigObject @{ WindowsSKU = 'InvalidSKU' } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'Valid values:'
+        ($result.Errors -join ';') | Should -Match 'To fix:'
+    }
+
+    It "Type mismatch includes example of correct format" {
+        $result = Test-FFUConfiguration -ConfigObject @{ Memory = 'eight gigabytes' } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'expected.*integer'
+        ($result.Errors -join ';') | Should -Match 'To fix:'
+    }
+
+    It "Unknown property suggests similar property name (typo detection)" {
+        $result = Test-FFUConfiguration -ConfigObject @{ WindowsSKU2 = 'Pro' } -SchemaPath $script:SchemaPath
+
+        # Should suggest WindowsSKU for WindowsSKU2 typo
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'Did you mean.*WindowsSKU'
+    }
+
+    It "Range violation (below minimum) shows valid range and fix guidance" {
+        $result = Test-FFUConfiguration -ConfigObject @{ Processors = 0 } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'Valid range:'
+        ($result.Errors -join ';') | Should -Match 'To fix:'
+    }
+
+    It "Range violation (above maximum) shows valid range and fix guidance" {
+        $result = Test-FFUConfiguration -ConfigObject @{ Processors = 128 } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'Valid range:'
+        ($result.Errors -join ';') | Should -Match 'To fix:'
+    }
+
+    It "Pattern violation shows expected format" {
+        # VMName must be alphanumeric, underscores, hyphens only
+        $result = Test-FFUConfiguration -ConfigObject @{ VMName = 'Invalid VM Name!' } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'format'
+        ($result.Errors -join ';') | Should -Match 'To fix:'
+    }
+
+    It "Unknown property without similar name suggests removal" {
+        $result = Test-FFUConfiguration -ConfigObject @{ TotallyUnknownProperty123 = 'value' } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'Unknown property'
+        ($result.Errors -join ';') | Should -Match 'To fix:'
+    }
+
+    It "Type mismatch boolean shows use true/false guidance" {
+        $result = Test-FFUConfiguration -ConfigObject @{ InstallApps = 'yes' } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        ($result.Errors -join ';') | Should -Match 'boolean'
+        ($result.Errors -join ';') | Should -Match 'true or false'
+    }
+
+    It "All error messages in multi-error config have fix guidance" {
+        $result = Test-FFUConfiguration -ConfigObject @{
+            WindowsSKU = 'BadValue'
+            Processors = 0
+            Make = 'Unknown'
+        } -SchemaPath $script:SchemaPath
+
+        $result.IsValid | Should -Be $false
+        # Each error should have "To fix:" guidance
+        foreach ($error in $result.Errors) {
+            $error | Should -Match 'To fix:' -Because "Error message '$error' should include fix guidance"
+        }
+    }
+}
+
 AfterAll {
     # Clean up
     Remove-Module FFU.Core -ErrorAction SilentlyContinue
