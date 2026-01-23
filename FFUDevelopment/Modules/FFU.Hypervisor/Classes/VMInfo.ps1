@@ -12,16 +12,23 @@
 #>
 
 # Enum for VM state (common across hypervisors)
+# Note: States 5-8 are TRANSIENT states - the VM is transitioning between stable states.
+# Use [VMInfo]::IsTransientState() to check if a state is transient.
+# Transient states:
+#   - Starting (5)  -> will become Running
+#   - Stopping (6)  -> will become Off
+#   - Saving (7)    -> will become Saved
+#   - Restoring (8) -> will become Running
 enum VMState {
     Unknown = 0
     Off = 1
     Running = 2
     Paused = 3
     Saved = 4
-    Starting = 5
-    Stopping = 6
-    Saving = 7
-    Restoring = 8
+    Starting = 5      # Transient: transitioning to Running
+    Stopping = 6      # Transient: transitioning to Off
+    Saving = 7        # Transient: transitioning to Saved
+    Restoring = 8     # Transient: transitioning to Running
     Suspended = 9
 }
 
@@ -126,6 +133,33 @@ class VMInfo {
         return [VMState]::Unknown
     }
 
+    # Static method to check if a state is transient (VM is transitioning)
+    # Transient states occur briefly during state changes and should not be
+    # treated as final states for decision-making.
+    static [bool] IsTransientState([VMState]$state) {
+        $transientStates = @(
+            [VMState]::Starting,
+            [VMState]::Stopping,
+            [VMState]::Saving,
+            [VMState]::Restoring
+        )
+        return $state -in $transientStates
+    }
+
+    # Static method to get the expected stable state for a transient state
+    # Maps: Starting->Running, Stopping->Off, Saving->Saved, Restoring->Running
+    # Returns input state unchanged if not transient
+    static [VMState] GetExpectedStableState([VMState]$transientState) {
+        $result = $transientState
+        switch ($transientState) {
+            ([VMState]::Starting)  { $result = [VMState]::Running }
+            ([VMState]::Stopping)  { $result = [VMState]::Off }
+            ([VMState]::Saving)    { $result = [VMState]::Saved }
+            ([VMState]::Restoring) { $result = [VMState]::Running }
+        }
+        return $result
+    }
+
     # Check if VM is running
     [bool] IsRunning() {
         return $this.State -eq [VMState]::Running
@@ -134,6 +168,11 @@ class VMInfo {
     # Check if VM is stopped
     [bool] IsStopped() {
         return $this.State -eq [VMState]::Off
+    }
+
+    # Check if VM is in a transient (transitioning) state
+    [bool] IsInTransientState() {
+        return [VMInfo]::IsTransientState($this.State)
     }
 
     # Refresh state from hypervisor
