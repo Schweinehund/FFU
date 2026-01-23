@@ -19,6 +19,7 @@ class VMwareProvider : IHypervisorProvider {
     # VMware-specific properties
     hidden [string]$VMwarePath
     hidden [bool]$VmxToolkitAvailable = $false
+    hidden [datetime]$LastStartVMTime = [datetime]::MinValue  # Track last StartVM call for race condition handling
 
     # Constructor
     VMwareProvider() {
@@ -299,6 +300,9 @@ class VMwareProvider : IHypervisorProvider {
                 WriteLog "Starting VM in headless mode (nogui) - use -ShowVMConsole `$true to see console"
             }
 
+            # Track start time for race condition handling in GetVMState
+            $this.LastStartVMTime = [datetime]::Now
+
             # Use vmxtoolkit if available, otherwise direct vmrun
             # Both paths now return a result with Status property
             $result = $null
@@ -500,12 +504,85 @@ class VMwareProvider : IHypervisorProvider {
                 return [VMState]::Unknown
             }
 
-            # Use nvram file lock detection (most reliable method)
+            # Race condition handling: After StartVM, there's a brief window where process
+            # detection may fail. If called within 5 seconds of StartVM and process not found,
+            # wait 1 second and retry once.
+            $timeSinceStart = ([datetime]::Now - $this.LastStartVMTime).TotalSeconds
+            $isRecentStart = ($timeSinceStart -lt 5 -and $timeSinceStart -gt 0)
+
+            # Use process detection (most reliable method)
             $powerState = Get-VMwarePowerStateWithVmrun -VMXPath $vmxPath
-            return [VMInfo]::ConvertVMwareState($powerState)
+            $state = [VMInfo]::ConvertVMwareState($powerState)
+
+            # Handle race condition - retry once if Unknown/Off right after start
+            if ($isRecentStart -and ($state -eq [VMState]::Unknown -or $state -eq [VMState]::Off)) {
+                WriteLog "State check within ${timeSinceStart}s of StartVM returned '$state', retrying after 1s..."
+                Start-Sleep -Seconds 1
+                $powerState = Get-VMwarePowerStateWithVmrun -VMXPath $vmxPath
+                $state = [VMInfo]::ConvertVMwareState($powerState)
+                WriteLog "Retry returned state: $state"
+            }
+
+            # Note: VMware doesn't have transient states like Hyper-V (Starting/Stopping)
+            # VMware goes directly from poweredoff to poweredon
+            return $state
         }
         catch {
             WriteLog "WARNING: GetVMState failed: $($_.Exception.Message)"
+            return [VMState]::Unknown
+        }
+    }
+
+    # Get VM state, waiting for stability if needed
+    # For VMware, this handles the brief detection window after vmrun commands
+    [VMState] GetVMStateStable([VMInfo]$VM, [int]$MaxWaitSeconds) {
+        try {
+            $vmxPath = $this.ResolveVMXPath($VM)
+
+            if ([string]::IsNullOrEmpty($vmxPath)) {
+                WriteLog "WARNING: Cannot determine VMX path for state check"
+                return [VMState]::Unknown
+            }
+
+            # Get initial state
+            $state = $this.GetVMState($VM)
+
+            # VMware doesn't have transient states, but detection confidence may be low
+            # after recent commands. Poll until we get consistent readings.
+            $pollIntervalMs = 500
+            $elapsed = 0
+            $maxMs = $MaxWaitSeconds * 1000
+            $lastState = $state
+            $stableCount = 0
+            $requiredStableCount = 2  # Require 2 consecutive same readings
+
+            WriteLog "VMware GetVMStateStable: Initial state '$state', waiting for stable detection..."
+
+            while ($elapsed -lt $maxMs) {
+                Start-Sleep -Milliseconds $pollIntervalMs
+                $elapsed += $pollIntervalMs
+
+                $state = $this.GetVMState($VM)
+
+                if ($state -eq $lastState -and $state -ne [VMState]::Unknown) {
+                    $stableCount++
+                    if ($stableCount -ge $requiredStableCount) {
+                        WriteLog "VM '$($VM.Name)' state stable at '$state' after $([int]($elapsed/1000))s"
+                        return $state
+                    }
+                }
+                else {
+                    $stableCount = 0
+                    $lastState = $state
+                }
+            }
+
+            # Timeout - return last known state
+            WriteLog "WARNING: Timeout waiting for VMware VM stable state after ${MaxWaitSeconds}s, last state: $state"
+            return $state
+        }
+        catch {
+            WriteLog "WARNING: GetVMStateStable failed: $($_.Exception.Message)"
             return [VMState]::Unknown
         }
     }
@@ -974,14 +1051,22 @@ class VMwareProvider : IHypervisorProvider {
             ProviderVersion = $this.Version
             Issues = @()
             Details = @{}
+            ErrorCode = $null
+            Remediation = @()
         }
 
         # Check installation
         if ([string]::IsNullOrEmpty($this.VMwarePath)) {
             $result.Issues += "VMware Workstation Pro not found in registry or default locations"
+            $result.ErrorCode = 'VMWARE_NOT_INSTALLED'
+            $result.Remediation += "VMware Workstation Pro is not installed. Download from: https://www.vmware.com/products/workstation-pro.html"
+            $result.Remediation += "VMware Workstation Pro 17.x or later is recommended for FFU builds."
         }
         elseif (-not (Test-Path $this.VMwarePath)) {
             $result.Issues += "VMware Workstation installation path not found: $($this.VMwarePath)"
+            $result.ErrorCode = 'VMWARE_PATH_INVALID'
+            $result.Remediation += "VMware installation path is invalid. Reinstall VMware Workstation Pro."
+            $result.Remediation += "Expected location: $($this.VMwarePath)"
         }
         else {
             $result.Details['InstallPath'] = $this.VMwarePath
@@ -992,6 +1077,12 @@ class VMwareProvider : IHypervisorProvider {
             $vmrunPath = Join-Path $this.VMwarePath 'vmrun.exe'
             if (-not (Test-Path $vmrunPath)) {
                 $result.Issues += "vmrun.exe not found (required for VM operations)"
+                # Only set error code if not already set
+                if (-not $result.ErrorCode) {
+                    $result.ErrorCode = 'VMWARE_VMRUN_MISSING'
+                }
+                $result.Remediation += "vmrun.exe not found in VMware installation. Reinstall VMware Workstation or verify installation path."
+                $result.Remediation += "Expected location: $vmrunPath"
             }
             else {
                 $result.Details['vmrun'] = 'Available'
@@ -1015,7 +1106,19 @@ class VMwareProvider : IHypervisorProvider {
             $majorVersion = [int]($this.Version.Split('.')[0])
             if ($majorVersion -lt 17) {
                 $result.Issues += "VMware Workstation 17.x or later recommended (found: $($this.Version))"
+                # Only set error code if not already set (installation issues take priority)
+                if (-not $result.ErrorCode) {
+                    $result.ErrorCode = 'VMWARE_VERSION_OLD'
+                }
+                $result.Remediation += "VMware Workstation version is below 17.0 (found: $($this.Version)). Consider upgrading for best compatibility."
+                $result.Remediation += "Download latest version from: https://www.vmware.com/products/workstation-pro.html"
             }
+        }
+
+        # If everything is available, clear remediation and error code
+        if ($result.Issues.Count -eq 0) {
+            $result.ErrorCode = $null
+            $result.Remediation = @()
         }
 
         $result.IsAvailable = ($result.Issues.Count -eq 0)

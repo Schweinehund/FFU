@@ -304,9 +304,54 @@ class HyperVProvider : IHypervisorProvider {
     [VMState] GetVMState([VMInfo]$VM) {
         try {
             $nativeVM = Get-VM -Name $VM.Name -ErrorAction Stop
-            return [VMInfo]::ConvertHyperVState($nativeVM.State)
+            $state = [VMInfo]::ConvertHyperVState($nativeVM.State)
+
+            # Log if returning transient state
+            if ([VMInfo]::IsTransientState($state)) {
+                WriteLog "GetVMState returned transient state '$state' for VM '$($VM.Name)' - caller may want GetVMStateStable()"
+            }
+
+            return $state
         }
         catch {
+            return [VMState]::Unknown
+        }
+    }
+
+    # Get VM state, waiting for stability if currently in transient state
+    # This prevents race conditions when checking state immediately after start/stop commands
+    [VMState] GetVMStateStable([VMInfo]$VM, [int]$MaxWaitSeconds) {
+        try {
+            $state = $this.GetVMState($VM)
+
+            if (-not [VMInfo]::IsTransientState($state)) {
+                return $state
+            }
+
+            WriteLog "VM '$($VM.Name)' in transient state '$state', waiting for stable state..."
+            $expectedStable = [VMInfo]::GetExpectedStableState($state)
+
+            $pollIntervalMs = 500
+            $elapsed = 0
+            $maxMs = $MaxWaitSeconds * 1000
+
+            while ($elapsed -lt $maxMs) {
+                Start-Sleep -Milliseconds $pollIntervalMs
+                $elapsed += $pollIntervalMs
+
+                $state = $this.GetVMState($VM)
+                if (-not [VMInfo]::IsTransientState($state)) {
+                    WriteLog "VM '$($VM.Name)' reached stable state '$state' after $([int]($elapsed/1000))s"
+                    return $state
+                }
+            }
+
+            # Timeout - return last known state
+            WriteLog "WARNING: Timeout waiting for VM '$($VM.Name)' stable state after ${MaxWaitSeconds}s, last state: $state"
+            return $state
+        }
+        catch {
+            WriteLog "WARNING: GetVMStateStable failed: $($_.Exception.Message)"
             return [VMState]::Unknown
         }
     }
@@ -623,15 +668,23 @@ class HyperVProvider : IHypervisorProvider {
             ProviderVersion = $this.Version
             Issues = @()
             Details = @{}
+            ErrorCode = $null
+            Remediation = @()
         }
 
         # Check service
         $service = Get-Service -Name vmms -ErrorAction SilentlyContinue
         if (-not $service) {
             $result.Issues += "Hyper-V Virtual Machine Management service (vmms) not found"
+            $result.ErrorCode = 'HYPERV_NOT_INSTALLED'
+            $result.Remediation += "Hyper-V is not installed. Run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart"
+            $result.Remediation += "After enabling, restart your computer to complete installation."
         }
         elseif ($service.Status -ne 'Running') {
             $result.Issues += "Hyper-V service is not running (current status: $($service.Status))"
+            $result.ErrorCode = 'HYPERV_SERVICE_STOPPED'
+            $result.Remediation += "Hyper-V service is stopped. Run: Start-Service vmms"
+            $result.Remediation += "If service fails to start, try: Set-Service vmms -StartupType Automatic; Start-Service vmms"
         }
         else {
             $result.Details['ServiceStatus'] = 'Running'
@@ -641,6 +694,11 @@ class HyperVProvider : IHypervisorProvider {
         $module = Get-Module -Name Hyper-V -ListAvailable -ErrorAction SilentlyContinue
         if (-not $module) {
             $result.Issues += "Hyper-V PowerShell module not installed"
+            # Only set error code if not already set (service issue takes priority)
+            if (-not $result.ErrorCode) {
+                $result.ErrorCode = 'HYPERV_MODULE_MISSING'
+            }
+            $result.Remediation += "Hyper-V PowerShell module missing. Run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -NoRestart"
         }
         else {
             $result.Details['ModuleVersion'] = $module.Version.ToString()
@@ -651,6 +709,12 @@ class HyperVProvider : IHypervisorProvider {
             $feature = Get-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -ErrorAction Stop
             if ($feature.State -ne 'Enabled') {
                 $result.Issues += "Hyper-V feature not enabled"
+                # Only set error code if not already set
+                if (-not $result.ErrorCode) {
+                    $result.ErrorCode = 'HYPERV_FEATURE_DISABLED'
+                }
+                $result.Remediation += "Hyper-V feature not enabled. Run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All -NoRestart"
+                $result.Remediation += "Note: Requires a system restart after enabling."
             }
             else {
                 $result.Details['FeatureState'] = 'Enabled'
@@ -658,6 +722,16 @@ class HyperVProvider : IHypervisorProvider {
         }
         catch {
             $result.Issues += "Unable to check Hyper-V feature state: $($_.Exception.Message)"
+            if (-not $result.ErrorCode) {
+                $result.ErrorCode = 'HYPERV_FEATURE_CHECK_FAILED'
+            }
+            $result.Remediation += "Unable to check Hyper-V feature. Ensure you are running as Administrator."
+        }
+
+        # If everything is available, clear remediation and error code
+        if ($result.Issues.Count -eq 0) {
+            $result.ErrorCode = $null
+            $result.Remediation = @()
         }
 
         $result.IsAvailable = ($result.Issues.Count -eq 0)
