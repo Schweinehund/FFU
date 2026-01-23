@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 16 of 25 (FFU.Hypervisor Reliability)
-**Plan:** 1 of 3 complete
+**Plan:** 2 of 3 complete
 **Status:** In progress
-**Last activity:** 2026-01-23 — Completed 16-01-PLAN.md (Provider Detection)
+**Last activity:** 2026-01-23 — Completed 16-02-PLAN.md (VM State Detection)
 
 Progress: Milestone v1.9.0
 [##--------] 18% (2/11 phases - Phase 16 in progress)
@@ -43,9 +43,16 @@ Progress: Milestone v1.9.0
 | Typo detection via case+prefix | Covers most common typo patterns (case errors, partial names) | 2026-01-23 |
 | ErrorCode prefix pattern | HYPERV_/VMWARE_ prefixes for clear provider identification | 2026-01-23 |
 | Remediation as array | Multiple steps may be needed, easier to format | 2026-01-23 |
+| Transient states not final | Starting/Stopping/Saving/Restoring should not be treated as stable | 2026-01-23 |
+| VMware 5s race window | VMware process may not be detectable for 5s after StartVM | 2026-01-23 |
+| Confidence levels for VMware | High/Medium/Low based on detection method reliability | 2026-01-23 |
 
 ## Recent Activity
 
+- 2026-01-23: Executed 16-02-PLAN.md (VM State Detection Reliability) - REL-HYP-02
+- 2026-01-23: FFU.Hypervisor v1.3.6, main version v1.8.14
+- 2026-01-23: Added transient state helpers, GetVMStateStable, AllowTransient parameter
+- 2026-01-23: 27 new Pester tests for VM state detection
 - 2026-01-23: Executed 16-01-PLAN.md (Provider Detection with Remediation) - REL-HYP-01
 - 2026-01-23: FFU.Hypervisor v1.3.5, main version v1.8.13
 - 2026-01-23: Added ErrorCode and Remediation to GetAvailabilityDetails
@@ -64,9 +71,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-23
-**Stopped at:** Completed 16-01-PLAN.md
+**Stopped at:** Completed 16-02-PLAN.md
 **Resume file:** None
-**Next action:** Execute 16-02-PLAN.md (VM Lifecycle Error Handling)
+**Next action:** Execute 16-03-PLAN.md (Power State Transition Reliability)
 
 ---
 *State updated: 2026-01-23*
