@@ -149,7 +149,13 @@
             "minimum": 26843545600,
             "maximum": 2199023255552,
             "default": 32212254720,
-            "description": "Size of the virtual hard disk for the virtual machine in bytes. Range: 25GB (26843545600) to 2TB (2199023255552). Default is 30GB."
+            "description": "Size of the virtual hard disk for the virtual machine in bytes. Range: 25GB (26843545600) to 2TB (2199023255552). Default is 30GB. Common values: 30GB=32212254720, 50GB=53687091200, 100GB=107374182400, 200GB=214748364800.",
+            "x-common-values": {
+                "30GB": 32212254720,
+                "50GB": 53687091200,
+                "100GB": 107374182400,
+                "200GB": 214748364800
+            }
         },
         "DriversFolder": {
             "type": "string",
@@ -288,7 +294,13 @@
             "minimum": 2147483648,
             "maximum": 137438953472,
             "default": 4294967296,
-            "description": "Amount of memory to allocate for the virtual machine in bytes. Range: 2GB (2147483648) to 128GB (137438953472). Recommended: 8GB for Windows 11."
+            "description": "Amount of memory to allocate for the virtual machine in bytes. Range: 2GB (2147483648) to 128GB (137438953472). Recommended: 8GB for Windows 11. Common values: 4GB=4294967296, 8GB=8589934592, 16GB=17179869184, 32GB=34359738368.",
+            "x-common-values": {
+                "4GB": 4294967296,
+                "8GB": 8589934592,
+                "16GB": 17179869184,
+                "32GB": 34359738368
+            }
         },
         "Model": {
             "type": "string",
@@ -441,7 +453,8 @@
             "type": "string",
             "default": "",
             "pattern": "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
-            "description": "IP address of the Hyper-V host for FFU capture. Required if InstallApps is set to true."
+            "description": "IP address of the Hyper-V host for FFU capture. Required if InstallApps is set to true. Leave empty for auto-detection.",
+            "x-example": "192.168.1.100"
         },
         "ShowVMConsole": {
             "type": "boolean",
@@ -556,13 +569,14 @@
                 "Datacenter (Desktop Experience)"
             ],
             "default": "Pro",
-            "description": "Edition of Windows to install. Client SKUs (Home, Pro, Education, Enterprise) for Windows 10/11; Server SKUs and LTSC for server releases."
+            "description": "Edition of Windows to install. Client SKUs (Home, Pro, Education, Enterprise) for Windows 10/11; Server SKUs and LTSC for server releases. Common choices: 'Pro' (recommended for business), 'Enterprise' (volume licensing), 'Home' (consumer)."
         },
         "WindowsVersion": {
             "type": "string",
             "default": "24h2",
             "pattern": "^(\\d{4}|[12][0-9][hH][12]|LTSC|ltsc)$",
-            "description": "Windows version to download (e.g., '21H2', '22H2', '23H2', '24H2', '25H2', 'LTSC')."
+            "description": "Windows version to download (e.g., '21H2', '22H2', '23H2', '24H2', '25H2', 'LTSC'). Use 'LTSC' for Long-Term Servicing Channel releases.",
+            "x-example": "24H2"
         },
         "AppsPath": {
             "type": "string",
