@@ -4041,6 +4041,9 @@ Export-ModuleMember -Function @(
     'Remove-InProgressItems'
     'Clear-CurrentRunDownloads'         # v1.0.11: Renamed from Cleanup-CurrentRunDownloads (approved verb)
     'Restore-RunJsonBackups'
+    # Session recovery (v1.0.20 - REL-CORE-03)
+    'Restore-FFUSession'
+    'Test-FFUSessionExists'
     # Error handling (v1.0.5)
     'Invoke-WithErrorHandling'
     'Test-ExternalCommandSuccess'
@@ -4065,6 +4068,8 @@ Export-ModuleMember -Function @(
     'ConvertFrom-SecureStringToPlainText'
     'Clear-PlainTextPassword'
     'Remove-SecureStringFromMemory'
+    # Credential validation (v1.0.20 - REL-CORE-04)
+    'Test-FFUCredentials'
     # Configuration schema validation (v1.0.10)
     'Test-FFUConfiguration'
     'Get-FFUConfigurationSchema'
@@ -4084,3 +4089,4 @@ Export-ModuleMember -Alias @(
     'Mark-DownloadInProgress'           # Deprecated: Use Set-DownloadInProgress
     'Cleanup-CurrentRunDownloads'       # Deprecated: Use Clear-CurrentRunDownloads
 )
+# Module updated: 2026-01-23 13:36:13

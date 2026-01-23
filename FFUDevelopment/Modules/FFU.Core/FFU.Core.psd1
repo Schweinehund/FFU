@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.19'
+    ModuleVersion = '1.0.20'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -56,6 +56,9 @@
         'Remove-InProgressItems',
         'Clear-CurrentRunDownloads',    # v1.0.11: Renamed from Cleanup-CurrentRunDownloads (approved verb)
         'Restore-RunJsonBackups',
+        # Session recovery (v1.0.20 - REL-CORE-03)
+        'Restore-FFUSession',
+        'Test-FFUSessionExists',
         # Error handling (v1.0.5)
         'Invoke-WithErrorHandling',
         'Test-ExternalCommandSuccess',
@@ -82,6 +85,8 @@
         'ConvertFrom-SecureStringToPlainText',
         'Clear-PlainTextPassword',
         'Remove-SecureStringFromMemory',
+        # Credential validation (v1.0.20 - REL-CORE-04)
+        'Test-FFUCredentials',
         # Configuration schema validation (v1.0.10)
         'Test-FFUConfiguration',
         'Get-FFUConfigurationSchema',
@@ -121,7 +126,17 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.19
+# Release Notes - FFU.Core v1.0.20
+
+## v1.0.20 - Session Recovery and Credential Validation (REL-CORE-03, REL-CORE-04)
+- Added Restore-FFUSession: Recovers build session after unexpected interruption
+- Added Test-FFUSessionExists: Checks for existing session requiring recovery
+- Added Test-FFUCredentials: Validates credentials with actionable error messages
+- Session recovery reads manifest and handles corrupted files gracefully
+- Credential errors include specific remediation steps for each error type
+- Handles: invalid creds, expired, locked, access denied, network errors
+- Uses .NET ADSI for ThreadJob-safe local account validation
+- 47 total functions now exported
 
 ## v1.0.19 - Error Handling Reliability (REL-CORE-01)
 - Enhanced error handling in 12 functions with specific exception types
