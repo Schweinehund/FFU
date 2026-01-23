@@ -25,6 +25,12 @@
     so we need a small sleep to allow PowerShell to process events.
     Default is 500ms. This is NOT polling the VM - just allowing event processing.
 
+.PARAMETER AllowTransient
+    If false (default), continues waiting if VM is in a transient state (Starting, Stopping,
+    Saving, Restoring) even if it matches the target. For example, if waiting for 'Off' and
+    VM is in 'Stopping', will keep waiting until VM reaches 'Off'.
+    If true, treats transient states as arrival at target if they match.
+
 .OUTPUTS
     [bool] True if target state reached, False if timeout exceeded.
 
@@ -49,7 +55,9 @@ function Wait-VMStateChange {
 
         [int]$TimeoutSeconds = 3600,
 
-        [int]$PollFallbackMs = 500
+        [int]$PollFallbackMs = 500,
+
+        [switch]$AllowTransient = $false
     )
 
     # Map state names to EnabledState values
@@ -61,6 +69,16 @@ function Wait-VMStateChange {
         'Saved'   = 32769  # Suspended
     }
     $targetStateValue = $stateMap[$TargetState]
+
+    # Transient states that should NOT be considered as "arrived at target" unless AllowTransient is set
+    # These are states where the VM is transitioning and will reach a stable state shortly
+    $transientStates = @('Starting', 'Stopping', 'Saving', 'Restoring')
+
+    # Helper to check if current state is transient
+    $isTransientState = {
+        param([string]$stateName)
+        return $stateName -in $transientStates
+    }
 
     # Check current state first - may already be at target
     $currentVM = Get-VM -Name $VMName -ErrorAction SilentlyContinue
@@ -134,13 +152,29 @@ AND TargetInstance.ElementName = '$VMName'
             # (defense in depth - events can occasionally be dropped)
             $checkVM = Get-VM -Name $VMName -ErrorAction SilentlyContinue
             if ($checkVM) {
-                $checkState = switch ($checkVM.State) {
+                $currentStateName = $checkVM.State.ToString()
+                $checkState = switch ($currentStateName) {
                     'Running' { 2 }
                     'Off' { 3 }
                     'Paused' { 32768 }
                     'Saved' { 32769 }
                     default { 0 }
                 }
+
+                # Check if we're in a transient state
+                $inTransient = & $isTransientState $currentStateName
+
+                if ($inTransient) {
+                    # Log transient state for visibility
+                    Write-Verbose "VM '$VMName' transitioning through '$currentStateName' toward '$TargetState'"
+
+                    if (-not $AllowTransient) {
+                        # Don't consider this as "arrived" - keep waiting
+                        # The transient state will resolve to a stable state
+                        continue
+                    }
+                }
+
                 if ($checkState -eq $targetStateValue) {
                     $script:VMStateReached = $true
                 }

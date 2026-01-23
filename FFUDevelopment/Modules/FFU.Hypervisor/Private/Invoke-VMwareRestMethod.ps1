@@ -270,17 +270,35 @@ function Wait-VMwareVMStart {
 .PARAMETER VMXPath
     Full path to the VM's .vmx file
 
+.PARAMETER Detailed
+    If specified, returns a hashtable with State, Confidence, and Method instead of just a string.
+    Confidence levels: 'High', 'Medium', 'Low'
+    - High: vmware-vmx process detected (definitive)
+    - Medium: vmrun list or nvram lock confirmed
+    - Low: No detection method confirmed (assumed off)
+
 .OUTPUTS
-    String: 'poweredon', 'poweredoff', or 'unknown'
+    String: 'poweredon', 'poweredoff', or 'unknown' (default)
+    Hashtable with State/Confidence/Method (when -Detailed is specified)
 #>
 function Get-VMwarePowerStateWithVmrun {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$VMXPath
+        [string]$VMXPath,
+
+        [switch]$Detailed
     )
 
     WriteLog "Checking VM power state for: $VMXPath"
+
+    # Track detection result for detailed output
+    $detectionResult = @{
+        State = 'unknown'
+        Confidence = 'Low'
+        Method = 'none'
+        IsTransient = $false  # VMware doesn't have transient states, but included for API consistency
+    }
 
     try {
         $vmFolder = [System.IO.Path]::GetDirectoryName($VMXPath)
@@ -294,6 +312,10 @@ function Get-VMwarePowerStateWithVmrun {
         $processCheck = Test-VMwareVMXProcess -VMXPath $VMXPath
         if ($processCheck.Running) {
             WriteLog "VM is RUNNING (vmware-vmx process detected, PID: $($processCheck.ProcessId))"
+            $detectionResult.State = 'poweredon'
+            $detectionResult.Confidence = 'High'
+            $detectionResult.Method = 'process'
+            if ($Detailed) { return $detectionResult }
             return 'poweredon'
         }
         WriteLog "  No vmware-vmx process found for this VM"
@@ -328,6 +350,10 @@ function Get-VMwarePowerStateWithVmrun {
                     $normalizedLine = $line.ToLower().Replace('/', '\')
                     if ($normalizedLine -eq $normalizedTarget) {
                         WriteLog "VM is RUNNING (found in vmrun list)"
+                        $detectionResult.State = 'poweredon'
+                        $detectionResult.Confidence = 'Medium'
+                        $detectionResult.Method = 'vmrun'
+                        if ($Detailed) { return $detectionResult }
                         return 'poweredon'
                     }
                 }
@@ -352,12 +378,20 @@ function Get-VMwarePowerStateWithVmrun {
                 $fs = [System.IO.File]::Open($nvramPath, 'Open', 'Read', 'None')
                 $fs.Close()
                 WriteLog "nvram file is NOT locked - VM is OFF (file accessible)"
+                $detectionResult.State = 'poweredoff'
+                $detectionResult.Confidence = 'Medium'
+                $detectionResult.Method = 'nvram'
+                if ($Detailed) { return $detectionResult }
                 return 'poweredoff'
             }
             catch {
                 if ($_.Exception.InnerException -is [System.IO.IOException] -or
                     $_.Exception.Message -match 'being used by another process') {
                     WriteLog "VM is RUNNING based on locked nvram file"
+                    $detectionResult.State = 'poweredon'
+                    $detectionResult.Confidence = 'Medium'
+                    $detectionResult.Method = 'nvram'
+                    if ($Detailed) { return $detectionResult }
                     return 'poweredon'
                 }
                 # Other error - continue to next check
@@ -368,12 +402,20 @@ function Get-VMwarePowerStateWithVmrun {
             WriteLog "Method 3: Skipped (nvram file does not exist - normal for VMware 25.0.0+)"
         }
 
-        # All methods exhausted - VM is OFF
+        # All methods exhausted - VM is OFF (low confidence since no method confirmed)
         WriteLog "VM is OFF (all 3 detection methods indicate VM is not running)"
+        $detectionResult.State = 'poweredoff'
+        $detectionResult.Confidence = 'Low'
+        $detectionResult.Method = 'exhausted'
+        if ($Detailed) { return $detectionResult }
         return 'poweredoff'
     }
     catch {
         WriteLog "WARNING: Error checking VM state with vmrun: $($_.Exception.Message)"
+        $detectionResult.State = 'unknown'
+        $detectionResult.Confidence = 'Low'
+        $detectionResult.Method = 'error'
+        if ($Detailed) { return $detectionResult }
         return 'unknown'
     }
 }
