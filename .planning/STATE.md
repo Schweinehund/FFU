@@ -11,21 +11,20 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 15 of 25 (FFU.Core Reliability)
-**Plan:** 1 of 4 complete
-**Status:** In progress
-**Last activity:** 2026-01-23 — Executed 15-01-PLAN.md (Error Handling Enhancement)
+**Plan:** 3 of 3 complete
+**Status:** Phase complete
+**Last activity:** 2026-01-23 — Executed 15-03-PLAN.md (Session Recovery and Credential Validation)
 
 Progress: Phase 15
-[#---------] 25% (1/4 plans)
+[##########] 100% (3/3 plans)
 
 ## Completed Plans This Phase
 
 | Plan | Name | Status | Date | Commits |
 |------|------|--------|------|---------|
 | 15-01 | Error Handling Enhancement | Complete | 2026-01-23 | 5d0da52, b9fe5b3, 839f29c |
-| 15-02 | Actionable Config Errors | Not started | — | — |
-| 15-03 | Config Migration/Upgrade | Not started | — | — |
-| 15-04 | Automated Recovery | Not started | — | — |
+| 15-02 | Pre-flight Validation Improvements | Complete | 2026-01-23 | (see 15-02-SUMMARY) |
+| 15-03 | Session Recovery & Credential Validation | Complete | 2026-01-23 | 334efe5, ae9c09a |
 
 ## Completed Milestones
 
@@ -47,6 +46,10 @@ Progress: Phase 15
 
 ## Recent Activity
 
+- 2026-01-23: Executed 15-03-PLAN.md (Session Recovery & Credential Validation) - Phase 15 complete
+- 2026-01-23: FFU.Core v1.0.20 (47 functions)
+- 2026-01-23: Added Restore-FFUSession, Test-FFUSessionExists, Test-FFUCredentials
+- 2026-01-23: Executed 15-02-PLAN.md (Pre-flight Validation Improvements)
 - 2026-01-23: Executed 15-01-PLAN.md (Error Handling Enhancement) - 47/53 tests passing (6 skipped)
 - 2026-01-23: FFU.Core v1.0.19, main version v1.8.12
 - 2026-01-23: Roadmap created (11 phases, 44 requirements)
@@ -61,9 +64,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-23
-**Stopped at:** Completed 15-01-PLAN.md
+**Stopped at:** Completed 15-03-PLAN.md (Phase 15 complete)
 **Resume file:** None
-**Next action:** `/gsd:execute-plan 15-02` to continue Phase 15
+**Next action:** `/gsd:execute-phase 16` to start Phase 16 (FFU.Common Reliability)
 
 ---
 *State updated: 2026-01-23*
