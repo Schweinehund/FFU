@@ -84,10 +84,10 @@ Systematic reliability audit of all modules and scripts to bulletproof the FFU b
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REL-CORE-01 | Phase 15 | Pending |
-| REL-CORE-02 | Phase 15 | Pending |
-| REL-CORE-03 | Phase 15 | Pending |
-| REL-CORE-04 | Phase 15 | Pending |
+| REL-CORE-01 | Phase 15 | Complete |
+| REL-CORE-02 | Phase 15 | Complete |
+| REL-CORE-03 | Phase 15 | Complete |
+| REL-CORE-04 | Phase 15 | Complete |
 | REL-HYP-01 | Phase 16 | Pending |
 | REL-HYP-02 | Phase 16 | Pending |
 | REL-HYP-03 | Phase 16 | Pending |

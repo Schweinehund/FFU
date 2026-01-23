@@ -5,26 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 15 — FFU.Core Reliability
+**Current focus:** Phase 16 — FFU.Hypervisor Reliability
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 15 of 25 (FFU.Core Reliability)
-**Plan:** 3 of 3 complete
-**Status:** Phase complete
-**Last activity:** 2026-01-23 — Executed 15-03-PLAN.md (Session Recovery and Credential Validation)
+**Phase:** 16 of 25 (FFU.Hypervisor Reliability)
+**Plan:** Not started
+**Status:** Ready to plan
+**Last activity:** 2026-01-23 — Phase 15 complete (verified)
 
-Progress: Phase 15
-[##########] 100% (3/3 plans)
+Progress: Milestone v1.9.0
+[#---------] 9% (1/11 phases)
 
-## Completed Plans This Phase
+## Completed Phases This Milestone
 
-| Plan | Name | Status | Date | Commits |
-|------|------|--------|------|---------|
-| 15-01 | Error Handling Enhancement | Complete | 2026-01-23 | 5d0da52, b9fe5b3, 839f29c |
-| 15-02 | Pre-flight Validation Improvements | Complete | 2026-01-23 | (see 15-02-SUMMARY) |
-| 15-03 | Session Recovery & Credential Validation | Complete | 2026-01-23 | 334efe5, ae9c09a |
+| Phase | Name | Plans | Date |
+|-------|------|-------|------|
+| 15 | FFU.Core Reliability | 3/3 | 2026-01-23 |
 
 ## Completed Milestones
 
@@ -64,9 +62,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-23
-**Stopped at:** Completed 15-03-PLAN.md (Phase 15 complete)
+**Stopped at:** Phase 15 verified and complete
 **Resume file:** None
-**Next action:** `/gsd:execute-phase 16` to start Phase 16 (FFU.Common Reliability)
+**Next action:** `/gsd:plan-phase 16` to plan FFU.Hypervisor Reliability
 
 ---
 *State updated: 2026-01-23*

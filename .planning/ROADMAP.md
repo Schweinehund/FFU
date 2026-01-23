@@ -15,7 +15,7 @@
 
 ### v1.9.0 Reliability Hardening
 
-- [ ] **Phase 15: FFU.Core Reliability** - Error handling, configuration, session tracking
+- [x] **Phase 15: FFU.Core Reliability** - Error handling, configuration, session tracking ✓
 - [ ] **Phase 16: FFU.Hypervisor Reliability** - Provider detection, state handling, service recovery
 - [ ] **Phase 17: FFU.VM Reliability** - VM lifecycle, cleanup, retry logic
 - [ ] **Phase 18: FFU.Imaging Reliability** - Disk operations, partitions, mount/dismount
@@ -41,9 +41,9 @@
 **Research**: Unlikely (familiar module, established patterns)
 **Plans:** 3 plans
 Plans:
-- [ ] 15-01-PLAN.md - Error handling hardening (REL-CORE-01)
-- [ ] 15-02-PLAN.md - Actionable configuration errors (REL-CORE-02)
-- [ ] 15-03-PLAN.md - Session recovery and credential validation (REL-CORE-03, REL-CORE-04)
+- [x] 15-01-PLAN.md - Error handling hardening (REL-CORE-01) ✓
+- [x] 15-02-PLAN.md - Actionable configuration errors (REL-CORE-02) ✓
+- [x] 15-03-PLAN.md - Session recovery and credential validation (REL-CORE-03, REL-CORE-04) ✓
 
 ### Phase 16: FFU.Hypervisor Reliability
 **Goal**: Make hypervisor abstraction layer resilient to missing providers, state transitions, and service issues
@@ -174,7 +174,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 15. FFU.Core Reliability | 0/3 | Planned | - |
+| 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
 | 16. FFU.Hypervisor Reliability | 0/TBD | Not started | - |
 | 17. FFU.VM Reliability | 0/TBD | Not started | - |
 | 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
