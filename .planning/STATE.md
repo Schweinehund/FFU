@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.9.0 Reliability Hardening — Not started
+**Current focus:** Phase 15 — FFU.Core Reliability
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** Not started (run /gsd:create-roadmap)
-**Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-01-23 — Milestone v1.9.0 started
+**Phase:** 15 of 25 (FFU.Core Reliability)
+**Plan:** Not started
+**Status:** Ready to plan
+**Last activity:** 2026-01-23 — Roadmap created (11 phases, 44 requirements)
 
-Progress: Milestone initialized
+Progress: Roadmap created
 [----------] 0%
 
 ## Completed Milestones
@@ -32,13 +32,14 @@ Progress: Milestone initialized
 |----------|---------|------|
 | Phase-per-module structure | Systematic coverage ensures nothing missed | 2026-01-23 |
 | Proactive hardening approach | No specific failures driving this - comprehensive improvement | 2026-01-23 |
+| 44 specific requirements | Concrete, testable requirements derived from audit scope | 2026-01-23 |
 
 ## Recent Activity
 
+- 2026-01-23: Roadmap created (11 phases, 44 requirements)
+- 2026-01-23: REQUIREMENTS.md created with REL-* requirements
 - 2026-01-23: Milestone v1.9.0 Reliability Hardening started
 - 2026-01-21: v1.8.3 shipped (VMware UI Settings complete)
-- 2026-01-21: Completed Phase 14 (14-01, 14-02 plans)
-- 2026-01-20: v1.8.1 shipped (Jira epics closed: RTS-82, RTS-97, RTS-99)
 
 ## Blockers
 
@@ -47,9 +48,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-23
-**Stopped at:** Milestone initialized
+**Stopped at:** Roadmap created
 **Resume file:** None
-**Next action:** `/gsd:create-roadmap` to create phase structure for reliability audit
+**Next action:** `/gsd:plan-phase 15` to plan FFU.Core Reliability
 
 ---
 *State updated: 2026-01-23*
