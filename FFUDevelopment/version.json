@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.11",
-    "buildDate": "2026-01-22",
+    "version": "1.8.12",
+    "buildDate": "2026-01-23",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -29,9 +29,9 @@
             "description": "WPF UI framework with FFU file lock wait setting, VMware network settings, ShowVMConsole default true"
         },
         "FFU.Core": {
-            "version": "1.0.18",
+            "version": "1.0.19",
             "path": "Modules/FFU.Core/FFU.Core.psd1",
-            "description": "Core configuration, session tracking, credential security, schema validation, PowerShell best practices, WIM mount error handling, background job compatible output, build cancellation helper, ThreadJob safe logging ($function: instead of Get-Command)"
+            "description": "Core configuration, session tracking, credential security, schema validation, PowerShell best practices, WIM mount error handling, background job compatible output, build cancellation helper, ThreadJob safe logging, error handling reliability (REL-CORE-01)"
         },
         "FFU.Constants": {
             "version": "1.1.2",

@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.18'
+    ModuleVersion = '1.0.19'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -121,7 +121,28 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.17
+# Release Notes - FFU.Core v1.0.19
+
+## v1.0.19 - Error Handling Reliability (REL-CORE-01)
+- Enhanced error handling in 12 functions with specific exception types
+- Get-Parameters: Added null input handling, InvalidOperationException
+- Write-VariableValues: Added scope error handling with nested try/catch
+- Get-ChildProcesses: Added CimException handling for WMI queries, ValidateRange
+- Test-Url: Added WebException, UriFormatException with contextual logging
+- Get-PrivateProfileString/Section: Added P/Invoke exception handling, file validation
+- New-FFUFileName: Added ArgumentException for parameter validation
+- Export-ConfigFile: Added IOException, JsonException handling, directory creation
+- Get-CurrentRunManifest: Added IOException for locked files, JSON parse errors
+- Save-RunManifest: Added IOException handling, directory auto-creation
+- Set/Clear-DownloadInProgress: Added IOException with best-effort pattern
+- All functions use consistent pattern: specific exceptions, contextual messages, safe logging
+- Added documentation (.NOTES) to enhanced functions
+- 44 total functions exported (unchanged)
+
+## v1.0.18 - ThreadJob Safe Logging Extensions
+- Extended InvokeCommand.GetCommand pattern for hyphenated function names
+- Test-BuildCancellation uses safe command availability checks
+- Works correctly in ThreadJob contexts where $function: drive fails for hyphenated names
 
 ## v1.0.17 - ThreadJob Safe Logging
 - FIX: Get-ShortenedWindowsSKU uses safe logging pattern for ThreadJob compatibility

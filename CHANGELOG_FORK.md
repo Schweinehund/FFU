@@ -8,6 +8,38 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.8.12] - 2026-01-23
+
+### Enhancements
+- **FFU.Core Error Handling Reliability (REL-CORE-01)** (MODULE)
+  - **Objective:** Harden error handling across all FFU.Core functions for improved debuggability
+  - **Scope:** Enhanced 12 functions with specific exception types and contextual error messages
+  - **Changes:**
+    - `Get-Parameters`: Added null input handling, returns empty array for null
+    - `Write-VariableValues`: Added scope error handling with nested try/catch
+    - `Get-ChildProcesses`: Added CimException handling, ValidateRange for ParentId
+    - `Test-Url`: Added WebException, UriFormatException with URL validation
+    - `Get-PrivateProfileString/Section`: Added P/Invoke exception handling, file existence validation
+    - `New-FFUFileName`: Added ArgumentException for empty template/version/SKU
+    - `Export-ConfigFile`: Added IOException, JsonException handling, auto directory creation
+    - `Get-CurrentRunManifest`: Added IOException for locked files, JSON parse error handling
+    - `Save-RunManifest`: Added IOException handling with directory auto-creation
+    - `Set/Clear-DownloadInProgress`: Added IOException with best-effort pattern
+  - **Pattern Consistency:**
+    - All functions use try/catch with specific exception types
+    - Error messages include operation context (file paths, parameters)
+    - Safe logging pattern ($function:WriteLog or Write-Verbose fallback)
+    - ThreadJob compatible (no Write-Host, Write-Warning without fallback)
+  - **Files Modified:**
+    - `FFUDevelopment/Modules/FFU.Core/FFU.Core.psm1` - 12 functions enhanced
+    - `FFUDevelopment/Modules/FFU.Core/FFU.Core.psd1` - Version 1.0.19, release notes
+    - `FFUDevelopment/version.json` - Main version 1.8.12, FFU.Core 1.0.19
+  - **Files Created:**
+    - `Tests/Unit/FFU.Core.ErrorHandling.Tests.ps1` - 53 tests, 47 pass, 6 skip (external deps)
+  - **Test Coverage:** 53 tests verifying error handling patterns
+
+---
+
 ## [1.6.3] - 2026-01-08
 
 ### Bug Fixes
