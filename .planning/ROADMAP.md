@@ -55,7 +55,12 @@ Plans:
   3. Switching between providers doesn't corrupt config or leave orphaned VMs
   4. Hyper-V/VMware service restart during build triggers automatic retry
 **Research**: Unlikely (established provider pattern)
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 16-01-PLAN.md - Provider detection with actionable guidance (REL-HYP-01)
+- [ ] 16-02-PLAN.md - Transient VM state handling (REL-HYP-02)
+- [ ] 16-03-PLAN.md - Provider switching validation (REL-HYP-03)
+- [ ] 16-04-PLAN.md - Service recovery and automatic retry (REL-HYP-04)
 
 ### Phase 17: FFU.VM Reliability
 **Goal**: Make VM operations robust against failures at any point with automatic cleanup and retry
@@ -175,7 +180,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
-| 16. FFU.Hypervisor Reliability | 0/TBD | Not started | - |
+| 16. FFU.Hypervisor Reliability | 0/4 | Planned | - |
 | 17. FFU.VM Reliability | 0/TBD | Not started | - |
 | 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
 | 19. FFU.Media Reliability | 0/TBD | Not started | - |
