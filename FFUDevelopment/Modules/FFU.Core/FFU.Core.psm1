@@ -18,17 +18,48 @@
 using module ..\FFU.Constants\FFU.Constants.psm1
 
 function Get-Parameters {
+    <#
+    .SYNOPSIS
+    Filters out common PowerShell parameters from a parameter list.
+
+    .DESCRIPTION
+    Removes standard PowerShell common parameters (Debug, Verbose, etc.) from
+    a list of parameter names, returning only the custom parameters.
+
+    .PARAMETER ParamNames
+    Array of parameter names to filter.
+
+    .OUTPUTS
+    [string[]] Filtered array of parameter names.
+
+    .NOTES
+    Enhanced with error handling in v1.0.19 (REL-CORE-01).
+    #>
     [CmdletBinding()]
+    [OutputType([string[]])]
     param (
         [Parameter()]
         $ParamNames
     )
-    # Define unwanted parameters
-    $excludedParams = 'Debug', 'ErrorAction', 'ErrorVariable', 'InformationAction', 'InformationVariable', 'OutBuffer', 'OutVariable', 'PipelineVariable', 'Verbose', 'WarningAction', 'WarningVariable', 'ProgressAction'
 
-    # Filter out the unwanted parameters
-    $filteredParamNames = $paramNames | Where-Object { $excludedParams -notcontains $_ }
-    $filteredParamNames
+    try {
+        # Return empty array if null input
+        if ($null -eq $ParamNames) {
+            return @()
+        }
+
+        # Define unwanted parameters
+        $excludedParams = 'Debug', 'ErrorAction', 'ErrorVariable', 'InformationAction', 'InformationVariable', 'OutBuffer', 'OutVariable', 'PipelineVariable', 'Verbose', 'WarningAction', 'WarningVariable', 'ProgressAction'
+
+        # Filter out the unwanted parameters
+        $filteredParamNames = $paramNames | Where-Object { $excludedParams -notcontains $_ }
+        $filteredParamNames
+    }
+    catch {
+        $errorContext = "Failed to filter parameter names: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.InvalidOperationException]::new($errorContext, $_.Exception)
+    }
 }
 
 function Write-VariableValues {
@@ -89,96 +120,286 @@ function Write-VariableValues {
         'true'
     )
 
-    $allVariables = Get-Variable -Scope Script | Where-Object { $_.Name -notin $excludedVariables }
-    Writelog "Script version: $version"
-    WriteLog 'Logging variables'
-    foreach ($variable in $allVariables) {
-        $variableName = $variable.Name
-        $variableValue = $variable.Value
-        if ($null -ne $variableValue) {
-            WriteLog "[VAR]$variableName`: $variableValue"
+    try {
+        $allVariables = Get-Variable -Scope Script -ErrorAction Stop | Where-Object { $_.Name -notin $excludedVariables }
+        Writelog "Script version: $version"
+        WriteLog 'Logging variables'
+        foreach ($variable in $allVariables) {
+            try {
+                $variableName = $variable.Name
+                $variableValue = $variable.Value
+                if ($null -ne $variableValue) {
+                    WriteLog "[VAR]$variableName`: $variableValue"
+                }
+                else {
+                    WriteLog "[VAR]Variable $variableName not found or not set"
+                }
+            }
+            catch {
+                WriteLog "[VAR]ERROR reading variable $($variable.Name): $($_.Exception.Message)"
+            }
         }
-        else {
-            WriteLog "[VAR]Variable $variableName not found or not set"
-        }
+        WriteLog 'End logging variables'
     }
-    WriteLog 'End logging variables'
+    catch [System.Management.Automation.PSInvalidOperationException] {
+        $errorContext = "Failed to enumerate script-scope variables: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.InvalidOperationException]::new($errorContext, $_.Exception)
+    }
+    catch {
+        $errorContext = "Unexpected error in Write-VariableValues: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
 }
 
 function Get-ChildProcesses {
+    <#
+    .SYNOPSIS
+    Recursively finds all child processes of a parent process.
+
+    .DESCRIPTION
+    Uses CIM/WMI to query Win32_Process for child processes and recursively
+    builds a complete tree of descendant processes.
+
+    .PARAMETER ParentId
+    Process ID of the parent process.
+
+    .OUTPUTS
+    [CimInstance[]] Array of CIM process instances.
+
+    .NOTES
+    Enhanced with CIM exception handling in v1.0.19 (REL-CORE-01).
+    #>
     [CmdletBinding()]
     [OutputType([CimInstance[]])]
     param(
         [Parameter(Mandatory = $true)]
+        [ValidateRange(0, [int]::MaxValue)]
         [int]$ParentId
     )
-    $result = @()
-    $children = Get-CimInstance -ClassName Win32_Process -Filter "ParentProcessId = $ParentId"
-    foreach ($child in $children) {
-        $result += $child
-        $result += Get-ChildProcesses -ParentId $child.ProcessId
+
+    try {
+        $result = @()
+        $children = Get-CimInstance -ClassName Win32_Process -Filter "ParentProcessId = $ParentId" -ErrorAction Stop
+        foreach ($child in $children) {
+            $result += $child
+            $result += Get-ChildProcesses -ParentId $child.ProcessId
+        }
+        $result
     }
-    $result
+    catch [Microsoft.Management.Infrastructure.CimException] {
+        $errorContext = "CIM query failed for parent process ID $ParentId`: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [Microsoft.Management.Infrastructure.CimException]::new($errorContext, $_.Exception)
+    }
+    catch {
+        $errorContext = "Failed to get child processes for parent ID $ParentId`: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
 }
 
 function Test-Url {
+    <#
+    .SYNOPSIS
+    Tests if a URL is reachable using a HEAD request.
+
+    .DESCRIPTION
+    Sends an HTTP HEAD request to verify URL accessibility. Returns $true if
+    the URL responds, $false otherwise. Does not throw on network errors.
+
+    .PARAMETER Url
+    The URL to test.
+
+    .OUTPUTS
+    [bool] True if URL is reachable, False otherwise.
+
+    .NOTES
+    Enhanced with contextual error logging in v1.0.19 (REL-CORE-01).
+    #>
     [CmdletBinding()]
     [OutputType([bool])]
     param (
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$Url
     )
+
     try {
+        # Validate URL format
+        if (-not [Uri]::IsWellFormedUriString($Url, [UriKind]::Absolute)) {
+            if ($function:WriteLog) { WriteLog "WARNING: Invalid URL format: $Url" }
+            return $false
+        }
+
         # Create a web request and check the response
         $request = [System.Net.WebRequest]::Create($Url)
         $request.Method = 'HEAD'
+        $request.Timeout = 30000  # 30 second timeout
         $response = $request.GetResponse()
+        $response.Close()
         $true
     }
+    catch [System.Net.WebException] {
+        # Network or HTTP error - log but return false (expected behavior)
+        if ($function:WriteLog) {
+            WriteLog "WARNING: URL test failed for '$Url': $($_.Exception.Message)"
+        }
+        else {
+            Write-Verbose "WARNING: URL test failed for '$Url': $($_.Exception.Message)"
+        }
+        $false
+    }
+    catch [System.UriFormatException] {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Invalid URL format '$Url': $($_.Exception.Message)"
+        }
+        $false
+    }
     catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Unexpected error testing URL '$Url': $($_.Exception.Message)"
+        }
         $false
     }
 }
 
 function Get-PrivateProfileString {
+    <#
+    .SYNOPSIS
+    Reads a string value from a Windows INI file.
+
+    .DESCRIPTION
+    Uses Win32 API GetPrivateProfileString to read values from INI files.
+    Returns empty string if key not found.
+
+    .PARAMETER FileName
+    Path to the INI file.
+
+    .PARAMETER SectionName
+    Name of the section in the INI file.
+
+    .PARAMETER KeyName
+    Name of the key to read.
+
+    .OUTPUTS
+    [string] The value from the INI file.
+
+    .NOTES
+    Enhanced with P/Invoke exception handling in v1.0.19 (REL-CORE-01).
+    #>
     [CmdletBinding()]
     [OutputType([string])]
     param (
-        [Parameter()]
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$FileName,
-        [Parameter()]
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$SectionName,
-        [Parameter()]
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$KeyName
     )
-    $sbuilder = [System.Text.StringBuilder]::new(1024)
-    [void][Win32.Kernel32]::GetPrivateProfileString($SectionName, $KeyName, "", $sbuilder, $sbuilder.Capacity, $FileName)
 
-    $sbuilder.ToString()
+    try {
+        # Verify file exists
+        if (-not (Test-Path -Path $FileName -PathType Leaf)) {
+            $errorContext = "INI file not found: $FileName"
+            if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+            return [string]::Empty
+        }
+
+        $sbuilder = [System.Text.StringBuilder]::new(1024)
+        [void][Win32.Kernel32]::GetPrivateProfileString($SectionName, $KeyName, "", $sbuilder, $sbuilder.Capacity, $FileName)
+
+        $sbuilder.ToString()
+    }
+    catch [System.Runtime.InteropServices.COMException] {
+        $errorContext = "P/Invoke error reading INI file '$FileName' section '$SectionName' key '$KeyName': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.Runtime.InteropServices.COMException]::new($errorContext, $_.Exception)
+    }
+    catch {
+        $errorContext = "Failed to read INI value from '$FileName' section [$SectionName] key '$KeyName' - $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
 }
 
 function Get-PrivateProfileSection {
+    <#
+    .SYNOPSIS
+    Reads all key-value pairs from a section in a Windows INI file.
+
+    .DESCRIPTION
+    Uses Win32 API GetPrivateProfileSection to read an entire section
+    from an INI file. Returns a hashtable of key-value pairs.
+
+    .PARAMETER FileName
+    Path to the INI file.
+
+    .PARAMETER SectionName
+    Name of the section to read.
+
+    .OUTPUTS
+    [hashtable] All key-value pairs from the section.
+
+    .NOTES
+    Enhanced with P/Invoke exception handling in v1.0.19 (REL-CORE-01).
+    #>
     [CmdletBinding()]
     [OutputType([hashtable])]
     param (
-        [Parameter()]
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$FileName,
-        [Parameter()]
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$SectionName
     )
-    $buffer = [byte[]]::new(16384)
-    [void][Win32.Kernel32]::GetPrivateProfileSection($SectionName, $buffer, $buffer.Length, $FileName)
-    $keyValues = [System.Text.Encoding]::Unicode.GetString($buffer).TrimEnd("`0").Split("`0")
-    $hashTable = @{}
 
-    foreach ($keyValue in $keyValues) {
-        if (![string]::IsNullOrEmpty($keyValue)) {
-            $parts = $keyValue -split "="
-            $hashTable[$parts[0]] = $parts[1]
+    try {
+        # Verify file exists
+        if (-not (Test-Path -Path $FileName -PathType Leaf)) {
+            $errorContext = "INI file not found: $FileName"
+            if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+            return @{}
         }
-    }
 
-    $hashTable
+        $buffer = [byte[]]::new(16384)
+        [void][Win32.Kernel32]::GetPrivateProfileSection($SectionName, $buffer, $buffer.Length, $FileName)
+        $keyValues = [System.Text.Encoding]::Unicode.GetString($buffer).TrimEnd("`0").Split("`0")
+        $hashTable = @{}
+
+        foreach ($keyValue in $keyValues) {
+            if (![string]::IsNullOrEmpty($keyValue)) {
+                $parts = $keyValue -split "=", 2  # Limit split to handle values containing '='
+                if ($parts.Length -ge 2) {
+                    $hashTable[$parts[0]] = $parts[1]
+                }
+                elseif ($parts.Length -eq 1) {
+                    $hashTable[$parts[0]] = [string]::Empty
+                }
+            }
+        }
+
+        $hashTable
+    }
+    catch [System.Runtime.InteropServices.COMException] {
+        $errorContext = "P/Invoke error reading INI section '$SectionName' from '$FileName': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.Runtime.InteropServices.COMException]::new($errorContext, $_.Exception)
+    }
+    catch {
+        $errorContext = "Failed to read INI section '$SectionName' from '$FileName': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
 }
 
 function Get-ShortenedWindowsSKU {
@@ -337,40 +558,67 @@ function New-FFUFileName {
         [string]$shortenedWindowsSKU
     )
 
-    # $Winverinfo.name will be either Win10 or Win11 for client OSes
-    # Since WindowsRelease now includes dates, it breaks default name template in the config file
-    # This should keep in line with the naming that's done via VM Captures
-    if ($installationType -eq 'Client' -and $winverinfo) {
-        $WindowsRelease = $winverinfo.name
-    }
+    try {
+        # Validate required parameters have useful values
+        if ([string]::IsNullOrWhiteSpace($CustomFFUNameTemplate)) {
+            throw [System.ArgumentException]::new("CustomFFUNameTemplate cannot be null or empty", "CustomFFUNameTemplate")
+        }
 
-    $BuildDate = Get-Date -uformat %b%Y
-    # Replace '{WindowsRelease}' with the Windows release (e.g., 10, 11, 2016, 2019, 2022, 2025)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{WindowsRelease}', $WindowsRelease
-    # Replace '{WindowsVersion}' with the Windows version (e.g., 1607, 1809, 21h2, 22h2, 23h2, 24h2, etc)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{WindowsVersion}', $WindowsVersion
-    # Replace '{SKU}' with the SKU of the Windows image (e.g., Pro, Enterprise, etc.)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{SKU}', $shortenedWindowsSKU
-    # Replace '{BuildDate}' with the current month and year (e.g., Jan2023)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{BuildDate}', $BuildDate
-    # Replace '{yyyy}' with the current year in 4-digit format (e.g., 2023)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{yyyy}', (Get-Date -UFormat '%Y')
-    # Replace '{MM}' with the current month in 2-digit format (e.g., 01 for January)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{MM}', (Get-Date -UFormat '%m')
-    # Replace '{dd}' with the current day of the month in 2-digit format (e.g., 05)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{dd}', (Get-Date -UFormat '%d')
-    # Replace '{HH}' with the current hour in 24-hour format (e.g., 14 for 2 PM)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{HH}', (Get-Date -UFormat '%H')
-    # Replace '{hh}' with the current hour in 12-hour format (e.g., 02 for 2 PM)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{hh}', (Get-Date -UFormat '%I')
-    # Replace '{mm}' with the current minute in 2-digit format (e.g., 09)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{mm}', (Get-Date -UFormat '%M')
-    # Replace '{tt}' with the current AM/PM designator (e.g., AM or PM)
-    $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{tt}', (Get-Date -UFormat '%p')
-    if ($CustomFFUNameTemplate -notlike '*.ffu') {
-        $CustomFFUNameTemplate += '.ffu'
+        if ([string]::IsNullOrWhiteSpace($WindowsVersion)) {
+            throw [System.ArgumentException]::new("WindowsVersion cannot be null or empty", "WindowsVersion")
+        }
+
+        if ([string]::IsNullOrWhiteSpace($shortenedWindowsSKU)) {
+            throw [System.ArgumentException]::new("shortenedWindowsSKU cannot be null or empty", "shortenedWindowsSKU")
+        }
+
+        # $Winverinfo.name will be either Win10 or Win11 for client OSes
+        # Since WindowsRelease now includes dates, it breaks default name template in the config file
+        # This should keep in line with the naming that's done via VM Captures
+        if ($installationType -eq 'Client' -and $winverinfo) {
+            if ($winverinfo.PSObject.Properties['name']) {
+                $WindowsRelease = $winverinfo.name
+            }
+        }
+
+        $BuildDate = Get-Date -uformat %b%Y
+        # Replace '{WindowsRelease}' with the Windows release (e.g., 10, 11, 2016, 2019, 2022, 2025)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{WindowsRelease}', $WindowsRelease
+        # Replace '{WindowsVersion}' with the Windows version (e.g., 1607, 1809, 21h2, 22h2, 23h2, 24h2, etc)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{WindowsVersion}', $WindowsVersion
+        # Replace '{SKU}' with the SKU of the Windows image (e.g., Pro, Enterprise, etc.)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{SKU}', $shortenedWindowsSKU
+        # Replace '{BuildDate}' with the current month and year (e.g., Jan2023)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{BuildDate}', $BuildDate
+        # Replace '{yyyy}' with the current year in 4-digit format (e.g., 2023)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{yyyy}', (Get-Date -UFormat '%Y')
+        # Replace '{MM}' with the current month in 2-digit format (e.g., 01 for January)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{MM}', (Get-Date -UFormat '%m')
+        # Replace '{dd}' with the current day of the month in 2-digit format (e.g., 05)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{dd}', (Get-Date -UFormat '%d')
+        # Replace '{HH}' with the current hour in 24-hour format (e.g., 14 for 2 PM)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{HH}', (Get-Date -UFormat '%H')
+        # Replace '{hh}' with the current hour in 12-hour format (e.g., 02 for 2 PM)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{hh}', (Get-Date -UFormat '%I')
+        # Replace '{mm}' with the current minute in 2-digit format (e.g., 09)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -creplace '{mm}', (Get-Date -UFormat '%M')
+        # Replace '{tt}' with the current AM/PM designator (e.g., AM or PM)
+        $CustomFFUNameTemplate = $CustomFFUNameTemplate -replace '{tt}', (Get-Date -UFormat '%p')
+        if ($CustomFFUNameTemplate -notlike '*.ffu') {
+            $CustomFFUNameTemplate += '.ffu'
+        }
+        $CustomFFUNameTemplate
     }
-    $CustomFFUNameTemplate
+    catch [System.ArgumentException] {
+        $errorContext = "Invalid parameter for FFU filename generation: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
+    catch {
+        $errorContext = "Failed to generate FFU filename from template '$CustomFFUNameTemplate': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.InvalidOperationException]::new($errorContext, $_.Exception)
+    }
 }
 
 function Export-ConfigFile {
@@ -396,29 +644,69 @@ function Export-ConfigFile {
     None - Writes configuration to file specified by ExportConfigFile parameter
     #>
     [CmdletBinding()]
+    [OutputType([void])]
     param (
         [Parameter(Mandatory = $false)]
         $paramNames,
 
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$ExportConfigFile
     )
-    $filteredParamNames = Get-Parameters -ParamNames $paramNames
 
-    # Retrieve their values
-    $paramsToExport = @{}
-    foreach ($paramName in $filteredParamNames) {
-        $paramsToExport[$paramName] = Get-Variable -Name $paramName -ValueOnly
+    try {
+        # Handle null/empty paramNames gracefully
+        if ($null -eq $paramNames -or @($paramNames).Count -eq 0) {
+            if ($function:WriteLog) { WriteLog "WARNING: No parameters provided to export" }
+            return
+        }
+
+        $filteredParamNames = Get-Parameters -ParamNames $paramNames
+
+        # Retrieve their values
+        $paramsToExport = @{}
+        foreach ($paramName in $filteredParamNames) {
+            try {
+                $paramsToExport[$paramName] = Get-Variable -Name $paramName -ValueOnly -ErrorAction Stop
+            }
+            catch {
+                # Variable not found in scope - skip it
+                if ($function:WriteLog) { WriteLog "WARNING: Parameter '$paramName' not found in scope" }
+            }
+        }
+
+        # Sort the keys alphabetically
+        $orderedParams = [ordered]@{}
+        foreach ($key in ($paramsToExport.Keys | Sort-Object)) {
+            $orderedParams[$key] = $paramsToExport[$key]
+        }
+
+        # Ensure directory exists
+        $configDir = Split-Path -Path $ExportConfigFile -Parent
+        if ($configDir -and -not (Test-Path $configDir)) {
+            New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+        }
+
+        # Convert to JSON and save
+        $orderedParams | ConvertTo-Json -Depth 10 -ErrorAction Stop | Set-Content -Path $ExportConfigFile -Encoding UTF8 -ErrorAction Stop
+
+        if ($function:WriteLog) { WriteLog "Exported configuration to $ExportConfigFile" }
     }
-
-    # Sort the keys alphabetically
-    $orderedParams = [ordered]@{}
-    foreach ($key in ($paramsToExport.Keys | Sort-Object)) {
-        $orderedParams[$key] = $paramsToExport[$key]
+    catch [System.Text.Json.JsonException] {
+        $errorContext = "Failed to serialize configuration to JSON for '$ExportConfigFile': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.Text.Json.JsonException]::new($errorContext, $_.Exception)
     }
-
-    # Convert to JSON and save
-    $orderedParams | ConvertTo-Json -Depth 10 | Set-Content -Path $ExportConfigFile -Encoding UTF8
+    catch [System.IO.IOException] {
+        $errorContext = "Failed to write configuration file '$ExportConfigFile': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.IO.IOException]::new($errorContext, $_.Exception)
+    }
+    catch {
+        $errorContext = "Failed to export configuration to '$ExportConfigFile': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
 }
 
 function New-RunSession {
@@ -522,17 +810,113 @@ function New-RunSession {
 }
 
 function Get-CurrentRunManifest {
-    param([string]$FFUDevelopmentPath)
+    <#
+    .SYNOPSIS
+    Retrieves the current run manifest from the session directory.
+
+    .DESCRIPTION
+    Reads and parses the currentRun.json manifest file that tracks
+    the current build session's state, backups, and in-progress items.
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment directory path.
+
+    .OUTPUTS
+    [PSCustomObject] Parsed manifest object, or $null if not found.
+
+    .NOTES
+    Enhanced with IOException handling in v1.0.19 (REL-CORE-01).
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$FFUDevelopmentPath
+    )
+
     $manifestPath = Join-Path $FFUDevelopmentPath '.session\currentRun.json'
-    if (Test-Path -Path $manifestPath) { Get-Content -Path $manifestPath -Raw | ConvertFrom-Json; return }
-    $null
+
+    try {
+        if (Test-Path -Path $manifestPath) {
+            $content = Get-Content -Path $manifestPath -Raw -ErrorAction Stop
+            $content | ConvertFrom-Json -ErrorAction Stop
+            return
+        }
+        $null
+    }
+    catch [System.IO.IOException] {
+        $errorContext = "Failed to read manifest file '$manifestPath' (file may be locked): $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+        return $null
+    }
+    catch [System.Text.Json.JsonException] {
+        $errorContext = "Failed to parse manifest JSON from '$manifestPath': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+        return $null
+    }
+    catch {
+        $errorContext = "Unexpected error reading manifest from '$manifestPath': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+        return $null
+    }
 }
 
 function Save-RunManifest {
-    param([string]$FFUDevelopmentPath, [object]$Manifest)
+    <#
+    .SYNOPSIS
+    Saves the run manifest to the session directory.
+
+    .DESCRIPTION
+    Serializes and writes the manifest object to currentRun.json
+    in the session directory.
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment directory path.
+
+    .PARAMETER Manifest
+    The manifest object to save.
+
+    .OUTPUTS
+    None.
+
+    .NOTES
+    Enhanced with IOException handling in v1.0.19 (REL-CORE-01).
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory = $false)]
+        [object]$Manifest
+    )
+
     if ($null -eq $Manifest) { return }
+
     $manifestPath = Join-Path $FFUDevelopmentPath '.session\currentRun.json'
-    $Manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
+
+    try {
+        # Ensure session directory exists
+        $sessionDir = Split-Path -Path $manifestPath -Parent
+        if (-not (Test-Path $sessionDir)) {
+            New-Item -Path $sessionDir -ItemType Directory -Force | Out-Null
+        }
+
+        $Manifest | ConvertTo-Json -Depth 5 -ErrorAction Stop | Set-Content -Path $manifestPath -Encoding UTF8 -ErrorAction Stop
+    }
+    catch [System.IO.IOException] {
+        $errorContext = "Failed to write manifest file '$manifestPath' (file may be locked): $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw [System.IO.IOException]::new($errorContext, $_.Exception)
+    }
+    catch {
+        $errorContext = "Failed to save manifest to '$manifestPath': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "ERROR: $errorContext" }
+        throw
+    }
 }
 
 function Set-DownloadInProgress {
@@ -571,27 +955,78 @@ function Set-DownloadInProgress {
         [Parameter(Mandatory = $false)]
         [string]$TargetPath
     )
+
+    # Silently return if parameters missing - this is expected behavior
     if ([string]::IsNullOrWhiteSpace($FFUDevelopmentPath) -or [string]::IsNullOrWhiteSpace($TargetPath)) { return }
-    $sessionInprog = Join-Path (Join-Path $FFUDevelopmentPath '.session') 'inprogress'
-    if (-not (Test-Path $sessionInprog)) { New-Item -ItemType Directory -Path $sessionInprog -Force | Out-Null }
-    $marker = Join-Path $sessionInprog ("{0}.marker" -f ([guid]::NewGuid()))
-    $payload = @{ TargetPath = $TargetPath; CreatedUtc = (Get-Date).ToUniversalTime().ToString('o') }
-    $payload | ConvertTo-Json -Depth 3 | Set-Content -Path $marker -Encoding UTF8
-    WriteLog "Marked in-progress: $TargetPath"
+
+    try {
+        $sessionInprog = Join-Path (Join-Path $FFUDevelopmentPath '.session') 'inprogress'
+        if (-not (Test-Path $sessionInprog)) {
+            New-Item -ItemType Directory -Path $sessionInprog -Force -ErrorAction Stop | Out-Null
+        }
+        $marker = Join-Path $sessionInprog ("{0}.marker" -f ([guid]::NewGuid()))
+        $payload = @{ TargetPath = $TargetPath; CreatedUtc = (Get-Date).ToUniversalTime().ToString('o') }
+        $payload | ConvertTo-Json -Depth 3 -ErrorAction Stop | Set-Content -Path $marker -Encoding UTF8 -ErrorAction Stop
+        if ($function:WriteLog) { WriteLog "Marked in-progress: $TargetPath" }
+    }
+    catch [System.IO.IOException] {
+        $errorContext = "Failed to create in-progress marker for '$TargetPath': $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+        # Don't throw - marker creation is best-effort
+    }
+    catch {
+        $errorContext = "Unexpected error marking '$TargetPath' as in-progress: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog "WARNING: $errorContext" }
+        # Don't throw - marker creation is best-effort
+    }
 }
 
 function Clear-DownloadInProgress {
-    param([string]$FFUDevelopmentPath, [string]$TargetPath)
+    <#
+    .SYNOPSIS
+    Clears the in-progress marker for a completed download.
+
+    .DESCRIPTION
+    Removes the marker file that was created when a download started,
+    indicating the download completed successfully.
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path.
+
+    .PARAMETER TargetPath
+    Path to the download target to clear.
+
+    .NOTES
+    Enhanced with error handling in v1.0.19 (REL-CORE-01).
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($FFUDevelopmentPath) -or [string]::IsNullOrWhiteSpace($TargetPath)) { return }
+
     $sessionInprog = Join-Path (Join-Path $FFUDevelopmentPath '.session') 'inprogress'
     if (-not (Test-Path $sessionInprog)) { return }
+
     Get-ChildItem -Path $sessionInprog -Filter *.marker -ErrorAction SilentlyContinue | ForEach-Object {
         try {
-            $data = Get-Content $_.FullName -Raw | ConvertFrom-Json
-            if ($data.TargetPath -eq $TargetPath) { Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue }
+            $data = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue
+            if ($data -and $data.TargetPath -eq $TargetPath) {
+                Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
+            }
         }
-        catch {}
+        catch {
+            # Best-effort cleanup - don't fail on marker issues
+            if ($function:WriteLog) { WriteLog "WARNING: Failed to process marker $($_.FullName): $($_.Exception.Message)" }
+        }
     }
-    WriteLog "Cleared in-progress: $TargetPath"
+    if ($function:WriteLog) { WriteLog "Cleared in-progress: $TargetPath" }
 }
 
 function Remove-InProgressItems {
@@ -1915,6 +2350,58 @@ function Test-FFUConfiguration {
         $result.Warnings.Add($Message)
     }
 
+    # Helper function to generate example values for actionable error messages
+    function Get-ExampleValue {
+        param($SchemaProp, [string]$PropertyName)
+        if ($SchemaProp.enum) {
+            # Return first enum value as example
+            return "`"$($SchemaProp.enum[0])`""
+        }
+        if ($SchemaProp.'x-example') {
+            return "`"$($SchemaProp.'x-example')`""
+        }
+        switch ($SchemaProp.type) {
+            'string' {
+                if ($SchemaProp.default -and $SchemaProp.default -ne '') {
+                    return "`"$($SchemaProp.default)`""
+                }
+                return '""'
+            }
+            'integer' {
+                if ($null -ne $SchemaProp.default) {
+                    return $SchemaProp.default
+                }
+                if ($null -ne $SchemaProp.minimum) {
+                    return $SchemaProp.minimum
+                }
+                return 1
+            }
+            'boolean' { return 'true' }
+            'object' { return '{}' }
+            'array' { return '[]' }
+            default { return 'null' }
+        }
+    }
+
+    # Helper function to find similar property names (typo detection)
+    function Find-SimilarPropertyName {
+        param(
+            [string]$InputName,
+            [hashtable]$SchemaProperties
+        )
+        # Check for case-insensitive match
+        $caseMatch = $SchemaProperties.Keys | Where-Object { $_ -ieq $InputName } | Select-Object -First 1
+        if ($caseMatch) {
+            return $caseMatch
+        }
+        # Check for prefix match (e.g., "Window" matches "WindowsSKU")
+        $prefixMatch = $SchemaProperties.Keys | Where-Object { $_ -like "$InputName*" -or $InputName -like "$_*" } | Select-Object -First 1
+        if ($prefixMatch) {
+            return $prefixMatch
+        }
+        return $null
+    }
+
     # Load schema
     $schema = $null
     try {
@@ -2000,13 +2487,27 @@ function Test-FFUConfiguration {
         $value = $config[$key]
         $schemaProp = $schemaProperties[$key]
 
-        # Check for unknown properties
+        # Check for unknown properties with typo detection
         if ($null -eq $schemaProp) {
-            if ($schema.additionalProperties -eq $false) {
-                Add-ValidationError "Unknown property '$key' is not allowed in configuration"
+            $similarProp = Find-SimilarPropertyName -InputName $key -SchemaProperties $schemaProperties
+            if ($similarProp) {
+                $errorMsg = @"
+Unknown property '$key' is not allowed in configuration.
+Did you mean '$similarProp'? (property names are case-sensitive)
+To fix: Change "$key" to "$similarProp" in your config file.
+"@
             }
             else {
-                Add-ValidationWarning "Unknown property '$key' - not defined in schema"
+                $errorMsg = @"
+Unknown property '$key' is not allowed in configuration.
+To fix: Remove this property or check spelling. Run Get-FFUConfigurationSchema to see all valid properties.
+"@
+            }
+            if ($schema.additionalProperties -eq $false) {
+                Add-ValidationError $errorMsg
+            }
+            else {
+                Add-ValidationWarning "Unknown property '$key' - not defined in schema. Did you mean '$similarProp'?"
             }
             continue
         }
@@ -2078,13 +2579,20 @@ function Test-FFUConfiguration {
             $actualType = 'array'
         }
 
-        # Type validation
+        # Type validation with actionable error messages
         if ($expectedType -and $actualType -ne $expectedType) {
             # Allow integer for numeric strings
             if ($expectedType -eq 'integer' -and $actualType -eq 'string') {
                 $intValue = 0
                 if (-not [int64]::TryParse($value, [ref]$intValue)) {
-                    Add-ValidationError "Property '$key' has type '$actualType' but expected '$expectedType'"
+                    $exampleVal = Get-ExampleValue -SchemaProp $schemaProp -PropertyName $key
+                    $errorMsg = @"
+Property '$key' has wrong type '$actualType' (expected '$expectedType').
+Current value: "$value"
+To fix: Change "$key": "$value" to "$key": $exampleVal
+Note: Integer values should not have quotes in JSON. For example, use 8589934592 for 8GB memory.
+"@
+                    Add-ValidationError $errorMsg
                 }
                 else {
                     # Update value to parsed integer for range validation
@@ -2097,35 +2605,83 @@ function Test-FFUConfiguration {
                 $value = $value.ToString()
             }
             else {
-                Add-ValidationError "Property '$key' has type '$actualType' but expected '$expectedType'"
+                $exampleVal = Get-ExampleValue -SchemaProp $schemaProp -PropertyName $key
+                $typeHint = switch ($expectedType) {
+                    'boolean' { 'Use true or false (without quotes).' }
+                    'integer' { 'Use a number without quotes.' }
+                    'string' { 'Use a quoted string value.' }
+                    'object' { 'Use a JSON object { }.' }
+                    'array' { 'Use a JSON array [ ].' }
+                    default { '' }
+                }
+                $errorMsg = @"
+Property '$key' has wrong type '$actualType' (expected '$expectedType').
+To fix: Change "$key": $value to "$key": $exampleVal
+$typeHint
+"@
+                Add-ValidationError $errorMsg
                 continue
             }
         }
 
-        # Enum validation
+        # Enum validation with actionable error messages
         if ($schemaProp.enum) {
             $enumValues = @($schemaProp.enum)
             if ($enumValues -notcontains $value) {
                 $validValues = $enumValues -join ', '
-                Add-ValidationError "Property '$key' has invalid value '$value'. Valid values are: $validValues"
+                $suggestedValue = $enumValues[0]
+                $errorMsg = @"
+Property '$key' has invalid value '$value'.
+Valid values: $validValues
+To fix: Change "$key": "$value" to "$key": "$suggestedValue" (or another valid value above)
+"@
+                Add-ValidationError $errorMsg
             }
         }
 
-        # Range validation for integers
+        # Range validation for integers with actionable error messages
         if ($expectedType -eq 'integer') {
             if ($null -ne $schemaProp.minimum -and $value -lt $schemaProp.minimum) {
-                Add-ValidationError "Property '$key' value $value is less than minimum $($schemaProp.minimum)"
+                $minVal = $schemaProp.minimum
+                $maxVal = if ($null -ne $schemaProp.maximum) { $schemaProp.maximum } else { 'unlimited' }
+                $errorMsg = @"
+Property '$key' value $value is out of range (below minimum).
+Valid range: $minVal to $maxVal
+To fix: Change "$key": $value to "$key": $minVal (or higher)
+"@
+                Add-ValidationError $errorMsg
             }
             if ($null -ne $schemaProp.maximum -and $value -gt $schemaProp.maximum) {
-                Add-ValidationError "Property '$key' value $value is greater than maximum $($schemaProp.maximum)"
+                $minVal = if ($null -ne $schemaProp.minimum) { $schemaProp.minimum } else { '0' }
+                $maxVal = $schemaProp.maximum
+                $errorMsg = @"
+Property '$key' value $value is out of range (above maximum).
+Valid range: $minVal to $maxVal
+To fix: Change "$key": $value to "$key": $maxVal (or lower)
+"@
+                Add-ValidationError $errorMsg
             }
         }
 
-        # Pattern validation for strings
+        # Pattern validation for strings with actionable error messages
         if ($expectedType -eq 'string' -and $schemaProp.pattern) {
             $pattern = $schemaProp.pattern
             if ($value -notmatch $pattern) {
-                Add-ValidationError "Property '$key' value '$value' does not match required pattern: $pattern"
+                # Provide pattern-specific examples
+                $exampleHint = switch -Regex ($key) {
+                    'ShareName|Username|VMName|FFUPrefix' { "Example: Use alphanumeric characters, underscores, or hyphens." }
+                    'WindowsVersion' { "Example: '24H2', '23H2', '22H2', or 'LTSC'" }
+                    'WindowsLang' { "Example: 'en-us', 'fr-fr', 'de-de'" }
+                    'VMHostIPAddress' { "Example: '192.168.1.100' or leave empty for auto-detection" }
+                    'configSchemaVersion' { "Example: '1.0'" }
+                    default { "Expected pattern: $pattern" }
+                }
+                $errorMsg = @"
+Property '$key' value '$value' has invalid format.
+$exampleHint
+To fix: Ensure the value matches the required pattern. For JSON paths, use double backslashes (\\\\).
+"@
+                Add-ValidationError $errorMsg
             }
         }
     }
