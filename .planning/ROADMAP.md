@@ -2,10 +2,10 @@
 
 ## Milestones
 
-- ✅ **v1.8.0 Codebase Health** - Phases 1-10 (shipped 2026-01-20)
-- ✅ **v1.8.1 Bug Fixes** - Phases 11-13 (shipped 2026-01-20)
-- ✅ **v1.8.3 VMware UI Settings** - Phase 14 (shipped 2026-01-21)
-- 🚧 **v1.9.0 Reliability Hardening** - Phases 15-25 (in progress)
+- v1.8.0 Codebase Health - Phases 1-10 (shipped 2026-01-20)
+- v1.8.1 Bug Fixes - Phases 11-13 (shipped 2026-01-20)
+- v1.8.3 VMware UI Settings - Phase 14 (shipped 2026-01-21)
+- **v1.9.0 Reliability Hardening** - Phases 15-25 (in progress)
 
 ## Phases
 
@@ -13,7 +13,7 @@
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-### 🚧 v1.9.0 Reliability Hardening
+### v1.9.0 Reliability Hardening
 
 - [ ] **Phase 15: FFU.Core Reliability** - Error handling, configuration, session tracking
 - [ ] **Phase 16: FFU.Hypervisor Reliability** - Provider detection, state handling, service recovery
@@ -39,7 +39,11 @@
   3. Session state can be recovered after unexpected PowerShell termination
   4. Invalid credentials trigger clear authentication guidance
 **Research**: Unlikely (familiar module, established patterns)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 15-01-PLAN.md - Error handling hardening (REL-CORE-01)
+- [ ] 15-02-PLAN.md - Actionable configuration errors (REL-CORE-02)
+- [ ] 15-03-PLAN.md - Session recovery and credential validation (REL-CORE-03, REL-CORE-04)
 
 ### Phase 16: FFU.Hypervisor Reliability
 **Goal**: Make hypervisor abstraction layer resilient to missing providers, state transitions, and service issues
@@ -170,7 +174,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 15. FFU.Core Reliability | 0/TBD | Not started | - |
+| 15. FFU.Core Reliability | 0/3 | Planned | - |
 | 16. FFU.Hypervisor Reliability | 0/TBD | Not started | - |
 | 17. FFU.VM Reliability | 0/TBD | Not started | - |
 | 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
