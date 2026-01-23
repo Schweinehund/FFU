@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 16 of 25 (FFU.Hypervisor Reliability)
-**Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-01-23 — Phase 15 complete (verified)
+**Plan:** 1 of 3 complete
+**Status:** In progress
+**Last activity:** 2026-01-23 — Completed 16-01-PLAN.md (Provider Detection)
 
 Progress: Milestone v1.9.0
-[#---------] 9% (1/11 phases)
+[##--------] 18% (2/11 phases - Phase 16 in progress)
 
 ## Completed Phases This Milestone
 
@@ -41,18 +41,20 @@ Progress: Milestone v1.9.0
 | 44 specific requirements | Concrete, testable requirements derived from audit scope | 2026-01-23 |
 | Use x-common-values in schema | Standard JSON Schema doesn't have property for common values | 2026-01-23 |
 | Typo detection via case+prefix | Covers most common typo patterns (case errors, partial names) | 2026-01-23 |
+| ErrorCode prefix pattern | HYPERV_/VMWARE_ prefixes for clear provider identification | 2026-01-23 |
+| Remediation as array | Multiple steps may be needed, easier to format | 2026-01-23 |
 
 ## Recent Activity
 
+- 2026-01-23: Executed 16-01-PLAN.md (Provider Detection with Remediation) - REL-HYP-01
+- 2026-01-23: FFU.Hypervisor v1.3.5, main version v1.8.13
+- 2026-01-23: Added ErrorCode and Remediation to GetAvailabilityDetails
+- 2026-01-23: 32 new Pester tests for provider detection
 - 2026-01-23: Executed 15-03-PLAN.md (Session Recovery & Credential Validation) - Phase 15 complete
 - 2026-01-23: FFU.Core v1.0.20 (47 functions)
 - 2026-01-23: Added Restore-FFUSession, Test-FFUSessionExists, Test-FFUCredentials
 - 2026-01-23: Executed 15-02-PLAN.md (Pre-flight Validation Improvements)
 - 2026-01-23: Executed 15-01-PLAN.md (Error Handling Enhancement) - 47/53 tests passing (6 skipped)
-- 2026-01-23: FFU.Core v1.0.19, main version v1.8.12
-- 2026-01-23: Roadmap created (11 phases, 44 requirements)
-- 2026-01-23: REQUIREMENTS.md created with REL-* requirements
-- 2026-01-23: Milestone v1.9.0 Reliability Hardening started
 - 2026-01-21: v1.8.3 shipped (VMware UI Settings complete)
 
 ## Blockers
@@ -62,9 +64,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-23
-**Stopped at:** Phase 15 verified and complete
+**Stopped at:** Completed 16-01-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:plan-phase 16` to plan FFU.Hypervisor Reliability
+**Next action:** Execute 16-02-PLAN.md (VM Lifecycle Error Handling)
 
 ---
 *State updated: 2026-01-23*

@@ -6,7 +6,7 @@
     RootModule = 'FFU.Hypervisor.psm1'
 
     # Version number of this module
-    ModuleVersion = '1.3.4'
+    ModuleVersion = '1.3.6'
 
     # ID used to uniquely identify this module
     GUID = 'a8e2c3f1-5d7b-4e9a-bc12-3f4d5e6a7b8c'
@@ -79,6 +79,35 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.6 (2026-01-23)
+- NEW: Transient state detection helpers in VMInfo class (REL-HYP-02)
+  - IsTransientState() static method to identify Starting/Stopping/Saving/Restoring states
+  - GetExpectedStableState() static method to map transient to expected stable states
+  - IsInTransientState() instance method for convenience
+- NEW: GetVMStateStable() method on both HyperVProvider and VMwareProvider
+  - Waits for VM to exit transient state before returning
+  - Prevents race conditions when checking state after start/stop commands
+  - Configurable timeout parameter
+- NEW: Wait-VMStateChange -AllowTransient parameter
+  - Default false: waits through transient states until stable
+  - Logs transient state transitions for visibility
+- NEW: VMware confidence metadata via Get-VMwarePowerStateWithVmrun -Detailed
+  - Returns State/Confidence/Method hashtable
+  - High: vmware-vmx process, Medium: vmrun/nvram, Low: exhausted/error
+- NEW: VMware race condition handling after StartVM
+  - LastStartVMTime tracking prevents false negatives right after start
+  - Auto-retry detection within 5 seconds of StartVM
+
+v1.3.5 (2026-01-23)
+- NEW: Provider detection with actionable remediation guidance (REL-HYP-01)
+- GetAvailabilityDetails now returns ErrorCode and Remediation array
+- HyperV error codes: HYPERV_NOT_INSTALLED, HYPERV_SERVICE_STOPPED, HYPERV_MODULE_MISSING, HYPERV_FEATURE_DISABLED
+- VMware error codes: VMWARE_NOT_INSTALLED, VMWARE_PATH_INVALID, VMWARE_VMRUN_MISSING, VMWARE_VERSION_OLD
+- Get-HypervisorProvider Auto mode now logs why each provider failed
+- Enhanced error messages include remediation steps for all checked providers
+- Test-HypervisorAvailable -Detailed now includes ErrorCode and Remediation
+- NEW: 32 Pester tests for provider detection scenarios
+
 v1.3.3 (2026-01-21)
 - FIX: ThreadJob runspace compatibility - "Write-Warning is not recognized" error
 - Module initialization catch blocks used Write-Warning which fails in ThreadJob runspaces
