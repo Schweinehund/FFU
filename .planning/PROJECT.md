@@ -58,14 +58,29 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ### Active
 
-**Current Milestone:** v1.8.2 VMware UI Settings
+**Current Milestone:** v1.9.0 Reliability Hardening
 
-**Goal:** Expose VMware network configuration in the UI and migrate existing configs.
+**Goal:** Bulletproof the entire FFU build pipeline through systematic reliability hardening of all modules and scripts.
 
 **Target features:**
-- VMware NetworkType dropdown in UI (bridged/nat/hostonly)
-- VMware NicType dropdown in UI (e1000e/vmxnet3/e1000)
-- Config migration to add VMwareSettings defaults to existing configs (schema v1.1 → v1.2)
+- Comprehensive reliability audit of all 13 modules and key scripts
+- Error handling hardening with consistent try/catch patterns, specific exceptions, graceful recovery
+- Logging enhancement with clear, actionable messages at every failure point
+- Self-healing capabilities for automatic recovery from transient issues
+- Edge case coverage for unusual configurations, partial failures, and race conditions
+
+**Audit scope (by module/area):**
+1. FFU.Core - Configuration, session tracking, error utilities
+2. FFU.Hypervisor - VM lifecycle, provider abstraction, state detection
+3. FFU.VM - VM creation, management, cleanup
+4. FFU.Imaging - Disk operations, partitions, FFU capture/optimize
+5. FFU.Media - WinPE media creation
+6. FFU.Updates - Windows Update catalog, MSU handling
+7. FFU.Drivers - OEM driver downloads, extraction
+8. FFU.Preflight - Pre-flight validation checks
+9. BuildFFUVM.ps1 - Main orchestrator script
+10. WinPE Scripts - CaptureFFU.ps1, orchestrator.ps1, in-VM scripts
+11. FFUUI.Core - UI error handling and status display
 
 **Deferred bugs (not in scope):**
 - HP driver extraction exit code 1168 (all HP models)
@@ -120,4 +135,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-20 after v1.8.2 milestone started*
+*Last updated: 2026-01-23 after v1.9.0 milestone started*
