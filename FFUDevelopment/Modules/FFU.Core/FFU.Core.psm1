@@ -1221,6 +1221,205 @@ function Remove-InProgressItems {
     }
 }
 
+# =============================================================================
+# Session Recovery Functions
+# Provides session state recovery after unexpected interruption (REL-CORE-03)
+# =============================================================================
+
+function Restore-FFUSession {
+    <#
+    .SYNOPSIS
+    Recovers FFU build session state after unexpected interruption.
+
+    .DESCRIPTION
+    Reads session state from .session/currentRun.json and restores:
+    - Run start timestamp (for cleanup decisions)
+    - Backup file locations (for restoration)
+    - In-progress download markers (for cleanup)
+
+    If the session file is corrupted or missing, creates a fresh session
+    with appropriate warnings.
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment directory path
+
+    .PARAMETER CleanupInProgress
+    If specified, removes partially completed downloads from previous session
+
+    .PARAMETER RestoreBackups
+    If specified, restores JSON/XML backups to original locations
+
+    .EXAMPLE
+    $session = Restore-FFUSession -FFUDevelopmentPath "C:\FFU" -CleanupInProgress
+    if ($session.WasRecovered) {
+        Write-Output "Recovered session from $($session.RunStartUtc)"
+    }
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - WasRecovered: [bool] True if session was recovered from disk
+    - RunStartUtc: [datetime] Session start time
+    - InProgressItems: [int] Number of in-progress items found
+    - BackupsRestored: [int] Number of backups restored
+    - Errors: [string[]] Any errors encountered during recovery
+
+    .NOTES
+    Added in v1.0.20 for REL-CORE-03 compliance.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ Test-Path $_ -PathType Container })]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$CleanupInProgress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$RestoreBackups
+    )
+
+    # Safe logging helper
+    $log = {
+        param([string]$Message)
+        if ($function:WriteLog) { WriteLog $Message }
+        else { Write-Verbose $Message }
+    }
+
+    $result = [PSCustomObject]@{
+        WasRecovered     = $false
+        RunStartUtc      = $null
+        InProgressItems  = 0
+        BackupsRestored  = 0
+        Errors           = [System.Collections.Generic.List[string]]::new()
+    }
+
+    try {
+        $sessionDir = Join-Path $FFUDevelopmentPath '.session'
+        $manifestPath = Join-Path $sessionDir 'currentRun.json'
+
+        if (-not (Test-Path $manifestPath)) {
+            & $log "No previous session found at $manifestPath"
+            $result
+            return
+        }
+
+        # Attempt to read session manifest
+        try {
+            $manifestContent = Get-Content -Path $manifestPath -Raw -ErrorAction Stop
+            $manifest = $manifestContent | ConvertFrom-Json -ErrorAction Stop
+            $result.WasRecovered = $true
+            $result.RunStartUtc = [datetime]::Parse($manifest.RunStartUtc)
+            & $log "Recovered session from $($manifest.RunStartUtc)"
+        }
+        catch [System.IO.IOException] {
+            $result.Errors.Add("Session file is locked: $($_.Exception.Message). Another build may be running.")
+            $result
+            return
+        }
+        catch {
+            $result.Errors.Add("Session file corrupted: $($_.Exception.Message). Creating fresh session.")
+            # Remove corrupted file
+            Remove-Item -Path $manifestPath -Force -ErrorAction SilentlyContinue
+            $result
+            return
+        }
+
+        # Count in-progress items
+        $inprogDir = Join-Path $sessionDir 'inprogress'
+        if (Test-Path $inprogDir) {
+            $markers = Get-ChildItem -Path $inprogDir -Filter '*.marker' -ErrorAction SilentlyContinue
+            $result.InProgressItems = ($markers | Measure-Object).Count
+            & $log "Found $($result.InProgressItems) in-progress items from previous session"
+        }
+
+        # Clean up in-progress items if requested
+        if ($CleanupInProgress -and $result.InProgressItems -gt 0) {
+            & $log "Cleaning up in-progress items from interrupted session..."
+            try {
+                Remove-InProgressItems -FFUDevelopmentPath $FFUDevelopmentPath
+                & $log "In-progress cleanup complete"
+            }
+            catch {
+                $result.Errors.Add("Failed to clean in-progress items: $($_.Exception.Message)")
+            }
+        }
+
+        # Restore backups if requested
+        if ($RestoreBackups -and $manifest.JsonBackups) {
+            foreach ($backup in $manifest.JsonBackups) {
+                try {
+                    if (Test-Path $backup.Backup) {
+                        Copy-Item -Path $backup.Backup -Destination $backup.Path -Force -ErrorAction Stop
+                        $result.BackupsRestored++
+                        & $log "Restored backup: $($backup.Path)"
+                    }
+                }
+                catch {
+                    $result.Errors.Add("Failed to restore $($backup.Path): $($_.Exception.Message)")
+                }
+            }
+            # Also restore Office XML backups
+            if ($manifest.OfficeXmlBackups) {
+                foreach ($backup in $manifest.OfficeXmlBackups) {
+                    try {
+                        if (Test-Path $backup.Backup) {
+                            Copy-Item -Path $backup.Backup -Destination $backup.Path -Force -ErrorAction Stop
+                            $result.BackupsRestored++
+                            & $log "Restored Office backup: $($backup.Path)"
+                        }
+                    }
+                    catch {
+                        $result.Errors.Add("Failed to restore $($backup.Path): $($_.Exception.Message)")
+                    }
+                }
+            }
+        }
+
+        $result
+    }
+    catch {
+        $result.Errors.Add("Session recovery failed: $($_.Exception.Message)")
+        $result
+    }
+}
+
+function Test-FFUSessionExists {
+    <#
+    .SYNOPSIS
+    Checks if a previous FFU session exists that may need recovery.
+
+    .DESCRIPTION
+    Tests for the existence of the session manifest file (currentRun.json)
+    which indicates a previous build session exists.
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment directory path.
+
+    .EXAMPLE
+    if (Test-FFUSessionExists -FFUDevelopmentPath "C:\FFU") {
+        $session = Restore-FFUSession -FFUDevelopmentPath "C:\FFU"
+    }
+
+    .OUTPUTS
+    [bool] True if a previous session exists, False otherwise.
+
+    .NOTES
+    Added in v1.0.20 for REL-CORE-03 compliance.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$FFUDevelopmentPath
+    )
+
+    $manifestPath = Join-Path $FFUDevelopmentPath '.session\currentRun.json'
+    Test-Path $manifestPath
+}
+
 function Clear-CurrentRunDownloads {
     <#
     .SYNOPSIS
@@ -2240,6 +2439,255 @@ function Remove-SecureStringFromMemory {
         }
         $SecureStringVariable.Value = $null
     }
+}
+
+# =============================================================================
+# Credential Validation Functions
+# Provides credential validation with actionable error messages (REL-CORE-04)
+# =============================================================================
+
+function Test-FFUCredentials {
+    <#
+    .SYNOPSIS
+    Validates FFU Builder credentials with actionable error messages.
+
+    .DESCRIPTION
+    Tests credentials against target resources (network share, local account)
+    and returns detailed, actionable error messages when validation fails.
+
+    Handles common failure scenarios:
+    - Invalid username/password
+    - Expired credentials
+    - Account lockout
+    - Network connectivity issues
+    - Access denied (valid creds, no permissions)
+
+    .PARAMETER Credential
+    PSCredential object to validate
+
+    .PARAMETER SharePath
+    UNC path to network share for validation
+
+    .PARAMETER ValidateLocalAccount
+    If specified, validates the credential represents a valid local account
+
+    .EXAMPLE
+    $cred = Get-Credential
+    $result = Test-FFUCredentials -Credential $cred -SharePath "\\server\share"
+    if (-not $result.IsValid) {
+        Write-Error $result.Message
+        Write-Output "To fix: $($result.Remediation)"
+    }
+
+    .OUTPUTS
+    PSCustomObject with:
+    - IsValid: [bool] True if credentials are valid
+    - Message: [string] Error message if invalid
+    - Remediation: [string] How to fix the issue
+    - ErrorCode: [string] Error classification (InvalidCredentials, Expired, Locked, AccessDenied, NetworkError)
+
+    .NOTES
+    Added in v1.0.20 for REL-CORE-04 compliance.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        [PSCredential]$Credential,
+
+        [Parameter(Mandatory = $false)]
+        [string]$SharePath,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ValidateLocalAccount
+    )
+
+    $result = [PSCustomObject]@{
+        IsValid     = $false
+        Message     = ''
+        Remediation = ''
+        ErrorCode   = ''
+    }
+
+    # Validate credential object
+    if ($null -eq $Credential) {
+        $result.Message = "Credential object is null"
+        $result.Remediation = "Provide valid credentials using Get-Credential or New-Object PSCredential"
+        $result.ErrorCode = 'InvalidCredentials'
+        $result
+        return
+    }
+
+    $username = $Credential.UserName
+    if ([string]::IsNullOrWhiteSpace($username)) {
+        $result.Message = "Username is empty"
+        $result.Remediation = "Provide a username in the credential object"
+        $result.ErrorCode = 'InvalidCredentials'
+        $result
+        return
+    }
+
+    # Validate against network share
+    if (-not [string]::IsNullOrWhiteSpace($SharePath)) {
+        try {
+            # Test network connectivity first
+            $server = ($SharePath -replace '^\\\\([^\\]+).*', '$1')
+            if (-not (Test-Connection -ComputerName $server -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
+                $result.Message = "Cannot reach server '$server'"
+                $result.Remediation = "Check network connectivity. Verify the server is online: Test-Connection -ComputerName $server"
+                $result.ErrorCode = 'NetworkError'
+                $result
+                return
+            }
+
+            # Try to access the share with credentials
+            $testPath = $null
+            $driveLetter = $null
+            try {
+                # Find available drive letter
+                $usedLetters = (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue).Name
+                foreach ($letter in 'Z', 'Y', 'X', 'W', 'V', 'U', 'T', 'S', 'R', 'Q') {
+                    if ($letter -notin $usedLetters) {
+                        $driveLetter = $letter
+                        break
+                    }
+                }
+
+                if ($null -eq $driveLetter) {
+                    $result.Message = "No available drive letters to test share access"
+                    $result.Remediation = "Free up a drive letter (Z-Q) and try again"
+                    $result.ErrorCode = 'Unknown'
+                    $result
+                    return
+                }
+
+                $null = New-PSDrive -Name $driveLetter -PSProvider FileSystem -Root $SharePath -Credential $Credential -ErrorAction Stop
+                $testPath = "${driveLetter}:\"
+                $null = Get-ChildItem -Path $testPath -ErrorAction Stop | Select-Object -First 1
+
+                # Success - clean up
+                Remove-PSDrive -Name $driveLetter -Force -ErrorAction SilentlyContinue
+
+                $result.IsValid = $true
+                $result.Message = "Credentials valid for $SharePath"
+                $result
+                return
+            }
+            catch {
+                if ($null -ne $driveLetter) {
+                    Remove-PSDrive -Name $driveLetter -Force -ErrorAction SilentlyContinue
+                }
+
+                $errorMessage = $_.Exception.Message
+
+                # Parse error for specific conditions
+                if ($errorMessage -match 'password|credential|logon|authentication' -or
+                    $_.Exception.HResult -eq -2147024809) {
+                    # ERROR_LOGON_FAILURE
+                    $result.Message = "Invalid username or password for '$SharePath'"
+                    $result.Remediation = @"
+To fix:
+1. Verify username format: DOMAIN\username or username@domain.com
+2. Confirm password is correct (check caps lock)
+3. Try: net use \\$server\IPC`$ /user:$username * (enter password manually)
+"@
+                    $result.ErrorCode = 'InvalidCredentials'
+                }
+                elseif ($errorMessage -match 'expired') {
+                    $result.Message = "Credentials have expired for user '$username'"
+                    $result.Remediation = @"
+To fix:
+1. Reset password for account '$username'
+2. Re-run build with updated credentials
+3. If domain account: Contact IT to reset password
+"@
+                    $result.ErrorCode = 'Expired'
+                }
+                elseif ($errorMessage -match 'locked|disabled') {
+                    $result.Message = "Account '$username' is locked or disabled"
+                    $result.Remediation = @"
+To fix:
+1. Contact IT to unlock/enable account '$username'
+2. Wait for lockout period to expire (typically 30 minutes)
+3. Use a different account with share access
+"@
+                    $result.ErrorCode = 'Locked'
+                }
+                elseif ($errorMessage -match 'access.*denied|permission') {
+                    $result.Message = "Access denied to '$SharePath' for user '$username'"
+                    $result.Remediation = @"
+To fix:
+1. Credentials are valid but account lacks permissions
+2. Grant read/write access to '$username' on the share
+3. Or use an account with appropriate permissions
+"@
+                    $result.ErrorCode = 'AccessDenied'
+                }
+                else {
+                    $result.Message = "Failed to access '$SharePath': $errorMessage"
+                    $result.Remediation = "Check network connectivity and share permissions. Error details: $($_.Exception.GetType().Name)"
+                    $result.ErrorCode = 'NetworkError'
+                }
+
+                $result
+                return
+            }
+        }
+        catch {
+            $result.Message = "Credential validation failed: $($_.Exception.Message)"
+            $result.Remediation = "Unexpected error during validation. Check the error message for details."
+            $result.ErrorCode = 'Unknown'
+            $result
+            return
+        }
+    }
+
+    # Validate local account
+    if ($ValidateLocalAccount) {
+        try {
+            $localUsername = if ($username -match '\\') { $username.Split('\')[1] } else { $username }
+
+            # Check if user exists (using .NET to avoid Get-LocalUser cmdlet issues in ThreadJob)
+            $userExists = $false
+            try {
+                $adsi = [ADSI]"WinNT://$env:COMPUTERNAME/$localUsername,user"
+                $userExists = $null -ne $adsi.Path
+            }
+            catch {
+                $userExists = $false
+            }
+
+            if (-not $userExists) {
+                $result.Message = "Local account '$localUsername' does not exist"
+                $result.Remediation = @"
+To fix:
+1. Create the local account: net user $localUsername * /add
+2. Or use an existing local account
+3. Or specify a domain account: DOMAIN\username
+"@
+                $result.ErrorCode = 'InvalidCredentials'
+                $result
+                return
+            }
+
+            $result.IsValid = $true
+            $result.Message = "Local account '$localUsername' exists"
+        }
+        catch {
+            $result.Message = "Failed to validate local account: $($_.Exception.Message)"
+            $result.Remediation = "Check that the local security subsystem is accessible"
+            $result.ErrorCode = 'Unknown'
+        }
+    }
+
+    # If no specific validation requested, just validate the credential object is well-formed
+    if ([string]::IsNullOrWhiteSpace($SharePath) -and -not $ValidateLocalAccount) {
+        $result.IsValid = $true
+        $result.Message = "Credential object is well-formed"
+    }
+
+    $result
 }
 
 # =============================================================================
