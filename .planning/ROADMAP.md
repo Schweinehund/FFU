@@ -88,9 +88,15 @@ Plans:
   2. Partition changes verify before/after state to catch silent failures
   3. Failed FFU capture leaves VHDX intact for retry (not corrupted)
   4. Mount operations retry on "drive in use" and similar transient errors
-  5. Large FFU operations can resume from checkpoint after interruption
-**Research**: Likely (resume capability may need new patterns)
-**Plans**: TBD
+  5. Large FFU operations pre-validate to prevent mid-operation failure (DISM does not support resume)
+**Research**: Complete (18-RESEARCH.md - confirmed DISM /Capture-FFU has no resume)
+**Plans:** 5 plans
+Plans:
+- [ ] 18-01-PLAN.md - Disk space pre-validation (REL-IMG-01)
+- [ ] 18-02-PLAN.md - Partition state verification (REL-IMG-02)
+- [ ] 18-03-PLAN.md - Transient error retry for mount/dismount (REL-IMG-04)
+- [ ] 18-04-PLAN.md - Safe FFU capture with VHDX preservation (REL-IMG-03)
+- [ ] 18-05-PLAN.md - Large operation pre-validation (REL-IMG-05)
 
 ### Phase 19: FFU.Media Reliability
 **Goal**: Make WinPE media creation reliable with dependency validation and clear failure remediation
@@ -187,7 +193,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
 | 16. FFU.Hypervisor Reliability | 4/4 | Complete | 2026-01-24 |
 | 17. FFU.VM Reliability | 4/4 | Complete | 2026-01-24 |
-| 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
+| 18. FFU.Imaging Reliability | 0/5 | Planned | - |
 | 19. FFU.Media Reliability | 0/TBD | Not started | - |
 | 20. FFU.Updates Reliability | 0/TBD | Not started | - |
 | 21. FFU.Drivers Reliability | 0/TBD | Not started | - |
