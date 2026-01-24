@@ -193,8 +193,13 @@ Plans:
   2. orchestrator.ps1 detects missing scripts/configs with specific messages
   3. Logs copied to persistent location before VM shutdown for debugging
   4. Scripts handle low memory/disk WinPE environment without crashing
-**Research**: Likely (WinPE environment constraints need research)
-**Plans**: TBD
+**Research**: Complete (24-RESEARCH.md - WinPE constraints documented)
+**Plans:** 4 plans
+Plans:
+- [ ] 24-01-PLAN.md - CaptureFFU disk validation (REL-WINPE-01)
+- [ ] 24-02-PLAN.md - Orchestrator dependency detection (REL-WINPE-02)
+- [ ] 24-03-PLAN.md - Log preservation enhancement (REL-WINPE-03)
+- [ ] 24-04-PLAN.md - Resource exhaustion handling (REL-WINPE-04)
 
 ### Phase 25: FFUUI.Core Reliability
 **Goal**: Make UI display errors clearly and maintain consistent state after failures
@@ -224,7 +229,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 21. FFU.Drivers Reliability | 4/4 | Complete | 2026-01-24 |
 | 22. FFU.Preflight Reliability | 4/4 | Complete | 2026-01-24 |
 | 23. BuildFFUVM.ps1 Reliability | 4/4 | Complete | 2026-01-24 |
-| 24. WinPE Scripts Reliability | 0/TBD | Not started | - |
+| 24. WinPE Scripts Reliability | 0/4 | Planned | - |
 | 25. FFUUI.Core Reliability | 0/TBD | Not started | - |
 
 ---
