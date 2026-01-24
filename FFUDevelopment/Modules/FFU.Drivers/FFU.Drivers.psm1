@@ -925,8 +925,7 @@ function Get-HPDrivers {
         [string]$FFUDevelopmentPath
     )
 
-    # Download and extract the PlatformList.cab
-    $PlatformListUrl = 'https://hpia.hpcloud.hp.com/ref/platformList.cab'
+    # Download and extract the PlatformList.cab (with caching)
     $DriversFolder = "$DriversFolder\$Make"
     $PlatformListCab = "$DriversFolder\platformList.cab"
     $PlatformListXml = "$DriversFolder\PlatformList.xml"
@@ -936,12 +935,13 @@ function Get-HPDrivers {
         New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
         WriteLog "Drivers folder created"
     }
-    WriteLog "Downloading $PlatformListUrl to $PlatformListCab"
+
     try {
-        Invoke-DriverDownloadWithRetry -Source $PlatformListUrl -Destination $PlatformListCab -OperationName "HP platform catalog"
+        $PlatformListCab = Get-CachedOEMCatalog -Vendor 'HP' -CatalogType 'Platform' `
+            -PrimaryUrl ([FFUConstants]::HP_PLATFORM_LIST_URL) -CachePath $PlatformListCab
     }
     catch {
-        WriteLog "ERROR: Failed to download HP platform catalog after all retries: $($_.Exception.Message)"
+        WriteLog "ERROR: $($_.Exception.Message)"
         throw
     }
 
@@ -1652,32 +1652,26 @@ function Get-DellDrivers {
     New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
     WriteLog "Dell Drivers folder created"
 
-    #CatalogPC.cab is the catalog for Windows client PCs, Catalog.cab is the catalog for Windows Server
+    #CatalogPC.cab is the catalog for Windows client PCs, Catalog.cab is the catalog for Windows Server (with caching)
     if ($WindowsRelease -le 11) {
-        $catalogUrl = "http://downloads.dell.com/catalog/CatalogPC.cab"
+        $catalogType = 'PC'
+        $primaryUrl = [FFUConstants]::DELL_CATALOG_PC_URL
         $DellCabFile = "$DriversFolder\CatalogPC.cab"
         $DellCatalogXML = "$DriversFolder\CatalogPC.XML"
     }
     else {
-        $catalogUrl = "https://downloads.dell.com/catalog/Catalog.cab"
+        $catalogType = 'Server'
+        $primaryUrl = [FFUConstants]::DELL_CATALOG_SERVER_URL
         $DellCabFile = "$DriversFolder\Catalog.cab"
         $DellCatalogXML = "$DriversFolder\Catalog.xml"
     }
 
-    if (-not (Test-Url -Url $catalogUrl)) {
-        WriteLog "Dell Catalog cab URL is not accessible: $catalogUrl Exiting"
-        if ($VerbosePreference -ne 'Continue') {
-            Write-Host "Dell Catalog cab URL is not accessible: $catalogUrl Exiting"
-        }
-        exit
-    }
-
-    WriteLog "Downloading Dell Catalog cab file: $catalogUrl to $DellCabFile"
     try {
-        Invoke-DriverDownloadWithRetry -Source $catalogUrl -Destination $DellCabFile -OperationName "Dell driver catalog"
+        $DellCabFile = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType $catalogType `
+            -PrimaryUrl $primaryUrl -CachePath $DellCabFile
     }
     catch {
-        WriteLog "ERROR: Failed to download Dell driver catalog after all retries: $($_.Exception.Message)"
+        WriteLog "ERROR: $($_.Exception.Message)"
         throw
     }
 
