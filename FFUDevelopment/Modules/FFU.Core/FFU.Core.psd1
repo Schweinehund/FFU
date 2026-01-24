@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.20'
+    ModuleVersion = '1.0.21'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -131,7 +131,16 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.20
+# Release Notes - FFU.Core v1.0.21
+
+## v1.0.21 - Build Error Aggregation (REL-BUILD-04)
+- Added Add-BuildError: Accumulates errors throughout build with Phase, Message, Severity, Exception, Timestamp
+- Added Get-BuildErrorSummary: Returns TotalCount, CriticalCount, WarningCount, InfoCount, HasCritical, Errors
+- Added Clear-BuildErrors: Resets the error collector for new builds
+- Added Write-BuildErrorSummary: Formats and logs error summary with severity prefixes
+- Enables collecting ALL errors during a build rather than stopping at first failure
+- ThreadJob-safe logging pattern using $function:WriteLog with Write-Verbose fallback
+- 51 total functions now exported
 
 ## v1.0.20 - Session Recovery and Credential Validation (REL-CORE-03, REL-CORE-04)
 - Added Restore-FFUSession: Recovers build session after unexpected interruption
