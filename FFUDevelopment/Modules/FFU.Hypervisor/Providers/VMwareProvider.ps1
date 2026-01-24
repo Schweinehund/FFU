@@ -285,47 +285,49 @@ class VMwareProvider : IHypervisorProvider {
         .OUTPUTS
             String: 'Running' or 'Completed'
         #>
-        try {
-            $vmxPath = $this.ResolveVMXPath($VM)
+        $vmxPath = $this.ResolveVMXPath($VM)
 
-            if ([string]::IsNullOrEmpty($vmxPath)) {
-                throw "Cannot start VM '$($VM.Name)': VMX path not found"
-            }
+        if ([string]::IsNullOrEmpty($vmxPath)) {
+            throw "Cannot start VM '$($VM.Name)': VMX path not found"
+        }
 
-            if ($ShowConsole) {
-                WriteLog "Starting VM with console window visible (gui mode)"
-                WriteLog "NOTE: vmrun gui blocks until VM shuts down"
+        if ($ShowConsole) {
+            WriteLog "Starting VM with console window visible (gui mode)"
+            WriteLog "NOTE: vmrun gui blocks until VM shuts down"
+        }
+        else {
+            WriteLog "Starting VM in headless mode (nogui) - use -ShowVMConsole `$true to see console"
+        }
+
+        # Track start time for race condition handling in GetVMState
+        $this.LastStartVMTime = [datetime]::Now
+
+        # Use retry wrapper for service recovery (REL-HYP-04)
+        $vmName = $VM.Name
+        $vmxPathLocal = $vmxPath
+        $showConsoleLocal = $ShowConsole
+        $vmxToolkitAvail = $this.VmxToolkitAvailable
+        $startVmxToolkit = $this.PSObject.Methods['StartVMWithVmxToolkit']
+
+        $result = Invoke-WithHypervisorRetry -Provider 'VMware' -OperationName "StartVM($vmName)" -ScriptBlock {
+            # Both paths return a result with Status property
+            if ($vmxToolkitAvail) {
+                # Note: We can't call $this method from inside scriptblock, so call vmrun directly
+                return Set-VMwarePowerStateWithVmrun -VMXPath $vmxPathLocal -State 'on' -ShowConsole $showConsoleLocal
             }
             else {
-                WriteLog "Starting VM in headless mode (nogui) - use -ShowVMConsole `$true to see console"
+                return Set-VMwarePowerStateWithVmrun -VMXPath $vmxPathLocal -State 'on' -ShowConsole $showConsoleLocal
             }
-
-            # Track start time for race condition handling in GetVMState
-            $this.LastStartVMTime = [datetime]::Now
-
-            # Use vmxtoolkit if available, otherwise direct vmrun
-            # Both paths now return a result with Status property
-            $result = $null
-            if ($this.VmxToolkitAvailable) {
-                $result = $this.StartVMWithVmxToolkit($vmxPath, $ShowConsole)
-            }
-            else {
-                $result = Set-VMwarePowerStateWithVmrun -VMXPath $vmxPath -State 'on' -ShowConsole $ShowConsole
-            }
-
-            # Check if VM completed during startup (GUI mode behavior)
-            if ($result -and $result.Status -eq 'Completed') {
-                WriteLog "VMware VM '$($VM.Name)' started, ran, and completed during vmrun wait"
-                return 'Completed'
-            }
-
-            WriteLog "VMware VM '$($VM.Name)' started and is running"
-            return 'Running'
         }
-        catch {
-            WriteLog "ERROR: Failed to start VM '$($VM.Name)': $($_.Exception.Message)"
-            throw
+
+        # Check if VM completed during startup (GUI mode behavior)
+        if ($result -and $result.Status -eq 'Completed') {
+            WriteLog "VMware VM '$($VM.Name)' started, ran, and completed during vmrun wait"
+            return 'Completed'
         }
+
+        WriteLog "VMware VM '$($VM.Name)' started and is running"
+        return 'Running'
     }
 
     # Start VM using vmxtoolkit module
@@ -354,29 +356,24 @@ class VMwareProvider : IHypervisorProvider {
     }
 
     [void] StopVM([VMInfo]$VM, [bool]$Force) {
-        try {
-            $vmxPath = $this.ResolveVMXPath($VM)
+        $vmxPath = $this.ResolveVMXPath($VM)
 
-            if ([string]::IsNullOrEmpty($vmxPath)) {
-                throw "Cannot stop VM '$($VM.Name)': VMX path not found"
-            }
-
-            $state = if ($Force) { 'off' } else { 'shutdown' }
-
-            # Use vmxtoolkit if available, otherwise direct vmrun
-            if ($this.VmxToolkitAvailable) {
-                $this.StopVMWithVmxToolkit($vmxPath, $Force)
-            }
-            else {
-                Set-VMwarePowerStateWithVmrun -VMXPath $vmxPath -State $state
-            }
-
-            WriteLog "VMware VM '$($VM.Name)' stopped (force=$Force)"
+        if ([string]::IsNullOrEmpty($vmxPath)) {
+            throw "Cannot stop VM '$($VM.Name)': VMX path not found"
         }
-        catch {
-            WriteLog "ERROR: Failed to stop VM '$($VM.Name)': $($_.Exception.Message)"
-            throw
+
+        $powerState = if ($Force) { 'off' } else { 'shutdown' }
+
+        # Use retry wrapper for service recovery (REL-HYP-04)
+        $vmName = $VM.Name
+        $vmxPathLocal = $vmxPath
+        $stateLocal = $powerState
+
+        Invoke-WithHypervisorRetry -Provider 'VMware' -OperationName "StopVM($vmName)" -ScriptBlock {
+            Set-VMwarePowerStateWithVmrun -VMXPath $vmxPathLocal -State $stateLocal
         }
+
+        WriteLog "VMware VM '$($VM.Name)' stopped (force=$Force)"
     }
 
     # Stop VM using vmxtoolkit module
@@ -496,41 +493,55 @@ class VMwareProvider : IHypervisorProvider {
     }
 
     [VMState] GetVMState([VMInfo]$VM) {
+        $vmxPath = $this.ResolveVMXPath($VM)
+
+        if ([string]::IsNullOrEmpty($vmxPath)) {
+            WriteLog "WARNING: Cannot determine VMX path for state check"
+            return [VMState]::Unknown
+        }
+
+        # Race condition handling: After StartVM, there's a brief window where process
+        # detection may fail. If called within 5 seconds of StartVM and process not found,
+        # wait 1 second and retry once.
+        $timeSinceStart = ([datetime]::Now - $this.LastStartVMTime).TotalSeconds
+        $isRecentStart = ($timeSinceStart -lt 5 -and $timeSinceStart -gt 0)
+
+        # Use retry wrapper for transient vmrun failures (REL-HYP-04)
+        $vmxPathLocal = $vmxPath
+        $vmName = $VM.Name
+        $stateResult = $null
+
         try {
-            $vmxPath = $this.ResolveVMXPath($VM)
-
-            if ([string]::IsNullOrEmpty($vmxPath)) {
-                WriteLog "WARNING: Cannot determine VMX path for state check"
-                return [VMState]::Unknown
+            $stateResult = Invoke-WithHypervisorRetry -Provider 'VMware' -OperationName "GetVMState($vmName)" -ScriptBlock {
+                # Use process detection (most reliable method)
+                $powerState = Get-VMwarePowerStateWithVmrun -VMXPath $vmxPathLocal
+                return [VMInfo]::ConvertVMwareState($powerState)
             }
-
-            # Race condition handling: After StartVM, there's a brief window where process
-            # detection may fail. If called within 5 seconds of StartVM and process not found,
-            # wait 1 second and retry once.
-            $timeSinceStart = ([datetime]::Now - $this.LastStartVMTime).TotalSeconds
-            $isRecentStart = ($timeSinceStart -lt 5 -and $timeSinceStart -gt 0)
-
-            # Use process detection (most reliable method)
-            $powerState = Get-VMwarePowerStateWithVmrun -VMXPath $vmxPath
-            $state = [VMInfo]::ConvertVMwareState($powerState)
-
-            # Handle race condition - retry once if Unknown/Off right after start
-            if ($isRecentStart -and ($state -eq [VMState]::Unknown -or $state -eq [VMState]::Off)) {
-                WriteLog "State check within ${timeSinceStart}s of StartVM returned '$state', retrying after 1s..."
-                Start-Sleep -Seconds 1
-                $powerState = Get-VMwarePowerStateWithVmrun -VMXPath $vmxPath
-                $state = [VMInfo]::ConvertVMwareState($powerState)
-                WriteLog "Retry returned state: $state"
-            }
-
-            # Note: VMware doesn't have transient states like Hyper-V (Starting/Stopping)
-            # VMware goes directly from poweredoff to poweredon
-            return $state
         }
         catch {
             WriteLog "WARNING: GetVMState failed: $($_.Exception.Message)"
             return [VMState]::Unknown
         }
+
+        # Handle race condition - retry once if Unknown/Off right after start
+        if ($isRecentStart -and ($stateResult -eq [VMState]::Unknown -or $stateResult -eq [VMState]::Off)) {
+            WriteLog "State check within ${timeSinceStart}s of StartVM returned '$stateResult', retrying after 1s..."
+            Start-Sleep -Seconds 1
+            try {
+                $stateResult = Invoke-WithHypervisorRetry -Provider 'VMware' -OperationName "GetVMState($vmName) retry" -ScriptBlock {
+                    $powerState = Get-VMwarePowerStateWithVmrun -VMXPath $vmxPathLocal
+                    return [VMInfo]::ConvertVMwareState($powerState)
+                }
+            }
+            catch {
+                # Ignore retry failure
+            }
+            WriteLog "Retry returned state: $stateResult"
+        }
+
+        # Note: VMware doesn't have transient states like Hyper-V (Starting/Stopping)
+        # VMware goes directly from poweredoff to poweredon
+        return $stateResult
     }
 
     # Get VM state, waiting for stability if needed

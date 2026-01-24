@@ -20,6 +20,9 @@
 
 #Requires -Version 7.0
 
+# Module-scope state for provider switch tracking (REL-HYP-03)
+$script:PreviousProviderType = $null
+
 # Get module paths
 $script:ModuleRoot = $PSScriptRoot
 $script:ClassesPath = Join-Path $ModuleRoot 'Classes'
@@ -429,6 +432,13 @@ Export-ModuleMember -Function @(
     'Test-VMStateOff',
     'Test-VMStateRunning',
     'Wait-VMStateChange',
+    # Provider switch validation (REL-HYP-03)
+    'Test-ProviderSwitch',
+    'Get-PreviousHypervisorType',
+    # Service recovery functions (REL-HYP-04)
+    'Test-HypervisorService',
+    'Invoke-WithHypervisorRetry',
+    'Test-IsServiceError',
     # VM lifecycle wrapper functions
     'New-HypervisorVM',
     'Start-HypervisorVM',

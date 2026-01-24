@@ -193,37 +193,43 @@ class HyperVProvider : IHypervisorProvider {
     }
 
     [string] StartVM([VMInfo]$VM, [bool]$ShowConsole) {
-        try {
-            # Hyper-V VMs are always visible via Hyper-V Manager
-            # ShowConsole parameter is ignored for Hyper-V but logged for visibility
-            if ($ShowConsole) {
-                WriteLog "Note: ShowConsole=true has no effect for Hyper-V (use Hyper-V Manager to view console)"
-            }
-            Start-VM -Name $VM.Name -ErrorAction Stop
-            WriteLog "VM '$($VM.Name)' started"
-            # Hyper-V Start-VM returns immediately, VM is always 'Running' after this
-            return 'Running'
+        # Hyper-V VMs are always visible via Hyper-V Manager
+        # ShowConsole parameter is ignored for Hyper-V but logged for visibility
+        if ($ShowConsole) {
+            WriteLog "Note: ShowConsole=true has no effect for Hyper-V (use Hyper-V Manager to view console)"
         }
-        catch {
-            WriteLog "ERROR: Failed to start VM '$($VM.Name)': $($_.Exception.Message)"
-            throw
+
+        # Use retry wrapper for service recovery (REL-HYP-04)
+        $vmName = $VM.Name
+        Invoke-WithHypervisorRetry -Provider 'HyperV' -OperationName "StartVM($vmName)" -PreCheckService -ScriptBlock {
+            Start-VM -Name $vmName -ErrorAction Stop
         }
+
+        WriteLog "VM '$($VM.Name)' started"
+        # Hyper-V Start-VM returns immediately, VM is always 'Running' after this
+        return 'Running'
     }
 
     [void] StopVM([VMInfo]$VM, [bool]$Force) {
-        try {
-            if ($Force) {
-                Stop-VM -Name $VM.Name -Force -TurnOff -ErrorAction Stop
-                WriteLog "VM '$($VM.Name)' force stopped"
+        # Use retry wrapper for service recovery (REL-HYP-04)
+        # Note: No PreCheckService - stopping doesn't require service to be fully operational
+        $vmName = $VM.Name
+        $forceStop = $Force
+
+        Invoke-WithHypervisorRetry -Provider 'HyperV' -OperationName "StopVM($vmName)" -ScriptBlock {
+            if ($forceStop) {
+                Stop-VM -Name $vmName -Force -TurnOff -ErrorAction Stop
             }
             else {
-                Stop-VM -Name $VM.Name -ErrorAction Stop
-                WriteLog "VM '$($VM.Name)' stopped gracefully"
+                Stop-VM -Name $vmName -ErrorAction Stop
             }
         }
-        catch {
-            WriteLog "ERROR: Failed to stop VM '$($VM.Name)': $($_.Exception.Message)"
-            throw
+
+        if ($Force) {
+            WriteLog "VM '$($VM.Name)' force stopped"
+        }
+        else {
+            WriteLog "VM '$($VM.Name)' stopped gracefully"
         }
     }
 
@@ -302,20 +308,27 @@ class HyperVProvider : IHypervisorProvider {
     }
 
     [VMState] GetVMState([VMInfo]$VM) {
+        # Use retry wrapper for service-related errors (REL-HYP-04)
+        $vmName = $VM.Name
+        $stateResult = $null
+
         try {
-            $nativeVM = Get-VM -Name $VM.Name -ErrorAction Stop
-            $state = [VMInfo]::ConvertHyperVState($nativeVM.State)
-
-            # Log if returning transient state
-            if ([VMInfo]::IsTransientState($state)) {
-                WriteLog "GetVMState returned transient state '$state' for VM '$($VM.Name)' - caller may want GetVMStateStable()"
+            $stateResult = Invoke-WithHypervisorRetry -Provider 'HyperV' -OperationName "GetVMState($vmName)" -ScriptBlock {
+                $nativeVM = Get-VM -Name $vmName -ErrorAction Stop
+                return [VMInfo]::ConvertHyperVState($nativeVM.State)
             }
-
-            return $state
         }
         catch {
+            # If all retries fail, return Unknown
             return [VMState]::Unknown
         }
+
+        # Log if returning transient state
+        if ([VMInfo]::IsTransientState($stateResult)) {
+            WriteLog "GetVMState returned transient state '$stateResult' for VM '$vmName' - caller may want GetVMStateStable()"
+        }
+
+        return $stateResult
     }
 
     # Get VM state, waiting for stability if currently in transient state

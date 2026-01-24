@@ -6,7 +6,7 @@
     RootModule = 'FFU.Hypervisor.psm1'
 
     # Version number of this module
-    ModuleVersion = '1.3.6'
+    ModuleVersion = '1.3.8'
 
     # ID used to uniquely identify this module
     GUID = 'a8e2c3f1-5d7b-4e9a-bc12-3f4d5e6a7b8c'
@@ -21,7 +21,7 @@
     Copyright = '(c) 2025 FFU Builder Team. MIT License.'
 
     # Description of the functionality provided by this module
-    Description = 'Hypervisor abstraction layer supporting Hyper-V and VMware Workstation Pro - vmware-vmx process detection, vmrun list, nvram lock'
+    Description = 'Hypervisor abstraction layer supporting Hyper-V and VMware Workstation Pro - service recovery, automatic retry, provider switch validation'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '7.0'
@@ -42,6 +42,13 @@
         'Test-VMStateOff',
         'Test-VMStateRunning',
         'Wait-VMStateChange',
+        # Provider switch validation (REL-HYP-03)
+        'Test-ProviderSwitch',
+        'Get-PreviousHypervisorType',
+        # Service recovery functions (REL-HYP-04)
+        'Test-HypervisorService',
+        'Invoke-WithHypervisorRetry',
+        'Test-IsServiceError',
         # Provider interface functions
         'New-HypervisorVM',
         'Start-HypervisorVM',
@@ -79,6 +86,51 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.8 (2026-01-23)
+- NEW: Automatic service recovery with retry logic (REL-HYP-04)
+  - Test-HypervisorService function checks service health for both providers
+    - Hyper-V: checks vmms and vmcompute services
+    - VMware: checks vmrun accessibility and VMAuthdService
+    - Returns IsHealthy, ServiceStatus, CanRecover, RecoveryAction
+    - WaitForReady parameter polls until service ready or timeout
+  - Invoke-WithHypervisorRetry wrapper for hypervisor operations
+    - Automatic retry on service-related errors
+    - Exponential backoff with jitter prevents hammering
+    - Non-service errors rethrown immediately (no retry)
+    - PreCheckService parameter validates service before execution
+    - Comprehensive error messages include all attempt history
+  - Test-IsServiceError detects transient service issues
+    - Hyper-V: vmms, RPC server, service not started
+    - VMware: unable to connect, vmrun, process not found
+- ENHANCED: Provider StartVM/StopVM/GetVMState use retry wrapper
+  - HyperVProvider.StartVM: PreCheckService + retry
+  - HyperVProvider.StopVM: retry without PreCheckService
+  - HyperVProvider.GetVMState: retry for RPC failures
+  - VMwareProvider.StartVM: retry wrapper
+  - VMwareProvider.StopVM: retry wrapper
+  - VMwareProvider.GetVMState: retry for transient vmrun failures
+
+v1.3.7 (2026-01-23)
+- NEW: Provider switch validation to prevent config corruption and orphaned VMs (REL-HYP-03)
+  - Test-ProviderSwitch function validates switches between Hyper-V and VMware
+  - Detects orphaned VMs (running VMs block switch, stopped VMs generate warnings)
+  - Validates config compatibility (VHDX not supported by VMware, VMDK not by Hyper-V)
+  - Checks target provider availability with remediation guidance
+  - Returns CanSwitch, Warnings, Blockers, OrphanedVMs, IncompatibleConfig, RecommendedActions
+- NEW: Get-HypervisorProvider -ValidateSwitch parameter
+  - Validates switch from previous provider to requested provider
+  - Throws on blockers unless -Force is specified
+  - Logs warnings for non-blocking issues
+- NEW: Get-HypervisorProvider -Force parameter
+  - Proceeds with provider switch despite blockers when combined with -ValidateSwitch
+  - Logs warnings but does not throw
+- NEW: Get-PreviousHypervisorType function
+  - Returns the type of the last provider returned by Get-HypervisorProvider
+  - Useful for checking if a switch is about to occur
+- NEW: Provider type tracking via $script:PreviousProviderType
+  - Automatically tracks provider usage across calls
+  - Logs when switching providers
+
 v1.3.6 (2026-01-23)
 - NEW: Transient state detection helpers in VMInfo class (REL-HYP-02)
   - IsTransientState() static method to identify Starting/Stopping/Saving/Restoring states
