@@ -5041,7 +5041,9 @@ if ($script:CheckpointEnabled) {
 
 If ($BuildUSBDrive -and -not $skipUSBCreation) {
     Set-Progress -Percentage 95 -Message "Building USB drive..."
-    try {
+
+    # === NON-CRITICAL PHASE: USB Creation (INT-BUILD-01, INT-BUILD-02) ===
+    $usbResult = Invoke-BuildPhase -PhaseName 'USB Drive Creation' -Critical $false -Action {
         If (Test-Path -Path $DeployISO) {
             $ffuFilesToCopy = @()
 
@@ -5051,15 +5053,10 @@ If ($BuildUSBDrive -and -not $skipUSBCreation) {
                 $currentFFU = $FFUFile
             }
             else {
-                try {
-                    $ffuDir = if (-not [string]::IsNullOrWhiteSpace($FFUCaptureLocation)) { $FFUCaptureLocation } else { Join-Path $FFUDevelopmentPath 'FFU' }
-                    if (Test-Path -LiteralPath $ffuDir) {
-                        $latest = Get-ChildItem -Path $ffuDir -Filter '*.ffu' -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-                        if ($null -ne $latest) { $currentFFU = $latest.FullName }
-                    }
-                }
-                catch {
-                    WriteLog "Failed to resolve latest FFU file to copy: $($_.Exception.Message)"
+                $ffuDir = if (-not [string]::IsNullOrWhiteSpace($FFUCaptureLocation)) { $FFUCaptureLocation } else { Join-Path $FFUDevelopmentPath 'FFU' }
+                if (Test-Path -LiteralPath $ffuDir) {
+                    $latest = Get-ChildItem -Path $ffuDir -Filter '*.ffu' -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                    if ($null -ne $latest) { $currentFFU = $latest.FullName }
                 }
             }
             if ($null -ne $currentFFU) {
@@ -5075,13 +5072,14 @@ If ($BuildUSBDrive -and -not $skipUSBCreation) {
         }
         else {
             WriteLog "$BuildUSBDrive set to true, however unable to find $DeployISO. USB drive not built."
+            throw "Deployment ISO not found: $DeployISO"
         }
-        
     }
-    catch {
-        Write-Host 'Building USB deployment drive failed'
-        Writelog "Building USB deployment drive failed with error $_"
-        throw $_
+
+    if (-not $usbResult.Success) {
+        WriteLog "WARNING: USB drive creation failed but build completed successfully."
+        WriteLog "  Error: $($usbResult.Error.Message)"
+        WriteLog "  Note: FFU file is available at $FFUCaptureLocation. You can create USB media manually."
     }
 }
 If ($RemoveFFU) {
