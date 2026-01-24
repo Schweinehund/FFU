@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 24 of 25 (WinPE Scripts Reliability) - IN PROGRESS
-**Plan:** 2 of 4 (Orchestrator Dependency Detection complete)
+**Plan:** 3 of 4 (Log Preservation Enhancement complete)
 **Status:** In progress
-**Last activity:** 2026-01-24 - Completed 24-02-PLAN.md (REL-WINPE-02)
+**Last activity:** 2026-01-24 - Completed 24-03-PLAN.md (REL-WINPE-03)
 
 Progress: Milestone v1.9.0
 [#########-] 82% (9/11 phases complete)
@@ -38,7 +38,7 @@ Progress: Milestone v1.9.0
 |------|------|--------|--------|
 | 24-01 | CaptureFFU Disk Validation | Complete | f266bd3 |
 | 24-02 | Orchestrator Dependency Detection | Complete | ce4c65b |
-| 24-03 | Log Preservation Enhancement | Pending | - |
+| 24-03 | Log Preservation Enhancement | Complete | 5a1194f |
 | 24-04 | Resource Handling | Pending | - |
 
 ## Completed Milestones
@@ -136,9 +136,14 @@ Progress: Milestone v1.9.0
 | Write-Host for warnings | Write-Host with colors for consistent console formatting instead of Write-Warning | 2026-01-24 |
 | Run-Sysprep.ps1 only critical | Other scripts optional, but Sysprep required for FFU generalization | 2026-01-24 |
 | Full paths in error messages | Users debugging failed builds need exact expected locations | 2026-01-24 |
+| Start-Transcript for CaptureFFU | Captures ALL console output to network share for post-mortem debugging | 2026-01-24 |
+| Add-Content for Orchestrator log | Incremental logging survives crashes, partial logs preserved | 2026-01-24 |
+| W: for CaptureFFU, D: for Orchestrator | Network share and Apps ISO are the only persistent storage in WinPE | 2026-01-24 |
+| Graceful logging failures | Logging failures produce warnings but never abort actual work | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 24-03-PLAN.md (Log Preservation Enhancement) - REL-WINPE-03, 45 tests
 - 2026-01-24: Completed 24-02-PLAN.md (Orchestrator Dependency Detection) - REL-WINPE-02, 35 tests
 - 2026-01-24: Completed 24-01-PLAN.md (CaptureFFU Disk Validation) - REL-WINPE-01, 21 tests
 - 2026-01-24: Completed 23-04-PLAN.md (Termination Cleanup Enhancement) - REL-BUILD-02/04/05, 30 tests, v1.8.36
@@ -170,9 +175,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 24-02-PLAN.md (Orchestrator Dependency Detection)
+**Stopped at:** Completed 24-03-PLAN.md (Log Preservation Enhancement)
 **Resume file:** None
-**Next action:** Execute 24-03-PLAN.md (Log Preservation Enhancement)
+**Next action:** Execute 24-04-PLAN.md (Resource Handling)
 
 ---
 *State updated: 2026-01-24*
