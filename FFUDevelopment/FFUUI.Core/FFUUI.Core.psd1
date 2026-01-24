@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.14'
+ModuleVersion = '0.0.15'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -77,6 +77,7 @@ NestedModules = @('FFUUI.Core.Applications.psm1',
                 'FFUUI.Core.Initialize.psm1',
                 'FFUUI.Core.Shared.psm1',
                 'FFUUI.Core.StateRecovery.psm1',
+                'FFUUI.Core.ErrorDisplay.psm1',
                 'FFUUI.Core.WindowsSettings.psm1',
                 'FFUUI.Core.Winget.psm1')
 
@@ -120,6 +121,18 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.15: Structured error display
+- NEW: Show-FFUError function for actionable error dialogs
+- NEW: Show-FFUValidationErrors for config validation error display
+- NEW: Format-FFUErrorMessage internal helper for message formatting
+- Error dialogs now show: severity, title, description, remediation steps
+- Includes log file link when available and file exists
+- Includes technical details (exception, stack trace) when ErrorRecord provided
+- Uses appropriate MessageBox icons based on severity (Critical/Error/Warning/Info)
+- Validation errors use (X) prefix, warnings use (!) prefix
+- Consistent with FFU.Preflight remediation block pattern
+- Addresses REL-UI-04: Error messages contain actionable information
+
 v0.0.14: Centralized UI state recovery
 - NEW: FFUUI.Core.StateRecovery module for consistent UI state management
 - NEW: Reset-FFUUIToIdle function resets all controls after errors
