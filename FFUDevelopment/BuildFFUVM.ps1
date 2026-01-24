@@ -5083,16 +5083,17 @@ If ($BuildUSBDrive -and -not $skipUSBCreation) {
     }
 }
 If ($RemoveFFU) {
-    try {
+    # === NON-CRITICAL PHASE: FFU Cleanup (INT-BUILD-01, INT-BUILD-02) ===
+    $cleanupResult = Invoke-BuildPhase -PhaseName 'FFU Cleanup' -Critical $false -Action {
         Remove-FFU -VMName $VMName -InstallApps $InstallApps -vhdxDisk $vhdxDisk `
                    -VMPath $VMPath -FFUDevelopmentPath $FFUDevelopmentPath
     }
-    catch {
-        Write-Host 'Removing FFU files failed'
-        Writelog "Removing FFU files failed with error $_"
-        throw $_
+
+    if (-not $cleanupResult.Success) {
+        WriteLog "WARNING: FFU cleanup failed but build completed."
+        WriteLog "  Error: $($cleanupResult.Error.Message)"
+        WriteLog "  Note: Manual cleanup may be required in $VMPath"
     }
-       
 }
 Set-Progress -Percentage 99 -Message "Finalizing and cleaning up..."
 # Delegated post-build cleanup to common module
