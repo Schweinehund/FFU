@@ -124,8 +124,13 @@ Plans:
   2. Corrupted MSU downloads detected and re-downloaded automatically
   3. One bad update doesn't block installation of other updates
   4. Stale or corrupted catalog cache triggers transparent refresh
-**Research**: Unlikely (existing download resilience patterns)
-**Plans**: TBD
+**Research**: Complete (20-RESEARCH.md - existing patterns to extend)
+**Plans:** 4 plans
+Plans:
+- [ ] 20-01-PLAN.md - Catalog query retry with exponential backoff (REL-UPD-01)
+- [ ] 20-02-PLAN.md - MSU download validation with re-download (REL-UPD-02)
+- [ ] 20-03-PLAN.md - Update application isolation (REL-UPD-03)
+- [ ] 20-04-PLAN.md - Catalog cache management with staleness detection (REL-UPD-04)
 
 ### Phase 21: FFU.Drivers Reliability
 **Goal**: Make OEM driver operations resilient to network issues, vendor quirks, and disk space limits
@@ -200,7 +205,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 17. FFU.VM Reliability | 4/4 | Complete | 2026-01-24 |
 | 18. FFU.Imaging Reliability | 5/5 | Complete | 2026-01-24 |
 | 19. FFU.Media Reliability | 4/4 | Complete | 2026-01-24 |
-| 20. FFU.Updates Reliability | 0/TBD | Not started | - |
+| 20. FFU.Updates Reliability | 0/4 | Planned | - |
 | 21. FFU.Drivers Reliability | 0/TBD | Not started | - |
 | 22. FFU.Preflight Reliability | 0/TBD | Not started | - |
 | 23. BuildFFUVM.ps1 Reliability | 0/TBD | Not started | - |
