@@ -2212,9 +2212,178 @@ function Invoke-UpdatesWithIsolation {
     }
 }
 
+function Get-CachedProductsCab {
+    <#
+    .SYNOPSIS
+    Downloads and caches products.cab with staleness detection and integrity validation
+
+    .DESCRIPTION
+    Provides caching layer for products.cab downloads to reduce network load and speed up
+    repeated builds. The cache includes metadata with download timestamp, SHA-256 hash,
+    and file size for integrity validation on load.
+
+    REL-UPD-04: Catalog Cache Management - Caches products.cab with configurable staleness
+
+    Features:
+    - Configurable staleness detection (default 24 hours)
+    - Cache integrity validation using Test-MSUIntegrity on load
+    - Automatic refresh on cache corruption or staleness
+    - Transparent fallback to Get-ProductsCab for fresh downloads
+
+    .PARAMETER CachePath
+    Directory path where cached catalog files will be stored
+
+    .PARAMETER Architecture
+    Target architecture (x64 or arm64)
+
+    .PARAMETER BuildVersion
+    Windows build version (e.g., "26100.0.0.0" for 24H2)
+
+    .PARAMETER UserAgent
+    User agent string for web requests to Microsoft Update service
+
+    .PARAMETER MaxAgeHours
+    Maximum age in hours before cache is considered stale (default: 24)
+
+    .PARAMETER ForceRefresh
+    Force download of fresh products.cab even if cache is valid
+
+    .EXAMPLE
+    $cabPath = Get-CachedProductsCab -CachePath 'C:\FFU\Cache' -Architecture 'x64' `
+        -BuildVersion '26100.0.0.0' -UserAgent $userAgent
+
+    .EXAMPLE
+    # Force refresh of cache
+    $cabPath = Get-CachedProductsCab -CachePath 'C:\FFU\Cache' -Architecture 'x64' `
+        -BuildVersion '26100.0.0.0' -UserAgent $userAgent -ForceRefresh
+
+    .EXAMPLE
+    # Use shorter cache age (1 hour)
+    $cabPath = Get-CachedProductsCab -CachePath 'C:\FFU\Cache' -Architecture 'arm64' `
+        -BuildVersion '26100.0.0.0' -UserAgent $userAgent -MaxAgeHours 1
+
+    .OUTPUTS
+    String - Path to the cached products.cab file
+
+    .NOTES
+    Cache metadata is stored in a .meta file alongside the cached cab.
+    Uses Test-MSUIntegrity for validation (follows REL-UPD-02 pattern).
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$CachePath,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('x64', 'arm64')]
+        [string]$Architecture,
+
+        [Parameter(Mandatory)]
+        [string]$BuildVersion,
+
+        [Parameter(Mandatory)]
+        [string]$UserAgent,
+
+        [Parameter()]
+        [int]$MaxAgeHours = 24,
+
+        [Parameter()]
+        [switch]$ForceRefresh
+    )
+
+    # ThreadJob-safe logging helper
+    $logMessage = {
+        param([string]$msg)
+        if ($function:WriteLog) {
+            WriteLog $msg
+        } else {
+            Write-Verbose $msg
+        }
+    }
+
+    # Ensure cache directory exists
+    if (-not (Test-Path $CachePath)) {
+        New-Item -Path $CachePath -ItemType Directory -Force | Out-Null
+        & $logMessage "Created catalog cache directory: $CachePath"
+    }
+
+    # Cache file naming: products_x64_26100_0_0_0.cab (dots replaced with underscores for filesystem safety)
+    $cacheFileName = "products_${Architecture}_$($BuildVersion -replace '\.', '_').cab"
+    $cacheFile = Join-Path $CachePath $cacheFileName
+    $cacheMetaFile = "$cacheFile.meta"
+
+    $useCache = $false
+
+    # Check for valid cache (unless ForceRefresh)
+    if (-not $ForceRefresh -and (Test-Path $cacheFile) -and (Test-Path $cacheMetaFile)) {
+        try {
+            $meta = Get-Content $cacheMetaFile -Raw | ConvertFrom-Json
+            $cacheAge = ([DateTime]::Now - [DateTime]$meta.Downloaded).TotalHours
+
+            if ($cacheAge -lt $MaxAgeHours) {
+                # Verify cache integrity using Test-MSUIntegrity (REL-UPD-02 pattern)
+                # Note: Using MinimumSizeBytes=0 since products.cab can be small
+                $integrityCheck = Test-MSUIntegrity -FilePath $cacheFile -ExpectedHash $meta.Hash -ExpectedSize $meta.Size -MinimumSizeBytes 0
+
+                if ($integrityCheck.Valid) {
+                    & $logMessage "Using cached products.cab (age: $([math]::Round($cacheAge, 1))h, max: ${MaxAgeHours}h)"
+                    $useCache = $true
+                }
+                else {
+                    & $logMessage "WARNING: Cache integrity check failed: $($integrityCheck.Errors -join '; ')"
+                    & $logMessage "Cache will be refreshed"
+                }
+            }
+            else {
+                & $logMessage "Cache is stale (age: $([math]::Round($cacheAge, 1))h > max: ${MaxAgeHours}h)"
+            }
+        }
+        catch {
+            & $logMessage "WARNING: Failed to read cache metadata: $($_.Exception.Message)"
+            & $logMessage "Cache will be refreshed"
+        }
+    }
+    elseif ($ForceRefresh) {
+        & $logMessage "ForceRefresh specified - downloading fresh products.cab"
+    }
+
+    if (-not $useCache) {
+        # Download fresh copy using existing function
+        & $logMessage "Downloading fresh products.cab..."
+        Get-ProductsCab -OutFile $cacheFile -Architecture $Architecture -BuildVersion $BuildVersion -UserAgent $UserAgent | Out-Null
+
+        # Compute hash for cache metadata
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $fs = [System.IO.File]::OpenRead($cacheFile)
+        try {
+            $hashBytes = $sha256.ComputeHash($fs)
+            $fileHash = [Convert]::ToBase64String($hashBytes)
+        }
+        finally {
+            $fs.Dispose()
+        }
+
+        # Write cache metadata
+        $meta = @{
+            Downloaded = [DateTime]::Now.ToString('o')
+            Hash = $fileHash
+            Size = (Get-Item $cacheFile).Length
+            Architecture = $Architecture
+            BuildVersion = $BuildVersion
+        }
+        $meta | ConvertTo-Json | Set-Content $cacheMetaFile -Encoding UTF8
+
+        & $logMessage "Products.cab cached successfully (hash: $($fileHash.Substring(0, 8))...)"
+    }
+
+    return $cacheFile
+}
+
 # Export module members
 Export-ModuleMember -Function @(
     'Get-ProductsCab',
+    'Get-CachedProductsCab',
     'Get-WindowsESD',
     'Get-KBLink',
     'Get-UpdateFileInfo',
