@@ -2984,6 +2984,31 @@ function Invoke-FFUPreflight {
             -Message 'Hyper-V check skipped (CreateVM not enabled)'
     }
 
+    # VM Resources check (only if CreateVM enabled) - REL-PRE-01
+    if ($Features.CreateVM) {
+        $vmResourcesResult = Test-FFUVMResources -HypervisorType $HypervisorType
+        $result.Tier1Results['VMResources'] = $vmResourcesResult
+        if ($vmResourcesResult.Status -eq 'Passed') {
+            Write-Information "  Checking VM resources... PASSED"
+        }
+        elseif ($vmResourcesResult.Status -eq 'Warning') {
+            Write-Warning "  Checking VM resources... WARNING"
+            $result.HasWarnings = $true
+            $result.Warnings.Add("VMResources: $($vmResourcesResult.Message)")
+        }
+        else {
+            Write-Information "  Checking VM resources... FAILED"
+            $result.IsValid = $false
+            $result.Errors.Add("VMResources: $($vmResourcesResult.Message)")
+            $result.RemediationSteps.Add($vmResourcesResult.Remediation)
+        }
+    }
+    else {
+        Write-Information "  VM resources check... SKIPPED (CreateVM not enabled)"
+        $result.Tier1Results['VMResources'] = New-FFUCheckResult -CheckName 'VMResources' -Status 'Skipped' `
+            -Message 'VM resources check skipped (CreateVM not enabled)'
+    }
+
     #endregion Tier 1
 
     #region Tier 2: Feature-Dependent Validations
@@ -3136,6 +3161,50 @@ function Invoke-FFUPreflight {
         $result.RemediationSteps.Add($diskResult.Remediation)
     }
 
+    # Scratch space check - REL-PRE-01
+    $scratchResult = Test-FFUScratchSpace -FFUDevelopmentPath $FFUDevelopmentPath
+    $result.Tier2Results['ScratchSpace'] = $scratchResult
+    if ($scratchResult.Status -eq 'Passed') {
+        Write-Information "  Checking scratch space usability... PASSED"
+    }
+    elseif ($scratchResult.Status -eq 'Warning') {
+        Write-Warning "  Checking scratch space usability... WARNING"
+        $result.HasWarnings = $true
+        $result.Warnings.Add("ScratchSpace: $($scratchResult.Message)")
+    }
+    else {
+        Write-Information "  Checking scratch space usability... FAILED"
+        $result.IsValid = $false
+        $result.Errors.Add("ScratchSpace: $($scratchResult.Message)")
+        $result.RemediationSteps.Add($scratchResult.Remediation)
+    }
+
+    # DISM state check (only if ADK operations needed) - REL-PRE-01
+    if ($requirements.NeedsADK) {
+        $dismStateResult = Test-FFUDISMState -AttemptRemediation
+        $result.Tier2Results['DISMState'] = $dismStateResult
+        if ($dismStateResult.Status -eq 'Passed') {
+            $msg = if ($dismStateResult.Details.RemediationAttempted) { ' (cleaned)' } else { '' }
+            Write-Information "  Checking DISM state... PASSED$msg"
+        }
+        elseif ($dismStateResult.Status -eq 'Warning') {
+            Write-Warning "  Checking DISM state... WARNING"
+            $result.HasWarnings = $true
+            $result.Warnings.Add("DISMState: $($dismStateResult.Message)")
+        }
+        else {
+            Write-Information "  Checking DISM state... FAILED"
+            $result.IsValid = $false
+            $result.Errors.Add("DISMState: $($dismStateResult.Message)")
+            $result.RemediationSteps.Add($dismStateResult.Remediation)
+        }
+    }
+    else {
+        Write-Information "  DISM state check... SKIPPED (no ADK operations needed)"
+        $result.Tier2Results['DISMState'] = New-FFUCheckResult -CheckName 'DISMState' -Status 'Skipped' `
+            -Message 'DISM state check skipped (no ADK operations needed)'
+    }
+
     # Network check (only if needed)
     if ($requirements.NeedsNetwork) {
         $netResult = Test-FFUNetwork -Features $Features
@@ -3257,28 +3326,57 @@ function Invoke-FFUPreflight {
     $overallStopwatch.Stop()
     $result.ValidationDurationMs = $overallStopwatch.ElapsedMilliseconds
 
-    # Print summary
+    #region Summary Output (REL-PRE-04: Enhanced with severity breakdown)
     Write-Information "`n========================================"
-    Write-Information "   Validation Summary"
-    Write-Information "========================================"
+    Write-Information "   Pre-Flight Validation Summary"
+    Write-Information "========================================`n"
 
+    # Show severity breakdown
+    if ($result.CriticalCount -gt 0) {
+        Write-Information "CRITICAL ISSUES: $($result.CriticalCount) (build cannot proceed)"
+        foreach ($err in $result.Errors | Where-Object { $_ -match '^\[CRITICAL\]' }) {
+            Write-Information "  - $($err -replace '^\[CRITICAL\] ', '')"
+        }
+        Write-Information ""
+    }
+
+    if ($result.WarningCount -gt 0) {
+        Write-Information "WARNINGS: $($result.WarningCount) (build may have issues)"
+        foreach ($warn in $result.Warnings | Where-Object { $_ -match '^\[WARNING\]' }) {
+            Write-Information "  - $($warn -replace '^\[WARNING\] ', '')"
+        }
+        Write-Information ""
+    }
+
+    if ($result.InfoCount -gt 0) {
+        Write-Information "INFO: $($result.InfoCount) (optional improvements)"
+        foreach ($info in $result.InfoMessages) {
+            Write-Information "  - $($info -replace '^\[INFO\] ', '')"
+        }
+        Write-Information ""
+    }
+
+    # Overall status
     if ($result.IsValid) {
-        Write-Information "`n  STATUS: PASSED"
-        if ($result.HasWarnings) {
-            Write-Warning "  Warnings: $($result.Warnings.Count)"
+        if ($result.HasWarnings -or $result.WarningCount -gt 0 -or $result.InfoCount -gt 0) {
+            Write-Information "RESULT: PASSED with warnings"
+            Write-Information "The build can proceed, but review warnings/info above."
+        }
+        else {
+            Write-Information "RESULT: PASSED"
+            Write-Information "All pre-flight checks passed. Ready to build."
         }
     }
     else {
-        Write-Information "`n  STATUS: FAILED"
-        Write-Information "  Errors: $($result.Errors.Count)"
-        if ($result.HasWarnings) {
-            Write-Warning "  Warnings: $($result.Warnings.Count)"
-        }
+        Write-Information "RESULT: FAILED"
+        Write-Information "Fix critical issues above before proceeding."
     }
 
-    Write-Information "  Duration: $($result.ValidationDurationMs)ms"
-    Write-Information "  Disk Space: $($result.AvailableDiskSpaceGB)GB available, $($result.RequiredDiskSpaceGB)GB required"
+    Write-Information ""
+    Write-Information "Duration: $($result.ValidationDurationMs)ms"
+    Write-Information "Disk Space: $($result.AvailableDiskSpaceGB)GB available, $($result.RequiredDiskSpaceGB)GB required"
     Write-Information "`n========================================`n"
+    #endregion Summary Output
 
     $result
 }
