@@ -801,6 +801,350 @@ Describe 'REL-UPD-03: Update Application Isolation' -Tag 'Unit', 'FFU.Updates', 
 }
 
 # =============================================================================
+# REL-UPD-04: Catalog Cache Management Tests
+# =============================================================================
+
+Describe 'REL-UPD-04: Catalog Cache Management' -Tag 'Unit', 'FFU.Updates', 'Reliability', 'REL-UPD-04' {
+
+    Context 'Get-CachedProductsCab function' {
+
+        BeforeAll {
+            # Create test cache directory
+            $script:testCachePath = Join-Path $TestDrive 'cache'
+            New-Item -Path $script:testCachePath -ItemType Directory -Force | Out-Null
+
+            # Mock Get-ProductsCab to avoid network calls
+            Mock Get-ProductsCab -ModuleName FFU.Updates {
+                param($OutFile, $Architecture, $BuildVersion, $UserAgent)
+                # Create a fake cab file with random content
+                [byte[]]$content = 1..1KB | ForEach-Object { [byte](Get-Random -Maximum 256) }
+                [System.IO.File]::WriteAllBytes($OutFile, $content)
+                return $OutFile
+            }
+        }
+
+        It 'Should be exported from FFU.Updates module' {
+            Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates' | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have mandatory CachePath parameter' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $param = $cmd.Parameters['CachePath']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_.Mandatory -eq $true } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have mandatory Architecture parameter with ValidateSet' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $param = $cmd.Parameters['Architecture']
+            $param | Should -Not -BeNullOrEmpty
+            $validateSet = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            $validateSet | Should -Not -BeNullOrEmpty
+            $validateSet.ValidValues | Should -Contain 'x64'
+            $validateSet.ValidValues | Should -Contain 'arm64'
+        }
+
+        It 'Should have mandatory BuildVersion parameter' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $param = $cmd.Parameters['BuildVersion']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_.Mandatory -eq $true } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have mandatory UserAgent parameter' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $param = $cmd.Parameters['UserAgent']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_.Mandatory -eq $true } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have optional MaxAgeHours parameter with default 24' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $param = $cmd.Parameters['MaxAgeHours']
+            $param | Should -Not -BeNullOrEmpty
+
+            # Check default value in source
+            $psm1Path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psm1'
+            $moduleContent = Get-Content $psm1Path -Raw
+            $moduleContent | Should -Match '\[int\]\$MaxAgeHours = 24'
+        }
+
+        It 'Should have ForceRefresh switch parameter' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $param = $cmd.Parameters['ForceRefresh']
+            $param | Should -Not -BeNullOrEmpty
+            $param.SwitchParameter | Should -Be $true
+        }
+
+        It 'Should download fresh when no cache exists' {
+            $uniquePath = Join-Path $script:testCachePath 'fresh_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $result = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            $result | Should -Not -BeNullOrEmpty
+            Test-Path $result | Should -Be $true
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1 -Exactly
+        }
+
+        It 'Should create metadata file with cache' {
+            $uniquePath = Join-Path $script:testCachePath 'meta_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $result = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            $metaFile = "$result.meta"
+            Test-Path $metaFile | Should -Be $true
+
+            $meta = Get-Content $metaFile -Raw | ConvertFrom-Json
+            $meta.Architecture | Should -Be 'x64'
+            $meta.BuildVersion | Should -Be '26100.0.0.0'
+            $meta.Hash | Should -Not -BeNullOrEmpty
+            $meta.Size | Should -BeGreaterThan 0
+            $meta.Downloaded | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should use cache when valid and not stale' {
+            $uniquePath = Join-Path $script:testCachePath 'cache_hit_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            # First call creates cache
+            Get-CachedProductsCab -CachePath $uniquePath -Architecture 'arm64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent' | Out-Null
+
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1 -Exactly
+
+            # Second call should use cache (no new download)
+            $result = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'arm64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            # Should still be exactly 1 call (no additional download)
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1 -Exactly
+            $result | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should refresh cache when ForceRefresh specified' {
+            $uniquePath = Join-Path $script:testCachePath 'force_refresh_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            # Create existing cache
+            Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '22631.0.0.0' -UserAgent 'TestAgent' | Out-Null
+
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1 -Exactly
+
+            # Force refresh
+            Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '22631.0.0.0' -UserAgent 'TestAgent' -ForceRefresh | Out-Null
+
+            # Should have 2 calls total
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 2 -Exactly
+        }
+
+        It 'Should detect stale cache and refresh' {
+            $uniquePath = Join-Path $script:testCachePath 'stale_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $cacheFile = Join-Path $uniquePath 'products_x64_22621_0_0_0.cab'
+            $metaFile = "$cacheFile.meta"
+
+            # Create fake old cache with old timestamp
+            [byte[]]$content = 1..1KB | ForEach-Object { [byte](Get-Random -Maximum 256) }
+            [System.IO.File]::WriteAllBytes($cacheFile, $content)
+
+            # Compute hash for metadata
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
+            $fs = [System.IO.File]::OpenRead($cacheFile)
+            $hash = [Convert]::ToBase64String($sha256.ComputeHash($fs))
+            $fs.Close()
+            $sha256.Dispose()
+
+            $oldMeta = @{
+                Downloaded = [DateTime]::Now.AddHours(-48).ToString('o')  # 48 hours old
+                Hash = $hash
+                Size = $content.Length
+                Architecture = 'x64'
+                BuildVersion = '22621.0.0.0'
+            }
+            $oldMeta | ConvertTo-Json | Set-Content $metaFile -Encoding UTF8
+
+            # Should detect stale and refresh (MaxAgeHours default is 24)
+            Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '22621.0.0.0' -UserAgent 'TestAgent' | Out-Null
+
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1
+        }
+
+        It 'Should use shorter cache age when specified' {
+            $uniquePath = Join-Path $script:testCachePath 'short_age_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $cacheFile = Join-Path $uniquePath 'products_x64_test1_0_0_0.cab'
+            $metaFile = "$cacheFile.meta"
+
+            # Create cache that's 2 hours old
+            [byte[]]$content = 1..1KB | ForEach-Object { [byte](Get-Random -Maximum 256) }
+            [System.IO.File]::WriteAllBytes($cacheFile, $content)
+
+            # Compute actual hash
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
+            $fs = [System.IO.File]::OpenRead($cacheFile)
+            $hash = [Convert]::ToBase64String($sha256.ComputeHash($fs))
+            $fs.Close()
+            $sha256.Dispose()
+
+            $meta = @{
+                Downloaded = [DateTime]::Now.AddHours(-2).ToString('o')  # 2 hours old
+                Hash = $hash
+                Size = $content.Length
+                Architecture = 'x64'
+                BuildVersion = 'test1.0.0.0'
+            }
+            $meta | ConvertTo-Json | Set-Content $metaFile -Encoding UTF8
+
+            # With MaxAgeHours = 1, should refresh
+            Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion 'test1.0.0.0' -UserAgent 'TestAgent' -MaxAgeHours 1 | Out-Null
+
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1
+        }
+
+        It 'Should refresh on cache integrity failure (corrupted file)' {
+            $uniquePath = Join-Path $script:testCachePath 'corrupt_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $cacheFile = Join-Path $uniquePath 'products_x64_corrupt_0_0_0.cab'
+            $metaFile = "$cacheFile.meta"
+
+            # Create cache file
+            [byte[]]$content = 1..1KB | ForEach-Object { [byte](Get-Random -Maximum 256) }
+            [System.IO.File]::WriteAllBytes($cacheFile, $content)
+
+            # Create metadata with WRONG hash (simulates corruption)
+            $meta = @{
+                Downloaded = [DateTime]::Now.ToString('o')
+                Hash = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='  # Wrong hash
+                Size = $content.Length
+                Architecture = 'x64'
+                BuildVersion = 'corrupt.0.0.0'
+            }
+            $meta | ConvertTo-Json | Set-Content $metaFile -Encoding UTF8
+
+            # Should detect integrity failure and refresh
+            Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion 'corrupt.0.0.0' -UserAgent 'TestAgent' | Out-Null
+
+            Should -Invoke Get-ProductsCab -ModuleName FFU.Updates -Times 1
+        }
+
+        It 'Should create cache directory if it does not exist' {
+            $newPath = Join-Path $script:testCachePath 'new_subdir'
+
+            # Ensure it doesn't exist
+            if (Test-Path $newPath) {
+                Remove-Item $newPath -Recurse -Force
+            }
+
+            $result = Get-CachedProductsCab -CachePath $newPath -Architecture 'x64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            Test-Path $newPath | Should -Be $true
+            $result | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should use different cache files for different architectures' {
+            $uniquePath = Join-Path $script:testCachePath 'arch_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $result1 = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            $result2 = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'arm64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            $result1 | Should -Not -Be $result2
+            $result1 | Should -Match 'x64'
+            $result2 | Should -Match 'arm64'
+        }
+
+        It 'Should use different cache files for different build versions' {
+            $uniquePath = Join-Path $script:testCachePath 'version_test'
+            New-Item -Path $uniquePath -ItemType Directory -Force | Out-Null
+
+            $result1 = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '26100.0.0.0' -UserAgent 'TestAgent'
+
+            $result2 = Get-CachedProductsCab -CachePath $uniquePath -Architecture 'x64' `
+                -BuildVersion '22631.0.0.0' -UserAgent 'TestAgent'
+
+            $result1 | Should -Not -Be $result2
+            $result1 | Should -Match '26100'
+            $result2 | Should -Match '22631'
+        }
+    }
+
+    Context 'Documentation' {
+
+        It 'Should have synopsis in function documentation' {
+            $psm1Path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psm1'
+            $moduleContent = Get-Content $psm1Path -Raw
+            $moduleContent | Should -Match 'function Get-CachedProductsCab[\s\S]*?\.SYNOPSIS'
+        }
+
+        It 'Should document REL-UPD-04 in description' {
+            $psm1Path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psm1'
+            $moduleContent = Get-Content $psm1Path -Raw
+            $moduleContent | Should -Match 'REL-UPD-04.*Catalog Cache Management'
+        }
+
+        It 'Should have examples in function documentation' {
+            $psm1Path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psm1'
+            $moduleContent = Get-Content $psm1Path -Raw
+            $moduleContent | Should -Match 'function Get-CachedProductsCab[\s\S]*?\.EXAMPLE'
+        }
+
+        It 'Should have OutputType attribute' {
+            $cmd = Get-Command -Name 'Get-CachedProductsCab' -Module 'FFU.Updates'
+            $cmd.OutputType | Should -Not -BeNullOrEmpty
+            # OutputType.Name is fully qualified - 'System.String'
+            $cmd.OutputType.Name | Should -Contain 'System.String'
+        }
+
+        It 'Should document Test-MSUIntegrity pattern in notes' {
+            $psm1Path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psm1'
+            $moduleContent = Get-Content $psm1Path -Raw
+            # Check that Test-MSUIntegrity is mentioned in Get-CachedProductsCab documentation
+            $functionMatch = [regex]::Match($moduleContent, 'function Get-CachedProductsCab[\s\S]*?(?=\r?\nfunction )')
+            if ($functionMatch.Success) {
+                $functionMatch.Value | Should -Match 'Test-MSUIntegrity'
+            } else {
+                # If it's the last function, match differently
+                $moduleContent | Should -Match 'Get-CachedProductsCab[\s\S]*Test-MSUIntegrity'
+            }
+        }
+    }
+
+    Context 'ThreadJob Compatibility' {
+
+        It 'Should use ThreadJob-safe logging pattern' {
+            $psm1Path = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psm1'
+            $moduleContent = Get-Content $psm1Path -Raw
+
+            # Find Get-CachedProductsCab and check for $function:WriteLog pattern
+            $functionMatch = [regex]::Match($moduleContent, 'function Get-CachedProductsCab[\s\S]*?(?=\r?\nfunction |# Export)')
+            if ($functionMatch.Success) {
+                $functionContent = $functionMatch.Value
+                $functionContent | Should -Match '\$function:WriteLog'
+            } else {
+                throw "Could not find Get-CachedProductsCab function"
+            }
+        }
+    }
+}
+
+# =============================================================================
 # Module Version Verification
 # =============================================================================
 
