@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 17 of 25 (FFU.VM Reliability)
-**Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-01-24 — Phase 16 complete (verified)
+**Plan:** 2 of ? complete (17-02-PLAN.md)
+**Status:** In progress
+**Last activity:** 2026-01-24 — Completed 17-02 Orphan Detection and Cleanup
 
 Progress: Milestone v1.9.0
 [##--------] 18% (2/11 phases)
@@ -56,6 +56,9 @@ Progress: Milestone v1.9.0
 
 ## Recent Activity
 
+- 2026-01-24: Executed 17-02-PLAN.md (Orphan Detection and Cleanup) - REL-VM-02
+- 2026-01-24: Added Get-OrphanedVMResources (6 orphan types), enhanced Remove-FFUVM
+- 2026-01-24: FFU.VM v1.0.9 with VMware lock and AVHDX cleanup
 - 2026-01-24: Executed 16-04-PLAN.md (Service Recovery) - REL-HYP-04, Phase 16 complete
 - 2026-01-24: FFU.Hypervisor v1.3.8, main version v1.8.15
 - 2026-01-24: Added Test-HypervisorService, Invoke-WithHypervisorRetry, Test-IsServiceError
@@ -73,9 +76,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Phase 16 verified and complete
+**Stopped at:** Completed 17-02-PLAN.md (Orphan Detection and Cleanup)
 **Resume file:** None
-**Next action:** `/gsd:plan-phase 17` to plan FFU.VM Reliability
+**Next action:** Continue with next plan in Phase 17 (17-03 if exists)
 
 ---
 *State updated: 2026-01-24*
