@@ -22,10 +22,10 @@ Complete the graceful degradation integration by wrapping all BuildFFUVM.ps1 bui
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INT-BUILD-01 | Phase 26 | Not started |
-| INT-BUILD-02 | Phase 26 | Not started |
-| INT-BUILD-03 | Phase 26 | Not started |
-| INT-BUILD-04 | Phase 26 | Not started |
+| INT-BUILD-01 | Phase 26 | Complete |
+| INT-BUILD-02 | Phase 26 | Complete |
+| INT-BUILD-03 | Phase 26 | Complete |
+| INT-BUILD-04 | Phase 26 | Complete |
 
 **Coverage:**
 - v1 requirements: 4 total
