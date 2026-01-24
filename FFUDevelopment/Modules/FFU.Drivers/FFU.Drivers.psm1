@@ -18,6 +18,132 @@
 # Import constants module
 using module ..\FFU.Constants\FFU.Constants.psm1
 
+function Invoke-DriverDownloadWithRetry {
+    <#
+    .SYNOPSIS
+    Executes a driver download with retry logic and exponential backoff
+
+    .DESCRIPTION
+    Wraps Start-BitsTransferWithRetry calls with additional retry logic using exponential
+    backoff and jitter. Provides consistent error handling for transient network failures
+    when downloading OEM drivers.
+
+    This function is used internally by Get-DellDrivers, Get-HPDrivers, Get-LenovoDrivers,
+    and Get-MicrosoftDrivers to make driver downloads resilient to transient failures.
+
+    REL-DRV-01: Driver Download Retry - Makes OEM driver downloads resilient to network failures
+
+    .PARAMETER Source
+    URL of the driver file to download
+
+    .PARAMETER Destination
+    Local path where the driver file will be saved
+
+    .PARAMETER OperationName
+    Friendly name for the operation (used in log messages)
+
+    .PARAMETER MaxRetries
+    Maximum number of retry attempts (default: 3)
+
+    .PARAMETER BaseDelaySeconds
+    Base delay in seconds for exponential backoff (default: 5)
+    Actual delay = BaseDelay * 2^(attempt-1) + jitter
+
+    .EXAMPLE
+    Invoke-DriverDownloadWithRetry -Source $downloadUrl -Destination $filePath -OperationName "Dell driver catalog"
+
+    .EXAMPLE
+    # With custom retry parameters
+    Invoke-DriverDownloadWithRetry -Source $driverUrl -Destination $localPath -OperationName "HP driver $Name" -MaxRetries 4
+
+    .OUTPUTS
+    None - Downloads file to specified Destination path
+
+    .NOTES
+    Error handling:
+    - Logs warning on each failed attempt with attempt number and source URL
+    - Uses exponential backoff: 5s, 10s, 20s (with jitter 0-3s)
+    - Throws the last exception after all retries exhausted
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Source,
+
+        [Parameter(Mandatory)]
+        [string]$Destination,
+
+        [Parameter()]
+        [string]$OperationName = 'Driver download',
+
+        [Parameter()]
+        [int]$MaxRetries = 3,
+
+        [Parameter()]
+        [int]$BaseDelaySeconds = 5
+    )
+
+    $attempt = 0
+    $lastError = $null
+
+    while ($attempt -lt $MaxRetries) {
+        $attempt++
+        try {
+            Start-BitsTransferWithRetry -Source $Source -Destination $Destination -ErrorAction Stop
+
+            # Log success
+            $successMsg = "$OperationName completed successfully"
+            if ($function:WriteLog) {
+                WriteLog $successMsg
+            }
+            else {
+                Write-Verbose $successMsg
+            }
+            return
+        }
+        catch {
+            $lastError = $_
+
+            # Safe logging pattern for ThreadJob compatibility
+            $warningMsg = "$OperationName failed (attempt $attempt of $MaxRetries): $($_.Exception.Message) [Source: $Source]"
+            if ($function:WriteLog) {
+                WriteLog "WARNING: $warningMsg"
+            }
+            else {
+                Write-Verbose "WARNING: $warningMsg"
+            }
+
+            if ($attempt -lt $MaxRetries) {
+                # Exponential backoff with jitter (prevents thundering herd)
+                $jitter = Get-Random -Minimum 0 -Maximum 3
+                $delay = ($BaseDelaySeconds * [math]::Pow(2, $attempt - 1)) + $jitter
+
+                $retryMsg = "Retrying $OperationName in $delay seconds..."
+                if ($function:WriteLog) {
+                    WriteLog $retryMsg
+                }
+                else {
+                    Write-Verbose $retryMsg
+                }
+
+                Start-Sleep -Seconds $delay
+            }
+        }
+    }
+
+    # All retries exhausted
+    $errorMsg = "$OperationName failed after $MaxRetries attempts [Source: $Source]"
+    if ($function:WriteLog) {
+        WriteLog "ERROR: $errorMsg"
+    }
+    else {
+        Write-Verbose "ERROR: $errorMsg"
+    }
+
+    throw $lastError
+}
+
 function Get-MicrosoftDrivers {
     <#
     .SYNOPSIS
