@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.0'
+    ModuleVersion = '1.2.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -89,7 +89,27 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.1.0
+# Release Notes - FFU.Preflight v1.2.0
+
+## v1.2.0 (2026-01-24)
+### REL-PRE-02: Remediation Steps Quality
+- **NEW**: New-FFURemediationBlock - Standardized remediation string builder
+  - Produces ISSUE, IMPACT, FIX, and VERIFY sections
+  - Accepts PowerShellCommands array for copy-paste ready commands
+  - Accepts ManualSteps array for step-by-step guidance
+  - Includes VerifyCommand for confirming fix success
+- **ENHANCED**: Tier 1 checks use standardized remediation format:
+  - Test-FFUAdministrator: Includes Start-Process and gsudo commands
+  - Test-FFUPowerShellVersion: Includes winget install command
+  - Test-FFUHyperV: Separate Server/Client commands with DISM alternative
+- **ENHANCED**: Tier 2 checks use standardized remediation format:
+  - Test-FFUADK: Includes ADK download URL and FFU Builder auto-install
+  - Test-FFUDiskSpace: Structured error messaging
+- **TESTS**: Added 21 Pester tests for REL-PRE-02 requirements
+
+### Part of Phase 22 FFU.Preflight Reliability (v1.9.0 Milestone)
+
+---
 
 ## v1.1.0 (2026-01-24)
 ### REL-PRE-03: WIMMount Repair Resilience
