@@ -444,3 +444,327 @@ Describe 'Copy-Drivers' -Tag 'Unit', 'FFU.Drivers', 'Copy-Drivers' {
         }
     }
 }
+
+# =============================================================================
+# REL-DRV-01: Invoke-DriverDownloadWithRetry Tests
+# =============================================================================
+
+Describe 'Invoke-DriverDownloadWithRetry' -Tag 'Unit', 'FFU.Drivers', 'Retry', 'REL-DRV-01' {
+
+    BeforeAll {
+        # Get reference to internal function via module invoke
+        $module = Get-Module -Name 'FFU.Drivers'
+        $Script:InvokeRetry = $module.Invoke({
+            Get-Item function:Invoke-DriverDownloadWithRetry -ErrorAction SilentlyContinue
+        })
+    }
+
+    Context 'Function Existence and Parameters' {
+        It 'Should have Invoke-DriverDownloadWithRetry as internal function' {
+            $Script:InvokeRetry | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have Source parameter defined' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$Source'
+            $funcBody | Should -Match '\[Parameter\(Mandatory'
+        }
+
+        It 'Should have Destination parameter defined' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$Destination'
+        }
+
+        It 'Should have OperationName parameter with default value' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match "\`$OperationName\s*=\s*'Driver download'"
+        }
+
+        It 'Should have MaxRetries parameter with default value of 3' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$MaxRetries\s*=\s*3'
+        }
+
+        It 'Should have BaseDelaySeconds parameter with default value of 5' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$BaseDelaySeconds\s*=\s*5'
+        }
+    }
+
+    Context 'Retry Logic Implementation' {
+        It 'Should implement exponential backoff pattern' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            # Check for exponential calculation: 2^(attempt-1)
+            $funcBody | Should -Match 'Pow.*2'
+        }
+
+        It 'Should implement jitter pattern' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            # Check for random jitter: Get-Random
+            $funcBody | Should -Match 'Get-Random'
+        }
+
+        It 'Should call Start-BitsTransferWithRetry' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match 'Start-BitsTransferWithRetry'
+        }
+
+        It 'Should track attempt count' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$attempt'
+        }
+
+        It 'Should log source URL on failure' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            # Check for Source URL in logging
+            $funcBody | Should -Match 'Source:'
+        }
+    }
+
+    Context 'ThreadJob Compatibility' {
+        It 'Should use safe logging pattern with $function:WriteLog check' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            # Check for ThreadJob-safe pattern
+            $funcBody | Should -Match '\$function:WriteLog'
+        }
+
+        It 'Should fall back to Write-Verbose when WriteLog unavailable' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match 'Write-Verbose'
+        }
+    }
+
+    Context 'Error Handling' {
+        It 'Should preserve last error for rethrow' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$lastError'
+        }
+
+        It 'Should throw after all retries exhausted' {
+            $funcBody = $Script:InvokeRetry.ScriptBlock.ToString()
+            $funcBody | Should -Match 'throw \$lastError'
+        }
+    }
+}
+
+# =============================================================================
+# REL-DRV-02: Get-DriverExtractionResult Tests
+# =============================================================================
+
+Describe 'Get-DriverExtractionResult' -Tag 'Unit', 'FFU.Drivers', 'Extraction', 'REL-DRV-02' {
+
+    BeforeAll {
+        # Get reference to internal function via module invoke
+        $module = Get-Module -Name 'FFU.Drivers'
+        $Script:GetExtractionResult = $module.Invoke({
+            Get-Item function:Get-DriverExtractionResult -ErrorAction SilentlyContinue
+        })
+    }
+
+    Context 'Function Existence and Parameters' {
+        It 'Should have Get-DriverExtractionResult as internal function' {
+            $Script:GetExtractionResult | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have Vendor parameter with ValidateSet' {
+            $funcBody = $Script:GetExtractionResult.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$Vendor'
+            $funcBody | Should -Match "ValidateSet\('Dell', 'HP', 'Lenovo', 'Microsoft'\)"
+        }
+
+        It 'Should have ExitCode parameter (mandatory)' {
+            $funcBody = $Script:GetExtractionResult.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$ExitCode'
+            $funcBody | Should -Match '\[Parameter\(Mandatory'
+        }
+
+        It 'Should have DriverName parameter with default value' {
+            $funcBody = $Script:GetExtractionResult.ScriptBlock.ToString()
+            $funcBody | Should -Match "\`$DriverName\s*=\s*'Unknown'"
+        }
+    }
+
+    Context 'HP Exit Code Classification' {
+        BeforeAll {
+            $module = Get-Module -Name 'FFU.Drivers'
+        }
+
+        It 'Should classify HP exit code 0 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 0 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+            $result.Critical | Should -BeFalse
+        }
+
+        It 'Should classify HP exit code 3010 as Success (reboot required)' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 3010 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+            $result.Message | Should -Match 'reboot required'
+        }
+
+        It 'Should classify HP exit code 1641 as Success (reboot initiated)' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 1641 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify HP exit code 2 as Critical (invalid command line)' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 2 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeFalse
+            $result.Critical | Should -BeTrue
+            $result.Action | Should -Be 'Fail'
+        }
+
+        It 'Should classify HP exit code 1 as Warn' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 1 -DriverName 'TestDriver'
+            })
+            $result.Action | Should -Be 'Warn'
+        }
+    }
+
+    Context 'Lenovo Exit Code Classification' {
+        BeforeAll {
+            $module = Get-Module -Name 'FFU.Drivers'
+        }
+
+        It 'Should classify Lenovo exit code 0 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Lenovo' -ExitCode 0 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify Lenovo exit code 3010 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Lenovo' -ExitCode 3010 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify Lenovo exit code 5 as Critical (access denied)' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Lenovo' -ExitCode 5 -DriverName 'TestDriver'
+            })
+            $result.Critical | Should -BeTrue
+            $result.Action | Should -Be 'Fail'
+        }
+
+        It 'Should classify Lenovo exit code 1603 as non-critical' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Lenovo' -ExitCode 1603 -DriverName 'TestDriver'
+            })
+            $result.Critical | Should -BeFalse
+            $result.Action | Should -Be 'Warn'
+        }
+    }
+
+    Context 'Dell Exit Code Classification' {
+        BeforeAll {
+            $module = Get-Module -Name 'FFU.Drivers'
+        }
+
+        It 'Should classify Dell exit code 0 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Dell' -ExitCode 0 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify Dell exit code 3010 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Dell' -ExitCode 3010 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify Dell exit code 2 as Critical' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Dell' -ExitCode 2 -DriverName 'TestDriver'
+            })
+            $result.Critical | Should -BeTrue
+        }
+    }
+
+    Context 'Microsoft Exit Code Classification' {
+        BeforeAll {
+            $module = Get-Module -Name 'FFU.Drivers'
+        }
+
+        It 'Should classify Microsoft exit code 0 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Microsoft' -ExitCode 0 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify Microsoft exit code 3010 as Success' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Microsoft' -ExitCode 3010 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+        }
+
+        It 'Should classify Microsoft exit code 1601 as non-critical' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Microsoft' -ExitCode 1601 -DriverName 'TestDriver'
+            })
+            $result.Critical | Should -BeFalse
+            $result.Action | Should -Be 'Warn'
+        }
+
+        It 'Should classify Microsoft exit code 1618 as non-critical' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'Microsoft' -ExitCode 1618 -DriverName 'TestDriver'
+            })
+            $result.Critical | Should -BeFalse
+            $result.Action | Should -Be 'Warn'
+        }
+    }
+
+    Context 'Unknown Exit Codes' {
+        BeforeAll {
+            $module = Get-Module -Name 'FFU.Drivers'
+        }
+
+        It 'Should classify unknown exit codes as Warn for all vendors' {
+            $vendors = @('HP', 'Lenovo', 'Dell', 'Microsoft')
+            foreach ($vendor in $vendors) {
+                $result = $module.Invoke({
+                    param($v) Get-DriverExtractionResult -Vendor $v -ExitCode 99999 -DriverName 'TestDriver'
+                }, @($vendor))
+                $result.Action | Should -Be 'Warn' -Because "$vendor should warn on unknown exit code"
+                $result.Message | Should -Match 'unknown exit code'
+            }
+        }
+    }
+
+    Context 'Result Object Structure' {
+        BeforeAll {
+            $module = Get-Module -Name 'FFU.Drivers'
+        }
+
+        It 'Should return object with Success, Critical, Message, and Action properties' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 0 -DriverName 'TestDriver'
+            })
+            $result.PSObject.Properties.Name | Should -Contain 'Success'
+            $result.PSObject.Properties.Name | Should -Contain 'Critical'
+            $result.PSObject.Properties.Name | Should -Contain 'Message'
+            $result.PSObject.Properties.Name | Should -Contain 'Action'
+        }
+
+        It 'Should include driver name in message' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 0 -DriverName 'MySpecificDriver'
+            })
+            $result.Message | Should -Match 'MySpecificDriver'
+        }
+    }
+}
