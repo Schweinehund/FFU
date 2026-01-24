@@ -7,7 +7,7 @@
     RootModule = 'FFU.Media.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.7.0'
+    ModuleVersion = '1.8.0'
 
     # ID used to uniquely identify this module
     GUID = 'a84d5d7c-3cb5-4ba3-a1a8-2dcd0916fb5d'
@@ -75,7 +75,17 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Media v1.7.0
+# Release Notes - FFU.Media v1.8.0
+
+## v1.8.0 - REL-MED-03: ISO Disk Space Pre-Validation
+- NEW: Test-ISOCreationReadiness estimates ISO size and validates disk space
+- Calculates ISO size from WinPE media folder with configurable safety margin
+- Checks output destination disk space before oscdimg runs
+- Prevents mid-write failures from disk space exhaustion
+- Returns structured result with EstimatedSizeGB, AvailableGB, ShortfallGB, Remediation
+- Uses Test-DiskSpaceForOperation from FFU.Imaging with fallback to System.IO.DriveInfo
+- ThreadJob compatible using InvokeCommand.GetCommand pattern
+- 33 new Pester tests for ISO space validation
 
 ## v1.7.0 - REL-MED-01: WinPE Dependency Pre-Validation
 - NEW: Test-WinPEMediaReadiness validates ALL dependencies before WinPE creation
@@ -156,6 +166,7 @@
 - New-PEMedia: Complete WinPE media orchestration (capture/deployment)
 - Test-ArchitectureCapability: ADK architecture tools validation
 - Test-WinPEMediaReadiness: Pre-operation dependency validation
+- Test-ISOCreationReadiness: ISO disk space pre-validation
 - Get-PEArchitecture: PE file architecture detection (x86/x64/ARM64)
 
 ## Key Improvements
