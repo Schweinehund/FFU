@@ -16,7 +16,19 @@ function Get-UIConfig {
         [psobject]$State
     )
     # Create hash to store configuration
+    # Include configSchemaVersion to prevent migration prompt on next load
+    $schemaVersion = if ($function:GetFFUConfigSchemaVersion) {
+        Get-FFUConfigSchemaVersion
+    }
+    elseif (Get-Command -Name 'Get-FFUConfigSchemaVersion' -ErrorAction SilentlyContinue) {
+        Get-FFUConfigSchemaVersion
+    }
+    else {
+        "1.2"  # Fallback to current version
+    }
+
     $config = [ordered]@{
+        configSchemaVersion            = $schemaVersion
         AllowExternalHardDiskMedia     = $State.Controls.chkAllowExternalHardDiskMedia.IsChecked
         AllowVHDXCaching               = $State.Controls.chkAllowVHDXCaching.IsChecked
         AppListPath                    = $State.Controls.txtAppListJsonPath.Text
