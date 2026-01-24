@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 20 of 25 (FFU.Updates Reliability)
-**Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-01-24 — Phase 19 complete (verified)
+**Plan:** 1 of 4 (Catalog Query Retry)
+**Status:** In progress
+**Last activity:** 2026-01-24 — Completed 20-01-PLAN.md (REL-UPD-01)
 
 Progress: Milestone v1.9.0
-[#####-----] 45% (5/11 phases complete)
+[#####-----] 50% (5/11 phases complete, 20-01 done)
 
 ## Completed Phases This Milestone
 
@@ -28,14 +28,14 @@ Progress: Milestone v1.9.0
 | 18 | FFU.Imaging Reliability | 5/5 | 2026-01-24 |
 | 19 | FFU.Media Reliability | 4/4 | 2026-01-24 |
 
-## Phase 19 Progress
+## Phase 20 Progress
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
-| 19-01 | WinPE Media Readiness Check | Complete | 4b009f1 |
-| 19-02 | DISM/ADK Error Classification | Complete | 7c45429 |
-| 19-03 | ISO Disk Space Pre-Validation | Complete | cab75d6 |
-| 19-04 | Architecture Capability Validation | Complete | 4064f7b |
+| 20-01 | Catalog Query Retry | Complete | 8584031 |
+| 20-02 | MSU Download Validation | Pending | - |
+| 20-03 | Update Application Isolation | Pending | - |
+| 20-04 | Catalog Cache Management | Pending | - |
 
 ## Completed Milestones
 
@@ -93,15 +93,15 @@ Progress: Milestone v1.9.0
 | ADK folder mapping: x64 -> amd64 | ADK uses 'amd64' folder for x64 architecture tools | 2026-01-23 |
 | Pre-validation before DISM cleanup | Fail fast on missing architecture before expensive cleanup | 2026-01-23 |
 | InvokeCommand.GetCommand for ThreadJob | Use $ExecutionContext.InvokeCommand.GetCommand for function availability | 2026-01-23 |
+| Invoke-CatalogQueryWithRetry internal | Helper function not exported, used by Get-ProductsCab internally | 2026-01-24 |
+| Metadata lookup reduced retries | MaxRetries 2 for non-critical metadata (3 for main search) | 2026-01-24 |
+| Catalog retry jitter 0-3s | Prevents thundering herd on service recovery | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 20-01-PLAN.md (Catalog Query Retry) - REL-UPD-01, FFU.Updates v1.0.6
 - 2026-01-24: Completed Phase 19 (FFU.Media Reliability) - 4/4 plans, verified
 - 2026-01-24: FFU.Media v1.8.0, main version v1.8.27, 134 FFU.Media reliability Pester tests
-- 2026-01-24: Executed 19-03-PLAN.md (ISO Disk Space Pre-Validation) - REL-MED-03
-- 2026-01-24: Executed 19-01-PLAN.md (WinPE Media Readiness Check) - REL-MED-01
-- 2026-01-24: Executed 19-04-PLAN.md (Architecture Capability Validation) - REL-MED-04
-- 2026-01-24: Executed 19-02-PLAN.md (DISM/ADK Error Classification) - REL-MED-02
 - 2026-01-24: Completed Phase 18 (FFU.Imaging Reliability) - 5/5 plans, verified
 - 2026-01-24: Completed Phase 17 (FFU.VM Reliability) - 4/4 plans, verified
 - 2026-01-24: Completed Phase 16 (FFU.Hypervisor Reliability) - 4/4 plans, verified
@@ -114,9 +114,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed Phase 19 (FFU.Media Reliability)
+**Stopped at:** Completed 20-01-PLAN.md (Catalog Query Retry)
 **Resume file:** None
-**Next action:** Start Phase 20 (FFU.Updates Reliability)
+**Next action:** Execute 20-02-PLAN.md (MSU Download Validation)
 
 ---
 *State updated: 2026-01-24*
