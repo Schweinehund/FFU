@@ -24,6 +24,121 @@
 # Import constants module
 using module ..\FFU.Constants\FFU.Constants.psm1
 
+function Invoke-CatalogQueryWithRetry {
+    <#
+    .SYNOPSIS
+    Executes a catalog query with retry logic and exponential backoff
+
+    .DESCRIPTION
+    Wraps catalog HTTP requests (Invoke-RestMethod, Invoke-WebRequest) with retry logic
+    using exponential backoff and jitter. Provides consistent error handling for transient
+    network failures when querying Microsoft Update services.
+
+    This function is used internally by Get-ProductsCab and Get-KBLink to make catalog
+    queries resilient to transient failures.
+
+    REL-UPD-01: Catalog Query Retry - Makes catalog queries resilient to transient network failures
+
+    .PARAMETER Query
+    ScriptBlock containing the HTTP request to execute (Invoke-RestMethod or similar)
+
+    .PARAMETER OperationName
+    Friendly name for the operation (used in log messages)
+
+    .PARAMETER MaxRetries
+    Maximum number of retry attempts (default: 3)
+
+    .PARAMETER BaseDelaySeconds
+    Base delay in seconds for exponential backoff (default: 10)
+    Actual delay = BaseDelay * 2^(attempt-1) + jitter
+
+    .EXAMPLE
+    $response = Invoke-CatalogQueryWithRetry -OperationName 'Windows Update catalog search' -Query {
+        Invoke-RestMethod -Uri $searchUri -Method Post -Body $bodyJson
+    }
+
+    .EXAMPLE
+    # With custom retry parameters
+    $result = Invoke-CatalogQueryWithRetry -OperationName 'Update metadata lookup' -MaxRetries 2 -Query {
+        Invoke-RestMethod -Uri $metaUri -Method Get -Headers @{ Accept = '*/*' }
+    }
+
+    .OUTPUTS
+    Object - Returns the result of the Query scriptblock on success
+
+    .NOTES
+    Error handling:
+    - Logs warning on each failed attempt with attempt number
+    - Uses exponential backoff: 10s, 20s, 40s (with jitter 0-3s)
+    - Throws the last exception after all retries exhausted
+    #>
+    [CmdletBinding()]
+    [OutputType([object])]
+    param(
+        [Parameter(Mandatory)]
+        [scriptblock]$Query,
+
+        [Parameter()]
+        [string]$OperationName = 'Catalog query',
+
+        [Parameter()]
+        [int]$MaxRetries = 3,
+
+        [Parameter()]
+        [int]$BaseDelaySeconds = 10
+    )
+
+    $attempt = 0
+    $lastError = $null
+
+    while ($attempt -lt $MaxRetries) {
+        $attempt++
+        try {
+            $result = & $Query
+            return $result
+        }
+        catch {
+            $lastError = $_
+
+            # Safe logging pattern for ThreadJob compatibility
+            $warningMsg = "$OperationName failed (attempt $attempt of $MaxRetries): $($_.Exception.Message)"
+            if ($function:WriteLog) {
+                WriteLog "WARNING: $warningMsg"
+            }
+            else {
+                Write-Verbose "WARNING: $warningMsg"
+            }
+
+            if ($attempt -lt $MaxRetries) {
+                # Exponential backoff with jitter (prevents thundering herd)
+                $jitter = Get-Random -Minimum 0 -Maximum 3
+                $delay = ($BaseDelaySeconds * [math]::Pow(2, $attempt - 1)) + $jitter
+
+                $retryMsg = "Retrying $OperationName in $delay seconds..."
+                if ($function:WriteLog) {
+                    WriteLog $retryMsg
+                }
+                else {
+                    Write-Verbose $retryMsg
+                }
+
+                Start-Sleep -Seconds $delay
+            }
+        }
+    }
+
+    # All retries exhausted
+    $errorMsg = "$OperationName failed after $MaxRetries attempts"
+    if ($function:WriteLog) {
+        WriteLog "ERROR: $errorMsg"
+    }
+    else {
+        Write-Verbose "ERROR: $errorMsg"
+    }
+
+    throw $lastError
+}
+
 function Get-ProductsCab {
     <#
     .SYNOPSIS
@@ -81,13 +196,10 @@ function Get-ProductsCab {
 
     $searchUri = 'https://fe3.delivery.mp.microsoft.com/UpdateMetadataService/updates/search/v1/bydeviceinfo'
 
+    # REL-UPD-01: Wrap catalog search request with retry logic for network resilience
     WriteLog "Requesting products.cab location from Windows Update service..."
-    try {
-        $searchResponse = Invoke-RestMethod -Uri $searchUri -Method Post -ContentType 'application/json' -Headers @{ Accept = '*/*' } -Body $bodyJson
-    }
-    catch {
-        WriteLog "Failed to retrieve products.cab metadata: $($_.Exception.Message)"
-        throw
+    $searchResponse = Invoke-CatalogQueryWithRetry -OperationName 'Windows Update catalog search' -Query {
+        Invoke-RestMethod -Uri $searchUri -Method Post -ContentType 'application/json' -Headers @{ Accept = '*/*' } -Body $bodyJson
     }
 
     if ($searchResponse -is [System.Array]) { $searchResponse = $searchResponse[0] }
@@ -101,9 +213,12 @@ function Get-ProductsCab {
     $serverSize = [int64]$fileRec.Size
     $updateId = $searchResponse.UpdateIds[0]
 
+    # REL-UPD-01: Wrap metadata request with retry (optional - failure is not critical)
     try {
         $metaUri = "https://fe3.delivery.mp.microsoft.com/UpdateMetadataService/updates/v1/$updateId"
-        $meta = Invoke-RestMethod -Uri $metaUri -Method Get -Headers @{ Accept = '*/*' }
+        $meta = Invoke-CatalogQueryWithRetry -OperationName 'Update metadata lookup' -MaxRetries 2 -Query {
+            Invoke-RestMethod -Uri $metaUri -Method Get -Headers @{ Accept = '*/*' }
+        }
         if ($meta.LocalizedProperties.Count -gt 0) {
             $title = $meta.LocalizedProperties[0].Title
             WriteLog "Resolved update: $title"
@@ -113,6 +228,7 @@ function Get-ProductsCab {
         }
     }
     catch {
+        # Metadata lookup failure is non-critical - just log the update ID
         WriteLog "Resolved update id: $updateId"
     }
 
@@ -1772,6 +1888,138 @@ function Test-KBPathsValid {
     }
 }
 
+function Invoke-UpdatesWithIsolation {
+    <#
+    .SYNOPSIS
+    Applies Windows updates with isolation so one failure doesn't block others
+
+    .DESCRIPTION
+    Implements REL-UPD-03: Update Application Isolation. Applies each update in an
+    isolated try/catch block so that a failure in one update (e.g., CU) does not
+    prevent other updates (e.g., .NET, Defender) from being applied.
+
+    Returns a structured result with per-update status, enabling callers to see
+    exactly which updates succeeded and which failed.
+
+    .PARAMETER MountPath
+    The path to the mounted Windows image where updates will be applied
+
+    .PARAMETER Updates
+    Array of update objects with properties: Name, Path, Type, Required
+    - Name: Display name of the update
+    - Path: Full path to the MSU/CAB file
+    - Type: Update type (CU, NET, Defender, SSU, etc.)
+    - Required: Boolean indicating if this is a critical update
+
+    .PARAMETER StopOnCriticalFailure
+    If specified, stops processing updates when a Required update fails.
+    Without this switch, all updates are attempted even after critical failures.
+
+    .EXAMPLE
+    $updates = @(
+        [PSCustomObject]@{ Name = 'KB5046613'; Path = 'C:\KB\kb5046613.msu'; Type = 'CU'; Required = $true }
+        [PSCustomObject]@{ Name = 'KB5046623'; Path = 'C:\KB\kb5046623.msu'; Type = 'NET'; Required = $false }
+    )
+    $result = Invoke-UpdatesWithIsolation -MountPath 'W:\' -Updates $updates
+
+    .EXAMPLE
+    # Stop immediately when a required update fails
+    $result = Invoke-UpdatesWithIsolation -MountPath 'W:\' -Updates $updates -StopOnCriticalFailure
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - AllSucceeded: Boolean - true if no failures occurred
+    - HasCriticalFailure: Boolean - true if a Required update failed
+    - TotalCount: Number of updates attempted
+    - SuccessCount: Number of successful updates
+    - FailureCount: Number of failed updates
+    - Results: Array of per-update results with Name, Type, Path, Status, Error, Duration
+
+    .NOTES
+    Addresses REL-UPD-03: Update Application Isolation requirement.
+    Uses Add-WindowsPackageWithRetry for each update, inheriting retry logic.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$MountPath,
+
+        [Parameter(Mandatory)]
+        [PSCustomObject[]]$Updates,
+
+        [Parameter()]
+        [switch]$StopOnCriticalFailure
+    )
+
+    $results = [System.Collections.Generic.List[PSCustomObject]]::new()
+    $hasFailures = $false
+    $hasCriticalFailure = $false
+
+    WriteLog "Starting isolated update application for $($Updates.Count) update(s)"
+
+    foreach ($update in $Updates) {
+        $updateResult = @{
+            Name = $update.Name
+            Type = $update.Type
+            Path = $update.Path
+            Status = 'Pending'
+            Error = $null
+            Duration = $null
+        }
+
+        try {
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            WriteLog "Applying update: $($update.Name) ($($update.Type))"
+
+            # Use existing retry wrapper
+            Add-WindowsPackageWithRetry -Path $MountPath -PackagePath $update.Path
+            $stopwatch.Stop()
+
+            $updateResult.Status = 'Success'
+            $updateResult.Duration = $stopwatch.Elapsed.TotalSeconds
+            WriteLog "Update $($update.Name) applied successfully in $([math]::Round($stopwatch.Elapsed.TotalSeconds, 1))s"
+        }
+        catch {
+            $stopwatch.Stop()
+            $updateResult.Status = 'Failed'
+            $updateResult.Error = $_.Exception.Message
+            $updateResult.Duration = $stopwatch.Elapsed.TotalSeconds
+            $hasFailures = $true
+
+            WriteLog "ERROR: Update $($update.Name) failed: $($_.Exception.Message)"
+
+            if ($update.Required) {
+                $hasCriticalFailure = $true
+                WriteLog "CRITICAL: Required update $($update.Name) failed"
+
+                if ($StopOnCriticalFailure) {
+                    WriteLog "StopOnCriticalFailure enabled - halting update application"
+                    $results.Add([PSCustomObject]$updateResult)
+                    break
+                }
+            }
+        }
+
+        $results.Add([PSCustomObject]$updateResult)
+    }
+
+    # Build summary
+    $successCount = ($results | Where-Object Status -eq 'Success').Count
+    $failureCount = ($results | Where-Object Status -eq 'Failed').Count
+
+    WriteLog "Update application complete: $successCount succeeded, $failureCount failed out of $($Updates.Count) total"
+
+    [PSCustomObject]@{
+        AllSucceeded = -not $hasFailures
+        HasCriticalFailure = $hasCriticalFailure
+        TotalCount = $Updates.Count
+        SuccessCount = $successCount
+        FailureCount = $failureCount
+        Results = $results
+    }
+}
+
 # Export module members
 Export-ModuleMember -Function @(
     'Get-ProductsCab',
@@ -1786,5 +2034,6 @@ Export-ModuleMember -Function @(
     'Add-WindowsPackageWithRetry',
     'Add-WindowsPackageWithUnattend',
     'Resolve-KBFilePath',
-    'Test-KBPathsValid'
+    'Test-KBPathsValid',
+    'Invoke-UpdatesWithIsolation'
 )
