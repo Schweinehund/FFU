@@ -4983,7 +4983,9 @@ if ($script:CheckpointEnabled) {
 #Create Deployment Media
 If ($CreateDeploymentMedia -and -not $skipDeploymentMedia) {
     Set-Progress -Percentage 91 -Message "Creating deployment media..."
-    try {
+
+    # === NON-CRITICAL PHASE: Deployment Media (INT-BUILD-01, INT-BUILD-02) ===
+    $deployMediaResult = Invoke-BuildPhase -PhaseName 'Deployment Media Creation' -Critical $false -Action {
         New-PEMedia -Capture $false -Deploy $true -adkPath $adkPath -FFUDevelopmentPath $FFUDevelopmentPath `
                     -WindowsArch $WindowsArch -CaptureISO $null -DeployISO $DeployISO `
                     -CopyPEDrivers $CopyPEDrivers -UseDriversAsPEDrivers $UseDriversAsPEDrivers `
@@ -4991,11 +4993,11 @@ If ($CreateDeploymentMedia -and -not $skipDeploymentMedia) {
                     -CompressDownloadedDriversToWim $CompressDownloadedDriversToWim `
                     -HypervisorType $HypervisorType
     }
-    catch {
-        Write-Host 'Creating deployment media failed'
-        WriteLog "Creating deployment media failed with error $_"
-        throw $_
-    
+
+    if (-not $deployMediaResult.Success) {
+        WriteLog "WARNING: Deployment media creation failed but build will continue."
+        WriteLog "  Error: $($deployMediaResult.Error.Message)"
+        WriteLog "  Note: FFU was captured successfully. You can create deployment media manually later."
     }
 }
 
