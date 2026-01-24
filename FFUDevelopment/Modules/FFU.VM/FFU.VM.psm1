@@ -574,6 +574,9 @@ function New-FFUVM {
     $VM = $null
     $vmCreated = $false
     $guardianCreated = $false
+    $vmCleanupId = $null
+    $guardianCleanupId = $null
+    $currentStep = 'CreateVM'
 
     try {
         # Create new Gen2 VM
@@ -582,12 +585,17 @@ function New-FFUVM {
             $VM = New-VM -Name $VMName -Path $VMPath -MemoryStartupBytes $Memory -VHDPath $VHDXPath -Generation 2 -ErrorAction Stop
             $vmCreated = $true
             WriteLog "VM created successfully"
+
+            # Register VM cleanup immediately after creation (REL-VM-01)
+            $vmCleanupId = Register-VMCleanup -VMName $VMName
+            WriteLog "Registered VM cleanup action: $vmCleanupId"
         }
         catch {
             throw "Failed to create VM '$VMName': $($_.Exception.Message)"
         }
 
         # Configure VM processor
+        $currentStep = 'ConfigureProcessor'
         try {
             Set-VMProcessor -VMName $VMName -Count $Processors -ErrorAction Stop
             WriteLog "VM processor configured: $Processors cores"
@@ -597,6 +605,7 @@ function New-FFUVM {
         }
 
         # Mount AppsISO
+        $currentStep = 'MountISO'
         try {
             Add-VMDvdDrive -VMName $VMName -Path $AppsISO -ErrorAction Stop
             WriteLog "Apps ISO mounted: $AppsISO"
@@ -606,6 +615,7 @@ function New-FFUVM {
         }
 
         # Set Hard Drive as boot device
+        $currentStep = 'ConfigureBoot'
         try {
             $VMHardDiskDrive = Get-VMHarddiskdrive -VMName $VMName -ErrorAction Stop
             Set-VMFirmware -VMName $VMName -FirstBootDevice $VMHardDiskDrive -ErrorAction Stop
@@ -617,9 +627,21 @@ function New-FFUVM {
         }
 
         # Configure TPM
+        $currentStep = 'ConfigureTPM'
         try {
             New-HgsGuardian -Name $VMName -GenerateCertificates -ErrorAction Stop
             $guardianCreated = $true
+
+            # Register HGS Guardian cleanup immediately after creation (REL-VM-01)
+            $localVMName = $VMName  # Capture for closure
+            $guardianCleanupId = Register-CleanupAction -Name "Remove HGS Guardian: $VMName" -ResourceType 'HGS' -ResourceId $VMName -Action {
+                Remove-HgsGuardian -Name $using:localVMName -ErrorAction SilentlyContinue
+                Get-ChildItem 'Cert:\LocalMachine\Shielded VM Local Certificates\' -Recurse -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Subject -like "*$using:localVMName*" } |
+                    Remove-Item -Force -ErrorAction SilentlyContinue
+            }.GetNewClosure()
+            WriteLog "Registered HGS Guardian cleanup action: $guardianCleanupId"
+
             $owner = Get-HgsGuardian -Name $VMName -ErrorAction Stop
             $kp = New-HgsKeyProtector -Owner $owner -AllowUntrustedRoot -ErrorAction Stop
             Set-VMKeyProtector -VMName $VMName -KeyProtector $kp.RawData -ErrorAction Stop
@@ -637,6 +659,7 @@ function New-FFUVM {
         & vmconnect localhost "$VMName"
 
         # Start VM
+        $currentStep = 'StartVM'
         try {
             Start-VM -Name $VMName -ErrorAction Stop
             WriteLog "VM started successfully"
@@ -645,14 +668,35 @@ function New-FFUVM {
             throw "Failed to start VM '$VMName': $($_.Exception.Message)"
         }
 
+        # VM creation successful - unregister cleanup handlers (REL-VM-01)
+        WriteLog "VM creation successful - unregistering cleanup handlers"
+        if ($vmCleanupId) {
+            Unregister-CleanupAction -CleanupId $vmCleanupId -ErrorAction SilentlyContinue
+        }
+        if ($guardianCleanupId) {
+            Unregister-CleanupAction -CleanupId $guardianCleanupId -ErrorAction SilentlyContinue
+        }
+        WriteLog "Cleanup handlers unregistered - VM is now managed by caller"
+
         $VM
     }
     catch {
         WriteLog "ERROR in New-FFUVM: $($_.Exception.Message)"
 
-        # Cleanup on failure
+        # Get classified diagnostics for the failure (REL-VM-01)
+        $diagnostics = Get-VMCreationDiagnostics -ErrorMessage $_.Exception.Message `
+                                                  -FailedStep $currentStep `
+                                                  -VMName $VMName `
+                                                  -VMPath $VMPath
+        WriteLog "ERROR DIAGNOSIS:"
+        WriteLog "  Type: $($diagnostics.ErrorType)"
+        WriteLog "  Critical: $($diagnostics.IsCritical)"
+        WriteLog "  Remediation: $($diagnostics.Remediation)"
+
+        # Cleanup on failure (existing code provides fallback for when cleanup registration wasn't reached)
         if ($vmCreated) {
             WriteLog "Attempting cleanup of failed VM creation..."
+            WriteLog "Resources that may need cleanup: $($diagnostics.ResourcesCreated -join ', ')"
             try {
                 Stop-VM -Name $VMName -Force -TurnOff -ErrorAction SilentlyContinue
                 Remove-VM -Name $VMName -Force -ErrorAction SilentlyContinue
@@ -667,6 +711,12 @@ function New-FFUVM {
             try {
                 Remove-HgsGuardian -Name $VMName -ErrorAction SilentlyContinue
                 WriteLog "HGS Guardian removed"
+
+                # Also clean up certificates
+                Get-ChildItem 'Cert:\LocalMachine\Shielded VM Local Certificates\' -Recurse -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Subject -like "*$VMName*" } |
+                    Remove-Item -Force -ErrorAction SilentlyContinue
+                WriteLog "HGS certificates cleaned up"
             }
             catch {
                 WriteLog "WARNING: Failed to cleanup HGS Guardian: $($_.Exception.Message)"
@@ -1843,6 +1893,283 @@ function Update-CaptureFFUScript {
     }
 }
 
+function Get-OrphanedVMResources {
+    <#
+    .SYNOPSIS
+    Scans for and reports orphaned FFU build resources
+
+    .DESCRIPTION
+    Detects orphaned FFU build artifacts that may have been left behind after
+    failed or interrupted builds (e.g., Ctrl+C during VM creation). Scans for:
+    - Orphaned Hyper-V VMs (names starting with _FFU-)
+    - Orphaned VHDX files (not attached to any VM)
+    - Orphaned HGS Guardians
+    - Orphaned certificates in Shielded VM store
+    - VMware lock directories (*.lck)
+    - Orphaned checkpoint files (*.avhdx)
+
+    .PARAMETER FFUDevelopmentPath
+    Root path to FFUDevelopment folder for scanning
+
+    .PARAMETER VMLocation
+    Optional VM folder path (defaults to $FFUDevelopmentPath\VM)
+
+    .PARAMETER IncludeVMware
+    Include VMware artifacts in the scan
+
+    .PARAMETER ScanOnly
+    Only report orphans, don't generate cleanup actions
+
+    .OUTPUTS
+    PSCustomObject with orphan details and optional cleanup actions
+
+    .EXAMPLE
+    Get-OrphanedVMResources -FFUDevelopmentPath "C:\FFUDevelopment"
+
+    .EXAMPLE
+    Get-OrphanedVMResources -FFUDevelopmentPath "C:\FFU" -IncludeVMware -ScanOnly
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory = $false)]
+        [string]$VMLocation,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$IncludeVMware,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ScanOnly
+    )
+
+    WriteLog "Scanning for orphaned FFU build resources in $FFUDevelopmentPath"
+
+    # Initialize result object
+    $result = [PSCustomObject]@{
+        OrphanedVMs              = @()
+        OrphanedVHDX             = @()
+        OrphanedGuardians        = @()
+        OrphanedCertificates     = @()
+        OrphanedLockFiles        = @()
+        OrphanedCheckpointFiles  = @()
+        TotalOrphans             = 0
+        CleanupActions           = @()
+    }
+
+    # Set default VM location
+    if ([string]::IsNullOrWhiteSpace($VMLocation)) {
+        $VMLocation = Join-Path $FFUDevelopmentPath 'VM'
+    }
+
+    # 1. Detect orphaned Hyper-V VMs
+    WriteLog 'Scanning for orphaned Hyper-V VMs'
+    try {
+        $orphanedVMs = Get-VM -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name.StartsWith('_FFU-') }
+
+        if ($orphanedVMs) {
+            $result.OrphanedVMs = @($orphanedVMs | ForEach-Object { $_.Name })
+            WriteLog "Found $($result.OrphanedVMs.Count) orphaned VMs: $($result.OrphanedVMs -join ', ')"
+
+            if (-not $ScanOnly) {
+                foreach ($vm in $orphanedVMs) {
+                    $result.CleanupActions += "Stop-VM -Name '$($vm.Name)' -TurnOff -Force -ErrorAction SilentlyContinue; Remove-VM -Name '$($vm.Name)' -Force"
+                }
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Error scanning for VMs: $($_.Exception.Message)"
+    }
+
+    # 2. Detect orphaned VHDX files
+    WriteLog 'Scanning for orphaned VHDX files'
+    try {
+        if (Test-Path -Path $VMLocation) {
+            $vhdxFiles = Get-ChildItem -Path $VMLocation -Filter '*.vhdx' -Recurse -ErrorAction SilentlyContinue
+
+            foreach ($vhdx in $vhdxFiles) {
+                $isOrphaned = $true
+
+                # Check if VHDX is attached to any VM
+                try {
+                    $vhdInfo = Get-VHD -Path $vhdx.FullName -ErrorAction SilentlyContinue
+                    if ($vhdInfo -and $vhdInfo.Attached) {
+                        # Get the VM using this VHD
+                        $attachedVMs = Get-VM -ErrorAction SilentlyContinue | ForEach-Object {
+                            $vmHDs = Get-VMHardDiskDrive -VMName $_.Name -ErrorAction SilentlyContinue
+                            if ($vmHDs.Path -contains $vhdx.FullName) {
+                                $_
+                            }
+                        }
+
+                        if ($attachedVMs) {
+                            # Attached to a VM that exists - not orphaned
+                            $isOrphaned = $false
+                        }
+                    }
+                }
+                catch {
+                    # If we can't get VHD info, assume it's orphaned
+                }
+
+                if ($isOrphaned) {
+                    $result.OrphanedVHDX += $vhdx.FullName
+                    if (-not $ScanOnly) {
+                        $result.CleanupActions += "Remove-Item -Path '$($vhdx.FullName)' -Force"
+                    }
+                }
+            }
+
+            if ($result.OrphanedVHDX.Count -gt 0) {
+                WriteLog "Found $($result.OrphanedVHDX.Count) orphaned VHDX files"
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Error scanning for VHDX files: $($_.Exception.Message)"
+    }
+
+    # 3. Detect orphaned HGS Guardians
+    WriteLog 'Scanning for orphaned HGS Guardians'
+    try {
+        $orphanedGuardians = Get-HgsGuardian -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name.StartsWith('_FFU-') }
+
+        if ($orphanedGuardians) {
+            $result.OrphanedGuardians = @($orphanedGuardians | ForEach-Object { $_.Name })
+            WriteLog "Found $($result.OrphanedGuardians.Count) orphaned HGS Guardians"
+
+            if (-not $ScanOnly) {
+                foreach ($guardian in $orphanedGuardians) {
+                    $result.CleanupActions += "Remove-HgsGuardian -Name '$($guardian.Name)' -ErrorAction SilentlyContinue"
+                }
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Error scanning for HGS Guardians: $($_.Exception.Message)"
+    }
+
+    # 4. Detect orphaned certificates
+    WriteLog 'Scanning for orphaned Shielded VM certificates'
+    try {
+        $certPath = 'Cert:\LocalMachine\Shielded VM Local Certificates\'
+        if (Test-Path -Path $certPath) {
+            $orphanedCerts = Get-ChildItem -Path $certPath -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.Subject -like '*_FFU-*' }
+
+            if ($orphanedCerts) {
+                $result.OrphanedCertificates = @($orphanedCerts | ForEach-Object { $_.PSPath })
+                WriteLog "Found $($result.OrphanedCertificates.Count) orphaned certificates"
+
+                if (-not $ScanOnly) {
+                    foreach ($cert in $orphanedCerts) {
+                        $result.CleanupActions += "Remove-Item -Path '$($cert.PSPath)' -Force"
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Error scanning for certificates: $($_.Exception.Message)"
+    }
+
+    # 5. Detect VMware lock directories (if IncludeVMware)
+    if ($IncludeVMware) {
+        WriteLog 'Scanning for VMware lock directories'
+        try {
+            if (Test-Path -Path $VMLocation) {
+                $lockDirs = Get-ChildItem -Path $VMLocation -Filter '*.lck' -Directory -Recurse -ErrorAction SilentlyContinue
+
+                if ($lockDirs) {
+                    # Filter to only include locks not associated with running VMware processes
+                    $orphanedLocks = @()
+                    foreach ($lockDir in $lockDirs) {
+                        $vmxRunning = Get-Process -Name 'vmware-vmx' -ErrorAction SilentlyContinue |
+                            Where-Object { $_.Path -like "*$(Split-Path $lockDir.FullName -Parent)*" }
+
+                        if (-not $vmxRunning) {
+                            $orphanedLocks += $lockDir.FullName
+                            if (-not $ScanOnly) {
+                                $result.CleanupActions += "Remove-Item -Path '$($lockDir.FullName)' -Recurse -Force"
+                            }
+                        }
+                    }
+
+                    $result.OrphanedLockFiles = $orphanedLocks
+                    if ($orphanedLocks.Count -gt 0) {
+                        WriteLog "Found $($orphanedLocks.Count) orphaned VMware lock directories"
+                    }
+                }
+            }
+        }
+        catch {
+            WriteLog "WARNING: Error scanning for VMware lock files: $($_.Exception.Message)"
+        }
+    }
+
+    # 6. Detect orphaned AVHDX files (checkpoint leftovers)
+    WriteLog 'Scanning for orphaned checkpoint files (AVHDX)'
+    try {
+        if (Test-Path -Path $VMLocation) {
+            $avhdxFiles = Get-ChildItem -Path $VMLocation -Filter '*.avhdx' -Recurse -ErrorAction SilentlyContinue
+
+            foreach ($avhdx in $avhdxFiles) {
+                $isOrphaned = $true
+
+                # Try to find if this AVHDX is part of any active snapshot
+                try {
+                    $allVMs = Get-VM -ErrorAction SilentlyContinue
+                    foreach ($vm in $allVMs) {
+                        $snapshots = Get-VMSnapshot -VMName $vm.Name -ErrorAction SilentlyContinue
+                        foreach ($snap in $snapshots) {
+                            $snapVHDs = Get-VMHardDiskDrive -VMSnapshot $snap -ErrorAction SilentlyContinue
+                            if ($snapVHDs.Path -contains $avhdx.FullName) {
+                                $isOrphaned = $false
+                                break
+                            }
+                        }
+                        if (-not $isOrphaned) { break }
+                    }
+                }
+                catch {
+                    # If we can't check, assume orphaned
+                }
+
+                if ($isOrphaned) {
+                    $result.OrphanedCheckpointFiles += $avhdx.FullName
+                    if (-not $ScanOnly) {
+                        $result.CleanupActions += "Remove-Item -Path '$($avhdx.FullName)' -Force"
+                    }
+                }
+            }
+
+            if ($result.OrphanedCheckpointFiles.Count -gt 0) {
+                WriteLog "Found $($result.OrphanedCheckpointFiles.Count) orphaned checkpoint files"
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Error scanning for AVHDX files: $($_.Exception.Message)"
+    }
+
+    # Calculate total orphans
+    $result.TotalOrphans = $result.OrphanedVMs.Count +
+                           $result.OrphanedVHDX.Count +
+                           $result.OrphanedGuardians.Count +
+                           $result.OrphanedCertificates.Count +
+                           $result.OrphanedLockFiles.Count +
+                           $result.OrphanedCheckpointFiles.Count
+
+    WriteLog "Orphan scan complete. Total orphans found: $($result.TotalOrphans)"
+
+    $result
+}
+
 function Remove-FFUBuildArtifacts {
     <#
     .SYNOPSIS
@@ -2114,6 +2441,7 @@ Export-ModuleMember -Function @(
     'Set-LocalUserPassword',
     'Set-LocalUserAccountExpiry',
     'Get-VMCreationDiagnostics',
+    'Get-OrphanedVMResources',
     'New-FFUVM',
     'Remove-FFUVM',
     'Remove-FFUBuildArtifacts',

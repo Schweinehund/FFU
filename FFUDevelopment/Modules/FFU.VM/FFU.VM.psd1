@@ -4,7 +4,7 @@
 
 @{
     RootModule = 'FFU.VM.psm1'
-    ModuleVersion = '1.0.8'
+    ModuleVersion = '1.0.9'
     GUID = 'c8f3a942-7e6d-4c1a-9b85-1f4e8d2c5a76'
     Author = 'FFU Builder Team'
     CompanyName = 'Community'
@@ -22,6 +22,7 @@
         'Set-LocalUserPassword',
         'Set-LocalUserAccountExpiry',
         'Get-VMCreationDiagnostics',
+        'Get-OrphanedVMResources',
         'New-FFUVM',
         'Remove-FFUVM',
         'Remove-FFUBuildArtifacts',
@@ -41,6 +42,12 @@
             LicenseUri = 'https://github.com/Schweinehund/FFU/blob/feature/improvements-and-fixes/LICENSE'
             ProjectUri = 'https://github.com/Schweinehund/FFU'
             ReleaseNotes = @'
+v1.0.9: REL-VM-02 Orphan Detection and Cleanup
+- Added Get-OrphanedVMResources function for comprehensive orphan scanning
+- Scans for: VMs, VHDXs, HGS Guardians, certificates, VMware locks, checkpoint files
+- Returns structured result with orphan lists and optional cleanup actions
+- Supports -IncludeVMware and -ScanOnly switches
+
 v1.0.8: ThreadJob function scope fix - Export Remove-FFUVMWithProvider
 - Added Remove-FFUVMWithProvider function (previously script-scope in BuildFFUVM.ps1)
 - Changed from $script:HypervisorProvider to explicit HypervisorProvider parameter
