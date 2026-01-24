@@ -107,8 +107,13 @@ Plans:
   2. DISM/ADK failures include "try this to fix" guidance
   3. ISO creation estimates size and checks disk space early
   4. Architecture auto-detection validated against actual hardware capabilities
-**Research**: Unlikely (existing validation patterns)
-**Plans**: TBD
+**Research**: Complete (19-RESEARCH.md - identified 4 gaps mapped to requirements)
+**Plans:** 4 plans
+Plans:
+- [ ] 19-01-PLAN.md - WinPE dependency pre-validation (REL-MED-01)
+- [ ] 19-02-PLAN.md - DISM/ADK error classification with remediation (REL-MED-02)
+- [ ] 19-03-PLAN.md - ISO disk space pre-validation (REL-MED-03)
+- [ ] 19-04-PLAN.md - Architecture capability validation (REL-MED-04)
 
 ### Phase 20: FFU.Updates Reliability
 **Goal**: Make Windows Update integration resilient to network issues, bad packages, and cache corruption
@@ -194,7 +199,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 16. FFU.Hypervisor Reliability | 4/4 | Complete | 2026-01-24 |
 | 17. FFU.VM Reliability | 4/4 | Complete | 2026-01-24 |
 | 18. FFU.Imaging Reliability | 5/5 | Complete | 2026-01-24 |
-| 19. FFU.Media Reliability | 0/TBD | Not started | - |
+| 19. FFU.Media Reliability | 0/4 | Planned | - |
 | 20. FFU.Updates Reliability | 0/TBD | Not started | - |
 | 21. FFU.Drivers Reliability | 0/TBD | Not started | - |
 | 22. FFU.Preflight Reliability | 0/TBD | Not started | - |
