@@ -29,6 +29,78 @@ Write-Host "---------------------------------------------------" -ForegroundColo
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 # ============================================================================
+# Log Preservation (REL-WINPE-03)
+# Write log to D: drive (Apps ISO) for persistent storage
+# ============================================================================
+$script:logPath = "D:\orchestrator_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$script:logEnabled = $false
+
+function Write-OrchestratorLog {
+    <#
+    .SYNOPSIS
+    Writes log entries to both console and log file
+
+    .DESCRIPTION
+    Provides dual-output logging for the Orchestrator script.
+    Console output uses colors based on severity level.
+    File output is written to D: drive when available.
+
+    .PARAMETER Message
+    The message to log
+
+    .PARAMETER Level
+    Severity level: Info, Warning, or Error
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Info', 'Warning', 'Error')]
+        [string]$Level = 'Info'
+    )
+
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $logLine = "[$timestamp] [$Level] $Message"
+
+    # Console output with color
+    $color = switch ($Level) {
+        'Warning' { 'Yellow' }
+        'Error' { 'Red' }
+        default { 'White' }
+    }
+    Write-Host $logLine -ForegroundColor $color
+
+    # File output if logging enabled
+    if ($script:logEnabled -and $script:logPath) {
+        try {
+            Add-Content -Path $script:logPath -Value $logLine -ErrorAction SilentlyContinue
+        }
+        catch {
+            # Silently fail file logging - don't break orchestration
+        }
+    }
+}
+
+# Initialize log file
+try {
+    if (Test-Path "D:\") {
+        "=== FFU Builder Orchestrator Log ===" | Out-File -FilePath $script:logPath -Force
+        "Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Add-Content -Path $script:logPath
+        "Script Path: $scriptPath" | Add-Content -Path $script:logPath
+        "" | Add-Content -Path $script:logPath
+        $script:logEnabled = $true
+        Write-Host "Orchestrator log: $script:logPath" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "[WARNING] D: drive not available - log will not be preserved" -ForegroundColor Yellow
+    }
+}
+catch {
+    Write-Host "[WARNING] Failed to initialize log file: $_" -ForegroundColor Yellow
+}
+
+# ============================================================================
 # Execution Tracking (REL-WINPE-02)
 # Tracks script execution status for summary reporting
 # ============================================================================
@@ -411,3 +483,32 @@ if ($script:executionSummary.Failed.Count -gt 0) {
 
 Write-Host ""
 Write-Host "---------------------------------------------------" -ForegroundColor Cyan
+
+# ============================================================================
+# Finalize Log (REL-WINPE-03)
+# ============================================================================
+if ($script:logEnabled) {
+    "" | Add-Content -Path $script:logPath
+    "=== Execution Summary ===" | Add-Content -Path $script:logPath
+    "Executed: $($script:executionSummary.Executed.Count)" | Add-Content -Path $script:logPath
+    foreach ($executed in $script:executionSummary.Executed) {
+        "  [OK] $executed" | Add-Content -Path $script:logPath
+    }
+    if ($script:executionSummary.Skipped.Count -gt 0) {
+        "Skipped: $($script:executionSummary.Skipped.Count)" | Add-Content -Path $script:logPath
+        foreach ($skipped in $script:executionSummary.Skipped) {
+            "  [--] $($skipped.Script): $($skipped.Reason)" | Add-Content -Path $script:logPath
+        }
+    }
+    if ($script:executionSummary.Failed.Count -gt 0) {
+        "Failed: $($script:executionSummary.Failed.Count)" | Add-Content -Path $script:logPath
+        foreach ($failed in $script:executionSummary.Failed) {
+            "  [!!] $($failed.Script): $($failed.Error)" | Add-Content -Path $script:logPath
+        }
+    }
+    "" | Add-Content -Path $script:logPath
+    "=== Orchestration Complete ===" | Add-Content -Path $script:logPath
+    "Finished: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Add-Content -Path $script:logPath
+    Write-Host ""
+    Write-Host "Log saved to: $script:logPath" -ForegroundColor Green
+}

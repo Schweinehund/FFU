@@ -428,6 +428,157 @@ function Test-CaptureTargetDisk {
     }
 }
 
+function Test-WinPEResources {
+    <#
+    .SYNOPSIS
+    Validates WinPE environment has sufficient resources for FFU capture
+
+    .DESCRIPTION
+    Checks available memory and warns if resources are low.
+    WinPE minimum requirements: 512MB RAM, but DISM capture benefits from more.
+
+    .PARAMETER MinimumMemoryMB
+    Minimum free memory in MB before warning (default: 256)
+
+    .OUTPUTS
+    PSCustomObject with Status (OK/Warning/Critical), MemoryMB, and Message
+
+    .EXAMPLE
+    Test-WinPEResources -MinimumMemoryMB 256
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [int]$MinimumMemoryMB = 256
+    )
+
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        $freeMemoryMB = [math]::Round($os.FreePhysicalMemory / 1024, 0)
+        $totalMemoryMB = [math]::Round($os.TotalVisibleMemorySize / 1024, 0)
+        $usedMemoryMB = $totalMemoryMB - $freeMemoryMB
+        $usedPercent = [math]::Round(($usedMemoryMB / $totalMemoryMB) * 100, 0)
+
+        if ($freeMemoryMB -lt 128) {
+            return [PSCustomObject]@{
+                Status = 'Critical'
+                FreeMemoryMB = $freeMemoryMB
+                TotalMemoryMB = $totalMemoryMB
+                UsedPercent = $usedPercent
+                Message = "CRITICAL: Only ${freeMemoryMB}MB free memory. DISM capture may fail or be extremely slow."
+            }
+        }
+        elseif ($freeMemoryMB -lt $MinimumMemoryMB) {
+            return [PSCustomObject]@{
+                Status = 'Warning'
+                FreeMemoryMB = $freeMemoryMB
+                TotalMemoryMB = $totalMemoryMB
+                UsedPercent = $usedPercent
+                Message = "LOW MEMORY: ${freeMemoryMB}MB free of ${totalMemoryMB}MB. Capture may be slower than expected."
+            }
+        }
+        else {
+            return [PSCustomObject]@{
+                Status = 'OK'
+                FreeMemoryMB = $freeMemoryMB
+                TotalMemoryMB = $totalMemoryMB
+                UsedPercent = $usedPercent
+                Message = "Memory OK: ${freeMemoryMB}MB free of ${totalMemoryMB}MB (${usedPercent}% used)"
+            }
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            Status = 'Unknown'
+            FreeMemoryMB = 0
+            TotalMemoryMB = 0
+            UsedPercent = 0
+            Message = "Failed to query memory: $_"
+        }
+    }
+}
+
+function Test-ShareDiskSpace {
+    <#
+    .SYNOPSIS
+    Validates network share has sufficient disk space for FFU capture
+
+    .DESCRIPTION
+    Checks free space on the mapped network share drive.
+    FFU files can be 10-50GB depending on installed software.
+
+    .PARAMETER DriveLetter
+    Drive letter of the mapped share (default: W:)
+
+    .PARAMETER MinimumSpaceGB
+    Minimum required free space in GB (default: 60)
+
+    .OUTPUTS
+    PSCustomObject with Status (OK/Warning/Critical), FreeSpaceGB, and Message
+
+    .EXAMPLE
+    Test-ShareDiskSpace -DriveLetter "W:" -MinimumSpaceGB 60
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$DriveLetter = "W:",
+
+        [Parameter(Mandatory = $false)]
+        [int]$MinimumSpaceGB = 60
+    )
+
+    try {
+        # Use .NET DriveInfo for WinPE compatibility (avoids Get-Volume dependency)
+        $drive = [System.IO.DriveInfo]::new($DriveLetter)
+
+        if (-not $drive.IsReady) {
+            return [PSCustomObject]@{
+                Status = 'Critical'
+                FreeSpaceGB = 0
+                TotalSpaceGB = 0
+                Message = "Drive $DriveLetter is not ready or not connected"
+            }
+        }
+
+        $freeSpaceGB = [math]::Round($drive.AvailableFreeSpace / 1GB, 2)
+        $totalSpaceGB = [math]::Round($drive.TotalSize / 1GB, 2)
+
+        if ($freeSpaceGB -lt 20) {
+            return [PSCustomObject]@{
+                Status = 'Critical'
+                FreeSpaceGB = $freeSpaceGB
+                TotalSpaceGB = $totalSpaceGB
+                Message = "CRITICAL: Only ${freeSpaceGB}GB free on $DriveLetter. FFU capture requires at least 20GB free space."
+            }
+        }
+        elseif ($freeSpaceGB -lt $MinimumSpaceGB) {
+            return [PSCustomObject]@{
+                Status = 'Warning'
+                FreeSpaceGB = $freeSpaceGB
+                TotalSpaceGB = $totalSpaceGB
+                Message = "LOW DISK SPACE: ${freeSpaceGB}GB free on $DriveLetter. Recommend at least ${MinimumSpaceGB}GB for FFU capture."
+            }
+        }
+        else {
+            return [PSCustomObject]@{
+                Status = 'OK'
+                FreeSpaceGB = $freeSpaceGB
+                TotalSpaceGB = $totalSpaceGB
+                Message = "Disk space OK: ${freeSpaceGB}GB free on $DriveLetter"
+            }
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            Status = 'Unknown'
+            FreeSpaceGB = 0
+            TotalSpaceGB = 0
+            Message = "Failed to query disk space for $DriveLetter : $_"
+        }
+    }
+}
+
 function Wait-For-NetworkReady {
     <#
     .SYNOPSIS
@@ -956,6 +1107,63 @@ Write-Host "[OK] Target disk validated successfully" -ForegroundColor Green
 Write-Host "  Model: $($diskValidation.DiskInfo.Model)" -ForegroundColor Cyan
 Write-Host "  Size: $([math]::Round($diskValidation.DiskInfo.Size / 1GB, 2)) GB" -ForegroundColor Cyan
 Write-Host "=========================================`n"
+
+# ============================================================================
+# Resource Validation (REL-WINPE-04)
+# Check memory and disk space before proceeding with capture
+# ============================================================================
+Write-Host "`n========== Resource Validation ==========" -ForegroundColor Yellow
+
+# Check WinPE memory
+$memoryCheck = Test-WinPEResources -MinimumMemoryMB 256
+$memoryColor = switch ($memoryCheck.Status) {
+    'Critical' { 'Red' }
+    'Warning' { 'Yellow' }
+    'OK' { 'Green' }
+    default { 'Gray' }
+}
+Write-Host "Memory: $($memoryCheck.Message)" -ForegroundColor $memoryColor
+
+if ($memoryCheck.Status -eq 'Critical') {
+    Write-Host ""
+    Write-Host "REMEDIATION:" -ForegroundColor Yellow
+    Write-Host "  1. Increase VM memory allocation (recommend 4GB+)" -ForegroundColor Gray
+    Write-Host "  2. Close any unnecessary processes" -ForegroundColor Gray
+    Write-Host "  3. Consider rebuilding WinPE with fewer packages" -ForegroundColor Gray
+    Write-Host ""
+    # Continue anyway - let DISM fail if it must, user has been warned
+}
+
+# Check network share disk space
+$diskCheck = Test-ShareDiskSpace -DriveLetter "W:" -MinimumSpaceGB 60
+$diskColor = switch ($diskCheck.Status) {
+    'Critical' { 'Red' }
+    'Warning' { 'Yellow' }
+    'OK' { 'Green' }
+    default { 'Gray' }
+}
+Write-Host "Network Share: $($diskCheck.Message)" -ForegroundColor $diskColor
+
+if ($diskCheck.Status -eq 'Critical') {
+    Write-Host ""
+    Write-Host "CRITICAL: Insufficient disk space on network share!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "REMEDIATION:" -ForegroundColor Yellow
+    Write-Host "  1. Free up space in FFUDevelopment folder on host" -ForegroundColor Gray
+    Write-Host "  2. Delete old FFU files: Get-ChildItem *.ffu | Sort-Object LastWriteTime | Select-Object -SkipLast 2 | Remove-Item" -ForegroundColor Gray
+    Write-Host "  3. Check for large temp files in FFUDevelopment folder" -ForegroundColor Gray
+    Write-Host ""
+    throw "Insufficient disk space on network share: $($diskCheck.FreeSpaceGB)GB free, need at least 20GB"
+}
+elseif ($diskCheck.Status -eq 'Warning') {
+    Write-Host ""
+    Write-Host "NOTE: Low disk space may cause capture to fail if FFU is large." -ForegroundColor Yellow
+    Write-Host "      Consider freeing up space before proceeding." -ForegroundColor Yellow
+    Write-Host ""
+    # Continue with warning
+}
+
+Write-Host "==========================================`n" -ForegroundColor Yellow
 
 $AssignDriveLetter = 'x:\AssignDriveLetter.txt'
 try {
