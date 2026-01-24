@@ -2793,6 +2793,71 @@ DISM cleanup encountered issues. Manual cleanup may be needed:
 
 #endregion Tier 4: Cleanup Operations
 
+#region Helper Functions for Main Orchestrator
+
+function Add-CheckToResult {
+    <#
+    .SYNOPSIS
+    Internal helper to add a check result to the main result object with severity tracking (REL-PRE-04).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [PSCustomObject]$Result,
+
+        [Parameter(Mandatory)]
+        [PSCustomObject]$CheckResult,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('1', '2', '3', '4')]
+        [string]$TierKey,
+
+        [Parameter(Mandatory)]
+        [string]$ResultKey
+    )
+
+    # Add to tier results
+    $Result."Tier${TierKey}Results"[$ResultKey] = $CheckResult
+
+    # Track severity counts for failures
+    if ($CheckResult.Status -eq 'Failed') {
+        switch ($CheckResult.Severity) {
+            'Critical' {
+                $Result.CriticalCount++
+                $Result.Errors.Add("[CRITICAL] $ResultKey`: $($CheckResult.Message)")
+            }
+            'Warning' {
+                $Result.WarningCount++
+                $Result.Warnings.Add("[WARNING] $ResultKey`: $($CheckResult.Message)")
+            }
+            'Info' {
+                $Result.InfoCount++
+                $Result.InfoMessages.Add("[INFO] $ResultKey`: $($CheckResult.Message)")
+            }
+        }
+
+        # Only block on Critical failures
+        if ($CheckResult.Severity -eq 'Critical') {
+            $Result.IsValid = $false
+        }
+
+        # Add remediation if present
+        if ($CheckResult.Remediation) {
+            $Result.RemediationSteps.Add($CheckResult.Remediation)
+        }
+    }
+    elseif ($CheckResult.Status -eq 'Warning') {
+        $Result.HasWarnings = $true
+        switch ($CheckResult.Severity) {
+            'Critical' { $Result.CriticalCount++ }
+            'Warning' { $Result.WarningCount++ }
+            'Info' { $Result.InfoCount++ }
+        }
+        $Result.Warnings.Add("[$($CheckResult.Severity.ToUpper())] $ResultKey`: $($CheckResult.Message)")
+    }
+}
+
+#endregion Helper Functions for Main Orchestrator
+
 #region Main Orchestrator
 
 function Invoke-FFUPreflight {
@@ -2913,11 +2978,16 @@ function Invoke-FFUPreflight {
         Tier4Results         = @{}
         Errors               = [System.Collections.Generic.List[string]]::new()
         Warnings             = [System.Collections.Generic.List[string]]::new()
+        InfoMessages         = [System.Collections.Generic.List[string]]::new()
         RemediationSteps     = [System.Collections.Generic.List[string]]::new()
         CleanupPerformed     = [System.Collections.Generic.List[string]]::new()
         RequiredDiskSpaceGB  = 0
         AvailableDiskSpaceGB = 0
         RequiredFeatures     = @()
+        # Severity summary counts (REL-PRE-04)
+        CriticalCount        = 0
+        WarningCount         = 0
+        InfoCount            = 0
     }
 
     # Calculate requirements (pass HypervisorType to determine if Hyper-V is needed)
