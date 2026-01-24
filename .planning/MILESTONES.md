@@ -1,5 +1,35 @@
 # Project Milestones: FFU Builder
 
+## v1.9.0 Reliability Hardening (Shipped: 2026-01-24)
+
+**Delivered:** Systematic reliability audit of all modules and scripts to bulletproof the FFU build pipeline with comprehensive error handling, actionable messages, and self-healing capabilities.
+
+**Phases completed:** 15-25 (44 plans total)
+
+**Key accomplishments:**
+
+- Implemented consistent try/catch error handling across all 11 modules with specific exception types
+- Added actionable error messages with remediation steps throughout the pipeline
+- Created self-healing capabilities for transient failures (network, disk, service restarts)
+- Built graceful degradation pattern for build phases (Invoke-BuildPhase wrapper)
+- Enhanced UI with structured error display, job failure context extraction, and state recovery
+- Added comprehensive config validation at load time preventing invalid builds
+- Implemented WinPE script reliability for constrained environment handling
+- Created 45+ test files with ~1,385 new Pester tests for reliability features
+
+**Stats:**
+
+- 180+ commits
+- ~127,474 lines of PowerShell (total codebase)
+- 11 phases, 44 plans, 44 requirements
+- 2 days (2026-01-23 → 2026-01-24)
+
+**Git range:** `5d0da52` → `efd10d6`
+
+**What's next:** Integrate Invoke-BuildPhase into BuildFFUVM.ps1 for full graceful degradation
+
+---
+
 ## v1.8.1 Bug Fixes (Shipped: 2026-01-20)
 
 **Delivered:** Critical bug fixes for Windows Update preview filtering and VHDX drive letter stability discovered during v1.8.0 testing.

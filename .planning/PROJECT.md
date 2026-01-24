@@ -55,34 +55,24 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Set-OSPartitionDriveLetter utility with GPT type detection
   - Provider mount validation with retry and accessibility verification
   - NoteProperty attachment for drive letter persistence
+- **Reliability Hardening** — v1.9.0
+  - Consistent try/catch error handling across all 11 modules
+  - Actionable error messages with remediation steps throughout pipeline
+  - Self-healing for transient failures (network, disk, service restarts)
+  - Graceful degradation pattern (Invoke-BuildPhase wrapper)
+  - UI structured error display, job failure context extraction, state recovery
+  - Config validation at load time preventing invalid builds
+  - WinPE script reliability for constrained environments
+  - 45+ test files with ~1,385 new Pester tests
 
 ### Active
 
-**Current Milestone:** v1.9.0 Reliability Hardening
+**Current Milestone:** Planning next milestone
 
-**Goal:** Bulletproof the entire FFU build pipeline through systematic reliability hardening of all modules and scripts.
+**Identified enhancement:**
+- Integrate Invoke-BuildPhase into BuildFFUVM.ps1 for full graceful degradation across all build phases
 
-**Target features:**
-- Comprehensive reliability audit of all 13 modules and key scripts
-- Error handling hardening with consistent try/catch patterns, specific exceptions, graceful recovery
-- Logging enhancement with clear, actionable messages at every failure point
-- Self-healing capabilities for automatic recovery from transient issues
-- Edge case coverage for unusual configurations, partial failures, and race conditions
-
-**Audit scope (by module/area):**
-1. FFU.Core - Configuration, session tracking, error utilities
-2. FFU.Hypervisor - VM lifecycle, provider abstraction, state detection
-3. FFU.VM - VM creation, management, cleanup
-4. FFU.Imaging - Disk operations, partitions, FFU capture/optimize
-5. FFU.Media - WinPE media creation
-6. FFU.Updates - Windows Update catalog, MSU handling
-7. FFU.Drivers - OEM driver downloads, extraction
-8. FFU.Preflight - Pre-flight validation checks
-9. BuildFFUVM.ps1 - Main orchestrator script
-10. WinPE Scripts - CaptureFFU.ps1, orchestrator.ps1, in-VM scripts
-11. FFUUI.Core - UI error handling and status display
-
-**Deferred bugs (not in scope):**
+**Deferred bugs (carry forward):**
 - HP driver extraction exit code 1168 (all HP models)
 - Dell CatalogPC.xml missing
 - expand.exe fails on large MSU files (fallback works)
@@ -135,4 +125,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-23 after v1.9.0 milestone started*
+*Last updated: 2026-01-24 after v1.9.0 milestone shipped*
