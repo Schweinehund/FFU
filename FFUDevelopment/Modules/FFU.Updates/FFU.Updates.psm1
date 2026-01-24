@@ -743,6 +743,9 @@ function Save-KB {
     Automatically filters by architecture and validates downloaded files match the target platform.
     Supports fallback analysis for updates without explicit architecture in filenames.
 
+    REL-UPD-02: Validates downloaded MSU/CAB files using Test-MSUIntegrity and automatically
+    re-downloads if corruption is detected (up to MaxValidationRetries attempts).
+
     .PARAMETER Name
     Array of update names or KB numbers to download
 
@@ -761,6 +764,9 @@ function Save-KB {
     .PARAMETER Filter
     Optional array of filter criteria to match against update descriptions.
     If not provided or empty, downloads the first matching update without filtering.
+
+    .PARAMETER MaxValidationRetries
+    Maximum number of re-download attempts when integrity validation fails (default: 2)
 
     .EXAMPLE
     # With filter
@@ -793,8 +799,72 @@ function Save-KB {
         [string]$UserAgent,
 
         [Parameter(Mandatory = $false)]
-        [string[]]$Filter = @()
+        [string[]]$Filter = @(),
+
+        [Parameter()]
+        [int]$MaxValidationRetries = 2
     )
+
+    # REL-UPD-02: Helper function for download with integrity validation and re-download
+    function Invoke-ValidatedDownload {
+        param(
+            [string]$SourceUrl,
+            [string]$DestinationPath,
+            [int]$MaxRetries
+        )
+
+        $fileName = ($SourceUrl -split '/')[-1]
+        $filePath = Join-Path -Path $DestinationPath -ChildPath $fileName
+
+        for ($attempt = 1; $attempt -le ($MaxRetries + 1); $attempt++) {
+            # Delete any existing file before download
+            if (Test-Path -Path $filePath) {
+                Remove-Item -Path $filePath -Force -ErrorAction SilentlyContinue
+            }
+
+            # Download the file
+            WriteLog "Downloading $SourceUrl to $DestinationPath (attempt $attempt)"
+            try {
+                Start-BitsTransferWithRetry -Source $SourceUrl -Destination $DestinationPath -ErrorAction Stop | Out-Null
+            }
+            catch {
+                WriteLog "ERROR: Download failed: $($_.Exception.Message)"
+                if ($attempt -gt $MaxRetries) {
+                    return @{ Success = $false; FileName = $null; Error = "Download failed after $($MaxRetries + 1) attempts: $($_.Exception.Message)" }
+                }
+                WriteLog "Retrying download..."
+                continue
+            }
+
+            # REL-UPD-02: Validate downloaded file integrity
+            WriteLog "Validating downloaded file integrity: $fileName"
+            $integrityResult = Test-MSUIntegrity -FilePath $filePath
+
+            if ($integrityResult.Valid) {
+                WriteLog "Integrity validation passed for $fileName (Size: $([Math]::Round($integrityResult.FileSize / 1MB, 2))MB)"
+                return @{ Success = $true; FileName = $fileName; Error = $null }
+            }
+
+            # Validation failed - log errors and prepare for re-download
+            $errorDetails = $integrityResult.Errors -join '; '
+            WriteLog "WARNING: Integrity validation failed for $fileName - $errorDetails"
+
+            if ($attempt -le $MaxRetries) {
+                WriteLog "Deleting corrupted file and re-downloading (retry $attempt of $MaxRetries)..."
+                if (Test-Path -Path $filePath) {
+                    Remove-Item -Path $filePath -Force -ErrorAction SilentlyContinue
+                }
+            }
+            else {
+                WriteLog "ERROR: Integrity validation failed after $($MaxRetries + 1) attempts. Last errors: $errorDetails"
+                # Leave the file for manual inspection but return failure
+                return @{ Success = $false; FileName = $fileName; Error = "Integrity validation failed: $errorDetails" }
+            }
+        }
+
+        return @{ Success = $false; FileName = $null; Error = "Download validation loop completed without success" }
+    }
+
     foreach ($kb in $name) {
         # Architecture-agnostic updates: Defender, Edge, and Security Platform updates
         # don't have architecture indicators (x64/x86/ARM64) in their Microsoft Update Catalog titles.
@@ -818,64 +888,44 @@ function Save-KB {
         WriteLog "Found $($links.Count) download link(s) for '$kb'"
 
         foreach ($link in $links) {
-            # if (!($link -match 'x64' -or $link -match 'amd64' -or $link -match 'x86' -or $link -match 'arm64')) {
-            #     WriteLog "No architecture found in $link, skipping"
-            #     continue
-            # }
-
             if ($link -match 'x64' -or $link -match 'amd64') {
                 if ($WindowsArch -eq 'x64') {
-                    WriteLog "Downloading $link for $WindowsArch to $Path"
-                    try {
-                        Start-BitsTransferWithRetry -Source $link -Destination $Path -ErrorAction Stop | Out-Null
-                        $fileName = ($link -split '/')[-1]
-                        WriteLog "Download complete: $fileName"
-                        return $fileName
+                    # REL-UPD-02: Use validated download with integrity check
+                    $downloadResult = Invoke-ValidatedDownload -SourceUrl $link -DestinationPath $Path -MaxRetries $MaxValidationRetries
+                    if ($downloadResult.Success) {
+                        WriteLog "Download complete and validated: $($downloadResult.FileName)"
+                        return $downloadResult.FileName
                     }
-                    catch [System.Net.WebException] {
-                        WriteLog "ERROR: Network error downloading update from $link : $($_.Exception.Message)"
-                        continue
-                    }
-                    catch {
-                        WriteLog "ERROR: Failed to download update from $link : $($_.Exception.Message)"
+                    else {
+                        WriteLog "ERROR: $($downloadResult.Error)"
                         continue
                     }
                 }
             }
             elseif ($link -match 'arm64') {
                 if ($WindowsArch -eq 'arm64') {
-                    WriteLog "Downloading $link for $WindowsArch to $Path"
-                    try {
-                        Start-BitsTransferWithRetry -Source $link -Destination $Path -ErrorAction Stop | Out-Null
-                        $fileName = ($link -split '/')[-1]
-                        WriteLog "Download complete: $fileName"
-                        return $fileName
+                    # REL-UPD-02: Use validated download with integrity check
+                    $downloadResult = Invoke-ValidatedDownload -SourceUrl $link -DestinationPath $Path -MaxRetries $MaxValidationRetries
+                    if ($downloadResult.Success) {
+                        WriteLog "Download complete and validated: $($downloadResult.FileName)"
+                        return $downloadResult.FileName
                     }
-                    catch [System.Net.WebException] {
-                        WriteLog "ERROR: Network error downloading update from $link : $($_.Exception.Message)"
-                        continue
-                    }
-                    catch {
-                        WriteLog "ERROR: Failed to download update from $link : $($_.Exception.Message)"
+                    else {
+                        WriteLog "ERROR: $($downloadResult.Error)"
                         continue
                     }
                 }
             }
             elseif ($link -match 'x86') {
                 if ($WindowsArch -eq 'x86') {
-                    WriteLog "Downloading $link for $WindowsArch to $Path"
-                    try {
-                        Start-BitsTransferWithRetry -Source $link -Destination $Path -ErrorAction Stop | Out-Null
-                        $fileName = ($link -split '/')[-1]
-                        WriteLog "Download complete: $fileName"
-                        return $fileName
+                    # REL-UPD-02: Use validated download with integrity check
+                    $downloadResult = Invoke-ValidatedDownload -SourceUrl $link -DestinationPath $Path -MaxRetries $MaxValidationRetries
+                    if ($downloadResult.Success) {
+                        WriteLog "Download complete and validated: $($downloadResult.FileName)"
+                        return $downloadResult.FileName
                     }
-                    catch [System.Net.WebException] {
-                        WriteLog "ERROR: Network error downloading update from $link : $($_.Exception.Message)"
-                        continue
-                    }
-                    catch {
-                        WriteLog "ERROR: Failed to download update from $link : $($_.Exception.Message)"
+                    else {
+                        WriteLog "ERROR: $($downloadResult.Error)"
                         continue
                     }
                 }
@@ -883,22 +933,18 @@ function Save-KB {
             else {
                 WriteLog "No architecture found in $link"
 
-                #If no architecture is found, download the file and run it through Get-PEArchitecture to determine the architecture
+                # If no architecture is found, download the file and run it through Get-PEArchitecture to determine the architecture
                 WriteLog "Downloading $link to $Path and analyzing file for architecture"
-                try {
-                    Start-BitsTransferWithRetry -Source $link -Destination $Path -ErrorAction Stop | Out-Null
-                }
-                catch [System.Net.WebException] {
-                    WriteLog "ERROR: Network error downloading update from $link : $($_.Exception.Message)"
-                    continue
-                }
-                catch {
-                    WriteLog "ERROR: Failed to download update from $link : $($_.Exception.Message)"
+
+                # REL-UPD-02: Use validated download with integrity check
+                $downloadResult = Invoke-ValidatedDownload -SourceUrl $link -DestinationPath $Path -MaxRetries $MaxValidationRetries
+                if (-not $downloadResult.Success) {
+                    WriteLog "ERROR: $($downloadResult.Error)"
                     continue
                 }
 
-                #Take the file and run it through Get-PEArchitecture to determine the architecture
-                $fileName = ($link -split '/')[-1]
+                # Take the file and run it through Get-PEArchitecture to determine the architecture
+                $fileName = $downloadResult.FileName
                 $filePath = Join-Path -Path $Path -ChildPath $fileName
                 try {
                     $arch = Get-PEArchitecture -FilePath $filePath -ErrorAction Stop
@@ -909,7 +955,7 @@ function Save-KB {
                     $arch = $null
                 }
 
-                #If the architecture matches $WindowsArch, keep the file, otherwise delete it
+                # If the architecture matches $WindowsArch, keep the file, otherwise delete it
                 if ($arch -eq $WindowsArch) {
                     WriteLog "Architecture for $fileName matches $WindowsArch, keeping file"
                     return $fileName
