@@ -912,6 +912,20 @@ try {
     Write-Host "Network share connection successful! Proceeding with FFU capture..." -ForegroundColor Green
     Write-Host ""
 
+    # ============================================================================
+    # Log Preservation (REL-WINPE-03)
+    # Start transcript to preserve all console output for post-mortem debugging
+    # ============================================================================
+    $transcriptPath = "W:\CaptureFFU_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+    try {
+        Start-Transcript -Path $transcriptPath -Force
+        Write-Host "Transcript logging started: $transcriptPath" -ForegroundColor Cyan
+    }
+    catch {
+        Write-Host "[WARNING] Failed to start transcript: $_" -ForegroundColor Yellow
+        Write-Host "Console output will NOT be preserved for debugging" -ForegroundColor Yellow
+    }
+
 } catch {
     Write-Host "`n=====================================================" -ForegroundColor Red
     Write-Host "          NETWORK CONNECTION FAILED                   " -ForegroundColor Red
@@ -1119,11 +1133,37 @@ $SKU = switch ($SKU) {
     catch {
         Write-Warning "Failed to copy DISM log: $_"
     }
+
+    # ============================================================================
+    # Log Preservation (REL-WINPE-03)
+    # Stop transcript and ensure logs are preserved before shutdown
+    # ============================================================================
+    try {
+        Stop-Transcript -ErrorAction SilentlyContinue
+        Write-Host "Transcript saved to network share" -ForegroundColor Green
+    }
+    catch {
+        # Transcript may not have started successfully
+    }
+
+    # Also copy any additional logs
+    try {
+        Write-Host "Preserving additional logs to network share..." -ForegroundColor Cyan
+        if (Test-Path "X:\Windows\logs\dism\dism.log") {
+            xcopy "X:\Windows\logs\dism\dism.log" "W:\dism_capture.log" /Y | Out-Null
+            Write-Host "  DISM log preserved" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "[WARNING] Failed to copy additional logs: $_" -ForegroundColor Yellow
+    }
+
     Write-Host "DISM log copied to network share, shutting down..."
     wpeutil Shutdown
 
 }
 catch {
     Write-Error "An unexpected error occurred: $_"
-    
+    # Ensure transcript is preserved even on error
+    try { Stop-Transcript -ErrorAction SilentlyContinue } catch { }
 }
