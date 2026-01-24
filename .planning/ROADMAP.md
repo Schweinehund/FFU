@@ -16,7 +16,7 @@
 ### v1.9.0 Reliability Hardening
 
 - [x] **Phase 15: FFU.Core Reliability** - Error handling, configuration, session tracking ✓
-- [ ] **Phase 16: FFU.Hypervisor Reliability** - Provider detection, state handling, service recovery
+- [x] **Phase 16: FFU.Hypervisor Reliability** - Provider detection, state handling, service recovery ✓
 - [ ] **Phase 17: FFU.VM Reliability** - VM lifecycle, cleanup, retry logic
 - [ ] **Phase 18: FFU.Imaging Reliability** - Disk operations, partitions, mount/dismount
 - [ ] **Phase 19: FFU.Media Reliability** - WinPE creation, ADK tools, ISO generation
@@ -57,10 +57,10 @@ Plans:
 **Research**: Unlikely (established provider pattern)
 **Plans:** 4 plans
 Plans:
-- [ ] 16-01-PLAN.md - Provider detection with actionable guidance (REL-HYP-01)
-- [ ] 16-02-PLAN.md - Transient VM state handling (REL-HYP-02)
-- [ ] 16-03-PLAN.md - Provider switching validation (REL-HYP-03)
-- [ ] 16-04-PLAN.md - Service recovery and automatic retry (REL-HYP-04)
+- [x] 16-01-PLAN.md - Provider detection with actionable guidance (REL-HYP-01) ✓
+- [x] 16-02-PLAN.md - Transient VM state handling (REL-HYP-02) ✓
+- [x] 16-03-PLAN.md - Provider switching validation (REL-HYP-03) ✓
+- [x] 16-04-PLAN.md - Service recovery and automatic retry (REL-HYP-04) ✓
 
 ### Phase 17: FFU.VM Reliability
 **Goal**: Make VM operations robust against failures at any point with automatic cleanup and retry
@@ -180,7 +180,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
-| 16. FFU.Hypervisor Reliability | 0/4 | Planned | - |
+| 16. FFU.Hypervisor Reliability | 4/4 | Complete | 2026-01-24 |
 | 17. FFU.VM Reliability | 0/TBD | Not started | - |
 | 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
 | 19. FFU.Media Reliability | 0/TBD | Not started | - |

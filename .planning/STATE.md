@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 16 — FFU.Hypervisor Reliability
+**Current focus:** Phase 17 — FFU.VM Reliability
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 16 of 25 (FFU.Hypervisor Reliability)
-**Plan:** 4 of 4 complete
-**Status:** Phase complete
-**Last activity:** 2026-01-24 — Completed 16-04-PLAN.md (Service Recovery)
+**Phase:** 17 of 25 (FFU.VM Reliability)
+**Plan:** Not started
+**Status:** Ready to plan
+**Last activity:** 2026-01-24 — Phase 16 complete (verified)
 
 Progress: Milestone v1.9.0
-[###-------] 27% (3/11 phases - Phase 16 complete)
+[##--------] 18% (2/11 phases)
 
 ## Completed Phases This Milestone
 
@@ -73,9 +73,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 16-04-PLAN.md (Phase 16 complete)
+**Stopped at:** Phase 16 verified and complete
 **Resume file:** None
-**Next action:** Execute Phase 17 (next reliability phase)
+**Next action:** `/gsd:plan-phase 17` to plan FFU.VM Reliability
 
 ---
 *State updated: 2026-01-24*
