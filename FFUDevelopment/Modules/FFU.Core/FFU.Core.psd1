@@ -95,7 +95,12 @@
         'New-OrchestrationHashManifest',
         'Update-OrchestrationHashManifest',
         # Build cancellation helper (v1.0.16)
-        'Test-BuildCancellation'
+        'Test-BuildCancellation',
+        # Build error aggregation (v1.0.21 - REL-BUILD-04)
+        'Add-BuildError',
+        'Get-BuildErrorSummary',
+        'Clear-BuildErrors',
+        'Write-BuildErrorSummary'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.

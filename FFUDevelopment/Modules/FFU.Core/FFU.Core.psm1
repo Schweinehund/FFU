@@ -3515,6 +3515,230 @@ function Get-CleanupRegistry {
 }
 
 # =============================================================================
+# Build Error Aggregation System
+# Collects all errors during build for comprehensive reporting (REL-BUILD-04)
+# =============================================================================
+
+# Script-scoped error collector - accumulates errors throughout build
+$script:BuildErrorCollector = [System.Collections.Generic.List[PSCustomObject]]::new()
+
+function Add-BuildError {
+    <#
+    .SYNOPSIS
+    Adds an error to the build error collector for aggregated reporting.
+
+    .DESCRIPTION
+    Accumulates errors throughout a build process instead of stopping at the first
+    failure. This enables users to see all issues in a single build run, making
+    troubleshooting more efficient.
+
+    .PARAMETER Phase
+    The build phase where the error occurred (e.g., 'DriverDownload', 'UpdatesDownload').
+
+    .PARAMETER Message
+    A descriptive message explaining what went wrong.
+
+    .PARAMETER Severity
+    The severity level of the error. Critical errors indicate build blockers,
+    Warning indicates potential issues that may not block the build, and Info
+    indicates informational messages about optional improvements.
+
+    .PARAMETER Exception
+    Optional System.Exception object containing the original exception details.
+
+    .EXAMPLE
+    Add-BuildError -Phase 'DriverDownload' -Message 'Dell driver unavailable for model' -Severity Warning
+
+    .EXAMPLE
+    Add-BuildError -Phase 'UpdatesDownload' -Message 'KB5001234 failed to download' -Severity Critical -Exception $_.Exception
+
+    .OUTPUTS
+    None. The error is added to the internal collector.
+
+    .NOTES
+    Added in v1.0.21 for REL-BUILD-04 (Build Error Aggregation).
+    Uses ThreadJob-safe logging pattern.
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Phase,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Message,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Critical', 'Warning', 'Info')]
+        [string]$Severity = 'Warning',
+
+        [Parameter(Mandatory = $false)]
+        [System.Exception]$Exception
+    )
+
+    $errorEntry = [PSCustomObject]@{
+        Timestamp = [DateTime]::Now
+        Phase     = $Phase
+        Message   = $Message
+        Severity  = $Severity
+        Exception = $Exception
+    }
+
+    $script:BuildErrorCollector.Add($errorEntry)
+
+    # ThreadJob-safe logging
+    if ($function:WriteLog) {
+        WriteLog "[$Severity] $Phase`: $Message"
+    }
+    else {
+        Write-Verbose "[$Severity] $Phase`: $Message"
+    }
+}
+
+function Get-BuildErrorSummary {
+    <#
+    .SYNOPSIS
+    Returns a summary of all accumulated build errors.
+
+    .DESCRIPTION
+    Provides a structured summary of all errors collected during the build,
+    including counts by severity level and the complete list of errors.
+    The HasCritical property can be used to determine if the build should fail.
+
+    .EXAMPLE
+    $summary = Get-BuildErrorSummary
+    if ($summary.HasCritical) {
+        throw "Build failed with $($summary.CriticalCount) critical errors"
+    }
+
+    .EXAMPLE
+    $summary = Get-BuildErrorSummary
+    Write-Host "Total issues: $($summary.TotalCount), Critical: $($summary.CriticalCount)"
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - TotalCount: Total number of errors
+    - CriticalCount: Number of Critical severity errors
+    - WarningCount: Number of Warning severity errors
+    - InfoCount: Number of Info severity errors
+    - HasCritical: Boolean indicating if any Critical errors exist
+    - Errors: Array of all error objects
+
+    .NOTES
+    Added in v1.0.21 for REL-BUILD-04 (Build Error Aggregation).
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
+    $errors = @($script:BuildErrorCollector)
+    $critical = @($errors | Where-Object { $_.Severity -eq 'Critical' })
+    $warnings = @($errors | Where-Object { $_.Severity -eq 'Warning' })
+    $info = @($errors | Where-Object { $_.Severity -eq 'Info' })
+
+    return [PSCustomObject]@{
+        TotalCount    = $errors.Count
+        CriticalCount = $critical.Count
+        WarningCount  = $warnings.Count
+        InfoCount     = $info.Count
+        HasCritical   = $critical.Count -gt 0
+        Errors        = $errors
+    }
+}
+
+function Clear-BuildErrors {
+    <#
+    .SYNOPSIS
+    Clears all accumulated build errors from the collector.
+
+    .DESCRIPTION
+    Resets the build error collector to an empty state. Call this at the
+    start of a new build to ensure a clean slate, or after processing
+    errors at the end of a build.
+
+    .EXAMPLE
+    Clear-BuildErrors
+    # Start fresh build with no accumulated errors
+
+    .OUTPUTS
+    None.
+
+    .NOTES
+    Added in v1.0.21 for REL-BUILD-04 (Build Error Aggregation).
+    Safe to call even when collector is already empty.
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+
+    $script:BuildErrorCollector.Clear()
+}
+
+function Write-BuildErrorSummary {
+    <#
+    .SYNOPSIS
+    Writes a formatted build error summary to the log.
+
+    .DESCRIPTION
+    Formats and outputs the build error summary in a human-readable format
+    suitable for logging. Each error is prefixed with its severity level
+    in brackets for easy identification.
+
+    .PARAMETER Summary
+    The summary object returned by Get-BuildErrorSummary.
+
+    .EXAMPLE
+    $summary = Get-BuildErrorSummary
+    Write-BuildErrorSummary -Summary $summary
+
+    .OUTPUTS
+    None. Output is written to log via WriteLog or Write-Verbose.
+
+    .NOTES
+    Added in v1.0.21 for REL-BUILD-04 (Build Error Aggregation).
+    Uses ThreadJob-safe logging pattern.
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$Summary
+    )
+
+    # ThreadJob-safe logging helper
+    $log = {
+        param([string]$Message)
+        if ($function:WriteLog) { WriteLog $Message }
+        else { Write-Verbose $Message }
+    }
+
+    & $log "=========================================="
+    & $log "BUILD ERROR SUMMARY"
+    & $log "=========================================="
+    & $log "Total Issues: $($Summary.TotalCount)"
+    & $log "  Critical: $($Summary.CriticalCount)"
+    & $log "  Warnings: $($Summary.WarningCount)"
+    & $log "  Info: $($Summary.InfoCount)"
+    & $log "=========================================="
+
+    if ($Summary.Errors.Count -gt 0) {
+        & $log "ISSUES ENCOUNTERED:"
+        foreach ($err in $Summary.Errors) {
+            $prefix = switch ($err.Severity) {
+                'Critical' { '[CRITICAL]' }
+                'Warning'  { '[WARNING]' }
+                default    { '[INFO]' }
+            }
+            $timestamp = $err.Timestamp.ToString('HH:mm:ss')
+            & $log "  $prefix [$timestamp] $($err.Phase): $($err.Message)"
+        }
+        & $log "=========================================="
+    }
+}
+
+# =============================================================================
 # Specialized Cleanup Registration Functions
 # Convenience functions for common resource types
 # =============================================================================
@@ -4081,6 +4305,11 @@ Export-ModuleMember -Function @(
     'Update-OrchestrationHashManifest'
     # Build cancellation helper (v1.0.16)
     'Test-BuildCancellation'
+    # Build error aggregation (v1.0.21 - REL-BUILD-04)
+    'Add-BuildError'
+    'Get-BuildErrorSummary'
+    'Clear-BuildErrors'
+    'Write-BuildErrorSummary'
 )
 
 # Export backward compatibility aliases (deprecated - use new function names)
@@ -4089,4 +4318,4 @@ Export-ModuleMember -Alias @(
     'Mark-DownloadInProgress'           # Deprecated: Use Set-DownloadInProgress
     'Cleanup-CurrentRunDownloads'       # Deprecated: Use Clear-CurrentRunDownloads
 )
-# Module updated: 2026-01-23 13:36:13
+# Module updated: 2026-01-24 - v1.0.21 REL-BUILD-04 Build Error Aggregation
