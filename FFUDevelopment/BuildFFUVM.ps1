@@ -5143,6 +5143,41 @@ catch {
     # Continue - this is a security enhancement, not a requirement
 }
 
+# === BUILD ERROR SUMMARY (REL-BUILD-04) ===
+# Display summary of all errors/warnings encountered during build
+if ($ExecutionContext.InvokeCommand.GetCommand('Get-BuildErrorSummary', 'Function')) {
+    $buildSummary = Get-BuildErrorSummary
+
+    if ($buildSummary.TotalCount -gt 0) {
+        Write-Host "`n========================================" -ForegroundColor Yellow
+        Write-Host "BUILD COMPLETED WITH ISSUES" -ForegroundColor Yellow
+        Write-Host "========================================" -ForegroundColor Yellow
+        Write-Host "Total Issues: $($buildSummary.TotalCount)"
+        Write-Host "  Critical: $($buildSummary.CriticalCount)" -ForegroundColor $(if ($buildSummary.CriticalCount -gt 0) { 'Red' } else { 'Green' })
+        Write-Host "  Warnings: $($buildSummary.WarningCount)" -ForegroundColor $(if ($buildSummary.WarningCount -gt 0) { 'Yellow' } else { 'Green' })
+        Write-Host "  Info: $($buildSummary.InfoCount)" -ForegroundColor Cyan
+        Write-Host "----------------------------------------"
+
+        foreach ($err in $buildSummary.Errors) {
+            $color = switch ($err.Severity) {
+                'Critical' { 'Red' }
+                'Warning'  { 'Yellow' }
+                default    { 'Cyan' }
+            }
+            Write-Host "[$($err.Severity)] $($err.Phase): $($err.Message)" -ForegroundColor $color
+        }
+        Write-Host "========================================`n" -ForegroundColor Yellow
+
+        # Also log to file via WriteLog
+        if ($ExecutionContext.InvokeCommand.GetCommand('Write-BuildErrorSummary', 'Function')) {
+            Write-BuildErrorSummary -Summary $buildSummary
+        }
+    }
+    else {
+        Write-Host "`nBuild completed with no issues." -ForegroundColor Green
+    }
+}
+
 if ($VerbosePreference -ne 'Continue') {
     Write-Host 'Script complete'
 }
@@ -5170,6 +5205,11 @@ WriteLog $runTimeFormatted
 
 # Clear cleanup registry since build completed successfully
 Clear-CleanupRegistry
+
+# Clear error collector for next run (REL-BUILD-04)
+if ($ExecutionContext.InvokeCommand.GetCommand('Clear-BuildErrors', 'Function')) {
+    Clear-BuildErrors
+}
 
 # === BUILD COMPLETE - Remove checkpoint ===
 if ($script:CheckpointEnabled) {
