@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.15'
+ModuleVersion = '0.0.16'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -78,6 +78,7 @@ NestedModules = @('FFUUI.Core.Applications.psm1',
                 'FFUUI.Core.Shared.psm1',
                 'FFUUI.Core.StateRecovery.psm1',
                 'FFUUI.Core.ErrorDisplay.psm1',
+                'FFUUI.Core.JobErrors.psm1',
                 'FFUUI.Core.WindowsSettings.psm1',
                 'FFUUI.Core.Winget.psm1')
 
@@ -121,6 +122,20 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.16: Job failure context extraction
+- NEW: FFUUI.Core.JobErrors module for extracting rich error context
+- NEW: Get-FFUJobError extracts errors from background jobs with priority ordering
+  - Priority 1: FFU.Messaging queue (Error/Critical level messages)
+  - Priority 2: Job.ChildJobs error streams (ThreadJob pattern)
+  - Priority 3: Job.JobStateInfo.Reason
+  - Priority 4: Fallback to generic message with remediation hints
+- NEW: ConvertTo-FFUErrorInfo converts FFUMessage to standardized error info
+- NEW: Get-ErrorTypeFromMessage classifies error type from message text
+  - DISMError, HypervisorError, NetworkError, DiskError, PermissionError, BuildError
+- BuildFFUVM_UI.ps1 now uses Get-FFUJobError + Show-FFUError for error display
+- Replaces ad-hoc error extraction with intelligent context extraction
+- Addresses REL-UI-05: Rich error context from background job failures
+
 v0.0.15: Structured error display
 - NEW: Show-FFUError function for actionable error dialogs
 - NEW: Show-FFUValidationErrors for config validation error display

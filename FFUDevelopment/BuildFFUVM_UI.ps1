@@ -784,48 +784,21 @@ $script:uiState.Controls.btnRun.Add_Click({
                         }
 
                         if ($hasErrors) {
-                            $reason = $null
+                            # Extract rich error context from job and messaging (REL-UI-05)
+                            $errorInfo = Get-FFUJobError -Job $currentJob `
+                                -MessagingContext $script:uiState.Data.messagingContext `
+                                -LogPath $mainLogPath
 
-                            # Try to get error message from various sources
-                            if ($null -ne $jobErrors -and $jobErrors.Count -gt 0) {
-                                $reason = ($jobErrors | Select-Object -Last 1).ToString()
-                            }
+                            # Log the error for debugging
+                            WriteLog "BuildFFUVM.ps1 job failed. Type: $($errorInfo.ErrorType). Source: $($errorInfo.Source). Message: $($errorInfo.Message)"
 
-                            if ([string]::IsNullOrWhiteSpace($reason) -and $currentJob.JobStateInfo.Reason) {
-                                $reason = $currentJob.JobStateInfo.Reason.Message
-                            }
-
-                            if ([string]::IsNullOrWhiteSpace($reason) -and $jobOutput) {
-                                # Check job output for error messages
-                                $errorLines = $jobOutput | Where-Object { $_ -match '(error|exception|failed|fatal)' } | Select-Object -Last 5
-                                if ($errorLines) {
-                                    $reason = ($errorLines -join "`n")
-                                }
-                            }
-
-                            if ([string]::IsNullOrWhiteSpace($reason)) {
-                                if (-not (Test-Path -LiteralPath $mainLogPath)) {
-                                    $reason = "Build failed before creating log file. This usually indicates a parameter validation error or missing directory. Check that FFUDevelopmentPath exists and all parameters are valid."
-                                }
-                                else {
-                                    $reason = "An unknown error occurred. The job failed without a specific reason."
-                                }
-                            }
-
-                            $finalStatusText = "FFU build failed. Check FFUDevelopment.log for details."
-                            WriteLog "BuildFFUVM.ps1 job failed. State: $($currentJob.State). Reason: $reason"
-
-                            # Show error details to user
-                            $errorMsg = "The build process failed.`n`n"
-                            if (Test-Path -LiteralPath $mainLogPath) {
-                                $errorMsg += "Please check the log file for details:`n$mainLogPath`n`n"
-                            }
-                            else {
-                                $errorMsg += "No log file was created (expected at $mainLogPath).`nThis usually indicates an early failure before logging started.`n`n"
-                            }
-                            $errorMsg += "Error: $reason"
-
-                            [System.Windows.MessageBox]::Show($errorMsg, "Build Error", "OK", "Error") | Out-Null
+                            # Display structured error with remediation (REL-UI-04)
+                            Show-FFUError -Severity 'Error' `
+                                -Title $errorInfo.Title `
+                                -Description $errorInfo.Message `
+                                -Remediation $errorInfo.Remediation `
+                                -LogPath $errorInfo.LogPath `
+                                -Details $errorInfo.Details
 
                             # Receive & remove job before UI reset
                             $currentJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
