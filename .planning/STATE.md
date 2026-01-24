@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 18 of 25 (FFU.Imaging Reliability)
-**Plan:** 2 of 5 complete
+**Plan:** 3 of 5 complete
 **Status:** In progress
-**Last activity:** 2026-01-24 - Completed 18-02-PLAN.md (Partition State Verification)
+**Last activity:** 2026-01-24 - Completed 18-03-PLAN.md (WIM Mount Resilience)
 
 Progress: Milestone v1.9.0
-[###-------] 27% (3/11 phases complete, 18 in progress at 2/5 plans)
+[###-------] 29% (3/11 phases complete, 18 in progress at 3/5 plans)
 
 ## Completed Phases This Milestone
 
@@ -32,7 +32,7 @@ Progress: Milestone v1.9.0
 |------|------|--------|--------|
 | 18-01 | Disk Space Pre-Validation | Complete | 0d8f0cf |
 | 18-02 | Partition State Verification | Complete | 673da9b |
-| 18-03 | WIM Mount Resilience | Not started | - |
+| 18-03 | WIM Mount Resilience | Complete | 1e0f940 |
 | 18-04 | Diskpart Error Recovery | Not started | - |
 | 18-05 | FFU Creation Progress Tracking | Not started | - |
 
@@ -78,9 +78,15 @@ Progress: Milestone v1.9.0
 | int64 for byte calculations | Avoids overflow with large values (100TB+) | 2026-01-24 |
 | Partition state comprehensive | Capture count, sizes, types, drive letters, timestamp | 2026-01-24 |
 | Expected change enum | PartitionAdded, PartitionRemoved, DriveLetterAssigned, SizeChanged, None | 2026-01-24 |
+| Imaging retry base delay 3s | Slightly higher than VM ops since imaging is slower | 2026-01-24 |
+| DISM cleanup optional switch | RunDismCleanupOnRetry for mount operations only | 2026-01-24 |
+| HResult codes for imaging errors | More reliable than message patterns for known codes | 2026-01-24 |
+| ERROR_DISK_FULL not transient | User must free space, retry won't help | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 18-03-PLAN.md (WIM Mount Resilience) - REL-IMG-04
+- 2026-01-24: FFU.Imaging v1.2.0, main version v1.8.22, 121 REL-IMG Pester tests
 - 2026-01-24: Executed 18-02-PLAN.md (Partition State Verification) - REL-IMG-02
 - 2026-01-24: Executed 18-01-PLAN.md (Disk Space Pre-Validation) - REL-IMG-01
 - 2026-01-24: FFU.Imaging v1.1.8, main version v1.8.20, 59 REL-IMG Pester tests
@@ -99,9 +105,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 18-02-PLAN.md (Partition State Verification)
+**Stopped at:** Completed 18-03-PLAN.md (WIM Mount Resilience)
 **Resume file:** None
-**Next action:** Execute 18-03-PLAN.md (WIM Mount Resilience)
+**Next action:** Execute 18-04-PLAN.md (Diskpart Error Recovery)
 
 ---
 *State updated: 2026-01-24*
