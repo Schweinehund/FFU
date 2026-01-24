@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 21 FFU.Drivers Reliability complete
+**Current focus:** Phase 22 FFU.Preflight Reliability in progress
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 21 of 25 (FFU.Drivers Reliability) - Complete
-**Plan:** 4 of 4 (Driver Injection Verification) - Complete
-**Status:** Phase 21 complete
-**Last activity:** 2026-01-24 - Completed 21-04-PLAN.md (REL-DRV-04)
+**Phase:** 22 of 25 (FFU.Preflight Reliability) - In Progress
+**Plan:** 2 of 4 (Remediation Steps Quality) - Complete
+**Status:** In progress
+**Last activity:** 2026-01-24 - Completed 22-02-PLAN.md (REL-PRE-02)
 
 Progress: Milestone v1.9.0
-[#######---] 64% (7/11 phases complete)
+[#######---] 68% (7.5/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -30,14 +30,14 @@ Progress: Milestone v1.9.0
 | 20 | FFU.Updates Reliability | 4/4 | 2026-01-24 |
 | 21 | FFU.Drivers Reliability | 4/4 | 2026-01-24 |
 
-## Phase 21 Progress
+## Phase 22 Progress
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
-| 21-01 | Driver Download Retry | Complete | e304a4d |
-| 21-02 | Vendor-Specific Extraction Error Handling | Complete | d808183 |
-| 21-03 | Catalog Fallback Sources | Complete | d051210 |
-| 21-04 | Driver Injection Verification | Complete | b7780af |
+| 22-01 | VMware Pre-flight Enhancements | Complete | 1d0a4dc |
+| 22-02 | Remediation Steps Quality | Complete | cbc9508 |
+| 22-03 | DISM Initialization Recovery | Pending | - |
+| 22-04 | Tiered Check Severity Classification | Complete | 461210f |
 
 ## Completed Milestones
 
@@ -113,6 +113,7 @@ Progress: Milestone v1.9.0
 | ${DriverName} syntax for messages | Prevents PowerShell parser confusion with colons | 2026-01-24 |
 | 7-day OEM catalog cache staleness | OEM catalogs update weekly at most | 2026-01-24 |
 | Stale cache as network fallback | When network fails, use stale cache with warning | 2026-01-24 |
+| New-FFURemediationBlock inline | Use inline invocation instead of pre-computed variable (linter conflicts) | 2026-01-24 |
 | Get-CachedOEMCatalog internal function | Not exported, used only by OEM driver functions | 2026-01-24 |
 | 4x driver extraction multiplier | OEM packages extract to 3-4x compressed size | 2026-01-24 |
 | Disk space warning-only | Continue-by-default for driver operations | 2026-01-24 |
@@ -120,6 +121,8 @@ Progress: Milestone v1.9.0
 
 ## Recent Activity
 
+- 2026-01-24: Completed 22-02-PLAN.md (Remediation Steps Quality) - REL-PRE-02, 21 new tests, FFU.Preflight v1.2.0
+- 2026-01-24: Completed 22-01-PLAN.md (VMware Pre-flight Enhancements) and 22-04-PLAN.md (Severity Classification)
 - 2026-01-24: Completed 21-04-PLAN.md (Driver Injection Verification) - REL-DRV-04, 19 Pester tests, disk space validation
 - 2026-01-24: Completed Phase 21 (FFU.Drivers Reliability) - 4/4 plans, FFU.Drivers v1.1.0
 - 2026-01-24: Completed 21-03-PLAN.md (Catalog Fallback Sources) - REL-DRV-03, catalog caching
@@ -139,9 +142,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed Phase 21 (FFU.Drivers Reliability)
+**Stopped at:** Completed 22-02-PLAN.md (Remediation Steps Quality)
 **Resume file:** None
-**Next action:** Plan Phase 22 (FFU.Preflight Reliability)
+**Next action:** Execute 22-03-PLAN.md (DISM Initialization Recovery)
 
 ---
 *State updated: 2026-01-24*
