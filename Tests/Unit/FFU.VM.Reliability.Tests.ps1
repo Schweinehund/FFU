@@ -392,3 +392,206 @@ Describe 'FFU.VM Reliability - REL-VM-02' -Tag 'Unit', 'FFU.VM', 'Reliability' {
         }
     }
 }
+
+# =============================================================================
+# REL-VM-03: Transient Error Retry Tests
+# =============================================================================
+Describe 'FFU.VM Reliability - REL-VM-03' -Tag 'Unit', 'FFU.VM', 'Reliability' {
+
+    Context 'Test-IsTransientVMError Classification' {
+        It 'Should classify disk busy as transient' {
+            Test-IsTransientVMError -ErrorMessage "The disk is busy" | Should -BeTrue
+        }
+
+        It 'Should classify file locked as transient' {
+            Test-IsTransientVMError -ErrorMessage "The file is locked by another process" | Should -BeTrue
+        }
+
+        It 'Should classify file in use as transient' {
+            Test-IsTransientVMError -ErrorMessage "The process cannot access the file because it is being used by another process" | Should -BeTrue
+        }
+
+        It 'Should classify network timeout as transient' {
+            Test-IsTransientVMError -ErrorMessage "Network operation timed out" | Should -BeTrue
+        }
+
+        It 'Should classify RPC unavailable as transient' {
+            Test-IsTransientVMError -ErrorMessage "The RPC server is unavailable" | Should -BeTrue
+        }
+
+        It 'Should classify sharing violation as transient' {
+            Test-IsTransientVMError -ErrorMessage "The file has a sharing violation" | Should -BeTrue
+        }
+
+        It 'Should classify device not ready as transient' {
+            Test-IsTransientVMError -ErrorMessage "The device is not ready" | Should -BeTrue
+        }
+
+        It 'Should classify operation timed out as transient' {
+            Test-IsTransientVMError -ErrorMessage "The operation timed out" | Should -BeTrue
+        }
+
+        It 'Should classify already exists as permanent (not transient)' {
+            Test-IsTransientVMError -ErrorMessage "A VM with this name already exists" | Should -BeFalse
+        }
+
+        It 'Should classify not found as permanent' {
+            Test-IsTransientVMError -ErrorMessage "The specified VM was not found" | Should -BeFalse
+        }
+
+        It 'Should classify insufficient memory as permanent' {
+            Test-IsTransientVMError -ErrorMessage "Insufficient memory to complete operation" | Should -BeFalse
+        }
+
+        It 'Should classify disk full as permanent' {
+            Test-IsTransientVMError -ErrorMessage "There is not enough disk space" | Should -BeFalse
+        }
+
+        It 'Should classify invalid parameter as permanent' {
+            Test-IsTransientVMError -ErrorMessage "Invalid parameter specified" | Should -BeFalse
+        }
+
+        It 'Should classify out of memory as permanent' {
+            Test-IsTransientVMError -ErrorMessage "System is out of memory" | Should -BeFalse
+        }
+
+        It 'Should classify Hyper-V not enabled as permanent' {
+            Test-IsTransientVMError -ErrorMessage "Hyper-V is not enabled on this system" | Should -BeFalse
+        }
+
+        It 'Should classify unknown errors as not transient (fail fast)' {
+            Test-IsTransientVMError -ErrorMessage "Some random error message" | Should -BeFalse
+        }
+
+        It 'Should handle empty error message' {
+            Test-IsTransientVMError -ErrorMessage "" | Should -BeFalse
+        }
+
+        It 'Should be case insensitive for transient patterns' {
+            Test-IsTransientVMError -ErrorMessage "THE DISK IS BUSY" | Should -BeTrue
+        }
+
+        It 'Should be case insensitive for permanent patterns' {
+            Test-IsTransientVMError -ErrorMessage "VM ALREADY EXISTS" | Should -BeFalse
+        }
+    }
+
+    Context 'Invoke-VMOperationWithRetry Function' {
+        It 'Should be exported from FFU.VM module' {
+            Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM' | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have ScriptBlock parameter' {
+            $cmd = Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM'
+            $cmd.Parameters['ScriptBlock'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have OperationName parameter' {
+            $cmd = Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM'
+            $cmd.Parameters['OperationName'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have MaxRetries parameter' {
+            $cmd = Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM'
+            $cmd.Parameters['MaxRetries'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have BaseDelaySeconds parameter' {
+            $cmd = Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM'
+            $cmd.Parameters['BaseDelaySeconds'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have UseHypervisorRetry switch parameter' {
+            $cmd = Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM'
+            $cmd.Parameters['UseHypervisorRetry'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have Provider parameter with ValidateSet' {
+            $cmd = Get-Command -Name 'Invoke-VMOperationWithRetry' -Module 'FFU.VM'
+            $param = $cmd.Parameters['Provider']
+            $validateSet = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            $validateSet | Should -Not -BeNullOrEmpty
+            $validateSet.ValidValues | Should -Contain 'HyperV'
+            $validateSet.ValidValues | Should -Contain 'VMware'
+        }
+
+        It 'Should execute script block successfully on first try' {
+            $result = Invoke-VMOperationWithRetry -OperationName 'Test' -ScriptBlock {
+                return "success"
+            }
+            $result | Should -Be "success"
+        }
+
+        It 'Should return script block result without retry on success' {
+            $result = Invoke-VMOperationWithRetry -OperationName 'Test' -ScriptBlock {
+                return 42
+            }
+            $result | Should -Be 42
+        }
+
+        It 'Should fail immediately for permanent errors' {
+            {
+                Invoke-VMOperationWithRetry -OperationName 'Test' -MaxRetries 3 -ScriptBlock {
+                    throw "VM already exists"
+                }
+            } | Should -Throw
+        }
+
+        It 'Should throw original error for permanent errors (already exists)' {
+            # Verify that permanent errors are thrown without retry
+            $errorThrown = $null
+            try {
+                Invoke-VMOperationWithRetry -OperationName 'Test' -MaxRetries 3 -ScriptBlock {
+                    throw "A VM with this name already exists"
+                }
+            } catch {
+                $errorThrown = $_
+            }
+            $errorThrown | Should -Not -BeNullOrEmpty
+            $errorThrown.Exception.Message | Should -Match 'already exists'
+        }
+
+        It 'Should throw original error for permanent errors (not found)' {
+            $errorThrown = $null
+            try {
+                Invoke-VMOperationWithRetry -OperationName 'Test' -MaxRetries 3 -ScriptBlock {
+                    throw "The specified resource was not found"
+                }
+            } catch {
+                $errorThrown = $_
+            }
+            $errorThrown | Should -Not -BeNullOrEmpty
+            $errorThrown.Exception.Message | Should -Match 'not found'
+        }
+
+        It 'Should throw original error for permanent errors (insufficient memory)' {
+            $errorThrown = $null
+            try {
+                Invoke-VMOperationWithRetry -OperationName 'Test' -MaxRetries 3 -ScriptBlock {
+                    throw "Insufficient memory available"
+                }
+            } catch {
+                $errorThrown = $_
+            }
+            $errorThrown | Should -Not -BeNullOrEmpty
+            $errorThrown.Exception.Message | Should -Match 'Insufficient memory'
+        }
+    }
+
+    Context 'Test-IsTransientVMError Module Export' {
+        It 'Should be exported from FFU.VM module' {
+            Get-Command -Name 'Test-IsTransientVMError' -Module 'FFU.VM' | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have ErrorMessage parameter' {
+            $cmd = Get-Command -Name 'Test-IsTransientVMError' -Module 'FFU.VM'
+            $cmd.Parameters['ErrorMessage'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should return boolean type' {
+            $cmd = Get-Command -Name 'Test-IsTransientVMError' -Module 'FFU.VM'
+            $outputType = $cmd.OutputType
+            $outputType.Type | Should -Be ([bool])
+        }
+    }
+}
