@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 25 of 25 (FFUUI.Core Reliability) - IN PROGRESS
-**Plan:** 2 of 4 (Structured Error Display complete)
+**Plan:** 3 of 4 (Job Failure Context Extraction complete)
 **Status:** In progress
-**Last activity:** 2026-01-24 - Completed 25-02-PLAN.md (REL-UI-04)
+**Last activity:** 2026-01-24 - Completed 25-03-PLAN.md (REL-UI-05)
 
 Progress: Milestone v1.9.0
 [##########] 95% (10.5/11 phases complete)
@@ -39,7 +39,7 @@ Progress: Milestone v1.9.0
 |------|------|--------|--------|
 | 25-01 | Centralized UI State Recovery | Complete | 459933a |
 | 25-02 | Structured Error Display | Complete | caa4316 |
-| 25-03 | Job Failure Context Extraction | Pending | - |
+| 25-03 | Job Failure Context Extraction | Complete | 2b796b4 |
 | 25-04 | Load-Time Config Validation | Pending | - |
 
 ## Completed Milestones
@@ -150,9 +150,13 @@ Progress: Milestone v1.9.0
 | Plural function name for validation | Show-FFUValidationErrors plural - handles multiple validation errors | 2026-01-24 |
 | InModuleScope for test mocking | InModuleScope allows proper mocking of internal module functions | 2026-01-24 |
 | Severity header format | Use [Severity] prefix in message body for clear indication | 2026-01-24 |
+| PSObject parameter type for testability | Use PSObject instead of Job type to allow mock objects in Pester tests | 2026-01-24 |
+| Priority-based error extraction | Check MessagingContext first as richest structured error source | 2026-01-24 |
+| Error type classification via pattern matching | Regex patterns for DISM/Hyper-V/Network/Disk/Permission errors | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 25-03-PLAN.md (Job Failure Context Extraction) - REL-UI-05, 57 tests, FFUUI.Core v0.0.16
 - 2026-01-24: Completed 25-02-PLAN.md (Structured Error Display) - REL-UI-04, 45 tests, FFUUI.Core v0.0.15
 - 2026-01-24: Completed 25-01-PLAN.md (Centralized UI State Recovery) - REL-UI-03, 30 tests, FFUUI.Core v0.0.14
 - 2026-01-24: Completed Phase 24 (WinPE Scripts Reliability) - 4/4 plans, 141 Pester tests
@@ -189,9 +193,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 25-02-PLAN.md (Structured Error Display)
+**Stopped at:** Completed 25-03-PLAN.md (Job Failure Context Extraction)
 **Resume file:** None
-**Next action:** Execute 25-03-PLAN.md (Job Failure Context Extraction)
+**Next action:** Execute 25-04-PLAN.md (Load-Time Config Validation)
 
 ---
 *State updated: 2026-01-24*
