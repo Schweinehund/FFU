@@ -1,16 +1,25 @@
 ---
-status: verifying
+status: resolved
 trigger: "OS partition drive letter becomes empty during unattend file copy verification"
 created: 2026-01-22T12:00:00Z
-updated: 2026-01-24T10:15:00Z
+updated: 2026-01-24T16:45:00Z
+resolved: 2026-01-24T16:45:00Z
+commit: b492a16
 ---
 
-## Current Focus
+## Resolution
 
-hypothesis: After fsutil volume flush, the CIM disk instance ($disk) becomes stale and can no longer be used to query partitions. All subsequent operations that use $disk fail because it references an invalidated CIM object.
-test: Replace stale $disk with fresh Get-Disk call using stored disk number
-expecting: Fresh disk object can enumerate partitions and drive letter recovery succeeds
-next_action: User verification needed - run FFU build with VMware hypervisor to confirm fix works
+**Root Cause:** After fsutil volume flush, the CIM disk instance ($disk) becomes stale and can no longer be used to query partitions. Windows may detach/reattach the virtual disk, invalidating the object reference.
+
+**Fix Applied:**
+- Store disk number before fsutil flush
+- Get fresh disk object after flush using Get-Disk -Number
+- Fallback discovery by path/BusType if number lookup fails
+- All post-flush partition operations use fresh disk object
+
+**Verified:** User confirmed VMware build completes successfully with drive letter recovery
+
+## Original Investigation
 
 ## Symptoms
 
