@@ -994,6 +994,7 @@ function Test-FFUNetwork {
         if (-not $details.DNSResolution) {
             $stopwatch.Stop()
             New-FFUCheckResult -CheckName 'Network' -Status 'Failed' `
+                -Severity 'Critical' `
                 -Message 'DNS resolution failed - cannot resolve www.microsoft.com' `
                 -Details $details `
                 -Remediation @'
@@ -1056,6 +1057,7 @@ If behind a corporate proxy:
         }
         else {
             New-FFUCheckResult -CheckName 'Network' -Status 'Warning' `
+                -Severity 'Warning' `
                 -Message "Some endpoints unreachable: $($failedEndpoints -join ', ')" `
                 -Details $details `
                 -Remediation @"
@@ -1082,6 +1084,7 @@ If behind a corporate firewall/proxy:
     catch {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'Network' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "Network check failed: $($_.Exception.Message)" `
             -Details $details `
             -Remediation 'Check network connection and firewall settings.' `
@@ -1128,6 +1131,7 @@ function Test-FFUConfigurationFile {
     if (-not (Test-Path -Path $ConfigFilePath -PathType Leaf)) {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'Configuration' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "Configuration file not found: $ConfigFilePath" `
             -Details @{ ConfigFilePath = $ConfigFilePath } `
             -Remediation @"
@@ -1167,6 +1171,7 @@ Options:
         else {
             $errorList = ($validationResult.Errors | ForEach-Object { "  - $_" }) -join "`n"
             New-FFUCheckResult -CheckName 'Configuration' -Status 'Failed' `
+                -Severity 'Critical' `
                 -Message "Configuration file validation failed with $($validationResult.Errors.Count) error(s)" `
                 -Details $details `
                 -Remediation @"
@@ -1184,6 +1189,7 @@ Or use the FFU Builder UI to create a valid configuration file.
     catch {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'Configuration' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "Failed to validate configuration: $($_.Exception.Message)" `
             -Details @{
                 ConfigFilePath = $ConfigFilePath
@@ -1988,6 +1994,7 @@ Expected: WimMount should appear with Altitude 180700
 "@
 
         New-FFUCheckResult -CheckName 'WimMount' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "WimMount filter not loaded (BLOCKING): Automatic repair $( if ($details.RemediationAttempted) { 'attempted but failed' } else { 'not possible - driver missing' } )" `
             -Details $details `
             -Remediation $remediation `
@@ -1998,6 +2005,7 @@ Expected: WimMount should appear with Altitude 180700
         $stopwatch.Stop()
 
         New-FFUCheckResult -CheckName 'WimMount' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "WimMount validation error (BLOCKING): $($_.Exception.Message)" `
             -Details $details `
             -Remediation @"
@@ -2105,6 +2113,7 @@ function Test-FFUVmxToolkit {
         # vmxtoolkit is OPTIONAL - vmrun.exe fallback handles all VM operations
         $stopwatch.Stop()
         return New-FFUCheckResult -CheckName 'VmxToolkit' -Status 'Warning' `
+            -Severity 'Info' `
             -Message 'vmxtoolkit module not installed (optional - vmrun.exe fallback available)' `
             -Details @{
                 ModuleAvailable = $false
@@ -2133,6 +2142,7 @@ The build will proceed without vmxtoolkit using vmrun.exe and filesystem search 
     catch {
         $stopwatch.Stop()
         return New-FFUCheckResult -CheckName 'VmxToolkit' -Status 'Failed' `
+            -Severity 'Info' `
             -Message "Error checking vmxtoolkit: $($_.Exception.Message)" `
             -Remediation 'Install-Module -Name vmxtoolkit -Scope CurrentUser -Force' `
             -DurationMs $stopwatch.ElapsedMilliseconds
@@ -2215,6 +2225,7 @@ After removing the switch, VMware will correctly auto-bridge to
 your connected network adapter.
 "@
             return New-FFUCheckResult -CheckName 'HyperVSwitchConflict' -Status 'Failed' `
+                -Severity 'Critical' `
                 -Message "External Hyper-V virtual switch detected: $switchNames. This conflicts with VMware bridged networking." `
                 -Remediation $remediation `
                 -Details @{
@@ -2394,6 +2405,7 @@ REQUIRED STEPS:
 3. Run 'Test-NetConnection -ComputerName 8.8.8.8' to verify connectivity
 "@
             return New-FFUCheckResult -CheckName 'VMwareBridgeConfig' -Status 'Failed' `
+                -Severity 'Warning' `
                 -Message ($issues -join '; ') `
                 -Details $details `
                 -Remediation $remediation `
@@ -2437,6 +2449,7 @@ path not found) during FFU capture when the VM cannot reach the host's
 network share.
 "@
             return New-FFUCheckResult -CheckName 'VMwareBridgeConfig' -Status 'Warning' `
+                -Severity 'Warning' `
                 -Message "VMware bridging may select wrong adapter. Recommended: $($details.RecommendedAdapter). $($warnings -join '; ')" `
                 -Details $details `
                 -Remediation $remediation `
@@ -2453,6 +2466,7 @@ network share.
     catch {
         $stopwatch.Stop()
         return New-FFUCheckResult -CheckName 'VMwareBridgeConfig' -Status 'Warning' `
+            -Severity 'Warning' `
             -Message "Could not verify VMware bridge configuration: $($_.Exception.Message)" `
             -Details $details `
             -Remediation 'Manually verify VMware bridging is configured to use your active network adapter.' `
@@ -2571,6 +2585,7 @@ function Test-FFUAntivirusExclusions {
             }
 
             New-FFUCheckResult -CheckName 'AntivirusExclusions' -Status 'Warning' `
+                -Severity 'Info' `
                 -Message "Recommended Windows Defender exclusions not configured (may impact performance)" `
                 -Details $details `
                 -Remediation @"
@@ -2769,6 +2784,7 @@ function Invoke-FFUDISMCleanup {
     catch {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'DISMCleanup' -Status 'Warning' `
+            -Severity 'Info' `
             -Message "DISM cleanup completed with warnings: $($_.Exception.Message)" `
             -Details $details `
             -Remediation @'
@@ -3353,6 +3369,7 @@ function Test-FFUVMwareDrivers {
     if ($infFiles.Count -eq 0) {
         $stopwatch.Stop()
         return New-FFUCheckResult -CheckName 'VMwareDrivers' -Status 'Warning' `
+            -Severity 'Info' `
             -Message "VMwareDrivers folder exists but contains no driver files (*.inf)" `
             -Details @{
                 Path = $vmwareDriversPath
@@ -3799,6 +3816,10 @@ Export-ModuleMember -Function @(
     'Test-FFUHyperVSwitchConflict',
     'Test-FFUVMwareDrivers',
     'Test-FFUVMwareBridgeConfiguration',
+    # REL-PRE-01: Enhanced prerequisite detection
+    'Test-FFUVMResources',
+    'Test-FFUScratchSpace',
+    'Test-FFUDISMState',
     # Tier 3: Recommended (Warnings Only)
     'Test-FFUAntivirusExclusions',
     # Tier 4: Cleanup (Pre-Remediation)

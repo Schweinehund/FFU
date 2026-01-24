@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.14'
+    ModuleVersion = '1.1.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -53,6 +53,10 @@
         'Test-FFUHyperVSwitchConflict',
         'Test-FFUVMwareDrivers',
         'Test-FFUVMwareBridgeConfiguration',
+        # REL-PRE-01: Enhanced prerequisite detection
+        'Test-FFUVMResources',
+        'Test-FFUScratchSpace',
+        'Test-FFUDISMState',
         # Tier 3: Recommended (Warnings Only)
         'Test-FFUAntivirusExclusions',
         # Tier 4: Cleanup (Pre-Remediation)
@@ -85,7 +89,29 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.0.14
+# Release Notes - FFU.Preflight v1.1.0
+
+## v1.1.0 (2026-01-24)
+### REL-PRE-03: WIMMount Repair Resilience
+- **NEW**: Invoke-WimMountRepairWithRetry - Retry helper with exponential backoff
+- **ENHANCED**: Test-FFUWimMount now uses 5 repair strategies with retry logic:
+  - Strategy 1: Registry repair (idempotent, no retry needed)
+  - Strategy 2: Service start via sc.exe with retry (MaxRetries: 3, BaseDelay: 2s)
+  - Strategy 3: Filter load via fltmc with retry (MaxRetries: 3, BaseDelay: 2s)
+  - Strategy 4: Driver re-registration via rundll32 (MaxRetries: 2, BaseDelay: 3s)
+  - Strategy 5: Filter Manager restart as last resort
+- **ENHANCED**: Exponential backoff with jitter prevents thundering herd
+- **ENHANCED**: Clear "All repair strategies exhausted" message on failure
+
+### Internal Helper Functions
+- Invoke-WimMountRepairWithRetry: Wraps repair operations with retry logic
+  - Parameters: RepairAction, ActionName, MaxRetries, BaseDelaySeconds, Details
+  - Returns: Boolean success indicator
+  - Implements: Exponential backoff (BaseDelay * 2^(attempt-1) + jitter)
+
+### Part of Phase 22 FFU.Preflight Reliability (v1.9.0 Milestone)
+
+---
 
 ## v1.0.14 (2026-01-20)
 ### Enhanced WimMount Failure Scenario Detection
