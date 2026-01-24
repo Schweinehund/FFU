@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 20 of 25 (FFU.Updates Reliability)
-**Plan:** 3 of 4 (Update Application Isolation)
+**Plan:** 2 of 4 (MSU Download Validation) - Complete
 **Status:** In progress
-**Last activity:** 2026-01-24 — Completed 20-03-PLAN.md (REL-UPD-03)
+**Last activity:** 2026-01-24 — Completed 20-02-PLAN.md (REL-UPD-02)
 
 Progress: Milestone v1.9.0
 [#####-----] 50% (5/11 phases complete, 20-01/02/03 done)
@@ -33,7 +33,7 @@ Progress: Milestone v1.9.0
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 20-01 | Catalog Query Retry | Complete | 8584031 |
-| 20-02 | MSU Download Validation | In progress | - |
+| 20-02 | MSU Download Validation | Complete | 4dcb858 |
 | 20-03 | Update Application Isolation | Complete | 715f89d |
 | 20-04 | Catalog Cache Management | Pending | - |
 
@@ -99,9 +99,12 @@ Progress: Milestone v1.9.0
 | AllowEmptyCollection for updates | Edge case: empty updates array should return success result | 2026-01-24 |
 | Continue-by-default after failures | One update failure should not block others | 2026-01-24 |
 | StopOnCriticalFailure optional | Users can opt-in to halt on critical failures | 2026-01-24 |
+| Invoke-ValidatedDownload internal helper | Encapsulates download-validate-retry pattern in Save-KB | 2026-01-24 |
+| MaxValidationRetries default 2 | Two re-download attempts before giving up on corrupted file | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 20-02-PLAN.md (MSU Download Validation) - REL-UPD-02, Test-MSUIntegrity + Save-KB integration
 - 2026-01-24: Executed 20-03-PLAN.md (Update Application Isolation) - REL-UPD-03, 22 Pester tests
 - 2026-01-24: Executed 20-01-PLAN.md (Catalog Query Retry) - REL-UPD-01, FFU.Updates v1.0.6
 - 2026-01-24: Completed Phase 19 (FFU.Media Reliability) - 4/4 plans, verified
@@ -118,7 +121,7 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 20-03-PLAN.md (Update Application Isolation)
+**Stopped at:** Completed 20-02-PLAN.md (MSU Download Validation)
 **Resume file:** None
 **Next action:** Execute 20-04-PLAN.md (Catalog Cache Management)
 
