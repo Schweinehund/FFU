@@ -4861,51 +4861,68 @@ try {
                 -FFUDevelopmentPath $FFUDevelopmentPath
         }
 
-        Set-Progress -Percentage 65 -Message "Optimizing VHDX before capture..."
-        Optimize-FFUCaptureDrive -VhdxPath $VHDXPath
-        Set-Progress -Percentage 67 -Message "Starting FFU capture..."
-        #Capture FFU file
-        New-FFU -VMName $FFUVM.Name -InstallApps $InstallApps -CaptureISO $CaptureISO `
-                -VMSwitchName $VMSwitchName -FFUCaptureLocation $FFUCaptureLocation `
-                -AllowVHDXCaching $AllowVHDXCaching -CustomFFUNameTemplate $CustomFFUNameTemplate `
-                -ShortenedWindowsSKU $shortenedWindowsSKU -VHDXPath $VHDXPath `
-                -DandIEnv $DandIEnv -VhdxDisk $vhdxDisk -CachedVHDXInfo $cachedVHDXInfo `
-                -InstallationType $installationType -InstallDrivers $InstallDrivers `
-                -Optimize $Optimize -FFUDevelopmentPath $FFUDevelopmentPath `
-                -DriversFolder $DriversFolder `
-                -HypervisorProvider $script:HypervisorProvider `
-                -VMInfo $FFUVM `
-                -VMShutdownTimeoutMinutes $VMShutdownTimeoutMinutes `
-                -ShowVMConsole $ShowVMConsole `
-                -FFUFileLockWaitSeconds $FFUFileLockWaitSeconds `
-                -FFUFileLockRetryCount $FFUFileLockRetryCount `
-                -FFUFileLockRetryDelaySeconds $FFUFileLockRetryDelaySeconds
-        Set-Progress -Percentage 80 -Message "FFU capture complete..."
+        # === CRITICAL PHASE: FFU Capture (INT-BUILD-01, INT-BUILD-03) ===
+        $ffuCaptureResult = Invoke-BuildPhase -PhaseName 'FFU Capture' -Critical $true -Action {
+            Set-Progress -Percentage 65 -Message "Optimizing VHDX before capture..."
+            Optimize-FFUCaptureDrive -VhdxPath $VHDXPath
+
+            Set-Progress -Percentage 67 -Message "Starting FFU capture..."
+            New-FFU -VMName $FFUVM.Name -InstallApps $InstallApps -CaptureISO $CaptureISO `
+                    -VMSwitchName $VMSwitchName -FFUCaptureLocation $FFUCaptureLocation `
+                    -AllowVHDXCaching $AllowVHDXCaching -CustomFFUNameTemplate $CustomFFUNameTemplate `
+                    -ShortenedWindowsSKU $shortenedWindowsSKU -VHDXPath $VHDXPath `
+                    -DandIEnv $DandIEnv -VhdxDisk $vhdxDisk -CachedVHDXInfo $cachedVHDXInfo `
+                    -InstallationType $installationType -InstallDrivers $InstallDrivers `
+                    -Optimize $Optimize -FFUDevelopmentPath $FFUDevelopmentPath `
+                    -DriversFolder $DriversFolder `
+                    -HypervisorProvider $script:HypervisorProvider `
+                    -VMInfo $FFUVM `
+                    -VMShutdownTimeoutMinutes $VMShutdownTimeoutMinutes `
+                    -ShowVMConsole $ShowVMConsole `
+                    -FFUFileLockWaitSeconds $FFUFileLockWaitSeconds `
+                    -FFUFileLockRetryCount $FFUFileLockRetryCount `
+                    -FFUFileLockRetryDelaySeconds $FFUFileLockRetryDelaySeconds
+            Set-Progress -Percentage 80 -Message "FFU capture complete..."
+        }
+
+        if (-not $ffuCaptureResult.Success) {
+            # Critical phase failed - cleanup VM if it exists
+            if ($null -ne $FFUVM) {
+                Remove-FFUVMWithProvider -VM $FFUVM -VMName $VMName -VMPath $VMPath `
+                                         -HypervisorProvider $script:HypervisorProvider `
+                                         -CleanupVHDX $true -VHDXPath $VHDXPath
+            }
+            throw "FFU capture failed: $($ffuCaptureResult.Error.Message)"
+        }
     }
     else {
-        Set-Progress -Percentage 81 -Message "Starting FFU capture from VHDX..."
+        # === CRITICAL PHASE: FFU Capture (non-InstallApps path) (INT-BUILD-01, INT-BUILD-03) ===
+        $ffuCaptureResult = Invoke-BuildPhase -PhaseName 'FFU Capture' -Critical $true -Action {
+            Set-Progress -Percentage 81 -Message "Starting FFU capture from VHDX..."
 
-        # NOTE: WindowsSKU validation and shortening now happens BEFORE the InstallApps branch
-        # (lines 2464-2471) to eliminate code duplication and ensure both paths have valid
-        # $shortenedWindowsSKU variable. This prevents "Cannot validate argument on parameter
-        # 'ShortenedWindowsSKU'" errors.
+            # NOTE: WindowsSKU validation and shortening now happens BEFORE the InstallApps branch
+            # to eliminate code duplication and ensure both paths have valid $shortenedWindowsSKU
 
-        #Create FFU file
-        New-FFU -InstallApps $InstallApps -FFUCaptureLocation $FFUCaptureLocation `
-                -AllowVHDXCaching $AllowVHDXCaching -CustomFFUNameTemplate $CustomFFUNameTemplate `
-                -ShortenedWindowsSKU $shortenedWindowsSKU -VHDXPath $VHDXPath `
-                -DandIEnv $DandIEnv -VhdxDisk $vhdxDisk -CachedVHDXInfo $cachedVHDXInfo `
-                -InstallationType $installationType -InstallDrivers $InstallDrivers `
-                -Optimize $Optimize -FFUDevelopmentPath $FFUDevelopmentPath `
-                -DriversFolder $DriversFolder `
-                -FFUFileLockWaitSeconds $FFUFileLockWaitSeconds `
-                -FFUFileLockRetryCount $FFUFileLockRetryCount `
-                -FFUFileLockRetryDelaySeconds $FFUFileLockRetryDelaySeconds
-    }    
+            New-FFU -InstallApps $InstallApps -FFUCaptureLocation $FFUCaptureLocation `
+                    -AllowVHDXCaching $AllowVHDXCaching -CustomFFUNameTemplate $CustomFFUNameTemplate `
+                    -ShortenedWindowsSKU $shortenedWindowsSKU -VHDXPath $VHDXPath `
+                    -DandIEnv $DandIEnv -VhdxDisk $vhdxDisk -CachedVHDXInfo $cachedVHDXInfo `
+                    -InstallationType $installationType -InstallDrivers $InstallDrivers `
+                    -Optimize $Optimize -FFUDevelopmentPath $FFUDevelopmentPath `
+                    -DriversFolder $DriversFolder `
+                    -FFUFileLockWaitSeconds $FFUFileLockWaitSeconds `
+                    -FFUFileLockRetryCount $FFUFileLockRetryCount `
+                    -FFUFileLockRetryDelaySeconds $FFUFileLockRetryDelaySeconds
+        }
+
+        if (-not $ffuCaptureResult.Success) {
+            throw "FFU capture failed: $($ffuCaptureResult.Error.Message)"
+        }
+    }
 }
 Catch {
-    Write-Host 'Capturing FFU file failed'
-    Writelog "Capturing FFU file failed with error $_"
+    Write-Host 'FFU capture preparation failed'
+    WriteLog "FFU capture preparation failed with error $_"
     # Use hypervisor-agnostic cleanup helper (works with both Hyper-V and VMware)
     Remove-FFUVMWithProvider -VM $FFUVM -VMName $VMName -VMPath $VMPath `
                              -InstallApps $InstallApps -VhdxDisk $vhdxDisk `
@@ -4913,7 +4930,6 @@ Catch {
                              -HypervisorProvider $script:HypervisorProvider
 
     throw $_
-
 }
 } # End of if (-not $skipFFUCapture)
 
