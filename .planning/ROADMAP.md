@@ -141,8 +141,13 @@ Plans:
   2. Dell/HP/Lenovo extraction quirks handled without user intervention
   3. Missing OEM catalog falls back to alternative sources when available
   4. Large driver sets trigger automatic VHDX expansion before extraction
-**Research**: Unlikely (existing vendor-specific patterns)
-**Plans**: TBD
+**Research**: Not needed (existing vendor-specific patterns exist)
+**Plans:** 4 plans
+Plans:
+- [ ] 21-01-PLAN.md - Driver download retry with exponential backoff (REL-DRV-01)
+- [ ] 21-02-PLAN.md - Vendor-specific extraction error handling (REL-DRV-02)
+- [ ] 21-03-PLAN.md - Catalog fallback sources (REL-DRV-03)
+- [ ] 21-04-PLAN.md - Large driver set disk space handling (REL-DRV-04)
 
 ### Phase 22: FFU.Preflight Reliability
 **Goal**: Make pre-flight validation comprehensive with clear remediation and self-healing where possible
@@ -206,7 +211,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 18. FFU.Imaging Reliability | 5/5 | Complete | 2026-01-24 |
 | 19. FFU.Media Reliability | 4/4 | Complete | 2026-01-24 |
 | 20. FFU.Updates Reliability | 4/4 | Complete | 2026-01-24 |
-| 21. FFU.Drivers Reliability | 0/TBD | Not started | - |
+| 21. FFU.Drivers Reliability | 0/4 | Planned | - |
 | 22. FFU.Preflight Reliability | 0/TBD | Not started | - |
 | 23. BuildFFUVM.ps1 Reliability | 0/TBD | Not started | - |
 | 24. WinPE Scripts Reliability | 0/TBD | Not started | - |
