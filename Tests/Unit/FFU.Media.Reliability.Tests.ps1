@@ -838,3 +838,213 @@ Describe 'REL-MED-04: Architecture Capability Validation' {
         }
     }
 }
+
+# =============================================================================
+# REL-MED-03: ISO Disk Space Validation
+# =============================================================================
+
+Describe 'REL-MED-03: ISO Disk Space Validation' {
+
+    Describe 'Test-ISOCreationReadiness' {
+
+        BeforeAll {
+            # Create temp test structure
+            $script:testWinPE = Join-Path $env:TEMP "TestWinPE_$(Get-Random)"
+            $script:testMedia = Join-Path $script:testWinPE 'media'
+            New-Item -Path $script:testMedia -ItemType Directory -Force | Out-Null
+
+            # Create some test files (1MB total)
+            $testFile = Join-Path $script:testMedia 'test.txt'
+            [byte[]]$bytes = @(0) * 1MB
+            [System.IO.File]::WriteAllBytes($testFile, $bytes)
+        }
+
+        AfterAll {
+            Remove-Item -Path $script:testWinPE -Recurse -Force -ErrorAction SilentlyContinue
+        }
+
+        Context 'Function Export and Parameters' {
+
+            It 'Should be exported from FFU.Media module' {
+                $cmd = Get-Command Test-ISOCreationReadiness -Module FFU.Media -ErrorAction SilentlyContinue
+                $cmd | Should -Not -BeNullOrEmpty
+                $cmd.Module.Name | Should -Be 'FFU.Media'
+            }
+
+            It 'Should have WinPEPath parameter as mandatory' {
+                $cmd = Get-Command Test-ISOCreationReadiness
+                $param = $cmd.Parameters['WinPEPath']
+                $param | Should -Not -BeNullOrEmpty
+                $param.Attributes.Where({ $_ -is [System.Management.Automation.ParameterAttribute] }).Mandatory | Should -Contain $true
+            }
+
+            It 'Should have OutputISOPath parameter as mandatory' {
+                $cmd = Get-Command Test-ISOCreationReadiness
+                $param = $cmd.Parameters['OutputISOPath']
+                $param | Should -Not -BeNullOrEmpty
+                $param.Attributes.Where({ $_ -is [System.Management.Automation.ParameterAttribute] }).Mandatory | Should -Contain $true
+            }
+
+            It 'Should have SafetyMarginPercent parameter with default 10' {
+                $cmd = Get-Command Test-ISOCreationReadiness
+                $param = $cmd.Parameters['SafetyMarginPercent']
+                $param | Should -Not -BeNullOrEmpty
+                # Default is 10
+            }
+        }
+
+        Context 'Output Structure' {
+
+            BeforeAll {
+                $script:TestResult = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+            }
+
+            It 'Should return PSCustomObject with HasSufficientSpace property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'HasSufficientSpace'
+            }
+
+            It 'Should return PSCustomObject with EstimatedSizeBytes property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'EstimatedSizeBytes'
+            }
+
+            It 'Should return PSCustomObject with EstimatedSizeGB property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'EstimatedSizeGB'
+            }
+
+            It 'Should return PSCustomObject with AvailableBytes property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'AvailableBytes'
+            }
+
+            It 'Should return PSCustomObject with AvailableGB property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'AvailableGB'
+            }
+
+            It 'Should return PSCustomObject with MediaFolderSizeBytes property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'MediaFolderSizeBytes'
+            }
+
+            It 'Should return PSCustomObject with MediaFolderSizeGB property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'MediaFolderSizeGB'
+            }
+
+            It 'Should return PSCustomObject with ShortfallGB property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'ShortfallGB'
+            }
+
+            It 'Should return PSCustomObject with Drive property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Drive'
+            }
+
+            It 'Should return PSCustomObject with Message property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Message'
+            }
+
+            It 'Should return PSCustomObject with Remediation property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Remediation'
+            }
+        }
+
+        Context 'Folder size estimation' {
+
+            It 'Should calculate media folder size correctly' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                # Our test file is 1MB
+                $result.MediaFolderSizeBytes | Should -BeGreaterOrEqual 1MB
+            }
+
+            It 'Should add safety margin to estimate' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso' -SafetyMarginPercent 50
+                # 1MB + 50% = 1.5MB
+                $result.EstimatedSizeBytes | Should -BeGreaterOrEqual (1MB * 1.5)
+            }
+
+            It 'Should apply default 10% margin' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                # 1MB + 10% = 1.1MB
+                $result.EstimatedSizeBytes | Should -BeGreaterOrEqual (1MB * 1.1)
+            }
+
+            It 'Should have EstimatedSizeGB greater or equal to MediaFolderSizeGB' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                $result.EstimatedSizeGB | Should -BeGreaterOrEqual $result.MediaFolderSizeGB
+            }
+        }
+
+        Context 'When media folder does not exist' {
+
+            It 'Should return HasSufficientSpace=false' {
+                $result = Test-ISOCreationReadiness -WinPEPath 'C:\NonExistent\WinPE' -OutputISOPath 'C:\test.iso'
+                $result.HasSufficientSpace | Should -Be $false
+            }
+
+            It 'Should include folder not found message' {
+                $result = Test-ISOCreationReadiness -WinPEPath 'C:\NonExistent\WinPE' -OutputISOPath 'C:\test.iso'
+                $result.Message | Should -Match 'not found'
+            }
+
+            It 'Should include media folder path in message' {
+                $result = Test-ISOCreationReadiness -WinPEPath 'C:\NonExistent\WinPE' -OutputISOPath 'C:\test.iso'
+                $result.Message | Should -Match 'media'
+            }
+
+            It 'Should provide remediation guidance' {
+                $result = Test-ISOCreationReadiness -WinPEPath 'C:\NonExistent\WinPE' -OutputISOPath 'C:\test.iso'
+                $result.Remediation | Should -Match 'Ensure WinPE media was created'
+            }
+
+            It 'Should have zero EstimatedSizeBytes' {
+                $result = Test-ISOCreationReadiness -WinPEPath 'C:\NonExistent\WinPE' -OutputISOPath 'C:\test.iso'
+                $result.EstimatedSizeBytes | Should -Be 0
+            }
+
+            It 'Should have zero MediaFolderSizeBytes' {
+                $result = Test-ISOCreationReadiness -WinPEPath 'C:\NonExistent\WinPE' -OutputISOPath 'C:\test.iso'
+                $result.MediaFolderSizeBytes | Should -Be 0
+            }
+        }
+
+        Context 'When disk space is sufficient' {
+
+            It 'Should return HasSufficientSpace=true' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                # C:\ should have more than 1MB free
+                $result.HasSufficientSpace | Should -Be $true
+            }
+
+            It 'Should have ShortfallGB=0' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                $result.ShortfallGB | Should -Be 0
+            }
+
+            It 'Should have Remediation=null' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                $result.Remediation | Should -BeNullOrEmpty
+            }
+
+            It 'Should have positive AvailableGB' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                $result.AvailableGB | Should -BeGreaterThan 0
+            }
+
+            It 'Should have Drive populated' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\test.iso'
+                $result.Drive | Should -Not -BeNullOrEmpty
+            }
+        }
+
+        Context 'Output path drive detection' {
+
+            It 'Should detect C: drive from C:\path\file.iso' {
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath 'C:\Some\Path\output.iso'
+                $result.Drive | Should -Match 'C:'
+            }
+
+            It 'Should work with different drive letters' {
+                # Test with current drive if not C:
+                $currentDrive = (Get-Location).Path.Substring(0, 2)
+                $result = Test-ISOCreationReadiness -WinPEPath $script:testWinPE -OutputISOPath "$currentDrive\output.iso"
+                $result.Drive | Should -Match $currentDrive
+            }
+        }
+    }
+}
