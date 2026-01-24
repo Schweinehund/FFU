@@ -50,6 +50,9 @@ Progress: Milestone v1.9.0
 | Exponential backoff with jitter | Prevents thundering herd on service recovery | 2026-01-24 |
 | Service errors via pattern matching | Simple and reliable for known error messages | 2026-01-24 |
 | Non-service errors not retried | Prevents wasting time on permanent failures | 2026-01-24 |
+| Running VMs block switch | Explicit stop required before provider switch | 2026-01-23 |
+| VHD format cross-compatible | VHD works on both Hyper-V and VMware | 2026-01-23 |
+| TPM warning not blocker | VMware vTPM requires encryption but deployment works | 2026-01-23 |
 
 ## Recent Activity
 
