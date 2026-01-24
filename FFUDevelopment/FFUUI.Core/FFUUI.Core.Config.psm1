@@ -346,6 +346,84 @@ function Invoke-LoadConfiguration {
             return
         }
         WriteLog "LoadConfig: Successfully parsed config file. Top-level keys: $($configContent.PSObject.Properties.Name -join ', ')"
+
+        # Validate configuration against schema (REL-UI-05)
+        $validationResult = $null
+        try {
+            # Check if Test-FFUConfiguration is available
+            if (Get-Command -Name 'Test-FFUConfiguration' -ErrorAction SilentlyContinue) {
+                # Convert PSCustomObject to hashtable for Test-FFUConfiguration
+                $configHashtable = @{}
+                foreach ($prop in $configContent.PSObject.Properties) {
+                    $configHashtable[$prop.Name] = $prop.Value
+                }
+                $validationResult = Test-FFUConfiguration -ConfigObject $configHashtable
+                WriteLog "LoadConfig: Validation completed - IsValid: $($validationResult.IsValid)"
+            }
+            else {
+                WriteLog "LoadConfig: Test-FFUConfiguration not available, skipping validation."
+            }
+        }
+        catch {
+            WriteLog "LoadConfig: Validation check failed: $($_.Exception.Message)"
+            # Continue without validation if Test-FFUConfiguration unavailable
+        }
+
+        # Handle validation results
+        if ($null -ne $validationResult) {
+            # Store validation result in State.Data for build-time check
+            if ($null -ne $State.Data) {
+                $State.Data.configValidationResult = $validationResult
+                $State.Data.hasValidationErrors = -not $validationResult.IsValid
+            }
+
+            if (-not $validationResult.IsValid) {
+                $errorCount = if ($null -ne $validationResult.Errors) { $validationResult.Errors.Count } else { 0 }
+                $warningCount = if ($null -ne $validationResult.Warnings) { $validationResult.Warnings.Count } else { 0 }
+                WriteLog "LoadConfig: Validation found $errorCount errors, $warningCount warnings"
+
+                # Show validation errors to user via structured error display (from Plan 02)
+                if (Get-Command -Name 'Show-FFUValidationErrors' -ErrorAction SilentlyContinue) {
+                    Show-FFUValidationErrors `
+                        -Errors $validationResult.Errors `
+                        -Warnings $validationResult.Warnings `
+                        -Title "Configuration File Has Issues" `
+                        -ConfigPath $filePath
+                }
+
+                # Ask user if they want to load anyway (with errors)
+                if ($errorCount -gt 0) {
+                    $userChoice = [System.Windows.MessageBox]::Show(
+                        "The configuration file has validation errors.`n`nDo you want to load it anyway?`n(Some settings may not work correctly)",
+                        "Load Invalid Configuration?",
+                        [System.Windows.MessageBoxButton]::YesNo,
+                        [System.Windows.MessageBoxImage]::Warning
+                    )
+                    if ($userChoice -ne [System.Windows.MessageBoxResult]::Yes) {
+                        WriteLog "LoadConfig: User declined to load invalid configuration."
+                        return
+                    }
+                    WriteLog "LoadConfig: User chose to load configuration despite validation errors."
+                }
+            }
+            elseif ($validationResult.Warnings.Count -gt 0) {
+                # Show warnings but don't block
+                WriteLog "LoadConfig: Validation passed with $($validationResult.Warnings.Count) warnings"
+                # Log each warning for debugging
+                foreach ($warning in $validationResult.Warnings) {
+                    WriteLog "LoadConfig: WARNING - $warning"
+                }
+            }
+        }
+        else {
+            # No validation performed - clear any previous validation state
+            if ($null -ne $State.Data) {
+                $State.Data.configValidationResult = $null
+                $State.Data.hasValidationErrors = $false
+            }
+        }
+
+        # Continue with existing Update-UIFromConfig call
         Update-UIFromConfig -ConfigContent $configContent -State $State
         $State.Data.lastConfigFilePath = $filePath
         Import-ConfigSupplementalAssets -ConfigContent $configContent -State $State -ShowWarnings:$true
@@ -1124,6 +1202,52 @@ function Invoke-AutoLoadPreviousEnvironment {
                         WriteLog "AutoLoad: User declined migration. Loading original config (deprecated properties ignored)."
                     }
                 }
+            }
+        }
+
+        # Validate configuration against schema (REL-UI-05) - silent logging, no popups
+        $validationResult = $null
+        try {
+            if (Get-Command -Name 'Test-FFUConfiguration' -ErrorAction SilentlyContinue) {
+                # Convert PSCustomObject to hashtable for Test-FFUConfiguration if needed
+                $configHashtable = @{}
+                foreach ($prop in $configContent.PSObject.Properties) {
+                    $configHashtable[$prop.Name] = $prop.Value
+                }
+                $validationResult = Test-FFUConfiguration -ConfigObject $configHashtable
+            }
+        }
+        catch {
+            WriteLog "AutoLoad: Validation check failed: $($_.Exception.Message)"
+        }
+
+        # Log validation issues without showing popups (non-intrusive on startup)
+        if ($null -ne $validationResult) {
+            # Store validation result in State.Data for build-time check
+            if ($null -ne $State.Data) {
+                $State.Data.configValidationResult = $validationResult
+                $State.Data.hasValidationErrors = -not $validationResult.IsValid
+            }
+
+            if (-not $validationResult.IsValid) {
+                $errorCount = if ($null -ne $validationResult.Errors) { $validationResult.Errors.Count } else { 0 }
+                WriteLog "AutoLoad: Configuration has $errorCount validation errors"
+                foreach ($errorItem in $validationResult.Errors) {
+                    WriteLog "AutoLoad: ERROR - $errorItem"
+                }
+            }
+            if ($null -ne $validationResult.Warnings -and $validationResult.Warnings.Count -gt 0) {
+                WriteLog "AutoLoad: Configuration has $($validationResult.Warnings.Count) warnings"
+                foreach ($warningItem in $validationResult.Warnings) {
+                    WriteLog "AutoLoad: WARNING - $warningItem"
+                }
+            }
+        }
+        else {
+            # No validation performed - clear any previous validation state
+            if ($null -ne $State.Data) {
+                $State.Data.configValidationResult = $null
+                $State.Data.hasValidationErrors = $false
             }
         }
 
