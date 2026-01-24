@@ -176,8 +176,13 @@ Plans:
   3. Build can resume from last checkpoint after unexpected termination
   4. Build summary shows all errors/warnings, not just first failure
   5. Cleanup runs even on unhandled exceptions or process kill
-**Research**: Likely (cleanup registration patterns need review)
-**Plans**: TBD
+**Research**: Complete (23-RESEARCH.md - cleanup registration patterns reviewed)
+**Plans:** 4 plans
+Plans:
+- [ ] 23-01-PLAN.md - Build error aggregation collector (REL-BUILD-04)
+- [ ] 23-02-PLAN.md - Phase wrapper with graceful degradation (REL-BUILD-01)
+- [ ] 23-03-PLAN.md - Checkpoint integration and resume (REL-BUILD-03)
+- [ ] 23-04-PLAN.md - Cancellation and termination cleanup (REL-BUILD-02, REL-BUILD-05)
 
 ### Phase 24: WinPE Scripts Reliability
 **Goal**: Make WinPE scripts robust in constrained environment with log preservation and clear errors
@@ -218,7 +223,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 20. FFU.Updates Reliability | 4/4 | Complete | 2026-01-24 |
 | 21. FFU.Drivers Reliability | 4/4 | Complete | 2026-01-24 |
 | 22. FFU.Preflight Reliability | 4/4 | Complete | 2026-01-24 |
-| 23. BuildFFUVM.ps1 Reliability | 0/TBD | Not started | - |
+| 23. BuildFFUVM.ps1 Reliability | 0/4 | Planned | - |
 | 24. WinPE Scripts Reliability | 0/TBD | Not started | - |
 | 25. FFUUI.Core Reliability | 0/TBD | Not started | - |
 
