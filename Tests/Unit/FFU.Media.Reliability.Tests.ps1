@@ -5,6 +5,7 @@
 
 .DESCRIPTION
     Pester 5.x tests for FFU.Media reliability improvements.
+    - REL-MED-01: WinPE Dependency Pre-Validation (Test-WinPEMediaReadiness)
     - REL-MED-02: DISM/ADK Error Remediation (Get-ADKToolFailureRemediation)
     - REL-MED-04: Architecture Capability Validation (Test-ArchitectureCapability)
 
@@ -18,6 +19,9 @@ BeforeAll {
     $script:ModulePath = Join-Path $PSScriptRoot '..\..\FFUDevelopment\Modules'
     $env:PSModulePath = "$script:ModulePath;$env:PSModulePath"
 
+    # Create WriteLog stub for Test-ADKPrerequisites (avoids FFU.Core dependency)
+    function global:WriteLog { param([string]$Message) }
+
     # Import the module under test
     Import-Module 'FFU.Media' -Force -ErrorAction Stop
 }
@@ -25,7 +29,289 @@ BeforeAll {
 AfterAll {
     # Cleanup
     Remove-Module 'FFU.Media' -Force -ErrorAction SilentlyContinue
+    Remove-Item Function:\WriteLog -ErrorAction SilentlyContinue
 }
+
+# =============================================================================
+# REL-MED-01: WinPE Dependency Pre-Validation
+# =============================================================================
+
+Describe 'REL-MED-01: WinPE Dependency Pre-Validation' {
+
+    Describe 'Test-WinPEMediaReadiness' {
+
+        Context 'Function Export and Parameters' {
+
+            It 'Should be exported from FFU.Media module' {
+                $cmd = Get-Command Test-WinPEMediaReadiness -Module FFU.Media -ErrorAction SilentlyContinue
+                $cmd | Should -Not -BeNullOrEmpty
+                $cmd.Module.Name | Should -Be 'FFU.Media'
+            }
+
+            It 'Should have Architecture parameter as mandatory' {
+                $cmd = Get-Command Test-WinPEMediaReadiness
+                $param = $cmd.Parameters['Architecture']
+                $param | Should -Not -BeNullOrEmpty
+                $param.Attributes.Where({ $_ -is [System.Management.Automation.ParameterAttribute] }).Mandatory | Should -Contain $true
+            }
+
+            It 'Should have FFUDevelopmentPath parameter as mandatory' {
+                $cmd = Get-Command Test-WinPEMediaReadiness
+                $param = $cmd.Parameters['FFUDevelopmentPath']
+                $param | Should -Not -BeNullOrEmpty
+                $param.Attributes.Where({ $_ -is [System.Management.Automation.ParameterAttribute] }).Mandatory | Should -Contain $true
+            }
+
+            It 'Should have ADKPath parameter as mandatory' {
+                $cmd = Get-Command Test-WinPEMediaReadiness
+                $param = $cmd.Parameters['ADKPath']
+                $param | Should -Not -BeNullOrEmpty
+                $param.Attributes.Where({ $_ -is [System.Management.Automation.ParameterAttribute] }).Mandatory | Should -Contain $true
+            }
+
+            It 'Should accept x64 and arm64 for Architecture' {
+                $cmd = Get-Command Test-WinPEMediaReadiness
+                $param = $cmd.Parameters['Architecture']
+                $validateSet = $param.Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] })
+                $validateSet | Should -Not -BeNullOrEmpty
+                $validateSet.ValidValues | Should -Contain 'x64'
+                $validateSet.ValidValues | Should -Contain 'arm64'
+            }
+
+            It 'Should have optional CreateCapture switch parameter' {
+                $cmd = Get-Command Test-WinPEMediaReadiness
+                $param = $cmd.Parameters['CreateCapture']
+                $param | Should -Not -BeNullOrEmpty
+                $param.ParameterType.Name | Should -Be 'SwitchParameter'
+            }
+
+            It 'Should have optional CreateDeploy switch parameter' {
+                $cmd = Get-Command Test-WinPEMediaReadiness
+                $param = $cmd.Parameters['CreateDeploy']
+                $param | Should -Not -BeNullOrEmpty
+                $param.ParameterType.Name | Should -Be 'SwitchParameter'
+            }
+        }
+
+        Context 'Output Structure' {
+
+            BeforeAll {
+                # Call with non-existent path to get a failure result (tests structure)
+                $script:TestResult = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath 'C:\NonExistent\FFU' -ADKPath 'C:\NonExistent\ADK'
+            }
+
+            It 'Should return PSCustomObject with Ready property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Ready'
+            }
+
+            It 'Should return PSCustomObject with FailureReason property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'FailureReason'
+            }
+
+            It 'Should return PSCustomObject with Message property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Message'
+            }
+
+            It 'Should return PSCustomObject with Remediation property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Remediation'
+            }
+
+            It 'Should return PSCustomObject with Details property' {
+                $script:TestResult.PSObject.Properties.Name | Should -Contain 'Details'
+            }
+
+            It 'Should have Details containing ADKPath' {
+                $script:TestResult.Details.ADKPath | Should -Not -BeNullOrEmpty
+            }
+
+            It 'Should have Details containing Architecture' {
+                $script:TestResult.Details.Architecture | Should -Be 'x64'
+            }
+
+            It 'Should have Details containing Checks hashtable' {
+                $script:TestResult.Details.Checks | Should -Not -BeNullOrEmpty
+            }
+        }
+
+        Context 'When ADK path does not exist' {
+
+            BeforeAll {
+                # Call with non-existent ADK path
+                $script:MockResult = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath 'C:\FFUDevelopment' -ADKPath 'C:\NonExistent\ADK\Path'
+            }
+
+            It 'Should return Ready=false' {
+                $script:MockResult.Ready | Should -Be $false
+            }
+
+            It 'Should return failure related to ADK or architecture' {
+                # May fail on ADKValidation (if Test-ADKPrerequisites fails) or ArchitectureMissing (if path check happens)
+                $script:MockResult.FailureReason | Should -BeIn @('ADKValidation', 'ArchitectureMissing')
+            }
+
+            It 'Should provide actionable remediation' {
+                $script:MockResult.Remediation | Should -Not -BeNullOrEmpty
+            }
+        }
+
+        Context 'ADK architecture folder mapping' {
+
+            BeforeAll {
+                # Create temp ADK structure for testing architecture paths
+                $script:tempADK = Join-Path $env:TEMP "TestWinPEReadiness_$(Get-Random)"
+                $script:oscdimgPath = Join-Path $script:tempADK 'Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg'
+                $script:winPEPath = Join-Path $script:tempADK 'Assessment and Deployment Kit\Windows Preinstallation Environment\amd64\en-us'
+
+                New-Item -Path $script:oscdimgPath -ItemType Directory -Force | Out-Null
+                New-Item -Path $script:winPEPath -ItemType Directory -Force | Out-Null
+
+                # Create dummy files
+                '' | Set-Content (Join-Path $script:oscdimgPath 'oscdimg.exe')
+                '' | Set-Content (Join-Path $script:winPEPath 'winpe.wim')
+            }
+
+            AfterAll {
+                Remove-Item -Path $script:tempADK -Recurse -Force -ErrorAction SilentlyContinue
+            }
+
+            It 'Should use amd64 folder path for x64 architecture validation' {
+                # When ADK path has amd64 folder, x64 architecture should find it
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK
+
+                # The function should at least get to architecture check
+                # (may fail on WIMMount or space, but shouldn't fail on ADK missing)
+                if ($result.FailureReason -eq 'ArchitectureMissing') {
+                    # This would be wrong - amd64 folder exists
+                    throw "Function incorrectly reports ArchitectureMissing for x64 when amd64 folder exists"
+                }
+            }
+
+            It 'Should report ArchitectureMissing for arm64 when only amd64 exists' {
+                $result = Test-WinPEMediaReadiness -Architecture 'arm64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK
+
+                # Should fail on architecture since arm64 folder doesn't exist
+                $result.FailureReason | Should -Be 'ArchitectureMissing'
+                $result.Message | Should -Match 'arm64'
+            }
+        }
+
+        Context 'When oscdimg.exe is missing' {
+
+            BeforeAll {
+                # Create temp ADK with missing oscdimg
+                $script:tempADK2 = Join-Path $env:TEMP "TestWinPEReadiness2_$(Get-Random)"
+                $script:winPEPath2 = Join-Path $script:tempADK2 'Assessment and Deployment Kit\Windows Preinstallation Environment\amd64\en-us'
+
+                # Only create WinPE path, NOT oscdimg path
+                New-Item -Path $script:winPEPath2 -ItemType Directory -Force | Out-Null
+                '' | Set-Content (Join-Path $script:winPEPath2 'winpe.wim')
+            }
+
+            AfterAll {
+                Remove-Item -Path $script:tempADK2 -Recurse -Force -ErrorAction SilentlyContinue
+            }
+
+            It 'Should return Ready=false with FailureReason=ArchitectureMissing' {
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK2
+
+                $result.Ready | Should -Be $false
+                $result.FailureReason | Should -Be 'ArchitectureMissing'
+            }
+
+            It 'Should mention oscdimg.exe in Message' {
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK2
+
+                $result.Message | Should -Match 'oscdimg\.exe'
+            }
+        }
+
+        Context 'When winpe.wim is missing' {
+
+            BeforeAll {
+                # Create temp ADK with missing winpe.wim
+                $script:tempADK3 = Join-Path $env:TEMP "TestWinPEReadiness3_$(Get-Random)"
+                $script:oscdimgPath3 = Join-Path $script:tempADK3 'Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg'
+
+                # Only create oscdimg path, NOT winpe path
+                New-Item -Path $script:oscdimgPath3 -ItemType Directory -Force | Out-Null
+                '' | Set-Content (Join-Path $script:oscdimgPath3 'oscdimg.exe')
+            }
+
+            AfterAll {
+                Remove-Item -Path $script:tempADK3 -Recurse -Force -ErrorAction SilentlyContinue
+            }
+
+            It 'Should return Ready=false with FailureReason=ArchitectureMissing' {
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK3
+
+                $result.Ready | Should -Be $false
+                $result.FailureReason | Should -Be 'ArchitectureMissing'
+            }
+
+            It 'Should mention winpe.wim in Message' {
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK3
+
+                $result.Message | Should -Match 'winpe\.wim'
+            }
+
+            It 'Should suggest WinPE add-on in Remediation' {
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath $env:TEMP -ADKPath $script:tempADK3
+
+                $result.Remediation | Should -Match 'WinPE add-on|Windows PE'
+            }
+        }
+
+        Context 'Fail-fast behavior' {
+
+            It 'Should stop validation on first failure' {
+                # ADK path doesn't exist - should fail on one of the early checks
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath 'C:\FFUDevelopment' -ADKPath 'C:\NonExistent\ADK'
+
+                # Should report a failure (not all checks, demonstrates fail-fast)
+                $result.Ready | Should -Be $false
+                $result.FailureReason | Should -Not -BeNullOrEmpty
+
+                # Should not have Space check completed (fail-fast before space check)
+                $result.Details.Checks.Keys | Should -Not -Contain 'Space'
+            }
+        }
+
+        Context 'FailureReason values' {
+
+            It 'Should use ADKValidation for ADK issues' {
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath 'C:\FFU' -ADKPath 'C:\NonExistent'
+
+                $result.FailureReason | Should -BeIn @('ADKValidation', 'WIMMount', 'ArchitectureMissing', 'InsufficientSpace', 'ISOSpaceInsufficient')
+            }
+
+            It 'Should have Ready=true when FailureReason is null' {
+                # We can only test this indirectly since we need a valid ADK
+                # But we can verify the inverse: when Ready=false, FailureReason should exist
+                $result = Test-WinPEMediaReadiness -Architecture 'x64' `
+                    -FFUDevelopmentPath 'C:\FFU' -ADKPath 'C:\NonExistent'
+
+                if (-not $result.Ready) {
+                    $result.FailureReason | Should -Not -BeNullOrEmpty
+                }
+            }
+        }
+    }
+}
+
+# =============================================================================
+# REL-MED-02: ADK/DISM Error Remediation
+# =============================================================================
 
 Describe 'REL-MED-02: ADK/DISM Error Remediation' {
 

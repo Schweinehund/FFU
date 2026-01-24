@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.24",
-    "buildDate": "2026-01-24",
+    "version": "1.8.25",
+    "buildDate": "2026-01-23",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -59,9 +59,9 @@
             "description": "Imaging reliability (REL-IMG-01/02/03/04/05) - Disk space validation, partition state verification, FFU capture recovery, transient error retry, pre-validation for large operations"
         },
         "FFU.Media": {
-            "version": "1.5.0",
+            "version": "1.6.0",
             "path": "Modules/FFU.Media/FFU.Media.psd1",
-            "description": "DISM/ADK error classification (REL-MED-02) - Get-ADKToolFailureRemediation with 6 known error patterns and remediation guidance"
+            "description": "Architecture capability validation (REL-MED-04) - Test-ArchitectureCapability, pre-validation in New-PEMedia, fail-fast before cleanup"
         },
         "FFU.Updates": {
             "version": "1.0.5",

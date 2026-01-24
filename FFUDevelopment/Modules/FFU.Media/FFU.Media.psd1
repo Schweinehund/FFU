@@ -7,7 +7,7 @@
     RootModule = 'FFU.Media.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.5.0'
+    ModuleVersion = '1.6.0'
 
     # ID used to uniquely identify this module
     GUID = 'a84d5d7c-3cb5-4ba3-a1a8-2dcd0916fb5d'
@@ -74,7 +74,16 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Media v1.5.0
+# Release Notes - FFU.Media v1.6.0
+
+## v1.6.0 - REL-MED-04: Architecture Capability Validation
+- NEW: Test-ArchitectureCapability validates ADK has required architecture tools
+- NEW: Pre-validation integrated in New-PEMedia (fail-fast before cleanup)
+- Validates oscdimg.exe and winpe.wim exist for target architecture
+- Maps x86 builds to use x64 ADK tools
+- Detects cross-architecture builds (e.g., building ARM64 on x64 host)
+- Returns structured result with CanBuild, MissingComponents, Remediation
+- 30 new Pester tests for architecture validation scenarios
 
 ## v1.5.0 - REL-MED-02: DISM/ADK Error Classification
 - NEW: Get-ADKToolFailureRemediation classifies DISM/ADK errors with remediation
@@ -130,10 +139,13 @@
 - Requires FFU.Core, FFU.ADK modules and Administrator privileges
 
 ## Functions Included
+- Get-ADKToolFailureRemediation: DISM/ADK error classification with remediation
 - Invoke-DISMPreFlightCleanup: 6-step DISM cleanup (mount points, disk space, services)
 - Invoke-CopyPEWithRetry: Automatic retry with enhanced diagnostics
 - New-WinPEMediaNative: Native PowerShell copype replacement with WIMMount validation
 - New-PEMedia: Complete WinPE media orchestration (capture/deployment)
+- Test-ArchitectureCapability: ADK architecture tools validation
+- Test-WinPEMediaReadiness: Pre-operation dependency validation
 - Get-PEArchitecture: PE file architecture detection (x86/x64/ARM64)
 
 ## Key Improvements
