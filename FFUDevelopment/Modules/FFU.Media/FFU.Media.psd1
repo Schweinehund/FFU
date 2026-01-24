@@ -7,7 +7,7 @@
     RootModule = 'FFU.Media.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.6.0'
+    ModuleVersion = '1.7.0'
 
     # ID used to uniquely identify this module
     GUID = 'a84d5d7c-3cb5-4ba3-a1a8-2dcd0916fb5d'
@@ -74,7 +74,16 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Media v1.6.0
+# Release Notes - FFU.Media v1.7.0
+
+## v1.7.0 - REL-MED-01: WinPE Dependency Pre-Validation
+- NEW: Test-WinPEMediaReadiness validates ALL dependencies before WinPE creation
+- Validates ADK installation, WIMMount service, architecture tools, disk space
+- Integrated in New-PEMedia for fail-fast before any cleanup operations
+- Returns structured result with Ready, FailureReason, Message, Remediation
+- FailureReason codes: ADKValidation, WIMMount, ArchitectureMissing, InsufficientSpace, ISOSpaceInsufficient
+- ThreadJob compatible using InvokeCommand.GetCommand pattern
+- 31 new Pester tests for pre-validation scenarios
 
 ## v1.6.0 - REL-MED-04: Architecture Capability Validation
 - NEW: Test-ArchitectureCapability validates ADK has required architecture tools

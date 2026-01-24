@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.25",
+    "version": "1.8.26",
     "buildDate": "2026-01-23",
 
     "versioningPolicy": {
@@ -59,9 +59,9 @@
             "description": "Imaging reliability (REL-IMG-01/02/03/04/05) - Disk space validation, partition state verification, FFU capture recovery, transient error retry, pre-validation for large operations"
         },
         "FFU.Media": {
-            "version": "1.6.0",
+            "version": "1.7.0",
             "path": "Modules/FFU.Media/FFU.Media.psd1",
-            "description": "Architecture capability validation (REL-MED-04) - Test-ArchitectureCapability, pre-validation in New-PEMedia, fail-fast before cleanup"
+            "description": "WinPE dependency pre-validation (REL-MED-01) - Test-WinPEMediaReadiness, validates ADK/WIMMount/architecture/disk space before media creation"
         },
         "FFU.Updates": {
             "version": "1.0.5",
