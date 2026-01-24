@@ -58,7 +58,9 @@
         'Expand-FFUPartitionForDrivers',
         'Set-OSPartitionDriveLetter',
         'Invoke-DismountScratchDisk',
-        'Invoke-MountScratchDisk'
+        'Invoke-MountScratchDisk',
+        'Get-DiskPartitionState',
+        'Compare-DiskPartitionState'
     )
 
     # Cmdlets to export from this module

@@ -3530,6 +3530,219 @@ attach vdisk
     }
 }
 
+#region REL-IMG-02: Partition State Verification
+
+function Get-DiskPartitionState {
+    <#
+    .SYNOPSIS
+    Captures the current partition state of a disk for before/after comparison
+
+    .DESCRIPTION
+    Gets a snapshot of partition information for a specified disk including
+    partition count, total size, partition types, and drive letter assignments.
+    Used for validating that partition operations succeeded by comparing
+    state before and after operations.
+
+    .PARAMETER DiskNumber
+    The disk number to capture partition state from
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - DiskNumber: The disk number
+    - PartitionCount: Number of partitions on the disk
+    - TotalSizeBytes: Total size of all partitions in bytes
+    - TotalSizeGB: Total size of all partitions in GB (rounded to 2 decimal places)
+    - PartitionTypes: Array of unique partition types (GPT or MBR)
+    - DriveLetters: Array of assigned drive letters
+    - PartitionSizes: Array of individual partition sizes in bytes
+    - CapturedAt: Timestamp when state was captured
+
+    .EXAMPLE
+    $before = Get-DiskPartitionState -DiskNumber 1
+    # ... perform partition operations ...
+    $after = Get-DiskPartitionState -DiskNumber 1
+    $comparison = Compare-DiskPartitionState -Before $before -After $after -ExpectedChange 'PartitionAdded'
+
+    .NOTES
+    Uses [DateTime]::Now for ThreadJob compatibility (not Get-Date)
+    Handles uninitialized disks gracefully (returns PartitionCount = 0)
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [int]$DiskNumber
+    )
+
+    # Get partitions with SilentlyContinue because disk may be uninitialized
+    $partitions = Get-Partition -DiskNumber $DiskNumber -ErrorAction SilentlyContinue
+
+    # Handle null/empty partitions gracefully
+    if (-not $partitions) {
+        $partitions = @()
+    }
+
+    # Ensure partitions is always an array for consistent handling
+    if ($partitions -isnot [array]) {
+        $partitions = @($partitions)
+    }
+
+    # Calculate partition metrics
+    $partitionCount = ($partitions | Measure-Object).Count
+    $totalSizeBytes = ($partitions | Measure-Object -Property Size -Sum).Sum
+    if (-not $totalSizeBytes) { $totalSizeBytes = 0 }
+
+    # Get partition types (handle both GPT and MBR)
+    $partitionTypes = @($partitions | ForEach-Object {
+        if ($_.GptType) { $_.GptType }
+        elseif ($_.Type) { $_.Type }
+        else { 'Unknown' }
+    } | Select-Object -Unique)
+
+    # Get assigned drive letters
+    $driveLetters = @($partitions | Where-Object { $_.DriveLetter } | Select-Object -ExpandProperty DriveLetter)
+
+    # Get individual partition sizes
+    $partitionSizes = @($partitions | Select-Object -ExpandProperty Size)
+
+    # Return structured state object
+    [PSCustomObject]@{
+        DiskNumber      = $DiskNumber
+        PartitionCount  = $partitionCount
+        TotalSizeBytes  = $totalSizeBytes
+        TotalSizeGB     = [math]::Round($totalSizeBytes / 1GB, 2)
+        PartitionTypes  = $partitionTypes
+        DriveLetters    = $driveLetters
+        PartitionSizes  = $partitionSizes
+        CapturedAt      = [DateTime]::Now
+    }
+}
+
+function Compare-DiskPartitionState {
+    <#
+    .SYNOPSIS
+    Compares before and after partition states to validate expected changes
+
+    .DESCRIPTION
+    Compares two partition state snapshots and validates that expected changes
+    occurred. Returns a structured result indicating whether the expected
+    change was detected, along with detailed change information.
+
+    .PARAMETER Before
+    The partition state captured before the operation (from Get-DiskPartitionState)
+
+    .PARAMETER After
+    The partition state captured after the operation (from Get-DiskPartitionState)
+
+    .PARAMETER ExpectedChange
+    The type of change expected. Valid values:
+    - PartitionAdded: Partition count should increase
+    - PartitionRemoved: Partition count should decrease
+    - DriveLetterAssigned: New drive letter should be assigned
+    - SizeChanged: Total size should change
+    - None: No validation, just report changes
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Valid: Boolean indicating if expected change was validated
+    - Error: Error message if validation failed (null if valid)
+    - ExpectedChange: The expected change type that was validated
+    - Changes: Object with detailed change information
+    - Before: The before state for reference
+    - After: The after state for reference
+
+    .EXAMPLE
+    $before = Get-DiskPartitionState -DiskNumber 1
+    New-Partition -DiskNumber 1 -Size 10GB
+    $after = Get-DiskPartitionState -DiskNumber 1
+    $result = Compare-DiskPartitionState -Before $before -After $after -ExpectedChange 'PartitionAdded'
+    if (-not $result.Valid) {
+        throw "Partition creation failed: $($result.Error)"
+    }
+
+    .NOTES
+    Detects silent failures where partition operations succeed but changes didn't apply
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [PSCustomObject]$Before,
+
+        [Parameter(Mandatory)]
+        [PSCustomObject]$After,
+
+        [Parameter()]
+        [ValidateSet('PartitionAdded', 'PartitionRemoved', 'DriveLetterAssigned', 'SizeChanged', 'None')]
+        [string]$ExpectedChange = 'None'
+    )
+
+    # Calculate changes
+    $driveLetterComparison = $null
+    if ($Before.DriveLetters -and $After.DriveLetters) {
+        $driveLetterComparison = Compare-Object $Before.DriveLetters $After.DriveLetters -ErrorAction SilentlyContinue
+    }
+    elseif ($After.DriveLetters -and $After.DriveLetters.Count -gt 0) {
+        # If before had no letters but after does, that's a change
+        $driveLetterComparison = $true
+    }
+
+    $changes = @{
+        PartitionCountChanged = $After.PartitionCount -ne $Before.PartitionCount
+        PartitionCountDelta   = $After.PartitionCount - $Before.PartitionCount
+        SizeChanged           = $After.TotalSizeBytes -ne $Before.TotalSizeBytes
+        SizeDeltaBytes        = $After.TotalSizeBytes - $Before.TotalSizeBytes
+        DriveLettersChanged   = $null -ne $driveLetterComparison
+        NewDriveLetters       = @($After.DriveLetters | Where-Object { $_ -notin $Before.DriveLetters })
+    }
+
+    # Validate expected change occurred
+    $valid = $true
+    $errorMessage = $null
+
+    switch ($ExpectedChange) {
+        'PartitionAdded' {
+            if ($changes.PartitionCountDelta -le 0) {
+                $valid = $false
+                $errorMessage = "Expected partition count to increase. Before: $($Before.PartitionCount), After: $($After.PartitionCount)"
+            }
+        }
+        'PartitionRemoved' {
+            if ($changes.PartitionCountDelta -ge 0) {
+                $valid = $false
+                $errorMessage = "Expected partition count to decrease. Before: $($Before.PartitionCount), After: $($After.PartitionCount)"
+            }
+        }
+        'DriveLetterAssigned' {
+            if (-not $changes.DriveLettersChanged -or $changes.NewDriveLetters.Count -eq 0) {
+                $valid = $false
+                $errorMessage = "Expected new drive letter assignment. Before: [$($Before.DriveLetters -join ', ')], After: [$($After.DriveLetters -join ', ')]"
+            }
+        }
+        'SizeChanged' {
+            if (-not $changes.SizeChanged) {
+                $valid = $false
+                $errorMessage = "Expected size to change. Both before and after: $($Before.TotalSizeGB) GB"
+            }
+        }
+        'None' {
+            # No validation, just report changes
+        }
+    }
+
+    # Return structured result
+    [PSCustomObject]@{
+        Valid             = $valid
+        Error             = $errorMessage
+        ExpectedChange    = $ExpectedChange
+        Changes           = [PSCustomObject]$changes
+        Before            = $Before
+        After             = $After
+    }
+}
+
+#endregion REL-IMG-02
+
 # Export module members
 Export-ModuleMember -Function @(
     'Initialize-DISMService',
@@ -3557,5 +3770,7 @@ Export-ModuleMember -Function @(
     'Expand-FFUPartitionForDrivers',
     'Set-OSPartitionDriveLetter',
     'Invoke-DismountScratchDisk',
-    'Invoke-MountScratchDisk'
+    'Invoke-MountScratchDisk',
+    'Get-DiskPartitionState',
+    'Compare-DiskPartitionState'
 )
