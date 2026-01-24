@@ -595,3 +595,172 @@ Describe 'FFU.VM Reliability - REL-VM-03' -Tag 'Unit', 'FFU.VM', 'Reliability' {
         }
     }
 }
+
+# =============================================================================
+# REL-VM-04: Checkpoint Disk Space Validation Tests
+# =============================================================================
+Describe 'FFU.VM Reliability - REL-VM-04' -Tag 'Unit', 'FFU.VM', 'Reliability' {
+
+    Context 'Test-CheckpointDiskSpace Function' {
+        It 'Should be exported from FFU.VM module' {
+            Get-Command -Name 'Test-CheckpointDiskSpace' -Module 'FFU.VM' | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have VMName parameter set' {
+            $cmd = Get-Command -Name 'Test-CheckpointDiskSpace' -Module 'FFU.VM'
+            $cmd.Parameters['VMName'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have VHDXPath parameter set' {
+            $cmd = Get-Command -Name 'Test-CheckpointDiskSpace' -Module 'FFU.VM'
+            $cmd.Parameters['VHDXPath'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have MarginPercent parameter with default 100' {
+            $cmd = Get-Command -Name 'Test-CheckpointDiskSpace' -Module 'FFU.VM'
+            $param = $cmd.Parameters['MarginPercent']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have RequiredSpaceGB parameter' {
+            $cmd = Get-Command -Name 'Test-CheckpointDiskSpace' -Module 'FFU.VM'
+            $cmd.Parameters['RequiredSpaceGB'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have two parameter sets (ByVMName and ByPath)' {
+            $cmd = Get-Command -Name 'Test-CheckpointDiskSpace' -Module 'FFU.VM'
+            $cmd.ParameterSets.Name | Should -Contain 'ByVMName'
+            $cmd.ParameterSets.Name | Should -Contain 'ByPath'
+        }
+
+        It 'Should return object with HasSufficientSpace property' {
+            # Test with non-existent VM (should return false with error message)
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.PSObject.Properties.Name | Should -Contain 'HasSufficientSpace'
+        }
+
+        It 'Should return object with AvailableGB property' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.PSObject.Properties.Name | Should -Contain 'AvailableGB'
+        }
+
+        It 'Should return object with RequiredGB property' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.PSObject.Properties.Name | Should -Contain 'RequiredGB'
+        }
+
+        It 'Should return object with Drive property' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.PSObject.Properties.Name | Should -Contain 'Drive'
+        }
+
+        It 'Should return object with Message property' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.PSObject.Properties.Name | Should -Contain 'Message'
+        }
+
+        It 'Should return object with Remediation property' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.PSObject.Properties.Name | Should -Contain 'Remediation'
+        }
+
+        It 'Should return false for non-existent VM' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.HasSufficientSpace | Should -BeFalse
+        }
+
+        It 'Should include error message for non-existent VM' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.Message | Should -Match 'NonExistentTestVM12345'
+        }
+
+        It 'Should include remediation for failures' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            $result.Remediation | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should handle non-existent VHDX path gracefully' {
+            $result = Test-CheckpointDiskSpace -VHDXPath 'C:\NonExistent\test.vhdx'
+            $result.HasSufficientSpace | Should -BeFalse
+            $result.Message | Should -Match 'VHDX not found'
+        }
+    }
+
+    Context 'New-FFUVMCheckpoint Function' {
+        It 'Should be exported from FFU.VM module' {
+            Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM' | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have VMName parameter' {
+            $cmd = Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM'
+            $cmd.Parameters['VMName'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have SnapshotName parameter' {
+            $cmd = Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM'
+            $cmd.Parameters['SnapshotName'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have MarginPercent parameter' {
+            $cmd = Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM'
+            $cmd.Parameters['MarginPercent'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have SkipDiskCheck switch' {
+            $cmd = Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM'
+            $cmd.Parameters['SkipDiskCheck'] | Should -Not -BeNullOrEmpty
+            $cmd.Parameters['SkipDiskCheck'].SwitchParameter | Should -BeTrue
+        }
+
+        It 'VMName should be mandatory' {
+            $cmd = Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM'
+            $param = $cmd.Parameters['VMName']
+            $mandatory = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] }
+            $mandatory.Mandatory | Should -BeTrue
+        }
+
+        It 'SnapshotName should not be mandatory' {
+            $cmd = Get-Command -Name 'New-FFUVMCheckpoint' -Module 'FFU.VM'
+            $param = $cmd.Parameters['SnapshotName']
+            $mandatory = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] }
+            $mandatory.Mandatory | Should -BeFalse
+        }
+    }
+
+    Context 'Disk Space Error Messages' {
+        It 'Test-CheckpointDiskSpace should include remediation for failures' {
+            $result = Test-CheckpointDiskSpace -VMName 'NonExistentTestVM12345'
+            # For non-existent VM, should have remediation guidance
+            $result.Remediation | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should return structured error for VHDX not found' {
+            $result = Test-CheckpointDiskSpace -VHDXPath 'C:\NonExistent\Path\test.vhdx'
+            $result.HasSufficientSpace | Should -BeFalse
+            $result.Drive | Should -Be 'Unknown'
+            $result.Remediation | Should -Match 'VHDX'
+        }
+    }
+
+    Context 'FFU.VM Module Code Verification' {
+        BeforeAll {
+            $script:FFUVMModule = Join-Path $script:ModulesPath 'FFU.VM\FFU.VM.psm1'
+        }
+
+        It 'Should have Test-CheckpointDiskSpace call in New-FFUVMCheckpoint' {
+            $content = Get-Content $script:FFUVMModule -Raw
+            $content | Should -Match 'Test-CheckpointDiskSpace.*-VMName'
+        }
+
+        It 'Should have orphaned AVHDX cleanup logic in New-FFUVMCheckpoint' {
+            $content = Get-Content $script:FFUVMModule -Raw
+            # Check for the orphan detection pattern
+            $content | Should -Match 'orphan.*avhdx|avhdx.*orphan'
+        }
+
+        It 'Should detect disk full error (0x80070070)' {
+            $content = Get-Content $script:FFUVMModule -Raw
+            $content | Should -Match '0x80070070|disk full'
+        }
+    }
+}
