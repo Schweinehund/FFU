@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.16'
+ModuleVersion = '0.0.17'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -122,6 +122,15 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.17: Load-time configuration validation (REL-UI-05)
+- NEW: Invoke-LoadConfiguration validates config via Test-FFUConfiguration
+- NEW: Shows validation errors via Show-FFUValidationErrors (from Plan 02)
+- NEW: User can choose to load config despite validation errors
+- NEW: Validation result stored in State.Data for build-time check
+- NEW: Build button warns if current config has known validation errors
+- NEW: Invoke-AutoLoadPreviousEnvironment validates silently (logs only)
+- Addresses REL-UI-05: Fail fast on invalid configuration files
+
 v0.0.16: Job failure context extraction
 - NEW: FFUUI.Core.JobErrors module for extracting rich error context
 - NEW: Get-FFUJobError extracts errors from background jobs with priority ordering
