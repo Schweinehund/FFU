@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 24 WinPE Scripts Reliability - IN PROGRESS
+**Current focus:** Phase 24 WinPE Scripts Reliability - COMPLETE
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 24 of 25 (WinPE Scripts Reliability) - IN PROGRESS
-**Plan:** 3 of 4 (Log Preservation Enhancement complete)
-**Status:** In progress
-**Last activity:** 2026-01-24 - Completed 24-03-PLAN.md (REL-WINPE-03)
+**Phase:** 24 of 25 (WinPE Scripts Reliability) - COMPLETE
+**Plan:** 4 of 4 (Resource Exhaustion Handling complete)
+**Status:** Phase complete
+**Last activity:** 2026-01-24 - Completed 24-04-PLAN.md (REL-WINPE-04)
 
 Progress: Milestone v1.9.0
-[#########-] 82% (9/11 phases complete)
+[##########] 91% (10/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -31,15 +31,16 @@ Progress: Milestone v1.9.0
 | 21 | FFU.Drivers Reliability | 4/4 | 2026-01-24 |
 | 22 | FFU.Preflight Reliability | 4/4 | 2026-01-24 |
 | 23 | BuildFFUVM.ps1 Reliability | 4/4 | 2026-01-24 |
+| 24 | WinPE Scripts Reliability | 4/4 | 2026-01-24 |
 
-## Phase 24 Progress (IN PROGRESS)
+## Phase 24 Progress (COMPLETE)
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 24-01 | CaptureFFU Disk Validation | Complete | f266bd3 |
 | 24-02 | Orchestrator Dependency Detection | Complete | ce4c65b |
-| 24-03 | Log Preservation Enhancement | Complete | 5a1194f |
-| 24-04 | Resource Handling | Pending | - |
+| 24-03 | Log Preservation Enhancement | Complete | fa1b5ef |
+| 24-04 | Resource Exhaustion Handling | Complete | a46fa68 |
 
 ## Completed Milestones
 
@@ -140,9 +141,14 @@ Progress: Milestone v1.9.0
 | Add-Content for Orchestrator log | Incremental logging survives crashes, partial logs preserved | 2026-01-24 |
 | W: for CaptureFFU, D: for Orchestrator | Network share and Apps ISO are the only persistent storage in WinPE | 2026-01-24 |
 | Graceful logging failures | Logging failures produce warnings but never abort actual work | 2026-01-24 |
+| 128MB critical memory threshold | DISM capture may fail below this, warn but continue | 2026-01-24 |
+| 20GB critical disk threshold | Fail-fast for network share disk space | 2026-01-24 |
+| 60GB warning disk threshold | Continue with warning for low disk space | 2026-01-24 |
+| Memory warns, disk critical throws | Memory low can still work, disk full cannot | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 24-04-PLAN.md (Resource Exhaustion Handling) - REL-WINPE-04, 40 tests
 - 2026-01-24: Completed 24-03-PLAN.md (Log Preservation Enhancement) - REL-WINPE-03, 45 tests
 - 2026-01-24: Completed 24-02-PLAN.md (Orchestrator Dependency Detection) - REL-WINPE-02, 35 tests
 - 2026-01-24: Completed 24-01-PLAN.md (CaptureFFU Disk Validation) - REL-WINPE-01, 21 tests
@@ -175,9 +181,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 24-03-PLAN.md (Log Preservation Enhancement)
+**Stopped at:** Completed 24-04-PLAN.md (Resource Exhaustion Handling)
 **Resume file:** None
-**Next action:** Execute 24-04-PLAN.md (Resource Handling)
+**Next action:** Execute Phase 25 (Integration Testing)
 
 ---
 *State updated: 2026-01-24*
