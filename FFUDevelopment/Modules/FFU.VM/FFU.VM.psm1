@@ -2499,6 +2499,577 @@ function Remove-FFUVMWithProvider {
     WriteLog "VM cleanup complete"
 }
 
+#region REL-VM-03: Transient Error Detection and Retry
+
+function Test-IsTransientVMError {
+    <#
+    .SYNOPSIS
+        Tests if a VM operation error is transient and retryable.
+
+    .DESCRIPTION
+        Analyzes error messages to determine if they indicate a transient
+        condition (disk busy, file locked, network timeout) that might succeed
+        on retry, versus permanent errors that should fail immediately.
+
+    .PARAMETER ErrorMessage
+        The error message to analyze.
+
+    .OUTPUTS
+        Boolean - true if the error appears to be transient/retryable.
+
+    .EXAMPLE
+        if (Test-IsTransientVMError -ErrorMessage $_.Exception.Message) {
+            # Retry the operation
+        }
+
+    .NOTES
+        Module: FFU.VM
+        REL-VM-03: Transient error retry support
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$ErrorMessage
+    )
+
+    if ([string]::IsNullOrEmpty($ErrorMessage)) {
+        return $false
+    }
+
+    $lowerError = $ErrorMessage.ToLower()
+
+    # Transient patterns - these are worth retrying
+    $transientPatterns = @(
+        'disk.*busy',
+        'file.*locked',
+        'file.*in use',
+        'access.*denied',          # Can be transient during resource contention
+        'network.*timeout',
+        'rpc.*unavailable',
+        'rpc.*server.*busy',
+        'cannot access',
+        'the process cannot access',
+        'being used by another process',
+        'the handle is invalid',
+        'sharing violation',
+        'device is not ready',
+        'system cannot find the file',  # Can be transient during disk operations
+        'operation timed out',
+        'the operation was canceled',
+        'try again',
+        'temporarily unavailable'
+    )
+
+    # Permanent patterns - these should NOT be retried
+    $permanentPatterns = @(
+        'already exists',
+        'does not exist',
+        'not found',
+        'invalid parameter',
+        'invalid argument',
+        'invalid value',
+        'hyper-v.*not enabled',
+        'feature.*not available',
+        'not supported',
+        'insufficient memory',
+        'out of memory',
+        'disk full',
+        'insufficient disk space',
+        'quota exceeded'
+    )
+
+    # Check permanent patterns first - if matches, NOT transient
+    foreach ($pattern in $permanentPatterns) {
+        if ($lowerError -match $pattern) {
+            return $false
+        }
+    }
+
+    # Check transient patterns
+    foreach ($pattern in $transientPatterns) {
+        if ($lowerError -match $pattern) {
+            return $true
+        }
+    }
+
+    # Default to not transient for unknown errors (fail fast)
+    return $false
+}
+
+function Invoke-VMOperationWithRetry {
+    <#
+    .SYNOPSIS
+        Retry wrapper for VM operations that handles transient failures.
+
+    .DESCRIPTION
+        Wraps VM operations with automatic retry logic when transient errors
+        (disk busy, file locked, network timeout) are detected. Uses exponential
+        backoff with jitter to avoid hammering the system.
+
+        For hypervisor-level errors (service issues), delegates to
+        Invoke-WithHypervisorRetry. For VM-specific transient errors,
+        handles retry internally.
+
+    .PARAMETER ScriptBlock
+        The script block containing the VM operation to execute.
+
+    .PARAMETER OperationName
+        Name of the operation for logging purposes.
+
+    .PARAMETER MaxRetries
+        Maximum number of retry attempts. Default is 3.
+
+    .PARAMETER BaseDelaySeconds
+        Base delay between retries in seconds. Default is 2.
+        Actual delay uses exponential backoff: BaseDelay * (2 ^ (attempt - 1))
+
+    .PARAMETER UseHypervisorRetry
+        If specified, also check for hypervisor service errors via
+        Invoke-WithHypervisorRetry pattern.
+
+    .PARAMETER Provider
+        Hypervisor provider ('HyperV' or 'VMware') - required if UseHypervisorRetry.
+
+    .OUTPUTS
+        The result of the ScriptBlock on success.
+
+    .EXAMPLE
+        Invoke-VMOperationWithRetry -OperationName 'Dismount VHDX' -ScriptBlock {
+            Dismount-VHD -Path $vhdxPath -ErrorAction Stop
+        }
+
+    .NOTES
+        Module: FFU.VM
+        REL-VM-03: Transient error retry support
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$ScriptBlock,
+
+        [Parameter(Mandatory = $false)]
+        [string]$OperationName = 'VM operation',
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxRetries = 3,
+
+        [Parameter(Mandatory = $false)]
+        [int]$BaseDelaySeconds = 2,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$UseHypervisorRetry,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('HyperV', 'VMware')]
+        [string]$Provider = 'HyperV'
+    )
+
+    $attempts = @()
+    $lastError = $null
+
+    for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
+        try {
+            $result = & $ScriptBlock
+
+            if ($attempt -gt 1) {
+                if ($function:WriteLog) {
+                    WriteLog "$OperationName succeeded on attempt $attempt"
+                }
+            }
+
+            return $result
+        }
+        catch {
+            $lastError = $_
+            $errorMessage = $_.Exception.Message
+
+            $attempts += @{
+                Attempt = $attempt
+                Time = [datetime]::Now
+                Error = $errorMessage
+            }
+
+            # Check if this is a transient VM error
+            $isTransient = Test-IsTransientVMError -ErrorMessage $errorMessage
+
+            # If using hypervisor retry, also check for service errors
+            if ($UseHypervisorRetry -and -not $isTransient) {
+                $isServiceError = Test-IsServiceError -Provider $Provider -ErrorMessage $errorMessage
+                $isTransient = $isServiceError
+            }
+
+            if (-not $isTransient) {
+                # Permanent error - fail immediately
+                if ($function:WriteLog) {
+                    WriteLog "$OperationName failed (non-recoverable): $errorMessage"
+                }
+                throw
+            }
+
+            # Transient error - prepare for retry
+            if ($function:WriteLog) {
+                WriteLog "$OperationName failed (attempt $attempt/$MaxRetries): $errorMessage"
+            }
+
+            if ($attempt -ge $MaxRetries) {
+                break
+            }
+
+            # Calculate delay with exponential backoff and jitter
+            $baseDelay = $BaseDelaySeconds * [math]::Pow(2, $attempt - 1)
+            $jitter = Get-Random -Minimum 0 -Maximum ([int]($baseDelay * 0.3))
+            $delay = [int]($baseDelay + $jitter)
+
+            if ($function:WriteLog) {
+                WriteLog "Waiting ${delay}s before retry..."
+            }
+            Start-Sleep -Seconds $delay
+        }
+    }
+
+    # Max retries exhausted
+    $errorBuilder = [System.Text.StringBuilder]::new()
+    [void]$errorBuilder.AppendLine("$OperationName failed after $MaxRetries attempts.")
+    [void]$errorBuilder.AppendLine("")
+    [void]$errorBuilder.AppendLine("Attempt history:")
+    foreach ($att in $attempts) {
+        [void]$errorBuilder.AppendLine("  Attempt $($att.Attempt) at $($att.Time.ToString('HH:mm:ss')): $($att.Error)")
+    }
+    [void]$errorBuilder.AppendLine("")
+    [void]$errorBuilder.AppendLine("Last error: $($lastError.Exception.Message)")
+
+    if ($function:WriteLog) {
+        WriteLog "ERROR: $($errorBuilder.ToString())"
+    }
+
+    throw $errorBuilder.ToString()
+}
+
+#endregion REL-VM-03
+
+#region REL-VM-04: Checkpoint Disk Space Validation
+
+function Test-CheckpointDiskSpace {
+    <#
+    .SYNOPSIS
+        Validates sufficient disk space exists for checkpoint operation.
+
+    .DESCRIPTION
+        Checks available disk space on the drive containing the VM's VHDX files
+        against the required space for a checkpoint. Checkpoints create differential
+        disks (AVHDX) that can grow to the size of the original VHDX, so we validate
+        with a configurable margin.
+
+    .PARAMETER VMName
+        Name of the VM to check. Uses this to find VHDX location.
+
+    .PARAMETER VHDXPath
+        Direct path to VHDX file. Alternative to VMName.
+
+    .PARAMETER MarginPercent
+        Additional space margin as percentage. Default is 100 (2x required space).
+        This accounts for checkpoint growth during operation.
+
+    .PARAMETER RequiredSpaceGB
+        Override automatic calculation with explicit space requirement in GB.
+
+    .OUTPUTS
+        PSCustomObject with:
+        - HasSufficientSpace: Boolean
+        - AvailableGB: Available space in GB
+        - RequiredGB: Required space in GB
+        - Drive: Drive letter checked
+        - Message: Human-readable status
+        - Remediation: What to do if insufficient (only if HasSufficientSpace is false)
+
+    .EXAMPLE
+        $check = Test-CheckpointDiskSpace -VMName 'FFU-Build' -MarginPercent 50
+        if (-not $check.HasSufficientSpace) {
+            throw $check.Message
+        }
+
+    .NOTES
+        Module: FFU.VM
+        REL-VM-04: Checkpoint disk space validation
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'ByVMName')]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'ByPath')]
+        [string]$VHDXPath,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MarginPercent = 100,
+
+        [Parameter(Mandatory = $false)]
+        [double]$RequiredSpaceGB
+    )
+
+    try {
+        # Get VHDX path from VM if not directly provided
+        if ($PSCmdlet.ParameterSetName -eq 'ByVMName') {
+            $vm = Get-VM -Name $VMName -ErrorAction Stop
+            $vhd = $vm | Get-VMHardDiskDrive | Select-Object -First 1
+
+            if (-not $vhd) {
+                return [PSCustomObject]@{
+                    HasSufficientSpace = $false
+                    AvailableGB = 0
+                    RequiredGB = 0
+                    Drive = 'Unknown'
+                    Message = "No hard disk drives found on VM '$VMName'"
+                    Remediation = "Verify VM has a VHDX attached"
+                }
+            }
+
+            $VHDXPath = $vhd.Path
+        }
+
+        # Validate VHDX exists
+        if (-not (Test-Path $VHDXPath)) {
+            return [PSCustomObject]@{
+                HasSufficientSpace = $false
+                AvailableGB = 0
+                RequiredGB = 0
+                Drive = 'Unknown'
+                Message = "VHDX not found: $VHDXPath"
+                Remediation = "Verify the VHDX file exists at the specified path"
+            }
+        }
+
+        # Get VHDX size
+        $vhdInfo = Get-VHD -Path $VHDXPath -ErrorAction Stop
+        $vhdxSizeBytes = $vhdInfo.FileSize
+
+        # If VHDX is dynamic, use the maximum size for calculation (worst case)
+        if ($vhdInfo.VhdType -eq 'Dynamic') {
+            $vhdxSizeBytes = $vhdInfo.Size
+        }
+
+        # Calculate required space with margin
+        if ($RequiredSpaceGB) {
+            $requiredBytes = $RequiredSpaceGB * 1GB
+        }
+        else {
+            $requiredBytes = $vhdxSizeBytes * (1 + $MarginPercent / 100)
+        }
+
+        # Get available space on the drive
+        $drive = [System.IO.Path]::GetPathRoot($VHDXPath)
+        $driveInfo = [System.IO.DriveInfo]::new($drive)
+        $availableBytes = $driveInfo.AvailableFreeSpace
+
+        # Calculate values for output
+        $availableGB = [math]::Round($availableBytes / 1GB, 2)
+        $requiredGB = [math]::Round($requiredBytes / 1GB, 2)
+        $hasSufficientSpace = $availableBytes -ge $requiredBytes
+
+        if ($hasSufficientSpace) {
+            return [PSCustomObject]@{
+                HasSufficientSpace = $true
+                AvailableGB = $availableGB
+                RequiredGB = $requiredGB
+                Drive = $drive
+                Message = "Sufficient disk space: $availableGB GB available, $requiredGB GB required"
+                Remediation = $null
+            }
+        }
+        else {
+            $shortfallGB = [math]::Round(($requiredBytes - $availableBytes) / 1GB, 2)
+            return [PSCustomObject]@{
+                HasSufficientSpace = $false
+                AvailableGB = $availableGB
+                RequiredGB = $requiredGB
+                Drive = $drive
+                Message = "Insufficient disk space on $drive for checkpoint. Required: $requiredGB GB, Available: $availableGB GB (need $shortfallGB GB more)"
+                Remediation = "Free up at least $shortfallGB GB on drive $drive, or move VM storage to a drive with more space"
+            }
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            HasSufficientSpace = $false
+            AvailableGB = 0
+            RequiredGB = 0
+            Drive = 'Unknown'
+            Message = "Failed to check disk space: $($_.Exception.Message)"
+            Remediation = "Verify Hyper-V cmdlets are available and VM exists"
+        }
+    }
+}
+
+function New-FFUVMCheckpoint {
+    <#
+    .SYNOPSIS
+        Creates a VM checkpoint with disk space pre-validation.
+
+    .DESCRIPTION
+        Wrapper around Checkpoint-VM that validates disk space before starting
+        and cleans up orphaned AVHDX files if the operation fails. This prevents
+        the common issue of checkpoint failure leaving partial files.
+
+    .PARAMETER VMName
+        Name of the VM to checkpoint.
+
+    .PARAMETER SnapshotName
+        Optional name for the checkpoint. Defaults to timestamp-based name.
+
+    .PARAMETER MarginPercent
+        Disk space margin for validation. Default is 100 (2x buffer).
+
+    .PARAMETER SkipDiskCheck
+        Skip disk space validation (use with caution).
+
+    .OUTPUTS
+        The checkpoint object on success.
+
+    .EXAMPLE
+        New-FFUVMCheckpoint -VMName 'FFU-Build' -SnapshotName 'Before-Apps'
+
+    .NOTES
+        Module: FFU.VM
+        REL-VM-04: Checkpoint disk space validation
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$SnapshotName,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MarginPercent = 100,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipDiskCheck
+    )
+
+    # Generate default snapshot name if not provided
+    if ([string]::IsNullOrEmpty($SnapshotName)) {
+        $SnapshotName = "FFU-Checkpoint-$([DateTime]::Now.ToString('yyyyMMdd-HHmmss'))"
+    }
+
+    if ($function:WriteLog) {
+        WriteLog "Creating checkpoint '$SnapshotName' for VM '$VMName'"
+    }
+
+    # Pre-validation: Check disk space
+    if (-not $SkipDiskCheck) {
+        if ($function:WriteLog) {
+            WriteLog "Validating disk space for checkpoint operation..."
+        }
+
+        $spaceCheck = Test-CheckpointDiskSpace -VMName $VMName -MarginPercent $MarginPercent
+
+        if (-not $spaceCheck.HasSufficientSpace) {
+            $errorMsg = "Cannot create checkpoint: $($spaceCheck.Message)"
+            if ($spaceCheck.Remediation) {
+                $errorMsg += "`nRemediation: $($spaceCheck.Remediation)"
+            }
+
+            if ($function:WriteLog) {
+                WriteLog "ERROR: $errorMsg"
+            }
+
+            throw $errorMsg
+        }
+
+        if ($function:WriteLog) {
+            WriteLog "Disk space check passed: $($spaceCheck.AvailableGB) GB available"
+        }
+    }
+
+    # Get VM info for cleanup if needed
+    $vm = Get-VM -Name $VMName -ErrorAction Stop
+    $vhdPath = ($vm | Get-VMHardDiskDrive | Select-Object -First 1).Path
+    $vmFolder = Split-Path $vhdPath -Parent
+
+    # Track existing AVHDX files before checkpoint (for orphan detection)
+    $existingAvhdx = Get-ChildItem -Path $vmFolder -Filter '*.avhdx' -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty FullName
+
+    try {
+        # Create the checkpoint
+        if ($function:WriteLog) {
+            WriteLog "Executing Checkpoint-VM..."
+        }
+
+        $checkpoint = Checkpoint-VM -Name $VMName -SnapshotName $SnapshotName -ErrorAction Stop -PassThru
+
+        if ($function:WriteLog) {
+            WriteLog "Checkpoint '$SnapshotName' created successfully"
+        }
+
+        return $checkpoint
+    }
+    catch {
+        $errorMsg = $_.Exception.Message
+        if ($function:WriteLog) {
+            WriteLog "ERROR: Checkpoint creation failed: $errorMsg"
+        }
+
+        # Check for disk space error (0x80070070 = ERROR_DISK_FULL)
+        $enhancedMsg = $null
+        if ($errorMsg -match '0x80070070' -or $errorMsg -match 'disk full' -or $errorMsg -match 'not enough.*space') {
+            if ($function:WriteLog) {
+                WriteLog "DISK FULL: Checkpoint failed due to insufficient disk space"
+            }
+
+            # Get current space for better error message
+            $currentSpace = Test-CheckpointDiskSpace -VMName $VMName -MarginPercent 0
+            $enhancedMsg = "Checkpoint failed: Disk full. Available: $($currentSpace.AvailableGB) GB on $($currentSpace.Drive). " +
+                           "Free up space and retry, or move VM to a larger drive."
+
+            if ($function:WriteLog) {
+                WriteLog "Remediation: $enhancedMsg"
+            }
+        }
+
+        # Cleanup orphaned AVHDX files
+        if ($function:WriteLog) {
+            WriteLog "Checking for orphaned checkpoint files..."
+        }
+
+        $currentAvhdx = Get-ChildItem -Path $vmFolder -Filter '*.avhdx' -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+
+        # Find new AVHDX files that appeared during failed operation
+        $orphanedFiles = $currentAvhdx | Where-Object { $_ -notin $existingAvhdx }
+
+        foreach ($orphan in $orphanedFiles) {
+            try {
+                if ($function:WriteLog) {
+                    WriteLog "Removing orphaned checkpoint file: $(Split-Path $orphan -Leaf)"
+                }
+                Remove-Item $orphan -Force -ErrorAction Stop
+                if ($function:WriteLog) {
+                    WriteLog "Orphaned file removed successfully"
+                }
+            }
+            catch {
+                if ($function:WriteLog) {
+                    WriteLog "WARNING: Failed to remove orphaned file: $($_.Exception.Message)"
+                }
+            }
+        }
+
+        # Re-throw with enhanced message if disk full
+        if ($enhancedMsg) {
+            throw $enhancedMsg
+        }
+
+        throw
+    }
+}
+
+#endregion REL-VM-04
+
 # Export module members
 Export-ModuleMember -Function @(
     'Get-LocalUserAccount',
@@ -2508,6 +3079,10 @@ Export-ModuleMember -Function @(
     'Set-LocalUserAccountExpiry',
     'Get-VMCreationDiagnostics',
     'Get-OrphanedVMResources',
+    'Test-IsTransientVMError',
+    'Invoke-VMOperationWithRetry',
+    'Test-CheckpointDiskSpace',
+    'New-FFUVMCheckpoint',
     'New-FFUVM',
     'Remove-FFUVM',
     'Remove-FFUBuildArtifacts',

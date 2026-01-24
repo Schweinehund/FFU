@@ -4,7 +4,7 @@
 
 @{
     RootModule = 'FFU.VM.psm1'
-    ModuleVersion = '1.0.9'
+    ModuleVersion = '1.0.10'
     GUID = 'c8f3a942-7e6d-4c1a-9b85-1f4e8d2c5a76'
     Author = 'FFU Builder Team'
     CompanyName = 'Community'
@@ -23,6 +23,8 @@
         'Set-LocalUserAccountExpiry',
         'Get-VMCreationDiagnostics',
         'Get-OrphanedVMResources',
+        'Test-IsTransientVMError',
+        'Invoke-VMOperationWithRetry',
         'New-FFUVM',
         'Remove-FFUVM',
         'Remove-FFUBuildArtifacts',
@@ -42,6 +44,14 @@
             LicenseUri = 'https://github.com/Schweinehund/FFU/blob/feature/improvements-and-fixes/LICENSE'
             ProjectUri = 'https://github.com/Schweinehund/FFU'
             ReleaseNotes = @'
+v1.0.10: REL-VM-03 Transient Error Retry Support
+- Added Test-IsTransientVMError function for error classification (transient vs permanent)
+- Transient patterns: disk busy, file locked, file in use, network timeout, RPC unavailable, sharing violation
+- Permanent patterns: already exists, not found, insufficient memory, disk full, invalid parameter
+- Added Invoke-VMOperationWithRetry wrapper with exponential backoff and jitter
+- Permanent errors fail immediately; transient errors retry up to 3 times
+- Attempt history tracked and logged for debugging failed operations
+
 v1.0.9: REL-VM-01 VM Creation Diagnostics and Cleanup Registration
 - Added Get-VMCreationDiagnostics function for failure analysis with remediation guidance
 - Pattern-matches common errors: AlreadyExists, InsufficientResources, PathNotFound, AccessDenied, HypervisorNotAvailable, TPMConfiguration, DiskError
