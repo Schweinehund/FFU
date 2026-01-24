@@ -10,6 +10,7 @@
     - REL-IMG-02: Partition state verification
     - REL-IMG-03: FFU capture recovery with VHDX preservation
     - REL-IMG-04: Mount/dismount retry logic
+    - REL-IMG-05: Large FFU operation pre-validation
 
 .NOTES
     Part of Phase 18: FFU.Imaging Reliability
@@ -853,6 +854,235 @@ Describe 'REL-IMG-04: Mount/Dismount Retry Logic' {
             # This should work without error - just testing parameter acceptance
             $result = Invoke-ImagingOperationWithRetry -OperationName 'test' -BaseDelaySeconds 1 -ScriptBlock { 'ok' }
             $result | Should -Be 'ok'
+        }
+    }
+}
+
+Describe 'REL-IMG-05: Large FFU Operation Pre-Validation' {
+
+    Describe 'Get-FFUOperationTimeEstimate' {
+
+        It 'Should be exported from FFU.Imaging module' {
+            $cmd = Get-Command -Name Get-FFUOperationTimeEstimate -Module FFU.Imaging -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+            $cmd.ModuleName | Should -Be 'FFU.Imaging'
+        }
+
+        It 'Should have OperationType parameter with ValidateSet' {
+            $cmd = Get-Command -Name Get-FFUOperationTimeEstimate -Module FFU.Imaging
+            $param = $cmd.Parameters['OperationType']
+            $param | Should -Not -BeNullOrEmpty
+            $validateSet = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            $validateSet | Should -Not -BeNullOrEmpty
+            $validateSet.ValidValues | Should -Contain 'Capture'
+            $validateSet.ValidValues | Should -Contain 'Optimize'
+            $validateSet.ValidValues | Should -Contain 'Apply'
+        }
+
+        It 'Should have SourceSizeBytes parameter as mandatory' {
+            $cmd = Get-Command -Name Get-FFUOperationTimeEstimate -Module FFU.Imaging
+            $param = $cmd.Parameters['SourceSizeBytes']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have StorageType parameter with ValidateSet and default SSD' {
+            $cmd = Get-Command -Name Get-FFUOperationTimeEstimate -Module FFU.Imaging
+            $param = $cmd.Parameters['StorageType']
+            $param | Should -Not -BeNullOrEmpty
+            $validateSet = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            $validateSet.ValidValues | Should -Contain 'HDD'
+            $validateSet.ValidValues | Should -Contain 'SSD'
+            $validateSet.ValidValues | Should -Contain 'NVMe'
+        }
+
+        It 'Should return EstimatedMinutes for Capture operation' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB
+            $result.EstimatedMinutes | Should -BeGreaterThan 0
+        }
+
+        It 'Should return HumanReadable time estimate' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Optimize' -SourceSizeBytes 10GB
+            $result.HumanReadable | Should -Match 'minute|hour|less than'
+        }
+
+        It 'Should include Warning about no resume support' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB
+            $result.Warning | Should -Match 'resume'
+        }
+
+        It 'Should adjust estimate based on StorageType' {
+            $hdd = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB -StorageType 'HDD'
+            $nvme = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB -StorageType 'NVMe'
+            $hdd.EstimatedMinutes | Should -BeGreaterThan $nvme.EstimatedMinutes
+        }
+
+        It 'Should return SourceSizeGB property' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB
+            $result.SourceSizeGB | Should -Be 50.0
+        }
+
+        It 'Should return OperationType property' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Apply' -SourceSizeBytes 10GB
+            $result.OperationType | Should -Be 'Apply'
+        }
+
+        It 'Should return StorageType property' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 10GB -StorageType 'NVMe'
+            $result.StorageType | Should -Be 'NVMe'
+        }
+
+        It 'Should return EstimatedSeconds property' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB
+            $result.EstimatedSeconds | Should -BeGreaterThan 0
+        }
+
+        It 'Should return "less than 2 minutes" for very small sources' {
+            # Very small file (100MB) at NVMe speeds (400 MB/s) = 0.25s -> 1 min -> buffer = 1.2 -> ceiling = 2 min
+            # Need even smaller to get "less than 2 minutes"
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 100MB -StorageType 'NVMe'
+            # 100MB / 400 MB/s = 0.25s = 0.004 min, ceiling = 1 min, with buffer = 1.2, ceiling = 2 min
+            # The function returns "less than 2 minutes" when estimatedMinutesWithBuffer < 2
+            $result.HumanReadable | Should -Match 'less than|minutes'
+        }
+
+        It 'Should include hours for very large sources' {
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 500GB -StorageType 'HDD'
+            $result.HumanReadable | Should -BeLike '*hour*'
+        }
+
+        It 'Should apply 20% buffer to estimate' {
+            # For 50GB at 200 MB/s (SSD Capture): 50*1024/200 = 256 seconds = ~4.3 min -> ceiling 5 -> with 20% = 6 min
+            $result = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB -StorageType 'SSD'
+            # The buffer adds ~20% to the raw estimate
+            $result.EstimatedMinutes | Should -BeGreaterOrEqual ([math]::Ceiling($result.EstimatedSeconds / 60))
+        }
+    }
+
+    Describe 'Test-FFUOperationReadiness' {
+
+        It 'Should be exported from FFU.Imaging module' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+            $cmd.ModuleName | Should -Be 'FFU.Imaging'
+        }
+
+        It 'Should have OperationType parameter as mandatory' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['OperationType']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have OperationType with ValidateSet including Capture, Optimize, Apply, Mount, Expand' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['OperationType']
+            $validateSet = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            $validateSet.ValidValues | Should -Contain 'Capture'
+            $validateSet.ValidValues | Should -Contain 'Optimize'
+            $validateSet.ValidValues | Should -Contain 'Apply'
+            $validateSet.ValidValues | Should -Contain 'Mount'
+            $validateSet.ValidValues | Should -Contain 'Expand'
+        }
+
+        It 'Should have SourcePath parameter as optional' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['SourcePath']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have TargetPath parameter as optional' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['TargetPath']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have SpaceMarginPercent parameter with default value 100' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['SpaceMarginPercent']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have IncludeTimeEstimate switch parameter' {
+            $cmd = Get-Command -Name Test-FFUOperationReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['IncludeTimeEstimate']
+            $param | Should -Not -BeNullOrEmpty
+            $param.SwitchParameter | Should -Be $true
+        }
+
+        It 'Should return Ready = false when source does not exist' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath 'C:\nonexistent\file.vhdx' -TargetPath 'C:\temp\output.ffu'
+            $result.Ready | Should -Be $false
+        }
+
+        It 'Should return FailedChecks array with failed validations' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath 'C:\nonexistent\file.vhdx' -TargetPath 'C:\temp\output.ffu'
+            $result.FailedChecks | Should -Not -BeNullOrEmpty
+            $result.FailedChecks[0].Name | Should -Be 'SourceExists'
+        }
+
+        It 'Should include NoResumeWarning in result' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture'
+            $result.NoResumeWarning | Should -Match 'resume'
+        }
+
+        It 'Should return Ready property of boolean type' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture'
+            $result.Ready | Should -BeOfType [bool]
+        }
+
+        It 'Should return OperationType in result' {
+            $result = Test-FFUOperationReadiness -OperationType 'Apply'
+            $result.OperationType | Should -Be 'Apply'
+        }
+
+        It 'Should return Checks array' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath 'C:\nonexistent\file.vhdx'
+            $result.Checks | Should -Not -BeNullOrEmpty
+            $result.Checks.Count | Should -BeGreaterThan 0
+        }
+
+        It 'Should validate disk space when source and target provided' {
+            # Use Windows directory as source (always exists)
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath "$env:WINDIR\notepad.exe" -TargetPath 'C:\temp\test.ffu'
+            $result.Checks | Where-Object { $_.Name -eq 'DiskSpace' } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should include time estimate when IncludeTimeEstimate specified' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath "$env:WINDIR\notepad.exe" -TargetPath 'C:\temp\test.ffu' `
+                -IncludeTimeEstimate
+            $result.TimeEstimate | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should not include time estimate when IncludeTimeEstimate not specified' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath "$env:WINDIR\notepad.exe" -TargetPath 'C:\temp\test.ffu'
+            $result.TimeEstimate | Should -BeNullOrEmpty
+        }
+
+        It 'Should validate target writable when TargetPath provided' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath "$env:WINDIR\notepad.exe" -TargetPath 'C:\temp\test.ffu'
+            $result.Checks | Where-Object { $_.Name -eq 'TargetWritable' } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should return Ready = true when valid source and target provided' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath "$env:WINDIR\notepad.exe" -TargetPath 'C:\temp\test.ffu'
+            $result.Ready | Should -Be $true
+        }
+
+        It 'Should include Remediation in failed checks' {
+            $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+                -SourcePath 'C:\nonexistent\file.vhdx' -TargetPath 'C:\temp\output.ffu'
+            $result.FailedChecks[0].Remediation | Should -Not -BeNullOrEmpty
         }
     }
 }

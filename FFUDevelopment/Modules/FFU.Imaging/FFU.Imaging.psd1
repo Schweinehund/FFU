@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.0'
+    ModuleVersion = '1.3.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -93,6 +93,15 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.0 - REL-IMG-05: Add comprehensive pre-validation for large FFU operations
+- Added Get-FFUOperationTimeEstimate for operation time estimates by storage type
+- Added Test-FFUOperationReadiness for comprehensive pre-validation
+- Validates: source exists, source accessible, disk space, target writable
+- Includes "no resume" warning - DISM operations cannot be checkpointed
+- Time estimates help users plan and avoid interruption
+- Throughput estimates adjusted for HDD/SSD/NVMe storage types
+- Complete REL-IMG reliability hardening (REL-IMG-01 through REL-IMG-05)
+
 v1.2.0 - REL-IMG-03: Add safe FFU capture with VHDX preservation
 - Added Test-FFUCaptureReadiness for pre-capture validation
 - Validates: VHDX exists, VHDX not attached, sufficient disk space, output path writable
