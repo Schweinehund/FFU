@@ -232,8 +232,9 @@ function Get-FFUJobError {
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
+        # Accept PSObject to allow mocking in tests; at runtime this is always a Job
         [Parameter(Mandatory)]
-        [System.Management.Automation.Job]$Job,
+        [PSObject]$Job,
 
         [Parameter()]
         [hashtable]$MessagingContext,
