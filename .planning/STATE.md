@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 25 FFUUI.Core Reliability - IN PROGRESS
+**Current focus:** Milestone v1.9.0 COMPLETE - All reliability phases done
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 25 of 25 (FFUUI.Core Reliability) - IN PROGRESS
-**Plan:** 3 of 4 (Job Failure Context Extraction complete)
-**Status:** In progress
-**Last activity:** 2026-01-24 - Completed 25-03-PLAN.md (REL-UI-05)
+**Phase:** 25 of 25 (FFUUI.Core Reliability) - COMPLETE
+**Plan:** 4 of 4 (Load-Time Config Validation complete)
+**Status:** Phase complete - MILESTONE COMPLETE
+**Last activity:** 2026-01-24 - Completed 25-04-PLAN.md (REL-UI-05)
 
 Progress: Milestone v1.9.0
-[##########] 95% (10.5/11 phases complete)
+[###########] 100% (11/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -32,15 +32,16 @@ Progress: Milestone v1.9.0
 | 22 | FFU.Preflight Reliability | 4/4 | 2026-01-24 |
 | 23 | BuildFFUVM.ps1 Reliability | 4/4 | 2026-01-24 |
 | 24 | WinPE Scripts Reliability | 4/4 | 2026-01-24 |
+| 25 | FFUUI.Core Reliability | 4/4 | 2026-01-24 |
 
-## Phase 25 Progress (IN PROGRESS)
+## Phase 25 Progress (COMPLETE)
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 25-01 | Centralized UI State Recovery | Complete | 459933a |
 | 25-02 | Structured Error Display | Complete | caa4316 |
 | 25-03 | Job Failure Context Extraction | Complete | 2b796b4 |
-| 25-04 | Load-Time Config Validation | Pending | - |
+| 25-04 | Load-Time Config Validation | Complete | 63d9c18 |
 
 ## Completed Milestones
 
@@ -153,9 +154,15 @@ Progress: Milestone v1.9.0
 | PSObject parameter type for testability | Use PSObject instead of Job type to allow mock objects in Pester tests | 2026-01-24 |
 | Priority-based error extraction | Check MessagingContext first as richest structured error source | 2026-01-24 |
 | Error type classification via pattern matching | Regex patterns for DISM/Hyper-V/Network/Disk/Permission errors | 2026-01-24 |
+| Silent auto-load validation | Validate on startup but log only (no popups) | 2026-01-24 |
+| User choice for invalid config load | Show validation errors, ask user to proceed or cancel | 2026-01-24 |
+| Validation state in State.Data | Store configValidationResult and hasValidationErrors flag | 2026-01-24 |
+| Build-time validation warning | Warn user at build start if hasValidationErrors = true | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: MILESTONE COMPLETE - v1.9.0 Reliability Hardening (11 phases, 44 plans)
+- 2026-01-24: Completed 25-04-PLAN.md (Load-Time Config Validation) - REL-UI-05, 33 tests, FFUUI.Core v0.0.17
 - 2026-01-24: Completed 25-03-PLAN.md (Job Failure Context Extraction) - REL-UI-05, 57 tests, FFUUI.Core v0.0.16
 - 2026-01-24: Completed 25-02-PLAN.md (Structured Error Display) - REL-UI-04, 45 tests, FFUUI.Core v0.0.15
 - 2026-01-24: Completed 25-01-PLAN.md (Centralized UI State Recovery) - REL-UI-03, 30 tests, FFUUI.Core v0.0.14
@@ -193,9 +200,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 25-03-PLAN.md (Job Failure Context Extraction)
+**Stopped at:** Completed 25-04-PLAN.md (Load-Time Config Validation) - PHASE 25 COMPLETE
 **Resume file:** None
-**Next action:** Execute 25-04-PLAN.md (Load-Time Config Validation)
+**Next action:** Milestone v1.9.0 complete. Ready for testing/release.
 
 ---
 *State updated: 2026-01-24*
