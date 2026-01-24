@@ -17,7 +17,7 @@
 
 - [x] **Phase 15: FFU.Core Reliability** - Error handling, configuration, session tracking ✓
 - [x] **Phase 16: FFU.Hypervisor Reliability** - Provider detection, state handling, service recovery ✓
-- [ ] **Phase 17: FFU.VM Reliability** - VM lifecycle, cleanup, retry logic
+- [x] **Phase 17: FFU.VM Reliability** - VM lifecycle, cleanup, retry logic ✓
 - [ ] **Phase 18: FFU.Imaging Reliability** - Disk operations, partitions, mount/dismount
 - [ ] **Phase 19: FFU.Media Reliability** - WinPE creation, ADK tools, ISO generation
 - [ ] **Phase 20: FFU.Updates Reliability** - Update catalog, MSU handling, caching
@@ -74,10 +74,10 @@ Plans:
 **Research**: Unlikely (existing retry patterns to extend)
 **Plans:** 4 plans
 Plans:
-- [ ] 17-01-PLAN.md - VM creation diagnostics and cleanup registration (REL-VM-01)
-- [ ] 17-02-PLAN.md - Orphan detection and comprehensive cleanup (REL-VM-02)
-- [ ] 17-03-PLAN.md - Transient error retry logic (REL-VM-03)
-- [ ] 17-04-PLAN.md - Checkpoint disk space validation (REL-VM-04)
+- [x] 17-01-PLAN.md - VM creation diagnostics and cleanup registration (REL-VM-01) ✓
+- [x] 17-02-PLAN.md - Orphan detection and comprehensive cleanup (REL-VM-02) ✓
+- [x] 17-03-PLAN.md - Transient error retry logic (REL-VM-03) ✓
+- [x] 17-04-PLAN.md - Checkpoint disk space validation (REL-VM-04) ✓
 
 ### Phase 18: FFU.Imaging Reliability
 **Goal**: Make imaging operations fault-tolerant with space checks, validation, and interrupt recovery
@@ -186,7 +186,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 |-------|----------------|--------|-----------|
 | 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
 | 16. FFU.Hypervisor Reliability | 4/4 | Complete | 2026-01-24 |
-| 17. FFU.VM Reliability | 0/4 | Planned | - |
+| 17. FFU.VM Reliability | 4/4 | Complete | 2026-01-24 |
 | 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
 | 19. FFU.Media Reliability | 0/TBD | Not started | - |
 | 20. FFU.Updates Reliability | 0/TBD | Not started | - |
