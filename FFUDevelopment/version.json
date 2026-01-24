@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.29",
+    "version": "1.8.30",
     "buildDate": "2026-01-24",
 
     "versioningPolicy": {
@@ -64,9 +64,9 @@
             "description": "ISO disk space pre-validation (REL-MED-03) - Test-ISOCreationReadiness estimates ISO size from WinPE folder, validates output destination space before oscdimg"
         },
         "FFU.Updates": {
-            "version": "1.0.6",
+            "version": "1.1.0",
             "path": "Modules/FFU.Updates/FFU.Updates.psd1",
-            "description": "Update reliability (REL-UPD-01/02/03) - Catalog query retry, MSU integrity validation, update application isolation"
+            "description": "Update reliability (REL-UPD-01/02/03/04) - Catalog query retry, MSU integrity validation, update application isolation, catalog cache management"
         },
         "FFU.VM": {
             "version": "1.0.11",

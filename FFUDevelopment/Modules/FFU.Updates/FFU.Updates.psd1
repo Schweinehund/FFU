@@ -7,7 +7,7 @@
     RootModule = 'FFU.Updates.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.6'
+    ModuleVersion = '1.1.0'
 
     # ID used to uniquely identify this module
     GUID = 'e3b9c4a1-5f7d-4e2b-8c9a-1d6f3e8b2a5c'
@@ -79,7 +79,34 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Updates v1.0.6
+# Release Notes - FFU.Updates v1.1.0
+
+## v1.1.0 - Phase 20 Reliability Hardening (2026-01-24)
+
+### REL-UPD-01: Catalog Query Retry
+- **NEW:** Invoke-CatalogQueryWithRetry function with exponential backoff + jitter
+- **FIX:** Get-ProductsCab now retries on network failures (matching Get-KBLink)
+- Prevents thundering herd with randomized jitter (0-3s)
+- Default 3 retries with 10s base delay
+
+### REL-UPD-02: MSU Download Validation
+- **NEW:** Test-MSUIntegrity function validates size and optional SHA256 hash
+- **FIX:** Save-KB validates downloads and re-downloads on corruption
+- Catches empty files, truncated downloads, and hash mismatches
+- Returns structured result with Valid status, errors list, file size, hash
+
+### REL-UPD-03: Update Application Isolation
+- **NEW:** Invoke-UpdatesWithIsolation function applies updates independently
+- **FIX:** One failed update no longer blocks others from being applied
+- Returns structured result with per-update status and timing
+- Optional StopOnCriticalFailure for required updates
+
+### REL-UPD-04: Catalog Cache Management
+- **NEW:** Get-CachedProductsCab function caches products.cab
+- Configurable staleness detection (default 24 hours)
+- Validates cache integrity on load using Test-MSUIntegrity
+- Automatic refresh on corruption or staleness
+- Reduces network load and speeds up repeated builds
 
 ## v1.0.6 - REL-UPD-02 MSU Download Integrity Validation (2026-01-24)
 - **NEW:** Test-MSUIntegrity function for comprehensive MSU file validation
