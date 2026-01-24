@@ -18,7 +18,7 @@
 - [x] **Phase 15: FFU.Core Reliability** - Error handling, configuration, session tracking ✓
 - [x] **Phase 16: FFU.Hypervisor Reliability** - Provider detection, state handling, service recovery ✓
 - [x] **Phase 17: FFU.VM Reliability** - VM lifecycle, cleanup, retry logic ✓
-- [ ] **Phase 18: FFU.Imaging Reliability** - Disk operations, partitions, mount/dismount
+- [x] **Phase 18: FFU.Imaging Reliability** - Disk operations, partitions, mount/dismount ✓
 - [ ] **Phase 19: FFU.Media Reliability** - WinPE creation, ADK tools, ISO generation
 - [ ] **Phase 20: FFU.Updates Reliability** - Update catalog, MSU handling, caching
 - [ ] **Phase 21: FFU.Drivers Reliability** - OEM downloads, extraction, fallbacks
@@ -92,11 +92,11 @@ Plans:
 **Research**: Complete (18-RESEARCH.md - confirmed DISM /Capture-FFU has no resume)
 **Plans:** 5 plans
 Plans:
-- [ ] 18-01-PLAN.md - Disk space pre-validation (REL-IMG-01)
-- [ ] 18-02-PLAN.md - Partition state verification (REL-IMG-02)
-- [ ] 18-03-PLAN.md - Transient error retry for mount/dismount (REL-IMG-04)
-- [ ] 18-04-PLAN.md - Safe FFU capture with VHDX preservation (REL-IMG-03)
-- [ ] 18-05-PLAN.md - Large operation pre-validation (REL-IMG-05)
+- [x] 18-01-PLAN.md - Disk space pre-validation (REL-IMG-01) ✓
+- [x] 18-02-PLAN.md - Partition state verification (REL-IMG-02) ✓
+- [x] 18-03-PLAN.md - Transient error retry for mount/dismount (REL-IMG-04) ✓
+- [x] 18-04-PLAN.md - Safe FFU capture with VHDX preservation (REL-IMG-03) ✓
+- [x] 18-05-PLAN.md - Large operation pre-validation (REL-IMG-05) ✓
 
 ### Phase 19: FFU.Media Reliability
 **Goal**: Make WinPE media creation reliable with dependency validation and clear failure remediation
@@ -193,7 +193,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
 | 16. FFU.Hypervisor Reliability | 4/4 | Complete | 2026-01-24 |
 | 17. FFU.VM Reliability | 4/4 | Complete | 2026-01-24 |
-| 18. FFU.Imaging Reliability | 0/5 | Planned | - |
+| 18. FFU.Imaging Reliability | 5/5 | Complete | 2026-01-24 |
 | 19. FFU.Media Reliability | 0/TBD | Not started | - |
 | 20. FFU.Updates Reliability | 0/TBD | Not started | - |
 | 21. FFU.Drivers Reliability | 0/TBD | Not started | - |
