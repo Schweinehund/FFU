@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.15",
-    "buildDate": "2026-01-23",
+    "version": "1.8.16",
+    "buildDate": "2026-01-24",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -69,9 +69,9 @@
             "description": "Windows Update catalog and MSU handling - PowerShell 7 expand.exe fix, ThreadJob safe logging ($function: instead of Get-Command)"
         },
         "FFU.VM": {
-            "version": "1.0.8",
+            "version": "1.0.9",
             "path": "Modules/FFU.VM/FFU.VM.psd1",
-            "description": "Export Remove-FFUVMWithProvider for ThreadJob compatibility, VM lifecycle management via FFU.Hypervisor"
+            "description": "VM creation diagnostics (REL-VM-01), Get-VMCreationDiagnostics for failure analysis, cleanup registration in New-FFUVM"
         },
         "FFU.Messaging": {
             "version": "1.0.0",
