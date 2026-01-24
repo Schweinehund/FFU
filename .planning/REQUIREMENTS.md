@@ -117,11 +117,11 @@ Systematic reliability audit of all modules and scripts to bulletproof the FFU b
 | REL-PRE-02 | Phase 22 | Complete |
 | REL-PRE-03 | Phase 22 | Complete |
 | REL-PRE-04 | Phase 22 | Complete |
-| REL-BUILD-01 | Phase 23 | Pending |
-| REL-BUILD-02 | Phase 23 | Pending |
-| REL-BUILD-03 | Phase 23 | Pending |
-| REL-BUILD-04 | Phase 23 | Pending |
-| REL-BUILD-05 | Phase 23 | Pending |
+| REL-BUILD-01 | Phase 23 | Complete |
+| REL-BUILD-02 | Phase 23 | Complete |
+| REL-BUILD-03 | Phase 23 | Complete |
+| REL-BUILD-04 | Phase 23 | Complete |
+| REL-BUILD-05 | Phase 23 | Complete |
 | REL-WINPE-01 | Phase 24 | Pending |
 | REL-WINPE-02 | Phase 24 | Pending |
 | REL-WINPE-03 | Phase 24 | Pending |
