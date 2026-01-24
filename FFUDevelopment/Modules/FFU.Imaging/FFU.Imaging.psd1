@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.5'
+    ModuleVersion = '1.1.7'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -59,6 +59,7 @@
         'Set-OSPartitionDriveLetter',
         'Invoke-DismountScratchDisk',
         'Invoke-MountScratchDisk',
+        'Test-DiskSpaceForOperation',
         'Get-DiskPartitionState',
         'Compare-DiskPartitionState'
     )
@@ -86,6 +87,15 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.1.7 - REL-IMG-02: Add partition state verification
+- Added Get-DiskPartitionState function for capturing partition state before operations
+- Added Compare-DiskPartitionState function for validating expected changes occurred
+- Detects silent failures where partition operations succeed but changes didn't apply
+- Supports validation of: PartitionAdded, PartitionRemoved, DriveLetterAssigned, SizeChanged
+- Uses [DateTime]::Now for ThreadJob compatibility
+- Handles uninitialized disks gracefully (returns PartitionCount = 0)
+- 30 Pester tests for partition state verification
+
 v1.1.5 - BUG-06: Fix FFU file lock after VM capture - SMB session cleanup
 - Added SMB session cleanup after VM capture completion (before FFU file verification)
 - Closes SMB sessions for capture user (ffu_user) to release file locks

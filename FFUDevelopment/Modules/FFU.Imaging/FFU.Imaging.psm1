@@ -3530,6 +3530,143 @@ attach vdisk
     }
 }
 
+#region REL-IMG-01: Disk Space Pre-Validation
+
+function Test-DiskSpaceForOperation {
+    <#
+    .SYNOPSIS
+    Validates that sufficient disk space is available for an imaging operation.
+
+    .DESCRIPTION
+    Pre-validates disk space before operations that could fail with ERROR_DISK_FULL (0x80070070).
+    Uses System.IO.DriveInfo for cross-platform compatibility (no Storage module required).
+    Returns a structured object with available/required space and actionable remediation guidance.
+
+    This function follows the pattern established by Test-CheckpointDiskSpace in FFU.VM.
+
+    .PARAMETER Path
+    The path where the operation will write data. The drive will be extracted from this path.
+
+    .PARAMETER RequiredBytes
+    The number of bytes required for the operation (before safety margin).
+
+    .PARAMETER SafetyMarginPercent
+    Percentage margin to add to RequiredBytes for safety. Default is 10%.
+    For example, 10% margin means 1GB required becomes 1.1GB required.
+
+    .PARAMETER OperationName
+    Human-readable name of the operation for error messages. Default is 'imaging operation'.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - HasSufficientSpace: Boolean indicating if space is sufficient
+    - Drive: Drive root (e.g., "C:\")
+    - AvailableBytes: Available free space in bytes
+    - AvailableGB: Available free space in GB (rounded to 2 decimal places)
+    - RequiredBytes: Required space in bytes (including safety margin)
+    - RequiredGB: Required space in GB (rounded to 2 decimal places)
+    - ShortfallBytes: Bytes needed (0 if sufficient)
+    - ShortfallGB: GB needed (0 if sufficient)
+    - Message: Human-readable status message
+    - Remediation: Actionable guidance when space is insufficient (empty if sufficient)
+
+    .EXAMPLE
+    $check = Test-DiskSpaceForOperation -Path 'C:\FFU\output.ffu' -RequiredBytes 50GB
+    if (-not $check.HasSufficientSpace) {
+        throw $check.Message
+    }
+
+    .EXAMPLE
+    # With custom safety margin
+    $check = Test-DiskSpaceForOperation -Path 'D:\Capture' -RequiredBytes 100GB -SafetyMarginPercent 20 -OperationName 'FFU capture'
+    Write-Host "Available: $($check.AvailableGB) GB, Required: $($check.RequiredGB) GB"
+
+    .NOTES
+    REL-IMG-01: Disk operations detect insufficient space before starting
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [int64]$RequiredBytes,
+
+        [Parameter()]
+        [int]$SafetyMarginPercent = 10,
+
+        [Parameter()]
+        [string]$OperationName = 'imaging operation'
+    )
+
+    # Extract drive root from path (handles UNC paths better than Split-Path -Qualifier)
+    $drive = [System.IO.Path]::GetPathRoot($Path)
+    if ([string]::IsNullOrEmpty($drive)) {
+        # Fallback for relative paths - use current directory's drive
+        $drive = [System.IO.Path]::GetPathRoot((Get-Location).Path)
+    }
+
+    try {
+        $driveInfo = [System.IO.DriveInfo]::new($drive)
+        $availableBytes = $driveInfo.AvailableFreeSpace
+    }
+    catch {
+        # Handle case where drive doesn't exist or isn't accessible
+        return [PSCustomObject]@{
+            HasSufficientSpace = $false
+            Drive              = $drive
+            AvailableBytes     = 0
+            AvailableGB        = 0.0
+            RequiredBytes      = $RequiredBytes
+            RequiredGB         = [math]::Round($RequiredBytes / 1GB, 2)
+            ShortfallBytes     = $RequiredBytes
+            ShortfallGB        = [math]::Round($RequiredBytes / 1GB, 2)
+            Message            = "Cannot access drive '$drive': $($_.Exception.Message)"
+            Remediation        = "Verify the drive exists and is accessible, then retry the $OperationName."
+        }
+    }
+
+    # Calculate required space with safety margin
+    $requiredWithMargin = [int64]($RequiredBytes * (1 + $SafetyMarginPercent / 100))
+
+    # Calculate shortfall (0 if sufficient) - use int64 to avoid overflow with large values
+    $shortfallBytes = [int64][math]::Max([int64]0, [int64]($requiredWithMargin - $availableBytes))
+
+    # Determine if sufficient
+    $hasSufficientSpace = $availableBytes -ge $requiredWithMargin
+
+    # Format values for output
+    $availableGB = [math]::Round($availableBytes / 1GB, 2)
+    $requiredGB = [math]::Round($requiredWithMargin / 1GB, 2)
+    $shortfallGB = [math]::Round($shortfallBytes / 1GB, 2)
+
+    # Build message and remediation
+    if ($hasSufficientSpace) {
+        $message = "Sufficient disk space for $OperationName. Available: $availableGB GB, Required: $requiredGB GB (includes ${SafetyMarginPercent}% margin)."
+        $remediation = ''
+    }
+    else {
+        $message = "Insufficient disk space for $OperationName. Available: $availableGB GB, Required: $requiredGB GB. Shortfall: $shortfallGB GB."
+        $remediation = "Free up $shortfallGB GB on $drive or move the operation to a drive with more space."
+    }
+
+    [PSCustomObject]@{
+        HasSufficientSpace = $hasSufficientSpace
+        Drive              = $drive
+        AvailableBytes     = $availableBytes
+        AvailableGB        = $availableGB
+        RequiredBytes      = $requiredWithMargin
+        RequiredGB         = $requiredGB
+        ShortfallBytes     = $shortfallBytes
+        ShortfallGB        = $shortfallGB
+        Message            = $message
+        Remediation        = $remediation
+    }
+}
+
+#endregion REL-IMG-01
+
 #region REL-IMG-02: Partition State Verification
 
 function Get-DiskPartitionState {
@@ -3771,6 +3908,7 @@ Export-ModuleMember -Function @(
     'Set-OSPartitionDriveLetter',
     'Invoke-DismountScratchDisk',
     'Invoke-MountScratchDisk',
+    'Test-DiskSpaceForOperation',
     'Get-DiskPartitionState',
     'Compare-DiskPartitionState'
 )
