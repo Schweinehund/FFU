@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.27",
+    "version": "1.8.28",
     "buildDate": "2026-01-24",
 
     "versioningPolicy": {
@@ -64,9 +64,9 @@
             "description": "ISO disk space pre-validation (REL-MED-03) - Test-ISOCreationReadiness estimates ISO size from WinPE folder, validates output destination space before oscdimg"
         },
         "FFU.Updates": {
-            "version": "1.0.5",
+            "version": "1.0.6",
             "path": "Modules/FFU.Updates/FFU.Updates.psd1",
-            "description": "Windows Update catalog and MSU handling - PowerShell 7 expand.exe fix, ThreadJob safe logging ($function: instead of Get-Command)"
+            "description": "Catalog query retry (REL-UPD-01) - Invoke-CatalogQueryWithRetry with exponential backoff and jitter for Get-ProductsCab network resilience"
         },
         "FFU.VM": {
             "version": "1.0.11",
