@@ -1364,6 +1364,479 @@ function New-PEMedia {
     }
 }
 
+function Test-ArchitectureCapability {
+    <#
+    .SYNOPSIS
+    Validates ADK has tools for target architecture
+
+    .DESCRIPTION
+    Checks that the Windows ADK installation has the required tools (oscdimg.exe and winpe.wim)
+    for the specified target architecture. Returns a structured result indicating whether
+    the architecture can be built, with remediation guidance if components are missing.
+
+    This function validates architecture capability before WinPE media creation to prevent
+    failures that occur when a user requests ARM64 but only has x64 ADK tools installed.
+
+    .PARAMETER TargetArchitecture
+    Target architecture to validate: 'x64' or 'arm64'
+
+    .PARAMETER ADKPath
+    Path to Windows ADK installation root (e.g., "C:\Program Files (x86)\Windows Kits\10\")
+
+    .OUTPUTS
+    [PSCustomObject] with properties:
+    - CanBuild: Boolean indicating if architecture is supported
+    - TargetArchitecture: Requested target architecture
+    - HostArchitecture: Detected host system architecture
+    - MissingComponents: Array of missing ADK components
+    - Message: Human-readable status message
+    - Remediation: Guidance for fixing missing components (null if CanBuild is true)
+    - Details: Hashtable with specific paths and validation results
+
+    .EXAMPLE
+    $result = Test-ArchitectureCapability -TargetArchitecture 'x64' -ADKPath 'C:\Program Files (x86)\Windows Kits\10\'
+    if (-not $result.CanBuild) {
+        Write-Error $result.Remediation
+    }
+
+    .EXAMPLE
+    # Check ARM64 support on x64 host
+    $result = Test-ArchitectureCapability -TargetArchitecture 'arm64' -ADKPath $adkPath
+    $result.Details.IsCrossArch  # True if building different architecture than host
+
+    .NOTES
+    REL-MED-04: Architecture Capability Validation
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('x64', 'arm64')]
+        [string]$TargetArchitecture,
+
+        [Parameter(Mandatory)]
+        [string]$ADKPath
+    )
+
+    # Get host system architecture
+    $hostArch = switch ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture) {
+        'X64'   { 'x64' }
+        'Arm64' { 'arm64' }
+        'X86'   { 'x86' }
+        default { 'unknown' }
+    }
+
+    # Map architecture to ADK folder name
+    # ADK uses 'amd64' for x64, but 'arm64' for arm64
+    $adkArchFolder = if ($TargetArchitecture -eq 'x64') { 'amd64' } else { $TargetArchitecture }
+
+    # Build expected paths
+    $oscdimgFolder = Join-Path $ADKPath "Assessment and Deployment Kit\Deployment Tools\$adkArchFolder\Oscdimg"
+    $oscdimgPath = Join-Path $oscdimgFolder 'oscdimg.exe'
+
+    $winPEFolder = Join-Path $ADKPath "Assessment and Deployment Kit\Windows Preinstallation Environment\$adkArchFolder"
+    $winPEWimPath = Join-Path $winPEFolder 'en-us\winpe.wim'
+
+    # Check required files exist
+    $hasOscdimg = Test-Path $oscdimgPath
+    $hasWinPE = Test-Path $winPEWimPath
+
+    $missing = @()
+    if (-not $hasOscdimg) { $missing += "oscdimg.exe ($adkArchFolder)" }
+    if (-not $hasWinPE) { $missing += "winpe.wim ($adkArchFolder)" }
+
+    $canBuild = $hasOscdimg -and $hasWinPE
+
+    if (-not $canBuild) {
+        return [PSCustomObject]@{
+            CanBuild           = $false
+            TargetArchitecture = $TargetArchitecture
+            HostArchitecture   = $hostArch
+            MissingComponents  = $missing
+            Message            = "Missing ADK components for $TargetArchitecture architecture"
+            Remediation        = @"
+The following ADK components are missing for $TargetArchitecture builds:
+$($missing | ForEach-Object { "  - $_" } | Out-String)
+To fix:
+1. Re-run ADK setup and ensure $TargetArchitecture components are selected
+2. Or reinstall ADK with: adksetup.exe /features OptionId.DeploymentTools
+3. Also install WinPE add-on with $TargetArchitecture support
+
+If building for a different architecture than host ($hostArch), ensure cross-architecture
+ADK components are installed.
+"@
+            Details            = @{
+                OscdimgPath    = $oscdimgPath
+                OscdimgExists  = $hasOscdimg
+                WinPEWimPath   = $winPEWimPath
+                WinPEExists    = $hasWinPE
+                ADKArchFolder  = $adkArchFolder
+            }
+        }
+    }
+
+    # Success - can build for target architecture
+    $crossArchNote = $null
+    if ($hostArch -ne $TargetArchitecture) {
+        $crossArchNote = "Note: Building $TargetArchitecture media from $hostArch host (cross-architecture build)."
+    }
+
+    [PSCustomObject]@{
+        CanBuild           = $true
+        TargetArchitecture = $TargetArchitecture
+        HostArchitecture   = $hostArch
+        MissingComponents  = @()
+        Message            = "ADK supports $TargetArchitecture architecture. $crossArchNote".Trim()
+        Remediation        = $null
+        Details            = @{
+            OscdimgPath    = $oscdimgPath
+            OscdimgExists  = $true
+            WinPEWimPath   = $winPEWimPath
+            WinPEExists    = $true
+            ADKArchFolder  = $adkArchFolder
+            IsCrossArch    = ($hostArch -ne $TargetArchitecture)
+        }
+    }
+}
+
+#region REL-MED-01: WinPE Dependency Pre-Validation
+
+function Test-WinPEMediaReadiness {
+    <#
+    .SYNOPSIS
+    Validates all dependencies before WinPE media creation operations.
+
+    .DESCRIPTION
+    Pre-operation validation that ensures:
+    - ADK is properly installed with required components
+    - WIMMount service is functional (required for Mount-WindowsImage)
+    - Target architecture tools are available (oscdimg.exe, winpe.wim)
+    - Sufficient disk space for WinPE working directory and ISO output
+
+    Returns a structured result with Ready status, failure reason, and remediation guidance.
+    Fails fast on first validation failure to avoid wasting time on subsequent checks.
+
+    .PARAMETER Architecture
+    Target architecture: 'x64' or 'arm64'.
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFU development path where WinPE directory will be created.
+
+    .PARAMETER ADKPath
+    Path to Windows ADK installation root (e.g., "C:\Program Files (x86)\Windows Kits\10\").
+
+    .PARAMETER CreateCapture
+    Switch indicating capture media will be created (affects space calculation).
+
+    .PARAMETER CreateDeploy
+    Switch indicating deployment media will be created (affects space calculation).
+
+    .PARAMETER CaptureISOPath
+    Output path for capture ISO file. Used for destination drive space check.
+
+    .PARAMETER DeployISOPath
+    Output path for deployment ISO file. Used for destination drive space check.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Ready: Boolean indicating if WinPE creation can proceed
+    - FailureReason: String code when not ready (ADKValidation, WIMMount, ArchitectureMissing, InsufficientSpace, ISOSpaceInsufficient)
+    - Message: Human-readable status message
+    - Remediation: Actionable guidance when not ready
+    - Details: Hashtable with validation details (ADKPath, Architecture, ADKVersion, Checks)
+
+    .EXAMPLE
+    $result = Test-WinPEMediaReadiness -Architecture 'x64' -FFUDevelopmentPath 'C:\FFUDevelopment' -ADKPath 'C:\Program Files (x86)\Windows Kits\10\'
+    if (-not $result.Ready) {
+        Write-Error "$($result.Message)`nRemediation: $($result.Remediation)"
+    }
+
+    .EXAMPLE
+    # Full validation with ISO paths
+    $result = Test-WinPEMediaReadiness -Architecture 'x64' -FFUDevelopmentPath 'C:\FFU' -ADKPath 'C:\ADK' `
+        -CreateCapture -CaptureISOPath 'D:\ISO\Capture.iso' -CreateDeploy -DeployISOPath 'D:\ISO\Deploy.iso'
+    if ($result.Ready) {
+        Write-Host "ADK Version: $($result.Details.ADKVersion)"
+    }
+
+    .NOTES
+    REL-MED-01: WinPE creation validates all dependencies before starting
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('x64', 'arm64')]
+        [string]$Architecture,
+
+        [Parameter(Mandatory)]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory)]
+        [string]$ADKPath,
+
+        [Parameter()]
+        [switch]$CreateCapture,
+
+        [Parameter()]
+        [switch]$CreateDeploy,
+
+        [Parameter()]
+        [string]$CaptureISOPath,
+
+        [Parameter()]
+        [string]$DeployISOPath
+    )
+
+    # Initialize details for successful return
+    $checks = @{}
+
+    # 1. ADK Prerequisites Validation
+    # Uses InvokeCommand.GetCommand for ThreadJob compatibility
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-ADKPrerequisites', 'Function')) {
+        $adkResult = Test-ADKPrerequisites -WindowsArch $Architecture -ThrowOnFailure $false
+
+        $checks['ADK'] = $adkResult
+
+        if (-not $adkResult.IsValid) {
+            $remediation = if ($adkResult.Errors -and $adkResult.Errors.Count -gt 0) {
+                "ADK validation errors: $($adkResult.Errors -join '; '). Run with -UpdateADK `$true to reinstall."
+            }
+            else {
+                "Run with -UpdateADK `$true to install missing ADK components."
+            }
+
+            return [PSCustomObject]@{
+                Ready         = $false
+                FailureReason = 'ADKValidation'
+                Message       = "Windows ADK validation failed. ADK may not be installed or is missing required components."
+                Remediation   = $remediation
+                Details       = @{
+                    ADKPath      = $ADKPath
+                    Architecture = $Architecture
+                    ADKVersion   = $null
+                    Checks       = $checks
+                }
+            }
+        }
+    }
+    else {
+        # Test-ADKPrerequisites not available - do basic path check
+        if (-not (Test-Path $ADKPath)) {
+            return [PSCustomObject]@{
+                Ready         = $false
+                FailureReason = 'ADKValidation'
+                Message       = "Windows ADK not found at specified path: $ADKPath"
+                Remediation   = "Install Windows ADK or verify the ADKPath parameter is correct."
+                Details       = @{
+                    ADKPath      = $ADKPath
+                    Architecture = $Architecture
+                    ADKVersion   = $null
+                    Checks       = $checks
+                }
+            }
+        }
+        $adkResult = [PSCustomObject]@{ IsValid = $true; ADKVersion = 'Unknown' }
+        $checks['ADK'] = $adkResult
+    }
+
+    # 2. WIMMount Service Validation (required for Mount-WindowsImage)
+    # Uses InvokeCommand.GetCommand for ThreadJob compatibility
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-FFUWimMount', 'Function')) {
+        $wimMountResult = Test-FFUWimMount -AttemptRemediation
+
+        $checks['WIMMount'] = $wimMountResult
+
+        if ($wimMountResult.Status -ne 'Passed') {
+            return [PSCustomObject]@{
+                Ready         = $false
+                FailureReason = 'WIMMount'
+                Message       = "WIMMount service validation failed: $($wimMountResult.Message)"
+                Remediation   = if ($wimMountResult.Remediation) { $wimMountResult.Remediation } else { "Run 'fltmc load WimMount' as Administrator or restart Windows." }
+                Details       = @{
+                    ADKPath      = $ADKPath
+                    Architecture = $Architecture
+                    ADKVersion   = $adkResult.ADKVersion
+                    Checks       = $checks
+                }
+            }
+        }
+    }
+    else {
+        # Test-FFUWimMount not available - skip WIMMount check with warning
+        $checks['WIMMount'] = [PSCustomObject]@{ Status = 'Skipped'; Message = 'Test-FFUWimMount not available (FFU.Preflight may not be loaded)' }
+    }
+
+    # 3. Architecture-specific Tools Validation
+    # ADK uses 'amd64' folder for x64 architecture
+    $adkArchFolder = if ($Architecture -eq 'x64') { 'amd64' } else { $Architecture }
+
+    # Verify oscdimg.exe exists for target architecture
+    $oscdimgPath = Join-Path $ADKPath "Assessment and Deployment Kit\Deployment Tools\$adkArchFolder\Oscdimg\oscdimg.exe"
+    if (-not (Test-Path $oscdimgPath)) {
+        return [PSCustomObject]@{
+            Ready         = $false
+            FailureReason = 'ArchitectureMissing'
+            Message       = "oscdimg.exe not found for $Architecture architecture at: $oscdimgPath"
+            Remediation   = "Install the Windows ADK Deployment Tools for $Architecture architecture."
+            Details       = @{
+                ADKPath      = $ADKPath
+                Architecture = $Architecture
+                ADKVersion   = $adkResult.ADKVersion
+                Checks       = $checks
+            }
+        }
+    }
+
+    # Verify winpe.wim exists for target architecture
+    $winpePath = Join-Path $ADKPath "Assessment and Deployment Kit\Windows Preinstallation Environment\$adkArchFolder\en-us\winpe.wim"
+    if (-not (Test-Path $winpePath)) {
+        return [PSCustomObject]@{
+            Ready         = $false
+            FailureReason = 'ArchitectureMissing'
+            Message       = "winpe.wim not found for $Architecture architecture at: $winpePath"
+            Remediation   = "Install the Windows PE add-on for Windows ADK ($Architecture architecture)."
+            Details       = @{
+                ADKPath      = $ADKPath
+                Architecture = $Architecture
+                ADKVersion   = $adkResult.ADKVersion
+                Checks       = $checks
+            }
+        }
+    }
+
+    $checks['Architecture'] = [PSCustomObject]@{
+        Validated    = $true
+        OscdimgPath  = $oscdimgPath
+        WinPEWimPath = $winpePath
+    }
+
+    # 4. WinPE Working Directory Space Check (15GB required)
+    $winPEWorkingPath = Join-Path $FFUDevelopmentPath 'WinPE'
+    $winPESpaceRequired = 15GB  # WinPE working directory needs ~15GB
+
+    # Uses InvokeCommand.GetCommand for ThreadJob compatibility
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DiskSpaceForOperation', 'Function')) {
+        $spaceCheck = Test-DiskSpaceForOperation -Path $winPEWorkingPath `
+            -RequiredBytes $winPESpaceRequired -SafetyMarginPercent 10 `
+            -OperationName 'WinPE working directory'
+
+        $checks['Space'] = $spaceCheck
+
+        if (-not $spaceCheck.HasSufficientSpace) {
+            return [PSCustomObject]@{
+                Ready         = $false
+                FailureReason = 'InsufficientSpace'
+                Message       = "Insufficient disk space for WinPE working directory. Required: $($spaceCheck.RequiredGB) GB, Available: $($spaceCheck.AvailableGB) GB"
+                Remediation   = $spaceCheck.Remediation
+                Details       = @{
+                    ADKPath      = $ADKPath
+                    Architecture = $Architecture
+                    ADKVersion   = $adkResult.ADKVersion
+                    Checks       = $checks
+                }
+            }
+        }
+    }
+    else {
+        # Test-DiskSpaceForOperation not available - do basic drive check
+        $driveLetter = $FFUDevelopmentPath.Substring(0, 1)
+        try {
+            $drive = Get-PSDrive -Name $driveLetter -ErrorAction Stop
+            $availableGB = [math]::Round($drive.Free / 1GB, 2)
+            $requiredGB = [math]::Round($winPESpaceRequired / 1GB, 2)
+
+            if ($availableGB -lt $requiredGB) {
+                return [PSCustomObject]@{
+                    Ready         = $false
+                    FailureReason = 'InsufficientSpace'
+                    Message       = "Insufficient disk space for WinPE working directory. Required: $requiredGB GB, Available: $availableGB GB"
+                    Remediation   = "Free up at least $([math]::Round($requiredGB - $availableGB, 2)) GB on the $($driveLetter): drive."
+                    Details       = @{
+                        ADKPath      = $ADKPath
+                        Architecture = $Architecture
+                        ADKVersion   = $adkResult.ADKVersion
+                        Checks       = $checks
+                    }
+                }
+            }
+            $checks['Space'] = [PSCustomObject]@{ HasSufficientSpace = $true; AvailableGB = $availableGB; RequiredGB = $requiredGB }
+        }
+        catch {
+            $checks['Space'] = [PSCustomObject]@{ HasSufficientSpace = $true; Message = "Unable to verify disk space: $($_.Exception.Message)" }
+        }
+    }
+
+    # 5. ISO Output Space Checks (if ISO paths provided)
+    $isoSpaceRequired = 1GB  # Estimate ~1GB per ISO
+
+    if ($CreateCapture -and $CaptureISOPath) {
+        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DiskSpaceForOperation', 'Function')) {
+            $captureSpaceCheck = Test-DiskSpaceForOperation -Path $CaptureISOPath `
+                -RequiredBytes $isoSpaceRequired -SafetyMarginPercent 10 `
+                -OperationName 'capture ISO'
+
+            $checks['CaptureISOSpace'] = $captureSpaceCheck
+
+            if (-not $captureSpaceCheck.HasSufficientSpace) {
+                return [PSCustomObject]@{
+                    Ready         = $false
+                    FailureReason = 'ISOSpaceInsufficient'
+                    Message       = "Insufficient disk space for capture ISO. Required: $($captureSpaceCheck.RequiredGB) GB, Available: $($captureSpaceCheck.AvailableGB) GB"
+                    Remediation   = $captureSpaceCheck.Remediation
+                    Details       = @{
+                        ADKPath      = $ADKPath
+                        Architecture = $Architecture
+                        ADKVersion   = $adkResult.ADKVersion
+                        Checks       = $checks
+                    }
+                }
+            }
+        }
+    }
+
+    if ($CreateDeploy -and $DeployISOPath) {
+        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DiskSpaceForOperation', 'Function')) {
+            $deploySpaceCheck = Test-DiskSpaceForOperation -Path $DeployISOPath `
+                -RequiredBytes $isoSpaceRequired -SafetyMarginPercent 10 `
+                -OperationName 'deploy ISO'
+
+            $checks['DeployISOSpace'] = $deploySpaceCheck
+
+            if (-not $deploySpaceCheck.HasSufficientSpace) {
+                return [PSCustomObject]@{
+                    Ready         = $false
+                    FailureReason = 'ISOSpaceInsufficient'
+                    Message       = "Insufficient disk space for deploy ISO. Required: $($deploySpaceCheck.RequiredGB) GB, Available: $($deploySpaceCheck.AvailableGB) GB"
+                    Remediation   = $deploySpaceCheck.Remediation
+                    Details       = @{
+                        ADKPath      = $ADKPath
+                        Architecture = $Architecture
+                        ADKVersion   = $adkResult.ADKVersion
+                        Checks       = $checks
+                    }
+                }
+            }
+        }
+    }
+
+    # All checks passed - return ready
+    [PSCustomObject]@{
+        Ready         = $true
+        FailureReason = $null
+        Message       = "Ready for WinPE media creation. ADK validated, WIMMount available, architecture tools present, disk space sufficient."
+        Remediation   = $null
+        Details       = @{
+            ADKPath      = $ADKPath
+            Architecture = $Architecture
+            ADKVersion   = $adkResult.ADKVersion
+            Checks       = $checks
+        }
+    }
+}
+
+#endregion REL-MED-01
+
 function Get-PEArchitecture {
     param(
         [string]$FilePath
@@ -1403,5 +1876,7 @@ Export-ModuleMember -Function @(
     'Invoke-CopyPEWithRetry',
     'New-WinPEMediaNative',
     'New-PEMedia',
+    'Test-ArchitectureCapability',
+    'Test-WinPEMediaReadiness',
     'Get-PEArchitecture'
 )

@@ -7,7 +7,7 @@
     RootModule = 'FFU.Media.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.3'
+    ModuleVersion = '1.5.0'
 
     # ID used to uniquely identify this module
     GUID = 'a84d5d7c-3cb5-4ba3-a1a8-2dcd0916fb5d'
@@ -33,6 +33,7 @@
         @{ModuleName = 'FFU.ADK'; ModuleVersion = '1.0.0'}
         @{ModuleName = 'FFU.Preflight'; ModuleVersion = '1.0.0'}
         @{ModuleName = 'FFU.Drivers'; ModuleVersion = '1.0.0'}
+        @{ModuleName = 'FFU.Imaging'; ModuleVersion = '1.0.0'}
     )
 
     # Assemblies that must be loaded prior to importing this module
@@ -45,6 +46,8 @@
         'Invoke-CopyPEWithRetry',
         'New-WinPEMediaNative',
         'New-PEMedia',
+        'Test-ArchitectureCapability',
+        'Test-WinPEMediaReadiness',
         'Get-PEArchitecture'
     )
 
@@ -71,7 +74,14 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Media v1.3.2
+# Release Notes - FFU.Media v1.5.0
+
+## v1.5.0 - REL-MED-02: DISM/ADK Error Classification
+- NEW: Get-ADKToolFailureRemediation classifies DISM/ADK errors with remediation
+- NEW: $script:DISMErrorRemediation pattern table with 6 known error codes
+- Known errors: 0x800704DB, 0x80070005, 0x800F081F, 0xc1510114, 0x800700b7, 0x80070070
+- Each error includes specific remediation steps
+- Unknown errors get generic troubleshooting guidance with original error
 
 ## v1.3.2 - Fix Empty VMwareDrivers Folder Detection
 - FIXED: Empty VMwareDrivers folder no longer skips driver download
