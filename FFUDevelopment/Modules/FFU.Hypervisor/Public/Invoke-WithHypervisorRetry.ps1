@@ -77,7 +77,7 @@ function Invoke-WithHypervisorRetry {
 
         if (-not $serviceStatus.IsHealthy) {
             if ($function:WriteLog) {
-                WriteLog "$OperationName: Service not healthy, waiting for recovery..."
+                WriteLog "${OperationName}: Service not healthy, waiting for recovery..."
             }
 
             # Wait for service to become ready
