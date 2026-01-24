@@ -447,23 +447,11 @@ function Test-FFUPowerShellVersion {
                 Edition       = $PSVersionTable.PSEdition
                 MinRequired   = $minVersion.ToString()
             } `
-            -Remediation @'
-Install PowerShell 7+ using one of these methods:
-
-1. Winget (recommended):
-   winget install Microsoft.PowerShell
-
-2. Direct download:
-   https://aka.ms/powershell
-
-3. Microsoft Store:
-   Search for "PowerShell" in Microsoft Store
-
-After installation, run FFU Builder from PowerShell 7:
-   pwsh.exe -File BuildFFUVM.ps1
-
-Note: PowerShell 5.1 (Windows PowerShell) is NOT supported.
-'@ `
+            -Remediation (New-FFURemediationBlock -Issue "PowerShell $currentVersion detected (7.0+ required)" `
+                -Impact "Missing ForEach-Object -Parallel, ThreadJob support, and modern language features" `
+                -PowerShellCommands @('# Install PowerShell 7 via winget (recommended)', 'winget install Microsoft.PowerShell', '', '# Or download installer', 'Start-Process "https://aka.ms/powershell"') `
+                -ManualSteps @("Download PowerShell 7 from https://aka.ms/powershell", "Run the MSI installer", "Restart your terminal and run 'pwsh' instead of 'powershell'") `
+                -VerifyCommand '$PSVersionTable.PSVersion') `
             -DurationMs $stopwatch.ElapsedMilliseconds
     }
 }
@@ -550,44 +538,18 @@ function Test-FFUHyperV {
             }
             else {
                 $remediation = if ($isServer) {
-                    @'
-Install Hyper-V on Windows Server:
-
-1. Using PowerShell (recommended):
-   Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -Restart
-
-2. Using Server Manager:
-   - Open Server Manager
-   - Click "Add roles and features"
-   - Select "Hyper-V" role
-   - Complete the wizard and restart
-
-A system restart is required after installation.
-'@
+                    New-FFURemediationBlock -Issue "Hyper-V role is not installed" `
+                        -Impact "Cannot create build VM for FFU image creation" `
+                        -PowerShellCommands @('# Install Hyper-V role (requires restart)', 'Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -Restart') `
+                        -ManualSteps @("Open Server Manager", "Click 'Add roles and features'", "Select 'Hyper-V' role", "Complete the wizard and restart") `
+                        -VerifyCommand 'Get-WindowsFeature -Name Hyper-V | Select-Object Installed'
                 }
                 else {
-                    @'
-Enable Hyper-V on Windows 10/11:
-
-1. Using PowerShell (recommended):
-   Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart
-
-2. Using Windows Features:
-   - Press Win+R, type "optionalfeatures", press Enter
-   - Check "Hyper-V" (all sub-features)
-   - Click OK
-
-3. Using DISM:
-   dism /Online /Enable-Feature /FeatureName:Microsoft-Hyper-V-All /All
-
-A system restart is required after enabling Hyper-V.
-
-Prerequisites:
-- 64-bit processor with SLAT (Second Level Address Translation)
-- CPU support for VM Monitor Mode Extension (VT-c on Intel)
-- Minimum 4 GB RAM
-- BIOS-level virtualization support enabled
-'@
+                    New-FFURemediationBlock -Issue "Hyper-V feature is not installed (State: $featureState)" `
+                        -Impact "Cannot create build VM for FFU image creation" `
+                        -PowerShellCommands @('# Enable Hyper-V (requires restart)', 'Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart', '', '# Or use DISM', 'dism /Online /Enable-Feature /FeatureName:Microsoft-Hyper-V-All /All') `
+                        -ManualSteps @("Press Win+R, type 'optionalfeatures', press Enter", "Check 'Hyper-V' (all sub-features)", "Click OK and restart computer") `
+                        -VerifyCommand 'Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All | Select-Object State'
                 }
 
                 New-FFUCheckResult -CheckName 'HyperV' -Status 'Failed' `
@@ -618,22 +580,11 @@ Prerequisites:
             Attempts  = $attempt
             LastError = $lastError.Exception.Message
         } `
-        -Remediation @'
-Failed to query Hyper-V feature status. Try the following:
-
-1. Run as Administrator (required for feature queries)
-
-2. Clean up DISM state:
-   dism /Online /Cleanup-Image /RestoreHealth
-
-3. Restart Windows Update service:
-   net stop wuauserv && net start wuauserv
-
-4. Check for pending Windows updates and restart
-
-If the issue persists, manually check Hyper-V status:
-   Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All
-'@ `
+        -Remediation (New-FFURemediationBlock -Issue "Failed to query Hyper-V feature status after $MaxRetries attempts" `
+            -Impact "Cannot determine Hyper-V availability" `
+            -PowerShellCommands @('# Run as Administrator (required for feature queries)', '', '# Clean up DISM state', 'dism /Online /Cleanup-Image /RestoreHealth', '', '# Restart Windows Update service', 'net stop wuauserv && net start wuauserv', '', '# Manually check Hyper-V status', 'Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All') `
+            -ManualSteps @("Check for pending Windows updates and restart", "Run as Administrator if not already") `
+            -VerifyCommand 'Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All') `
         -DurationMs $stopwatch.ElapsedMilliseconds
 }
 
@@ -945,6 +896,7 @@ function Test-FFUDiskSpace {
             }) -join "`n"
 
             New-FFUCheckResult -CheckName 'DiskSpace' -Status 'Failed' `
+                -Severity 'Critical' `
                 -Message "Insufficient disk space: ${availableGB}GB free, ${requiredWithMargin}GB required (${shortfallGB}GB short)" `
                 -Details $details `
                 -Remediation @"
@@ -970,6 +922,7 @@ Run Disk Cleanup:
     catch {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'DiskSpace' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "Failed to check disk space: $($_.Exception.Message)" `
             -Details @{
                 FFUDevelopmentPath = $FFUDevelopmentPath
@@ -1781,7 +1734,7 @@ function Test-FFUWimMount {
         if ($AttemptRemediation -and $details.WimMountDriverExists) {
             $details.RemediationAttempted = $true
 
-            # Step 1: Create/recreate WimMount service registry entries
+            # Strategy 1: Registry repair (no retry needed - idempotent)
             try {
                 $instancesPath = "$serviceRegPath\Instances"
                 $defaultInstancePath = "$instancesPath\WimMount"
@@ -1793,19 +1746,13 @@ function Test-FFUWimMount {
                 }
 
                 # Set service properties (same as Windows default)
-                Set-ItemProperty -Path $serviceRegPath -Name "Type" -Value 2 -Type DWord              # FILE_SYSTEM_DRIVER
-                Set-ItemProperty -Path $serviceRegPath -Name "Start" -Value 3 -Type DWord             # DEMAND_START (Manual)
-                Set-ItemProperty -Path $serviceRegPath -Name "ErrorControl" -Value 1 -Type DWord      # NORMAL
+                Set-ItemProperty -Path $serviceRegPath -Name "Type" -Value 2 -Type DWord
+                Set-ItemProperty -Path $serviceRegPath -Name "Start" -Value 3 -Type DWord
+                Set-ItemProperty -Path $serviceRegPath -Name "ErrorControl" -Value 1 -Type DWord
                 Set-ItemProperty -Path $serviceRegPath -Name "ImagePath" -Value "system32\drivers\wimmount.sys" -Type ExpandString
                 Set-ItemProperty -Path $serviceRegPath -Name "DisplayName" -Value "WIMMount" -Type String
-                Set-ItemProperty -Path $serviceRegPath -Name "Description" -Value "@%SystemRoot%\system32\drivers\wimmount.sys,-102" -Type ExpandString
                 Set-ItemProperty -Path $serviceRegPath -Name "Group" -Value "FSFilter Infrastructure" -Type String
-                Set-ItemProperty -Path $serviceRegPath -Name "Tag" -Value 1 -Type DWord
                 Set-ItemProperty -Path $serviceRegPath -Name "SupportedFeatures" -Value 3 -Type DWord
-                Set-ItemProperty -Path $serviceRegPath -Name "DebugFlags" -Value 0 -Type DWord
-
-                $details.RemediationActions.Add('Configured WimMount service registry entries')
-                $details.RegistryExists = $true
 
                 # Create Instances key for filter registration
                 if (-not (Test-Path $instancesPath)) {
@@ -1820,56 +1767,92 @@ function Test-FFUWimMount {
                 Set-ItemProperty -Path $defaultInstancePath -Name "Altitude" -Value "180700" -Type String
                 Set-ItemProperty -Path $defaultInstancePath -Name "Flags" -Value 0 -Type DWord
 
-                $details.RemediationActions.Add('Configured filter instance (Altitude 180700)')
+                $details.RemediationActions.Add('Configured WimMount service registry entries')
+                $details.RegistryExists = $true
                 $details.FilterInstanceExists = $true
             }
             catch {
-                $details.RemediationActions.Add("Registry creation failed: $($_.Exception.Message)")
+                $details.RemediationActions.Add("Registry repair failed: $($_.Exception.Message)")
             }
 
-            # Step 2: Try to start the service via sc.exe
-            try {
-                $startResult = & sc.exe start wimmount 2>&1
-                $startExitCode = $LASTEXITCODE
-
-                if ($startExitCode -eq 0) {
-                    $details.RemediationActions.Add('Started WimMount service via sc.exe')
-                    $details.WimMountServiceStatus = 'Running'
-                }
-                elseif ($startExitCode -eq 1056) {
-                    # Already running
-                    $details.RemediationActions.Add('WimMount service already running')
-                    $details.WimMountServiceStatus = 'Running'
-                }
-                else {
-                    $details.RemediationActions.Add("sc start returned exit code: $startExitCode")
-                }
-            }
-            catch {
-                $details.RemediationActions.Add("sc start failed: $($_.Exception.Message)")
-            }
-
-            # Step 3: Try fltmc load as fallback
-            Start-Sleep -Milliseconds 500  # Brief pause after sc start
-            $fltmcCheck = fltmc filters 2>&1
-            if (-not [bool]($fltmcCheck -match 'WimMount')) {
-                try {
-                    $loadResult = & fltmc load WimMount 2>&1
-                    $loadExitCode = $LASTEXITCODE
-
-                    if ($loadExitCode -eq 0) {
-                        $details.RemediationActions.Add('Loaded WimMount filter via fltmc')
+            # Strategy 2: Service start with retry
+            $serviceStarted = Invoke-WimMountRepairWithRetry -ActionName "sc start wimmount" `
+                -RepairAction {
+                    $output = & sc.exe start wimmount 2>&1
+                    $exitCode = $LASTEXITCODE
+                    # 0 = success, 1056 = already running
+                    if ($exitCode -eq 0 -or $exitCode -eq 1056) {
+                        return $true
                     }
-                    else {
-                        $details.RemediationActions.Add("fltmc load returned exit code: $loadExitCode")
+                    throw "sc.exe returned exit code $exitCode"
+                } `
+                -MaxRetries 3 -BaseDelaySeconds 2 -Details $details
+
+            if ($serviceStarted) {
+                $details.WimMountServiceStatus = 'Running'
+            }
+
+            # Strategy 3: Filter load with retry
+            Start-Sleep -Milliseconds 500  # Brief pause after service start
+
+            $filterLoaded = Invoke-WimMountRepairWithRetry -ActionName "fltmc load WimMount" `
+                -RepairAction {
+                    $fltmcCheck = fltmc filters 2>&1
+                    if ($fltmcCheck -match 'WimMount') {
+                        return $true  # Already loaded
+                    }
+
+                    $output = & fltmc load WimMount 2>&1
+                    $exitCode = $LASTEXITCODE
+                    if ($exitCode -eq 0) {
+                        return $true
+                    }
+                    throw "fltmc load returned exit code $exitCode"
+                } `
+                -MaxRetries 3 -BaseDelaySeconds 2 -Details $details
+
+            # Strategy 4: Driver re-registration (if filter still not loaded)
+            if (-not $filterLoaded) {
+                $details.RemediationActions.Add('Attempting driver re-registration via rundll32...')
+
+                $reregResult = Invoke-WimMountRepairWithRetry -ActionName "rundll32 wimmount.dll" `
+                    -RepairAction {
+                        $null = & rundll32.exe wimmount.dll,WimMountDriver 2>&1
+                        Start-Sleep -Seconds 2  # Allow driver to initialize
+
+                        # Verify filter is now loaded
+                        $fltmcCheck = fltmc filters 2>&1
+                        if ($fltmcCheck -match 'WimMount') {
+                            return $true
+                        }
+                        throw "Filter still not loaded after re-registration"
+                    } `
+                    -MaxRetries 2 -BaseDelaySeconds 3 -Details $details
+            }
+
+            # Strategy 5: Filter Manager restart (last resort)
+            $fltmcFinal = fltmc filters 2>&1
+            if (-not ($fltmcFinal -match 'WimMount')) {
+                $details.RemediationActions.Add('Attempting Filter Manager restart (last resort)...')
+
+                try {
+                    # Restart FltMgr - this can help with stuck filter states
+                    $fltmgrSvc = Get-Service -Name 'FltMgr' -ErrorAction SilentlyContinue
+                    if ($fltmgrSvc -and $fltmgrSvc.Status -eq 'Running') {
+                        Restart-Service -Name 'FltMgr' -Force -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 3
+
+                        # Re-attempt filter load
+                        $null = & fltmc load WimMount 2>&1
+                        $details.RemediationActions.Add('Restarted Filter Manager and reloaded WimMount')
                     }
                 }
                 catch {
-                    $details.RemediationActions.Add("fltmc load failed: $($_.Exception.Message)")
+                    $details.RemediationActions.Add("FltMgr restart failed: $($_.Exception.Message)")
                 }
             }
 
-            # Step 4: Final verification - re-check fltmc filters
+            # Final verification - re-check fltmc filters
             Start-Sleep -Seconds 1  # Allow filter to fully load
             $finalCheck = fltmc filters 2>&1
             $details.WimMountFilterLoaded = [bool]($finalCheck -match 'WimMount')
@@ -1886,7 +1869,7 @@ function Test-FFUWimMount {
                     -DurationMs $stopwatch.ElapsedMilliseconds)
             }
             else {
-                $details.RemediationActions.Add('Filter still not loaded after repair attempt')
+                $details.RemediationActions.Add('All repair strategies exhausted - filter still not loaded')
             }
         }
         elseif ($AttemptRemediation -and -not $details.WimMountDriverExists) {
@@ -3413,6 +3396,390 @@ Either:
 }
 
 #endregion VMware Driver Validation
+
+#region REL-PRE-01: Enhanced Prerequisite Detection
+
+function Test-FFUVMResources {
+    <#
+    .SYNOPSIS
+    Validates VM creation prerequisites including memory, CPU, and virtualization extensions.
+    .DESCRIPTION
+    Checks system resources for VM creation: available RAM, CPU cores, and virtualization support.
+    .PARAMETER RequiredMemoryMB
+    Minimum required VM memory in megabytes (default: 4096 = 4GB)
+    .PARAMETER HypervisorType
+    The hypervisor type to validate resources for: HyperV, VMware, or Auto
+    .OUTPUTS
+    FFUCheckResult object with status, message, details, and remediation steps
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [int64]$RequiredMemoryMB = 4096,
+
+        [Parameter()]
+        [ValidateSet('HyperV', 'VMware', 'Auto')]
+        [string]$HypervisorType = 'HyperV'
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        $totalMemoryMB = [Math]::Round($os.TotalVisibleMemorySize / 1024, 0)
+        $freeMemoryMB = [Math]::Round($os.FreePhysicalMemory / 1024, 0)
+
+        $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop | Select-Object -First 1
+        $cpuCores = $cpu.NumberOfCores
+        $logicalProcessors = $cpu.NumberOfLogicalProcessors
+        $cpuName = $cpu.Name
+
+        $virtualizationEnabled = $false
+        $virtualizationFirmware = $false
+        try {
+            $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+            $virtualizationEnabled = $computerSystem.HypervisorPresent
+            $processor = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop | Select-Object -First 1
+            $virtualizationFirmware = $processor.VirtualizationFirmwareEnabled
+        }
+        catch {
+            $virtualizationEnabled = $true
+            $virtualizationFirmware = $true
+        }
+
+        $hostOverheadMB = 2048
+        $totalRequiredMB = $RequiredMemoryMB + $hostOverheadMB
+
+        $details = @{
+            TotalMemoryMB          = $totalMemoryMB
+            AvailableMemoryMB      = $freeMemoryMB
+            RequiredMemoryMB       = $RequiredMemoryMB
+            RequiredWithOverheadMB = $totalRequiredMB
+            HostOverheadMB         = $hostOverheadMB
+            CPUCores               = $cpuCores
+            LogicalProcessors      = $logicalProcessors
+            CPUName                = $cpuName
+            VirtualizationEnabled  = $virtualizationEnabled
+            VirtualizationFirmware = $virtualizationFirmware
+            HypervisorType         = $HypervisorType
+        }
+
+        $stopwatch.Stop()
+
+        if ($freeMemoryMB -lt $totalRequiredMB) {
+            $shortfallMB = $totalRequiredMB - $freeMemoryMB
+            return New-FFUCheckResult -CheckName 'VMResources' -Status 'Failed' `
+                -Message "Insufficient available memory: ${freeMemoryMB}MB free, ${totalRequiredMB}MB required (VM: ${RequiredMemoryMB}MB + Host: ${hostOverheadMB}MB)" `
+                -Details $details `
+                -Remediation "Close applications to free up ${shortfallMB}MB of memory, reduce VM memory in configuration, or add more physical RAM." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        if (-not $virtualizationFirmware -and -not $virtualizationEnabled) {
+            return New-FFUCheckResult -CheckName 'VMResources' -Status 'Warning' `
+                -Message "Virtualization extensions may not be enabled in BIOS/UEFI" `
+                -Details $details `
+                -Remediation "Enable Intel VT-x or AMD-V (SVM Mode) in BIOS/UEFI settings. If running in a VM, enable nested virtualization on the host." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        $minCores = 2
+        if ($cpuCores -lt $minCores) {
+            return New-FFUCheckResult -CheckName 'VMResources' -Status 'Warning' `
+                -Message "Only $cpuCores CPU core(s) detected. FFU building will be slow." `
+                -Details $details `
+                -Remediation "For better performance, use a system with at least $minCores CPU cores." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        return New-FFUCheckResult -CheckName 'VMResources' -Status 'Passed' `
+            -Message "VM resources validated: ${freeMemoryMB}MB available, $cpuCores cores, virtualization enabled" `
+            -Details $details `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+    catch {
+        $stopwatch.Stop()
+        return New-FFUCheckResult -CheckName 'VMResources' -Status 'Failed' `
+            -Message "Failed to check VM resources: $($_.Exception.Message)" `
+            -Details @{ Error = $_.Exception.Message } `
+            -Remediation "Ensure WMI/CIM service is running and accessible." `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+}
+
+function Test-FFUScratchSpace {
+    <#
+    .SYNOPSIS
+    Validates the FFUDevelopment path is usable for build operations.
+    .DESCRIPTION
+    Checks that the FFUDevelopment path exists on NTFS, is not on a network share, and has sufficient space.
+    .PARAMETER FFUDevelopmentPath
+    Path to the FFUDevelopment folder
+    .PARAMETER RequiredScratchGB
+    Required scratch space in gigabytes (default: 10)
+    .OUTPUTS
+    FFUCheckResult object with status, message, details, and remediation steps
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter()]
+        [int]$RequiredScratchGB = 10
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        $details = @{
+            FFUDevelopmentPath = $FFUDevelopmentPath
+            PathExists         = $false
+            ParentWritable     = $false
+            FileSystem         = 'Unknown'
+            IsNetworkPath      = $false
+            DriveType          = 'Unknown'
+            ScratchSpaceGB     = 0
+            RequiredScratchGB  = $RequiredScratchGB
+        }
+
+        $isNetworkPath = $FFUDevelopmentPath.StartsWith('\\')
+        if (-not $isNetworkPath -and $FFUDevelopmentPath.Length -ge 2 -and $FFUDevelopmentPath[1] -eq ':') {
+            $driveLetter = $FFUDevelopmentPath[0]
+            try {
+                $driveInfo = [System.IO.DriveInfo]::new($driveLetter + ':')
+                $isNetworkPath = $driveInfo.DriveType -eq [System.IO.DriveType]::Network
+                $details.DriveType = $driveInfo.DriveType.ToString()
+            }
+            catch {
+                $isNetworkPath = $false
+            }
+        }
+        $details.IsNetworkPath = $isNetworkPath
+
+        $pathExists = Test-Path -Path $FFUDevelopmentPath -PathType Container
+        $details.PathExists = $pathExists
+
+        $checkPath = if ($pathExists) {
+            $FFUDevelopmentPath
+        }
+        else {
+            $parent = Split-Path -Path $FFUDevelopmentPath -Parent
+            if ($parent -and (Test-Path -Path $parent -PathType Container)) {
+                $details.ParentWritable = $true
+                $parent
+            }
+            elseif ($FFUDevelopmentPath.Length -ge 2 -and $FFUDevelopmentPath[1] -eq ':') {
+                $FFUDevelopmentPath.Substring(0, 3)
+            }
+            else {
+                $null
+            }
+        }
+
+        if (-not $checkPath) {
+            $stopwatch.Stop()
+            return New-FFUCheckResult -CheckName 'ScratchSpace' -Status 'Failed' `
+                -Message "Cannot validate path: $FFUDevelopmentPath - parent directory does not exist" `
+                -Details $details `
+                -Remediation "Create the parent directory or specify a valid path on an existing drive." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        $driveLetter = $checkPath[0]
+        $driveInfo = [System.IO.DriveInfo]::new($driveLetter + ':')
+        $details.FileSystem = $driveInfo.DriveFormat
+        $details.ScratchSpaceGB = [Math]::Round($driveInfo.AvailableFreeSpace / 1GB, 2)
+
+        $stopwatch.Stop()
+
+        if ($details.FileSystem -eq 'FAT32') {
+            return New-FFUCheckResult -CheckName 'ScratchSpace' -Status 'Failed' `
+                -Message "FFUDevelopment path is on FAT32 filesystem which has 4GB file size limit" `
+                -Details $details `
+                -Remediation "Convert drive to NTFS (convert ${driveLetter}: /fs:ntfs) or use a different drive with NTFS filesystem." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        if ($isNetworkPath) {
+            return New-FFUCheckResult -CheckName 'ScratchSpace' -Status 'Warning' `
+                -Message "FFUDevelopment path is on a network location which may impact performance" `
+                -Details $details `
+                -Remediation "For best performance, use a local SSD with NTFS filesystem and at least ${RequiredScratchGB}GB free space." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        if ($details.ScratchSpaceGB -lt $RequiredScratchGB) {
+            $shortfallGB = $RequiredScratchGB - $details.ScratchSpaceGB
+            return New-FFUCheckResult -CheckName 'ScratchSpace' -Status 'Failed' `
+                -Message "Insufficient scratch space: $($details.ScratchSpaceGB)GB available, ${RequiredScratchGB}GB required" `
+                -Details $details `
+                -Remediation "Free up ${shortfallGB}GB on drive ${driveLetter}: using Disk Cleanup (cleanmgr /d ${driveLetter}) or move FFUDevelopment to a drive with more space." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        return New-FFUCheckResult -CheckName 'ScratchSpace' -Status 'Passed' `
+            -Message "Scratch space validated: $($details.ScratchSpaceGB)GB available on $($details.FileSystem) filesystem" `
+            -Details $details `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+    catch {
+        $stopwatch.Stop()
+        return New-FFUCheckResult -CheckName 'ScratchSpace' -Status 'Failed' `
+            -Message "Failed to validate scratch space: $($_.Exception.Message)" `
+            -Details @{
+                FFUDevelopmentPath = $FFUDevelopmentPath
+                Error              = $_.Exception.Message
+            } `
+            -Remediation "Ensure the path is accessible and you have read permissions." `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+}
+
+function Test-FFUDISMState {
+    <#
+    .SYNOPSIS
+    Validates DISM is not in a corrupted state with orphaned mount points.
+    .DESCRIPTION
+    Checks for orphaned WIM mount points and DISM log accessibility. Can auto-remediate with -AttemptRemediation.
+    .PARAMETER AttemptRemediation
+    If specified, attempts to clean up orphaned mount points automatically
+    .OUTPUTS
+    FFUCheckResult object with status, message, details, and remediation steps
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [switch]$AttemptRemediation
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        $details = @{
+            OrphanedMounts       = 0
+            MountedImages        = @()
+            DISMLogAccessible    = $false
+            CBSLogRecent         = $false
+            RemediationAttempted = $false
+            RemediationSuccess   = $false
+        }
+
+        $mountedOutput = $null
+        try {
+            $mountedOutput = & dism.exe /Get-MountedImageInfo 2>&1
+        }
+        catch { }
+
+        $mountedImages = @()
+        if ($mountedOutput) {
+            $outputText = $mountedOutput -join "`n"
+            $mountDirPattern = 'Mount Dir\s*:\s*(.+)'
+            $regexMatches = [regex]::Matches($outputText, $mountDirPattern)
+            foreach ($match in $regexMatches) {
+                $mountDir = $match.Groups[1].Value.Trim()
+                if ($mountDir) {
+                    $mountedImages += $mountDir
+                }
+            }
+        }
+        $details.MountedImages = $mountedImages
+        $details.OrphanedMounts = $mountedImages.Count
+
+        $dismLogPath = Join-Path $env:windir 'Logs\DISM\dism.log'
+        if (Test-Path -Path $dismLogPath) {
+            try {
+                $stream = [System.IO.File]::Open($dismLogPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+                $stream.Close()
+                $details.DISMLogAccessible = $true
+            }
+            catch {
+                $details.DISMLogAccessible = $false
+            }
+        }
+        else {
+            $details.DISMLogAccessible = $true
+        }
+
+        $cbsLogPath = Join-Path $env:windir 'Logs\CBS\CBS.log'
+        if (Test-Path -Path $cbsLogPath) {
+            $cbsFile = Get-Item -Path $cbsLogPath -ErrorAction SilentlyContinue
+            if ($cbsFile) {
+                $hoursSinceModified = ([DateTime]::Now - $cbsFile.LastWriteTime).TotalHours
+                $details.CBSLogRecent = $hoursSinceModified -lt 24
+            }
+        }
+
+        if ($mountedImages.Count -gt 0 -and $AttemptRemediation) {
+            $details.RemediationAttempted = $true
+            try {
+                & dism.exe /Cleanup-Mountpoints 2>&1 | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    $recheckOutput = & dism.exe /Get-MountedImageInfo 2>&1
+                    $recheckText = $recheckOutput -join "`n"
+                    $recheckMatches = [regex]::Matches($recheckText, $mountDirPattern)
+                    if ($recheckMatches.Count -eq 0) {
+                        $details.RemediationSuccess = $true
+                        $details.OrphanedMounts = 0
+                        $details.MountedImages = @()
+                    }
+                }
+            }
+            catch {
+                $details.RemediationSuccess = $false
+            }
+        }
+
+        $stopwatch.Stop()
+
+        if ($details.OrphanedMounts -gt 0) {
+            if ($details.RemediationAttempted -and $details.RemediationSuccess) {
+                return New-FFUCheckResult -CheckName 'DISMState' -Status 'Passed' `
+                    -Message "DISM state healthy (cleaned $($mountedImages.Count) orphaned mount point(s))" `
+                    -Details $details `
+                    -DurationMs $stopwatch.ElapsedMilliseconds
+            }
+            else {
+                $mountList = $mountedImages -join ', '
+                return New-FFUCheckResult -CheckName 'DISMState' -Status 'Failed' `
+                    -Message "Found $($mountedImages.Count) orphaned DISM mount point(s) that may interfere with build" `
+                    -Details $details `
+                    -Remediation "Run 'dism /Cleanup-Mountpoints' as Administrator. If that fails, try 'Restart-Service TrustedInstaller -Force' or reboot the computer. Orphaned mounts: $mountList" `
+                    -DurationMs $stopwatch.ElapsedMilliseconds
+            }
+        }
+
+        if (-not $details.DISMLogAccessible) {
+            return New-FFUCheckResult -CheckName 'DISMState' -Status 'Warning' `
+                -Message "DISM log file is not accessible (may be locked by another process)" `
+                -Details $details `
+                -Remediation "Close any other applications using DISM and try again." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        return New-FFUCheckResult -CheckName 'DISMState' -Status 'Passed' `
+            -Message "DISM state healthy: no orphaned mounts, logs accessible" `
+            -Details $details `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+    catch {
+        $stopwatch.Stop()
+        return New-FFUCheckResult -CheckName 'DISMState' -Status 'Failed' `
+            -Message "Failed to check DISM state: $($_.Exception.Message)" `
+            -Details @{
+                Error                = $_.Exception.Message
+                OrphanedMounts       = 0
+                RemediationAttempted = $false
+            } `
+            -Remediation "Ensure DISM is available and you have Administrator privileges." `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+}
+
+#endregion REL-PRE-01: Enhanced Prerequisite Detection
 
 # Export all public functions
 Export-ModuleMember -Function @(
