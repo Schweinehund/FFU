@@ -375,15 +375,11 @@ function Test-FFUAdministrator {
                     UserName  = $currentPrincipal.Identity.Name
                     IsElevated = $false
                 } `
-                -Remediation @'
-Run PowerShell as Administrator:
-  1. Right-click on PowerShell or Windows Terminal
-  2. Select "Run as administrator"
-  3. Re-run the FFU Builder script
-
-Alternative (from existing terminal):
-  Start-Process pwsh -Verb RunAs -ArgumentList "-File `"$($MyInvocation.ScriptName)`""
-'@ `
+                -Remediation (New-FFURemediationBlock -Issue "Not running with Administrator privileges" `
+                    -Impact "Cannot access Hyper-V, DISM, or system directories" `
+                    -PowerShellCommands @('# Option 1: Restart as Administrator', 'Start-Process pwsh -Verb RunAs -ArgumentList "-NoExit -File $($MyInvocation.ScriptName)"', '', '# Option 2: Use gsudo (if installed)', 'gsudo pwsh') `
+                    -ManualSteps @("Right-click on PowerShell or Windows Terminal", "Select 'Run as administrator'", "Navigate to FFUDevelopment folder and run script again") `
+                    -VerifyCommand '[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)') `
                 -DurationMs $stopwatch.ElapsedMilliseconds
         }
     }
@@ -392,7 +388,9 @@ Alternative (from existing terminal):
         New-FFUCheckResult -CheckName 'Administrator' -Status 'Failed' `
             -Severity 'Critical' `
             -Message "Failed to check Administrator privileges: $($_.Exception.Message)" `
-            -Remediation 'Ensure the security system is accessible and try running as Administrator' `
+            -Remediation (New-FFURemediationBlock -Issue "Failed to check Administrator privileges" `
+                -Impact "Cannot determine if running elevated" `
+                -ManualSteps @("Ensure the security system is accessible", "Try running PowerShell as Administrator")) `
             -DurationMs $stopwatch.ElapsedMilliseconds
     }
 }
