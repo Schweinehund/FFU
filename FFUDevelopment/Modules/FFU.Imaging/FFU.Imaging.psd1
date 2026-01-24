@@ -65,7 +65,9 @@
         'Test-FFUCaptureReadiness',
         'Invoke-SafeFFUCapture',
         'Test-IsTransientImagingError',
-        'Invoke-ImagingOperationWithRetry'
+        'Invoke-ImagingOperationWithRetry',
+        'Get-FFUOperationTimeEstimate',
+        'Test-FFUOperationReadiness'
     )
 
     # Cmdlets to export from this module

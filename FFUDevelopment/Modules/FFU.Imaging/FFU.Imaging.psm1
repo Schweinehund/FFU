@@ -4436,6 +4436,331 @@ function Invoke-ImagingOperationWithRetry {
 
 #endregion REL-IMG-04
 
+#region REL-IMG-05: Large FFU Operation Pre-Validation
+
+function Get-FFUOperationTimeEstimate {
+    <#
+    .SYNOPSIS
+    Provides time estimates for FFU operations based on source size and storage type.
+
+    .DESCRIPTION
+    Calculates estimated completion time for FFU operations (Capture, Optimize, Apply)
+    based on source data size and storage type. Includes a 20% buffer for overhead
+    and a critical warning that DISM does not support resume.
+
+    Purpose: Help users understand how long operations will take so they know not
+    to interrupt them. Since DISM /Capture-FFU has NO resume capability, users
+    need to plan for the full operation duration.
+
+    .PARAMETER OperationType
+    The type of FFU operation: 'Capture', 'Optimize', or 'Apply'.
+
+    .PARAMETER SourceSizeBytes
+    Size of the source data in bytes.
+
+    .PARAMETER StorageType
+    Type of storage being used: 'HDD', 'SSD', or 'NVMe'. Default is 'SSD'.
+    Affects throughput estimates significantly.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - OperationType: The operation type
+    - SourceSizeGB: Source size in GB (rounded to 2 decimal places)
+    - StorageType: The storage type used for estimate
+    - EstimatedSeconds: Raw estimated seconds (without buffer)
+    - EstimatedMinutes: Estimated minutes with 20% buffer
+    - HumanReadable: Friendly time string (e.g., "25 minutes", "1 hour(s) 30 minutes")
+    - Warning: Critical warning about DISM not supporting resume
+
+    .EXAMPLE
+    $estimate = Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB
+    Write-Host "Estimated time: $($estimate.HumanReadable)"
+    Write-Host "WARNING: $($estimate.Warning)"
+
+    .EXAMPLE
+    # Estimate for HDD (slower storage)
+    Get-FFUOperationTimeEstimate -OperationType 'Capture' -SourceSizeBytes 50GB -StorageType 'HDD'
+
+    .NOTES
+    REL-IMG-05: Pre-validation for large FFU operations
+    Throughput estimates based on typical hardware performance:
+    - HDD: 80-100 MB/s
+    - SSD: 200-300 MB/s
+    - NVMe: 400-500 MB/s
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Capture', 'Optimize', 'Apply')]
+        [string]$OperationType,
+
+        [Parameter(Mandatory)]
+        [int64]$SourceSizeBytes,
+
+        [Parameter()]
+        [ValidateSet('HDD', 'SSD', 'NVMe')]
+        [string]$StorageType = 'SSD'
+    )
+
+    # Define throughput estimates in MB/s based on typical hardware
+    $throughputMBps = switch ($StorageType) {
+        'HDD'  { @{ Capture = 80;  Optimize = 100; Apply = 100 } }
+        'SSD'  { @{ Capture = 200; Optimize = 300; Apply = 250 } }
+        'NVMe' { @{ Capture = 400; Optimize = 500; Apply = 450 } }
+    }
+
+    # Calculate estimated time
+    $sourceSizeMB = $SourceSizeBytes / 1MB
+    $operationThroughput = $throughputMBps[$OperationType]
+
+    $estimatedSeconds = [int]($sourceSizeMB / $operationThroughput)
+    $estimatedMinutes = [math]::Ceiling($estimatedSeconds / 60)
+
+    # Add 20% buffer for overhead (compression, I/O waits, etc.)
+    $estimatedMinutesWithBuffer = [math]::Ceiling($estimatedMinutes * 1.2)
+
+    # Format human-readable estimate
+    $humanReadable = if ($estimatedMinutesWithBuffer -lt 2) {
+        "less than 2 minutes"
+    }
+    elseif ($estimatedMinutesWithBuffer -lt 60) {
+        "$estimatedMinutesWithBuffer minutes"
+    }
+    else {
+        $hours = [math]::Floor($estimatedMinutesWithBuffer / 60)
+        $mins = $estimatedMinutesWithBuffer % 60
+        if ($mins -eq 0) {
+            "$hours hour(s)"
+        }
+        else {
+            "$hours hour(s) $mins minutes"
+        }
+    }
+
+    # Return structured result
+    [PSCustomObject]@{
+        OperationType    = $OperationType
+        SourceSizeGB     = [math]::Round($SourceSizeBytes / 1GB, 2)
+        StorageType      = $StorageType
+        EstimatedSeconds = $estimatedSeconds
+        EstimatedMinutes = $estimatedMinutesWithBuffer
+        HumanReadable    = $humanReadable
+        Warning          = "DISM does not support resume. Do not interrupt this operation."
+    }
+}
+
+function Test-FFUOperationReadiness {
+    <#
+    .SYNOPSIS
+    Validates all pre-conditions before starting FFU operations.
+
+    .DESCRIPTION
+    Performs comprehensive pre-validation to prevent mid-operation failures:
+    - Source exists
+    - Source is accessible (for WIM/ISO files)
+    - Sufficient disk space on target drive
+    - Target directory is writable
+
+    Since DISM /Capture-FFU does NOT support resume, preventing failures before
+    they start is the only defense against wasted time.
+
+    .PARAMETER OperationType
+    The type of FFU operation: 'Capture', 'Optimize', 'Apply', 'Mount', or 'Expand'.
+
+    .PARAMETER SourcePath
+    Path to the source file (VHDX, WIM, ISO, FFU).
+
+    .PARAMETER TargetPath
+    Path where output will be written.
+
+    .PARAMETER SpaceMarginPercent
+    Extra margin for disk space calculation. Default is 100 (double the source size).
+    For FFU capture, dynamic VHDX can theoretically be as large as max size.
+
+    .PARAMETER IncludeTimeEstimate
+    If specified, includes a time estimate in the result.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Ready: Boolean indicating if all checks passed
+    - OperationType: The operation type
+    - Checks: Array of check results with Name, Passed, Message, Remediation
+    - FailedChecks: Array of checks that failed (subset of Checks)
+    - TimeEstimate: Time estimate object (if IncludeTimeEstimate specified)
+    - NoResumeWarning: Critical warning about DISM not supporting resume
+
+    .EXAMPLE
+    $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+        -SourcePath 'C:\FFU\scratch.vhdx' -TargetPath 'C:\FFU\output.ffu'
+    if (-not $result.Ready) {
+        throw "Not ready: $($result.FailedChecks[0].Message)"
+    }
+
+    .EXAMPLE
+    # With time estimate
+    $result = Test-FFUOperationReadiness -OperationType 'Capture' `
+        -SourcePath 'C:\FFU\scratch.vhdx' -TargetPath 'C:\FFU\output.ffu' `
+        -IncludeTimeEstimate
+    Write-Host "Estimated time: $($result.TimeEstimate.HumanReadable)"
+
+    .NOTES
+    REL-IMG-05: Pre-validation for large FFU operations
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Capture', 'Optimize', 'Apply', 'Mount', 'Expand')]
+        [string]$OperationType,
+
+        [Parameter()]
+        [string]$SourcePath,
+
+        [Parameter()]
+        [string]$TargetPath,
+
+        [Parameter()]
+        [int]$SpaceMarginPercent = 100,
+
+        [Parameter()]
+        [switch]$IncludeTimeEstimate
+    )
+
+    # Initialize validation results
+    $checks = @()
+    $allPassed = $true
+
+    # Check 1: Validate source exists (if applicable)
+    if ($SourcePath) {
+        $sourceCheck = @{
+            Name   = 'SourceExists'
+            Passed = Test-Path $SourcePath
+        }
+        if (-not $sourceCheck.Passed) {
+            $sourceCheck.Message = "Source not found: $SourcePath"
+            $sourceCheck.Remediation = "Verify the source path is correct and accessible."
+            $allPassed = $false
+        }
+        else {
+            $sourceCheck.Message = "Source exists: $SourcePath"
+            $sourceCheck.Remediation = $null
+        }
+        $checks += [PSCustomObject]$sourceCheck
+    }
+
+    # Check 2: Validate source accessibility (for WIM/ISO files)
+    if ($SourcePath -and (Test-Path $SourcePath) -and $SourcePath -match '\.(wim|iso)$') {
+        try {
+            # Use Test-WimSourceAccessibility if available
+            if (Get-Command -Name Test-WimSourceAccessibility -ErrorAction SilentlyContinue) {
+                $accessCheck = Test-WimSourceAccessibility -WimPath $SourcePath
+                $checks += [PSCustomObject]@{
+                    Name        = 'SourceAccessible'
+                    Passed      = $accessCheck.IsAccessible
+                    Message     = if ($accessCheck.IsAccessible) { "Source accessible" } else { $accessCheck.ErrorMessage }
+                    Remediation = if (-not $accessCheck.IsAccessible) { "Ensure the source file is readable and not locked." } else { $null }
+                }
+                if (-not $accessCheck.IsAccessible) { $allPassed = $false }
+            }
+        }
+        catch {
+            # Test-WimSourceAccessibility may not exist for all source types - skip
+        }
+    }
+
+    # Check 3: Validate disk space for target
+    if ($TargetPath -and $SourcePath -and (Test-Path $SourcePath)) {
+        $sourceSize = if (Test-Path $SourcePath -PathType Leaf) {
+            (Get-Item $SourcePath).Length
+        }
+        else {
+            10GB  # Default for directories
+        }
+
+        $spaceCheck = Test-DiskSpaceForOperation -Path $TargetPath `
+            -RequiredBytes $sourceSize -SafetyMarginPercent $SpaceMarginPercent `
+            -OperationName "$OperationType operation"
+
+        $checks += [PSCustomObject]@{
+            Name        = 'DiskSpace'
+            Passed      = $spaceCheck.HasSufficientSpace
+            Message     = if ($spaceCheck.HasSufficientSpace) {
+                "Disk space OK. Required: $($spaceCheck.RequiredGB) GB, Available: $($spaceCheck.AvailableGB) GB"
+            }
+            else {
+                "Insufficient disk space. Required: $($spaceCheck.RequiredGB) GB, Available: $($spaceCheck.AvailableGB) GB"
+            }
+            Remediation = $spaceCheck.Remediation
+            Details     = $spaceCheck
+        }
+        if (-not $spaceCheck.HasSufficientSpace) { $allPassed = $false }
+    }
+
+    # Check 4: Validate target is writable
+    if ($TargetPath) {
+        $targetDir = if (Test-Path $TargetPath -PathType Container) {
+            $TargetPath
+        }
+        else {
+            Split-Path -Parent $TargetPath
+        }
+
+        $writableCheck = @{ Name = 'TargetWritable' }
+        try {
+            if (-not [string]::IsNullOrWhiteSpace($targetDir)) {
+                if (-not (Test-Path $targetDir)) {
+                    New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
+                }
+                $testFile = Join-Path $targetDir ".ffu_write_test_$(Get-Random).tmp"
+                [System.IO.File]::WriteAllText($testFile, 'test')
+                Remove-Item $testFile -Force
+                $writableCheck.Passed = $true
+                $writableCheck.Message = "Target directory writable: $targetDir"
+                $writableCheck.Remediation = $null
+            }
+            else {
+                $writableCheck.Passed = $true
+                $writableCheck.Message = "Target directory check skipped (current directory)"
+                $writableCheck.Remediation = $null
+            }
+        }
+        catch {
+            $writableCheck.Passed = $false
+            $writableCheck.Message = "Target directory not writable: $targetDir - $($_.Exception.Message)"
+            $writableCheck.Remediation = "Check write permissions or choose a different target location."
+            $allPassed = $false
+        }
+        $checks += [PSCustomObject]$writableCheck
+    }
+
+    # Include time estimate if requested
+    $timeEstimate = $null
+    if ($IncludeTimeEstimate -and $SourcePath -and (Test-Path $SourcePath -PathType Leaf)) {
+        $sourceSize = (Get-Item $SourcePath).Length
+        # Map operation types for time estimation (Mount/Expand use Apply throughput)
+        $timeOpType = switch ($OperationType) {
+            'Mount'  { 'Apply' }
+            'Expand' { 'Apply' }
+            default  { $OperationType }
+        }
+        $timeEstimate = Get-FFUOperationTimeEstimate -OperationType $timeOpType `
+            -SourceSizeBytes $sourceSize
+    }
+
+    # Return result
+    [PSCustomObject]@{
+        Ready           = $allPassed
+        OperationType   = $OperationType
+        Checks          = $checks
+        FailedChecks    = @($checks | Where-Object { -not $_.Passed })
+        TimeEstimate    = $timeEstimate
+        NoResumeWarning = "DISM operations do not support resume. If interrupted, the entire operation must be restarted."
+    }
+}
+
+#endregion REL-IMG-05
+
 # Export module members
 Export-ModuleMember -Function @(
     'Initialize-DISMService',
@@ -4470,5 +4795,7 @@ Export-ModuleMember -Function @(
     'Test-FFUCaptureReadiness',
     'Invoke-SafeFFUCapture',
     'Test-IsTransientImagingError',
-    'Invoke-ImagingOperationWithRetry'
+    'Invoke-ImagingOperationWithRetry',
+    'Get-FFUOperationTimeEstimate',
+    'Test-FFUOperationReadiness'
 )
