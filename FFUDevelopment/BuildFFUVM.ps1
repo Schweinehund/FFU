@@ -2298,6 +2298,13 @@ If (Test-Path -Path "$FFUDevelopmentPath\dirty.txt") {
 WriteLog 'Creating dirty.txt file'
 New-Item -Path .\ -Name "dirty.txt" -ItemType "file" | Out-Null
 
+# Initialize build error aggregation (REL-BUILD-04)
+# Must be called at build start to ensure clean slate for error collection
+if ($ExecutionContext.InvokeCommand.GetCommand('Clear-BuildErrors', 'Function')) {
+    Clear-BuildErrors
+    WriteLog "Build error collector initialized"
+}
+
 # Early CLI prompt for additional FFUs (only if enabled and not provided)
 if ($BuildUSBDrive -and $CopyAdditionalFFUFiles -and ((-not $AdditionalFFUFiles) -or ($AdditionalFFUFiles.Count -eq 0))) {
     try {
@@ -2553,7 +2560,9 @@ if (-not $skipDriverDownload -and $driversJsonPath -and (Test-Path $driversJsonP
 # Existing single-model driver download logic
 elseif (($Make -and $Model) -and ($InstallDrivers -or $CopyDrivers)) {
     Set-Progress -Percentage 4 -Message "Downloading OEM drivers..."
-    try {
+
+    # === NON-CRITICAL PHASE: Driver Download (INT-BUILD-01, INT-BUILD-02) ===
+    $driverDownloadResult = Invoke-BuildPhase -PhaseName 'Driver Download' -Critical $false -Action {
         if ($Make -eq 'HP') {
             WriteLog 'Getting HP drivers'
             Get-HPDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
@@ -2561,21 +2570,21 @@ elseif (($Make -and $Model) -and ($InstallDrivers -or $CopyDrivers)) {
                           -FFUDevelopmentPath $FFUDevelopmentPath
             WriteLog 'Getting HP drivers completed successfully'
         }
-        if ($make -eq 'Microsoft') {
+        if ($Make -eq 'Microsoft') {
             WriteLog 'Getting Microsoft drivers'
             Get-MicrosoftDrivers -Make $Make -Model $Model -WindowsRelease $WindowsRelease `
                                 -Headers $Headers -UserAgent $UserAgent -DriversFolder $DriversFolder `
                                 -FFUDevelopmentPath $FFUDevelopmentPath
             WriteLog 'Getting Microsoft drivers completed successfully'
         }
-        if ($make -eq 'Lenovo') {
+        if ($Make -eq 'Lenovo') {
             WriteLog 'Getting Lenovo drivers'
             Get-LenovoDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
                               -Headers $Headers -UserAgent $UserAgent -DriversFolder $DriversFolder `
                               -FFUDevelopmentPath $FFUDevelopmentPath
             WriteLog 'Getting Lenovo drivers completed successfully'
         }
-        if ($make -eq 'Dell') {
+        if ($Make -eq 'Dell') {
             WriteLog 'Getting Dell drivers'
             #Dell mixes Win10 and 11 drivers, hence no WindowsRelease parameter
             Get-DellDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
@@ -2584,9 +2593,11 @@ elseif (($Make -and $Model) -and ($InstallDrivers -or $CopyDrivers)) {
             WriteLog 'Getting Dell drivers completed successfully'
         }
     }
-    catch {
-        Writelog "Getting drivers failed with error $_"
-        throw $_
+
+    if (-not $driverDownloadResult.Success) {
+        WriteLog "WARNING: Driver download failed but build will continue."
+        WriteLog "  Error: $($driverDownloadResult.Error.Message)"
+        WriteLog "  Note: Build will proceed without OEM drivers. You can add drivers manually to the Drivers folder."
     }
 }
             
