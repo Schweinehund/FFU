@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 18 — FFU.Imaging Reliability
+**Current focus:** Phase 18 - FFU.Imaging Reliability
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 18 of 25 (FFU.Imaging Reliability)
-**Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-01-24 — Phase 17 complete (verified)
+**Plan:** 1 of 5 complete
+**Status:** In progress
+**Last activity:** 2026-01-24 - Completed 18-01-PLAN.md (Disk Space Pre-Validation)
 
 Progress: Milestone v1.9.0
 [###-------] 27% (3/11 phases)
@@ -63,9 +63,14 @@ Progress: Milestone v1.9.0
 | Checkpoint margin default 100% | Worst case: checkpoint can grow to full VHDX size | 2026-01-24 |
 | Dynamic VHDX uses max size | Better to overestimate than fail mid-operation | 2026-01-24 |
 | Orphan = files appearing during op | Simple and reliable detection of partial checkpoint files | 2026-01-24 |
+| Default 10% safety margin | Conservative for typical imaging operations | 2026-01-24 |
+| System.IO.DriveInfo over Get-Volume | No dependency on Storage module, works cross-platform | 2026-01-24 |
+| int64 for byte calculations | Avoids overflow with large values (100TB+) | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 18-01-PLAN.md (Disk Space Pre-Validation) - REL-IMG-01
+- 2026-01-24: FFU.Imaging v1.1.8, main version v1.8.20, 59 Pester tests
 - 2026-01-24: Completed Phase 17 (FFU.VM Reliability) - 4/4 plans, verified
 - 2026-01-24: Executed 17-04-PLAN.md (Checkpoint Disk Space Validation) - REL-VM-04
 - 2026-01-24: Executed 17-03-PLAN.md (Transient Error Retry) - REL-VM-03
@@ -76,8 +81,6 @@ Progress: Milestone v1.9.0
 - 2026-01-23: Executed 16-03-PLAN.md (Provider Switch Validation) - REL-HYP-03
 - 2026-01-23: Executed 16-02-PLAN.md (VM State Detection Reliability) - REL-HYP-02
 - 2026-01-23: Executed 16-01-PLAN.md (Provider Detection with Remediation) - REL-HYP-01
-- 2026-01-23: Executed 15-03-PLAN.md (Session Recovery & Credential Validation) - Phase 15 complete
-- 2026-01-21: v1.8.3 shipped (VMware UI Settings complete)
 
 ## Blockers
 
@@ -86,9 +89,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Phase 17 verified and complete
+**Stopped at:** Completed 18-01-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:plan-phase 18` to plan FFU.Imaging Reliability
+**Next action:** Execute 18-02-PLAN.md or next plan in Phase 18
 
 ---
 *State updated: 2026-01-24*
