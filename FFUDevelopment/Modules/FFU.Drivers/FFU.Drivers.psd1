@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.6'
+    ModuleVersion = '1.1.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -106,6 +106,16 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.1.0: REL-DRV-01/02 Driver Download Reliability Improvements
+- Added Invoke-DriverDownloadWithRetry internal function with exponential backoff
+- Retry logic: 3 attempts with delays of 5s, 10s, 20s (plus 0-3s random jitter)
+- Updated Get-MicrosoftDrivers, Get-HPDrivers, Get-LenovoDrivers, Get-DellDrivers
+- Added Get-DriverExtractionResult for vendor-specific exit code classification
+- HP/Lenovo/Dell/Microsoft exit codes classified as Success/Warn/Fail
+- Exit codes 3010 (reboot required) and 1641 (reboot initiated) treated as success
+- ThreadJob-safe logging pattern using $function:WriteLog check
+- Unified error handling reduces duplicate code across OEM functions
+
 v1.0.6: BUG-04 Fix Dell Chipset Driver Extraction Hang
 - Fixed Dell Intel chipset driver extraction hanging indefinitely
 - Replaced Invoke-Process + Start-Sleep with Start-Process + WaitForExit()
