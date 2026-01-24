@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 19 of 25 (FFU.Media Reliability)
-**Plan:** 02 of 5
+**Plan:** 04 of 5
 **Status:** In progress
-**Last activity:** 2026-01-24 — Completed 19-02-PLAN.md (DISM/ADK Error Classification)
+**Last activity:** 2026-01-23 — Completed 19-04-PLAN.md (Architecture Capability Validation)
 
 Progress: Milestone v1.9.0
 [####------] 36% (4/11 phases complete)
@@ -25,7 +25,7 @@ Progress: Milestone v1.9.0
 | 19-01 | WinPE Media Readiness Check | Complete | 7b68bfe |
 | 19-02 | DISM/ADK Error Classification | Complete | a706fe0 |
 | 19-03 | oscdimg Error Handling | Not started | - |
-| 19-04 | Architecture Capability Validation | Complete | 8042c0c |
+| 19-04 | Architecture Capability Validation | Complete | 4750e8c |
 | 19-05 | TBD | Not started | - |
 
 ## Completed Phases This Milestone
@@ -99,9 +99,14 @@ Progress: Milestone v1.9.0
 | Structured readiness result | FailureReason + Remediation enables programmatic handling | 2026-01-24 |
 | DISM error classification via HResult | Regex pattern matching for error codes is reliable | 2026-01-24 |
 | Unknown errors preserve original message | Enables debugging even for unrecognized errors | 2026-01-24 |
+| RuntimeInformation.ProcessArchitecture for host detection | Cross-platform compatible host architecture detection | 2026-01-23 |
+| ADK folder mapping: x64 -> amd64 | ADK uses 'amd64' folder for x64 architecture tools | 2026-01-23 |
+| Pre-validation before DISM cleanup | Fail fast on missing architecture before expensive cleanup | 2026-01-23 |
 
 ## Recent Activity
 
+- 2026-01-23: Executed 19-04-PLAN.md (Architecture Capability Validation) - REL-MED-04
+- 2026-01-23: FFU.Media v1.6.0, main version v1.8.25, 102 FFU.Media reliability Pester tests
 - 2026-01-24: Executed 19-02-PLAN.md (DISM/ADK Error Classification) - REL-MED-02
 - 2026-01-24: FFU.Media v1.5.0, main version v1.8.24, 42 REL-MED-02 Pester tests
 - 2026-01-24: Executed 18-05-PLAN.md (Large FFU Operation Pre-Validation) - REL-IMG-05, Phase 18 complete
@@ -126,10 +131,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-01-24
-**Stopped at:** Completed 19-02-PLAN.md (DISM/ADK Error Classification)
+**Last session:** 2026-01-23
+**Stopped at:** Completed 19-04-PLAN.md (Architecture Capability Validation)
 **Resume file:** None
-**Next action:** Continue Phase 19 (19-03 oscdimg Error Handling)
+**Next action:** Continue Phase 19 (19-03 oscdimg Error Handling or 19-05)
 
 ---
-*State updated: 2026-01-24*
+*State updated: 2026-01-23*
