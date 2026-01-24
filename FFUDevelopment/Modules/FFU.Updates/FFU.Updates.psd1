@@ -7,7 +7,7 @@
     RootModule = 'FFU.Updates.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.5'
+    ModuleVersion = '1.0.6'
 
     # ID used to uniquely identify this module
     GUID = 'e3b9c4a1-5f7d-4e2b-8c9a-1d6f3e8b2a5c'
@@ -42,6 +42,7 @@
         'Get-KBLink',
         'Get-UpdateFileInfo',
         'Save-KB',
+        'Test-MSUIntegrity',
         'Test-MountedImageDiskSpace',
         'Test-FileLocked',
         'Test-DISMServiceHealth',
@@ -49,7 +50,9 @@
         'Add-WindowsPackageWithRetry',
         'Add-WindowsPackageWithUnattend',
         'Resolve-KBFilePath',
-        'Test-KBPathsValid'
+        'Test-KBPathsValid',
+        'Invoke-CatalogQueryWithRetry',
+        'Invoke-UpdatesWithIsolation'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -75,7 +78,23 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Updates v1.0.4
+# Release Notes - FFU.Updates v1.0.6
+
+## v1.0.6 - REL-UPD-02 MSU Download Integrity Validation (2026-01-24)
+- **NEW:** Test-MSUIntegrity function for comprehensive MSU file validation
+- Validates file existence, empty file detection, minimum size check
+- Optional SHA-256 hash verification (Base64 format)
+- Optional expected size validation
+- Returns structured result with Valid status, errors list, file size, and actual hash
+- Follows hash validation pattern from Get-ProductsCab
+- Part of REL-UPD-02 reliability requirement
+
+## v1.0.5 - REL-UPD-01, REL-UPD-03 Reliability Enhancements (2026-01-24)
+- **NEW:** Invoke-CatalogQueryWithRetry - Catalog queries with exponential backoff and jitter
+- **NEW:** Invoke-UpdatesWithIsolation - Isolated update application for fault tolerance
+- REL-UPD-01: Catalog queries resilient to transient network failures
+- REL-UPD-03: One update failure does not block others from being applied
+- Get-ProductsCab now uses Invoke-CatalogQueryWithRetry for search and metadata requests
 
 ## v1.0.4 - ThreadJob Safe Logging (2026-01-21)
 - FIX: Get-KBLink uses safe logging pattern for ThreadJob compatibility

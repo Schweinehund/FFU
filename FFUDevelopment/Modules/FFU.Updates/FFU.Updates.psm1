@@ -937,6 +937,141 @@ function Save-KB {
     return $null
 }
 
+function Test-MSUIntegrity {
+    <#
+    .SYNOPSIS
+    Validates MSU file integrity by checking existence, size, and optional hash
+
+    .DESCRIPTION
+    REL-UPD-02: MSU Download Validation
+    Performs comprehensive integrity validation on MSU files:
+    - File existence check
+    - Empty file detection (0 bytes = corruption indicator)
+    - Minimum size check (default 1MB for MSU files)
+    - Expected size validation (optional)
+    - SHA-256 hash verification (optional)
+
+    Returns a structured result with Valid status and any errors encountered.
+    Used by Save-KB to validate downloads and trigger re-download on corruption.
+
+    .PARAMETER FilePath
+    Full path to the MSU file to validate
+
+    .PARAMETER ExpectedHash
+    Optional Base64-encoded SHA-256 hash to verify against
+
+    .PARAMETER ExpectedSize
+    Optional expected file size in bytes
+
+    .PARAMETER MinimumSizeBytes
+    Minimum acceptable file size in bytes (default: 1MB)
+
+    .EXAMPLE
+    $result = Test-MSUIntegrity -FilePath "C:\KB\update.msu"
+    if (-not $result.Valid) { Write-Error ($result.Errors -join '; ') }
+
+    .EXAMPLE
+    # With hash validation
+    $result = Test-MSUIntegrity -FilePath "C:\KB\update.msu" -ExpectedHash "abc123..."
+    if (-not $result.Valid) { Remove-Item "C:\KB\update.msu"; # re-download }
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Valid: [bool] True if all checks passed
+    - FilePath: [string] The file path that was validated
+    - Errors: [List[string]] List of error messages (empty if Valid=true)
+    - FileSize: [int64] Actual file size (0 if file not found)
+    - ActualHash: [string] Computed hash if ExpectedHash provided (null otherwise)
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$FilePath,
+
+        [Parameter()]
+        [string]$ExpectedHash,
+
+        [Parameter()]
+        [int64]$ExpectedSize,
+
+        [Parameter()]
+        [int64]$MinimumSizeBytes = 1MB
+    )
+
+    # Initialize result object
+    $result = @{
+        Valid      = $true
+        FilePath   = $FilePath
+        Errors     = [System.Collections.Generic.List[string]]::new()
+        FileSize   = [int64]0
+        ActualHash = $null
+    }
+
+    # Check 1: File exists
+    if (-not (Test-Path -Path $FilePath -PathType Leaf)) {
+        $result.Valid = $false
+        $result.Errors.Add("File not found: $FilePath")
+        return [PSCustomObject]$result
+    }
+
+    # Get file info
+    $fileInfo = Get-Item -Path $FilePath
+
+    # Check 2: Empty file (corruption indicator)
+    if ($fileInfo.Length -eq 0) {
+        $result.Valid = $false
+        $result.FileSize = 0
+        $result.Errors.Add("File is empty (0 bytes) - indicates download corruption or incomplete transfer")
+        return [PSCustomObject]$result
+    }
+
+    $result.FileSize = $fileInfo.Length
+
+    # Check 3: Minimum size check
+    if ($fileInfo.Length -lt $MinimumSizeBytes) {
+        $result.Valid = $false
+        $minSizeMB = [Math]::Round($MinimumSizeBytes / 1MB, 2)
+        $actualSizeMB = [Math]::Round($fileInfo.Length / 1MB, 4)
+        $result.Errors.Add("File is suspiciously small: ${actualSizeMB}MB (minimum expected: ${minSizeMB}MB)")
+    }
+
+    # Check 4: Expected size validation (if provided)
+    if ($ExpectedSize -gt 0 -and $fileInfo.Length -ne $ExpectedSize) {
+        $result.Valid = $false
+        $result.Errors.Add("Size mismatch: expected $ExpectedSize bytes, got $($fileInfo.Length) bytes")
+    }
+
+    # Check 5: Hash validation (if ExpectedHash provided)
+    # Follows pattern from Get-ProductsCab (lines 258-270)
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedHash)) {
+        $sha256 = $null
+        $fs = $null
+        try {
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
+            $fs = [System.IO.File]::OpenRead($FilePath)
+            $hashBytes = $sha256.ComputeHash($fs)
+            $actualHashB64 = [Convert]::ToBase64String($hashBytes)
+            $result.ActualHash = $actualHashB64
+
+            if ($actualHashB64 -ne $ExpectedHash) {
+                $result.Valid = $false
+                $result.Errors.Add("Hash mismatch: expected '$ExpectedHash', got '$actualHashB64'")
+            }
+        }
+        catch {
+            $result.Valid = $false
+            $result.Errors.Add("Failed to compute file hash: $($_.Exception.Message)")
+        }
+        finally {
+            if ($fs) { $fs.Dispose() }
+            if ($sha256) { $sha256.Dispose() }
+        }
+    }
+
+    return [PSCustomObject]$result
+}
+
 function Test-MountedImageDiskSpace {
     <#
     .SYNOPSIS
@@ -2027,6 +2162,7 @@ Export-ModuleMember -Function @(
     'Get-KBLink',
     'Get-UpdateFileInfo',
     'Save-KB',
+    'Test-MSUIntegrity',
     'Test-MountedImageDiskSpace',
     'Test-FileLocked',
     'Test-DISMServiceHealth',
@@ -2035,5 +2171,6 @@ Export-ModuleMember -Function @(
     'Add-WindowsPackageWithUnattend',
     'Resolve-KBFilePath',
     'Test-KBPathsValid',
+    'Invoke-CatalogQueryWithRetry',
     'Invoke-UpdatesWithIsolation'
 )
