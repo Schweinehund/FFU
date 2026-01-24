@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 17 of 25 (FFU.VM Reliability)
-**Plan:** 2 of ? complete (17-02-PLAN.md)
+**Plan:** 3 of ? complete (17-03-PLAN.md)
 **Status:** In progress
-**Last activity:** 2026-01-24 — Completed 17-02 Orphan Detection and Cleanup
+**Last activity:** 2026-01-24 — Completed 17-03 Transient Error Retry
 
 Progress: Milestone v1.9.0
 [##--------] 18% (2/11 phases)
@@ -56,14 +56,19 @@ Progress: Milestone v1.9.0
 | Error classification via pattern matching | Simple keyword matching for common VM creation errors | 2026-01-24 |
 | TPM errors non-critical | VMs work without TPM, only some features limited | 2026-01-24 |
 | Progressive cleanup registration | Register cleanup immediately after resource creation | 2026-01-24 |
+| Transient vs permanent error classification | Pattern-match disk busy/locked as transient, exists/not-found as permanent | 2026-01-24 |
+| Unknown errors fail fast | Default to NOT transient for unknown errors | 2026-01-24 |
+| VM retry base delay 2s | Lower than hypervisor service 5s since VM ops are faster | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 17-03-PLAN.md (Transient Error Retry) - REL-VM-03
+- 2026-01-24: Added Test-IsTransientVMError, Invoke-VMOperationWithRetry functions
+- 2026-01-24: FFU.VM v1.0.11, main version v1.8.18, 77 Pester tests
 - 2026-01-24: Executed 17-02-PLAN.md (Orphan Detection and Cleanup) - REL-VM-02
 - 2026-01-24: Executed 17-01-PLAN.md (VM Creation Diagnostics) - REL-VM-01
 - 2026-01-24: Added Get-VMCreationDiagnostics function, New-FFUVM cleanup registration
 - 2026-01-24: Added Get-OrphanedVMResources (6 orphan types), enhanced Remove-FFUVM
-- 2026-01-24: FFU.VM v1.0.9, main version v1.8.16, 42 Pester tests
 - 2026-01-24: Executed 16-04-PLAN.md (Service Recovery) - REL-HYP-04, Phase 16 complete
 - 2026-01-24: FFU.Hypervisor v1.3.8, main version v1.8.15
 - 2026-01-24: Added Test-HypervisorService, Invoke-WithHypervisorRetry, Test-IsServiceError
@@ -81,9 +86,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 17-02-PLAN.md (Orphan Detection and Cleanup)
+**Stopped at:** Completed 17-03-PLAN.md (Transient Error Retry)
 **Resume file:** None
-**Next action:** Continue with next plan in Phase 17 (17-03 if exists)
+**Next action:** Continue with next plan in Phase 17 (17-04 if exists)
 
 ---
 *State updated: 2026-01-24*
