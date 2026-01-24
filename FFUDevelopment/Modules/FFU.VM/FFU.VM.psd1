@@ -4,7 +4,7 @@
 
 @{
     RootModule = 'FFU.VM.psm1'
-    ModuleVersion = '1.0.10'
+    ModuleVersion = '1.0.11'
     GUID = 'c8f3a942-7e6d-4c1a-9b85-1f4e8d2c5a76'
     Author = 'FFU Builder Team'
     CompanyName = 'Community'
@@ -25,6 +25,8 @@
         'Get-OrphanedVMResources',
         'Test-IsTransientVMError',
         'Invoke-VMOperationWithRetry',
+        'Test-CheckpointDiskSpace',
+        'New-FFUVMCheckpoint',
         'New-FFUVM',
         'Remove-FFUVM',
         'Remove-FFUBuildArtifacts',
@@ -44,6 +46,15 @@
             LicenseUri = 'https://github.com/Schweinehund/FFU/blob/feature/improvements-and-fixes/LICENSE'
             ProjectUri = 'https://github.com/Schweinehund/FFU'
             ReleaseNotes = @'
+v1.0.11: REL-VM-04 Checkpoint Disk Space Validation
+- Added Test-CheckpointDiskSpace function for pre-validation of checkpoint operations
+- Validates available disk space against VHDX size with configurable margin (default 100%)
+- Returns structured object: HasSufficientSpace, AvailableGB, RequiredGB, Drive, Message, Remediation
+- Supports both VMName and VHDXPath parameter sets for flexibility
+- Added New-FFUVMCheckpoint wrapper around Checkpoint-VM with disk space pre-validation
+- Automatically cleans up orphaned AVHDX files on checkpoint failure
+- Enhanced error messages include required vs available space and remediation guidance
+
 v1.0.10: REL-VM-03 Transient Error Retry Support
 - Added Test-IsTransientVMError function for error classification (transient vs permanent)
 - Transient patterns: disk busy, file locked, file in use, network timeout, RPC unavailable, sharing violation
