@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 25 of 25 (FFUUI.Core Reliability) - IN PROGRESS
-**Plan:** 1 of 4 (Centralized UI State Recovery complete)
+**Plan:** 2 of 4 (Structured Error Display complete)
 **Status:** In progress
-**Last activity:** 2026-01-24 - Completed 25-01-PLAN.md (REL-UI-03)
+**Last activity:** 2026-01-24 - Completed 25-02-PLAN.md (REL-UI-04)
 
 Progress: Milestone v1.9.0
-[##########] 93% (10.25/11 phases complete)
+[##########] 95% (10.5/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -38,7 +38,7 @@ Progress: Milestone v1.9.0
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 25-01 | Centralized UI State Recovery | Complete | 459933a |
-| 25-02 | Structured Error Display | Pending | - |
+| 25-02 | Structured Error Display | Complete | caa4316 |
 | 25-03 | Job Failure Context Extraction | Pending | - |
 | 25-04 | Load-Time Config Validation | Pending | - |
 
@@ -147,10 +147,14 @@ Progress: Milestone v1.9.0
 | Memory warns, disk critical throws | Memory low can still work, disk full cannot | 2026-01-24 |
 | Centralized UI reset function | Single Reset-FFUUIToIdle handles all UI control resets after errors | 2026-01-24 |
 | Defensive null checks in UI | All control access wrapped in null checks for graceful degradation | 2026-01-24 |
+| Plural function name for validation | Show-FFUValidationErrors plural - handles multiple validation errors | 2026-01-24 |
+| InModuleScope for test mocking | InModuleScope allows proper mocking of internal module functions | 2026-01-24 |
+| Severity header format | Use [Severity] prefix in message body for clear indication | 2026-01-24 |
 
 ## Recent Activity
 
-- 2026-01-24: Completed 25-01-PLAN.md (Centralized UI State Recovery) - REL-UI-03, 30 tests, FFUUI.Core v0.0.15
+- 2026-01-24: Completed 25-02-PLAN.md (Structured Error Display) - REL-UI-04, 45 tests, FFUUI.Core v0.0.15
+- 2026-01-24: Completed 25-01-PLAN.md (Centralized UI State Recovery) - REL-UI-03, 30 tests, FFUUI.Core v0.0.14
 - 2026-01-24: Completed Phase 24 (WinPE Scripts Reliability) - 4/4 plans, 141 Pester tests
 - 2026-01-24: Completed 24-04-PLAN.md (Resource Exhaustion Handling) - REL-WINPE-04, 40 tests
 - 2026-01-24: Completed 24-03-PLAN.md (Log Preservation Enhancement) - REL-WINPE-03, 45 tests
@@ -185,9 +189,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 25-01-PLAN.md (Centralized UI State Recovery)
+**Stopped at:** Completed 25-02-PLAN.md (Structured Error Display)
 **Resume file:** None
-**Next action:** Execute 25-02-PLAN.md (Structured Error Display)
+**Next action:** Execute 25-03-PLAN.md (Job Failure Context Extraction)
 
 ---
 *State updated: 2026-01-24*
