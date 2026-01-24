@@ -1051,6 +1051,37 @@ Please verify the hypervisor is installed and properly configured.
 # Ensures cleanup of registered resources on terminating errors
 # =============================================================================
 trap {
+    # === REL-BUILD-04/05: Add terminating error to collector for summary ===
+    # Add current error to collector if functions available (v1.8.36)
+    if ($ExecutionContext.InvokeCommand.GetCommand('Add-BuildError', 'Function')) {
+        Add-BuildError -Phase 'Unhandled' -Message $_.Exception.Message -Severity 'Critical' -Exception $_.Exception
+    }
+
+    # Output error summary before cleanup (REL-BUILD-04)
+    if ($ExecutionContext.InvokeCommand.GetCommand('Get-BuildErrorSummary', 'Function')) {
+        $summary = Get-BuildErrorSummary
+        if ($summary.TotalCount -gt 0) {
+            Write-Host "`n========================================" -ForegroundColor Red
+            Write-Host "BUILD FAILED - Error Summary" -ForegroundColor Red
+            Write-Host "========================================" -ForegroundColor Red
+            Write-Host "Total Issues: $($summary.TotalCount)" -ForegroundColor Yellow
+            Write-Host "  Critical: $($summary.CriticalCount)" -ForegroundColor Red
+            Write-Host "  Warnings: $($summary.WarningCount)" -ForegroundColor Yellow
+            Write-Host "  Info: $($summary.InfoCount)" -ForegroundColor Cyan
+            Write-Host "----------------------------------------" -ForegroundColor Gray
+
+            foreach ($err in $summary.Errors) {
+                $color = switch ($err.Severity) {
+                    'Critical' { 'Red' }
+                    'Warning'  { 'Yellow' }
+                    default    { 'Cyan' }
+                }
+                Write-Host "[$($err.Severity)] $($err.Phase): $($err.Message)" -ForegroundColor $color
+            }
+            Write-Host "========================================`n" -ForegroundColor Red
+        }
+    }
+
     # Defense-in-depth: Only invoke cleanup if module functions are available
     # This handles the edge case where an error occurs before modules are loaded
     # Uses InvokeCommand.GetCommand for ThreadJob compatibility (v1.8.10)
