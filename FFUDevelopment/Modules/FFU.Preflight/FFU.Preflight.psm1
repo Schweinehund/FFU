@@ -764,24 +764,13 @@ function Test-FFUADK {
                 -DurationMs $stopwatch.ElapsedMilliseconds
         }
         else {
-            # Build remediation message
-            $remediation = @'
-Install Windows ADK and required components:
-
-1. Download Windows ADK from:
-   https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install
-
-2. Run adksetup.exe and select "Deployment Tools" feature
-
-3. Download and install Windows PE add-on (adkwinpesetup.exe)
-
-4. Or run FFU Builder with -UpdateADK $true for automatic installation
-
-Issues found:
-'@
-            foreach ($err in $errors) {
-                $remediation += "`n  - $err"
-            }
+            # Build remediation message with errors appended
+            $errorList = ($errors | ForEach-Object { "- $_" }) -join "`n"
+            $remediation = New-FFURemediationBlock -Issue "ADK validation failed: $($errors -join '; ')" `
+                -Impact "Cannot create WinPE media or perform DISM operations" `
+                -PowerShellCommands @('# Download ADK installer', 'Start-Process "https://go.microsoft.com/fwlink/?linkid=2243390"', '', '# Or use FFU Builder auto-install', '.\BuildFFUVM.ps1 -UpdateADK $true') `
+                -ManualSteps @("Download Windows ADK from https://aka.ms/adk", "Run adksetup.exe and select 'Deployment Tools'", "Download WinPE add-on (adkwinpesetup.exe)", "Run adkwinpesetup.exe and install") `
+                -VerifyCommand 'Test-Path "C:\Program Files (x86)\Windows Kits\Assessment and Deployment Kit\Deployment Tools\DandISetEnv.bat"'
 
             New-FFUCheckResult -CheckName 'ADK' -Status 'Failed' `
                 -Message "ADK validation failed: $($errors -join '; ')" `
@@ -798,14 +787,9 @@ Issues found:
                 WindowsArch = $WindowsArch
                 Error       = $_.Exception.Message
             } `
-            -Remediation @'
-Failed to check ADK installation. Ensure:
-1. You are running as Administrator
-2. Windows is fully updated
-3. Registry is accessible
-
-Then retry the ADK validation.
-'@ `
+            -Remediation (New-FFURemediationBlock -Issue "Failed to validate ADK installation" `
+                -Impact "Cannot determine ADK availability" `
+                -ManualSteps @("Run as Administrator", "Ensure Windows is fully updated", "Ensure registry is accessible", "Retry ADK validation")) `
             -DurationMs $stopwatch.ElapsedMilliseconds
     }
 }
@@ -928,7 +912,9 @@ Run Disk Cleanup:
                 FFUDevelopmentPath = $FFUDevelopmentPath
                 Error              = $_.Exception.Message
             } `
-            -Remediation "Ensure the path '$FFUDevelopmentPath' is accessible and the drive is mounted." `
+            -Remediation (New-FFURemediationBlock -Issue "Failed to check disk space" `
+                -Impact "Cannot determine available disk space" `
+                -ManualSteps @("Ensure path '$FFUDevelopmentPath' is accessible", "Ensure drive is mounted")) `
             -DurationMs $stopwatch.ElapsedMilliseconds
     }
 }
