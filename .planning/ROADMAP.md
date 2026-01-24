@@ -72,7 +72,12 @@ Plans:
   3. Transient disk/network errors retry automatically with backoff
   4. Running out of disk during checkpoint produces clear message and cleanup
 **Research**: Unlikely (existing retry patterns to extend)
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 17-01-PLAN.md - VM creation diagnostics and cleanup registration (REL-VM-01)
+- [ ] 17-02-PLAN.md - Orphan detection and comprehensive cleanup (REL-VM-02)
+- [ ] 17-03-PLAN.md - Transient error retry logic (REL-VM-03)
+- [ ] 17-04-PLAN.md - Checkpoint disk space validation (REL-VM-04)
 
 ### Phase 18: FFU.Imaging Reliability
 **Goal**: Make imaging operations fault-tolerant with space checks, validation, and interrupt recovery
@@ -181,7 +186,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 |-------|----------------|--------|-----------|
 | 15. FFU.Core Reliability | 3/3 | Complete | 2026-01-23 |
 | 16. FFU.Hypervisor Reliability | 4/4 | Complete | 2026-01-24 |
-| 17. FFU.VM Reliability | 0/TBD | Not started | - |
+| 17. FFU.VM Reliability | 0/4 | Planned | - |
 | 18. FFU.Imaging Reliability | 0/TBD | Not started | - |
 | 19. FFU.Media Reliability | 0/TBD | Not started | - |
 | 20. FFU.Updates Reliability | 0/TBD | Not started | - |
