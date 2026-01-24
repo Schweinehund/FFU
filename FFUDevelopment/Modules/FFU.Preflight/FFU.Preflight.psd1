@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.0'
+    ModuleVersion = '1.3.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -89,7 +89,31 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.2.0
+# Release Notes - FFU.Preflight v1.3.0
+
+## v1.3.0 (2026-01-24)
+### REL-PRE-01: Enhanced Prerequisite Detection
+- **NEW**: Test-FFUVMResources - Validates VM creation prerequisites
+  - Checks available RAM vs required (VM + host overhead)
+  - Validates CPU cores and virtualization extensions
+  - Returns detailed resource availability metrics
+- **NEW**: Test-FFUScratchSpace - Validates working directory usability
+  - Detects filesystem type (warns for FAT32 4GB limit)
+  - Identifies network paths (warns for performance)
+  - Validates path exists or parent is writable
+- **NEW**: Test-FFUDISMState - Validates DISM health
+  - Checks for orphaned mount points via dism /Get-MountedImageInfo
+  - Auto-remediation via Cleanup-Wim/Cleanup-Mountpoints
+  - Tracks remediation attempts in details
+- **ENHANCED**: Invoke-FFUPreflight integration
+  - VMResources check in Tier 1 when CreateVM enabled
+  - ScratchSpace and DISMState checks in Tier 2
+  - Fail-fast ordering maintained
+- **TESTS**: Added 30 Pester tests for REL-PRE-01 requirements
+
+### Part of Phase 22 FFU.Preflight Reliability (v1.9.0 Milestone)
+
+---
 
 ## v1.2.0 (2026-01-24)
 ### REL-PRE-02: Remediation Steps Quality

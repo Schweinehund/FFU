@@ -201,7 +201,9 @@ Describe 'REL-PRE-01: Prerequisite Detection Completeness' -Tag 'Unit', 'FFU.Pre
 
         It 'Should run DISMState check conditionally based on NeedsADK' {
             $source = (Get-Command Invoke-FFUPreflight).ScriptBlock.ToString()
-            $source | Should -Match 'NeedsADK.*Test-FFUDISMState|requirements.*ADK.*DISMState'
+            # Check that ADK conditional and DISMState check are both present
+            $source | Should -Match 'requirements\.NeedsADK|NeedsADK'
+            $source | Should -Match 'Test-FFUDISMState'
         }
     }
 
