@@ -49,6 +49,8 @@ v1.0.9: REL-VM-01 VM Creation Diagnostics and Cleanup Registration
 - Tracks current step for accurate failure diagnosis
 - Unregisters cleanup on success; provides diagnostic output on failure
 - REL-VM-02: Added Get-OrphanedVMResources for comprehensive orphan scanning
+- REL-VM-02: Enhanced Remove-FFUVM with VMware lock file cleanup (*.lck directories)
+- REL-VM-02: Enhanced Remove-FFUVM with orphaned checkpoint file cleanup (*.avhdx)
 
 v1.0.8: ThreadJob function scope fix - Export Remove-FFUVMWithProvider
 - Added Remove-FFUVMWithProvider function (previously script-scope in BuildFFUVM.ps1)
