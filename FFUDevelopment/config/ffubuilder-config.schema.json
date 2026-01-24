@@ -587,8 +587,7 @@
         "CopyOfficeConfigXML": {
             "type": "boolean",
             "default": false,
-            "deprecated": true,
-            "description": "[DEPRECATED] Legacy property - no longer used. Use OfficeConfigXMLFile to specify a custom Office configuration XML file instead. This property is ignored but accepted for backward compatibility."
+            "description": "Enable to copy a custom Office configuration XML file to the Office folder for M365 Apps deployment. When true, the file specified in OfficeConfigXMLFile will be used."
         },
         "DownloadDrivers": {
             "type": "boolean",

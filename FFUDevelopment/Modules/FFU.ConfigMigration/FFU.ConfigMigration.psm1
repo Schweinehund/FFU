@@ -231,7 +231,7 @@ function Invoke-FFUConfigMigration {
     2. Removes properties replaced by CLI switches (Verbose)
     3. Removes properties that are automatic (Threads)
     4. Transforms renamed properties (InstallWingetApps -> InstallApps)
-    5. Removes properties requiring manual setup with warnings (DownloadDrivers, CopyOfficeConfigXML)
+    5. Removes properties requiring manual setup with warnings (DownloadDrivers)
     6. Sets configSchemaVersion to the target version
     7. Preserves all unknown properties for forward compatibility
 
@@ -417,22 +417,10 @@ function Invoke-FFUConfigMigration {
     }
     #endregion
 
-    #region Migration: CopyOfficeConfigXML -> warning (requires OfficeConfigXMLFile)
-    if ($migrated.ContainsKey('CopyOfficeConfigXML')) {
-        if ($migrated['CopyOfficeConfigXML'] -eq $true) {
-            # Check if OfficeConfigXMLFile is set
-            if (-not $migrated.ContainsKey('OfficeConfigXMLFile') -or [string]::IsNullOrEmpty($migrated['OfficeConfigXMLFile'])) {
-                $changes += "WARNING: 'CopyOfficeConfigXML' was true but 'OfficeConfigXMLFile' not specified - set OfficeConfigXMLFile path manually"
-            }
-            else {
-                $changes += "Removed deprecated property 'CopyOfficeConfigXML' (OfficeConfigXMLFile already configured)"
-            }
-        }
-        else {
-            $changes += "Removed deprecated property 'CopyOfficeConfigXML' (was false)"
-        }
-        $migrated.Remove('CopyOfficeConfigXML')
-    }
+    #region Migration: CopyOfficeConfigXML - PRESERVED (still used for M365 configuration)
+    # Note: CopyOfficeConfigXML was incorrectly marked deprecated but is still actively used
+    # by the UI to control whether an Office configuration XML file should be copied.
+    # The property is preserved during migration - no action needed.
     #endregion
 
     #region Migration: Add IncludePreviewUpdates default (v1.1)

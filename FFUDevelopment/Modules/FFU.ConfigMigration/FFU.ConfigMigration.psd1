@@ -84,7 +84,6 @@ Version 1.0.0 (Initial Release)
   - Threads: Removed (automatic parallel processing)
   - InstallWingetApps: Migrated to InstallApps
   - DownloadDrivers: Removed with warning (requires Make/Model)
-  - CopyOfficeConfigXML: Removed with warning (requires OfficeConfigXMLFile)
 - ConvertTo-HashtableRecursive re-exported for PS5.1 compatibility
 - Backup creation before migration with timestamp suffix
 - UI integration: FFUUI.Core.Config imports module for auto-load migration
