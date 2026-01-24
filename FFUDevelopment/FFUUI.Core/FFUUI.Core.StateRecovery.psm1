@@ -61,7 +61,7 @@
     None. Modifies UI state object directly.
 #>
 function Reset-FFUUIToIdle {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
         [Parameter(Mandatory = $true)]
@@ -80,6 +80,10 @@ function Reset-FFUUIToIdle {
     }
 
     process {
+        if (-not $PSCmdlet.ShouldProcess("UI State", "Reset to idle")) {
+            return
+        }
+
         # Stop poll timer if running
         if ($null -ne $State.Data -and $null -ne $State.Data.pollTimer) {
             try {
@@ -254,7 +258,8 @@ function Save-FFUUIState {
                 $savedState.btnRunEnabled = $State.Controls.btnRun.IsEnabled
             }
             catch {
-                # Use defaults if access fails
+                # Use defaults if access fails - non-critical, defaults are safe
+                Write-Verbose "Save-FFUUIState: Could not capture button state: $($_.Exception.Message)"
             }
         }
 
@@ -264,7 +269,8 @@ function Save-FFUUIState {
                 $savedState.progressVisible = $State.Controls.pbOverallProgress.Visibility
             }
             catch {
-                # Use defaults if access fails
+                # Use defaults if access fails - non-critical, defaults are safe
+                Write-Verbose "Save-FFUUIState: Could not capture progress bar state: $($_.Exception.Message)"
             }
         }
 
@@ -273,7 +279,8 @@ function Save-FFUUIState {
                 $savedState.statusText = $State.Controls.txtStatus.Text
             }
             catch {
-                # Use defaults if access fails
+                # Use defaults if access fails - non-critical, defaults are safe
+                Write-Verbose "Save-FFUUIState: Could not capture status text: $($_.Exception.Message)"
             }
         }
     }
