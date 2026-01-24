@@ -2127,17 +2127,28 @@ function Invoke-UpdatesWithIsolation {
         [string]$MountPath,
 
         [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
         [PSCustomObject[]]$Updates,
 
         [Parameter()]
         [switch]$StopOnCriticalFailure
     )
 
+    # ThreadJob-safe logging helper (WriteLog may not be available in test/job contexts)
+    $logMessage = {
+        param([string]$msg)
+        if ($function:WriteLog) {
+            WriteLog $msg
+        } else {
+            Write-Verbose $msg
+        }
+    }
+
     $results = [System.Collections.Generic.List[PSCustomObject]]::new()
     $hasFailures = $false
     $hasCriticalFailure = $false
 
-    WriteLog "Starting isolated update application for $($Updates.Count) update(s)"
+    & $logMessage "Starting isolated update application for $($Updates.Count) update(s)"
 
     foreach ($update in $Updates) {
         $updateResult = @{
@@ -2151,7 +2162,7 @@ function Invoke-UpdatesWithIsolation {
 
         try {
             $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-            WriteLog "Applying update: $($update.Name) ($($update.Type))"
+            & $logMessage "Applying update: $($update.Name) ($($update.Type))"
 
             # Use existing retry wrapper
             Add-WindowsPackageWithRetry -Path $MountPath -PackagePath $update.Path
@@ -2159,7 +2170,7 @@ function Invoke-UpdatesWithIsolation {
 
             $updateResult.Status = 'Success'
             $updateResult.Duration = $stopwatch.Elapsed.TotalSeconds
-            WriteLog "Update $($update.Name) applied successfully in $([math]::Round($stopwatch.Elapsed.TotalSeconds, 1))s"
+            & $logMessage "Update $($update.Name) applied successfully in $([math]::Round($stopwatch.Elapsed.TotalSeconds, 1))s"
         }
         catch {
             $stopwatch.Stop()
@@ -2168,14 +2179,14 @@ function Invoke-UpdatesWithIsolation {
             $updateResult.Duration = $stopwatch.Elapsed.TotalSeconds
             $hasFailures = $true
 
-            WriteLog "ERROR: Update $($update.Name) failed: $($_.Exception.Message)"
+            & $logMessage "ERROR: Update $($update.Name) failed: $($_.Exception.Message)"
 
             if ($update.Required) {
                 $hasCriticalFailure = $true
-                WriteLog "CRITICAL: Required update $($update.Name) failed"
+                & $logMessage "CRITICAL: Required update $($update.Name) failed"
 
                 if ($StopOnCriticalFailure) {
-                    WriteLog "StopOnCriticalFailure enabled - halting update application"
+                    & $logMessage "StopOnCriticalFailure enabled - halting update application"
                     $results.Add([PSCustomObject]$updateResult)
                     break
                 }
@@ -2189,7 +2200,7 @@ function Invoke-UpdatesWithIsolation {
     $successCount = ($results | Where-Object Status -eq 'Success').Count
     $failureCount = ($results | Where-Object Status -eq 'Failed').Count
 
-    WriteLog "Update application complete: $successCount succeeded, $failureCount failed out of $($Updates.Count) total"
+    & $logMessage "Update application complete: $successCount succeeded, $failureCount failed out of $($Updates.Count) total"
 
     [PSCustomObject]@{
         AllSucceeded = -not $hasFailures
