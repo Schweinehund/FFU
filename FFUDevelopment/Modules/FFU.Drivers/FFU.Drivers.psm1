@@ -336,6 +336,218 @@ function Get-DriverExtractionResult {
     return $result
 }
 
+function Get-CachedOEMCatalog {
+    <#
+    .SYNOPSIS
+    Downloads OEM catalog with caching and fallback URL support
+
+    .DESCRIPTION
+    Checks for cached catalog file with staleness validation. If cache is valid,
+    returns cached path. If cache is stale or missing, downloads from primary URL.
+    If primary fails, tries backup URL if provided.
+
+    REL-DRV-03: Catalog Fallback Sources
+
+    .PARAMETER Vendor
+    OEM vendor name (Dell, HP, Lenovo)
+
+    .PARAMETER CatalogType
+    Type of catalog (PC, Server, Platform for differentiation)
+
+    .PARAMETER PrimaryUrl
+    Primary URL to download catalog from
+
+    .PARAMETER BackupUrl
+    Optional backup URL if primary fails
+
+    .PARAMETER CachePath
+    Local path where catalog should be cached
+
+    .PARAMETER MaxCacheAgeHours
+    Maximum age in hours before cache is considered stale (default: 168 = 7 days)
+
+    .PARAMETER ForceRefresh
+    Force download even if cache is valid
+
+    .OUTPUTS
+    String - Path to the catalog file (cached or newly downloaded)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Dell', 'HP', 'Lenovo')]
+        [string]$Vendor,
+
+        [Parameter(Mandatory)]
+        [string]$CatalogType,
+
+        [Parameter(Mandatory)]
+        [string]$PrimaryUrl,
+
+        [Parameter()]
+        [string]$BackupUrl,
+
+        [Parameter(Mandatory)]
+        [string]$CachePath,
+
+        [Parameter()]
+        [int]$MaxCacheAgeHours = [FFUConstants]::OEM_CATALOG_CACHE_HOURS,
+
+        [Parameter()]
+        [switch]$ForceRefresh
+    )
+
+    $catalogName = "$Vendor $CatalogType catalog"
+
+    # Check cache validity
+    if (-not $ForceRefresh -and (Test-Path $CachePath)) {
+        $cacheAge = ([DateTime]::Now - (Get-Item $CachePath).LastWriteTime).TotalHours
+        if ($cacheAge -lt $MaxCacheAgeHours) {
+            WriteLog "Using cached $catalogName (age: $([math]::Round($cacheAge, 1)) hours)"
+            return $CachePath
+        }
+        WriteLog "Cached $catalogName is stale (age: $([math]::Round($cacheAge, 1)) hours, max: $MaxCacheAgeHours)"
+    }
+
+    # Ensure cache directory exists
+    $cacheDir = Split-Path $CachePath -Parent
+    if (-not (Test-Path $cacheDir)) {
+        New-Item -Path $cacheDir -ItemType Directory -Force | Out-Null
+    }
+
+    # Try primary URL
+    WriteLog "Downloading $catalogName from primary: $PrimaryUrl"
+    try {
+        Invoke-DriverDownloadWithRetry -Source $PrimaryUrl -Destination $CachePath -OperationName $catalogName
+        WriteLog "$catalogName downloaded successfully"
+        return $CachePath
+    }
+    catch {
+        $primaryError = $_.Exception.Message
+        WriteLog "WARNING: Primary $catalogName download failed: $primaryError"
+
+        # Try backup URL if available
+        if ($BackupUrl) {
+            WriteLog "Attempting fallback: $BackupUrl"
+            try {
+                Invoke-DriverDownloadWithRetry -Source $BackupUrl -Destination $CachePath -OperationName "$catalogName (fallback)"
+                WriteLog "$catalogName downloaded from fallback successfully"
+                return $CachePath
+            }
+            catch {
+                WriteLog "ERROR: Fallback $catalogName download also failed: $($_.Exception.Message)"
+            }
+        }
+
+        # Check if we have a stale cache we can use
+        if (Test-Path $CachePath) {
+            $cacheAge = ([DateTime]::Now - (Get-Item $CachePath).LastWriteTime).TotalHours
+            WriteLog "WARNING: Using stale cached $catalogName (age: $([math]::Round($cacheAge, 1)) hours) - network download failed"
+            return $CachePath
+        }
+
+        # No cache, no download - fail
+        throw "Failed to download $catalogName from primary ($primaryError) and no valid cache available"
+    }
+}
+
+function Test-DriverDiskSpace {
+    <#
+    .SYNOPSIS
+    Validates disk space for driver extraction operations
+
+    .DESCRIPTION
+    Estimates disk space requirements for OEM driver extraction and validates
+    against available free space. Returns actionable result with recommendations.
+
+    REL-DRV-04: Large Driver Set Disk Space Handling
+
+    .PARAMETER DriversFolder
+    Target folder where drivers will be extracted
+
+    .PARAMETER EstimatedCompressedSizeMB
+    Estimated compressed size of driver packages in MB (default: 2000 for typical OEM)
+
+    .PARAMETER Vendor
+    OEM vendor for size estimation hints (Dell, HP, Lenovo, Microsoft)
+
+    .OUTPUTS
+    PSCustomObject with:
+      - HasSpace: Boolean indicating if enough space is available
+      - FreeSpaceGB: Current free space in GB
+      - EstimatedNeedGB: Estimated required space in GB
+      - Message: Human-readable status
+      - Recommendation: Action to take if space is low
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$DriversFolder,
+
+        [Parameter()]
+        [int]$EstimatedCompressedSizeMB = 2000,
+
+        [Parameter()]
+        [ValidateSet('Dell', 'HP', 'Lenovo', 'Microsoft')]
+        [string]$Vendor = 'Dell'
+    )
+
+    # Get free space on target drive
+    $driveLetter = (Split-Path $DriversFolder -Qualifier).TrimEnd(':')
+    $drive = [System.IO.DriveInfo]::new($driveLetter)
+    $freeSpaceBytes = $drive.AvailableFreeSpace
+    $freeSpaceGB = [math]::Round($freeSpaceBytes / 1GB, 2)
+
+    # Calculate estimated need
+    $compressedBytes = [int64]$EstimatedCompressedSizeMB * 1MB
+    $extractedBytes = $compressedBytes * [FFUConstants]::DRIVER_EXTRACTION_MULTIPLIER
+    $totalNeededBytes = $extractedBytes + [FFUConstants]::MIN_DRIVER_FREE_SPACE + [FFUConstants]::DRIVER_SPACE_WARNING_BUFFER
+    $estimatedNeedGB = [math]::Round($totalNeededBytes / 1GB, 2)
+
+    # Determine size category
+    $sizeCategory = if ($compressedBytes -lt [FFUConstants]::DRIVER_SET_SMALL_THRESHOLD) {
+        'small'
+    } elseif ($compressedBytes -gt [FFUConstants]::DRIVER_SET_LARGE_THRESHOLD) {
+        'large'
+    } else {
+        'medium'
+    }
+
+    $result = [PSCustomObject]@{
+        HasSpace        = $freeSpaceBytes -ge $totalNeededBytes
+        FreeSpaceGB     = $freeSpaceGB
+        EstimatedNeedGB = $estimatedNeedGB
+        SizeCategory    = $sizeCategory
+        Message         = ''
+        Recommendation  = ''
+    }
+
+    if ($result.HasSpace) {
+        $result.Message = "Sufficient disk space for $Vendor drivers ($sizeCategory set). Free: ${freeSpaceGB}GB, Need: ${estimatedNeedGB}GB"
+    }
+    else {
+        $shortfall = [math]::Round($estimatedNeedGB - $freeSpaceGB, 2)
+        $result.Message = "Insufficient disk space for $Vendor drivers. Free: ${freeSpaceGB}GB, Need: ${estimatedNeedGB}GB (short by ${shortfall}GB)"
+
+        if ($sizeCategory -eq 'large') {
+            $result.Recommendation = @"
+Large $Vendor driver set detected. Options:
+1. Free at least ${shortfall}GB on drive ${driveLetter}:
+2. Use -DriversFolder parameter to specify a different drive
+3. If injecting to VHDX, consider expanding the VHDX before driver injection
+4. Download drivers to a larger temporary location first
+"@
+        }
+        else {
+            $result.Recommendation = "Free at least ${shortfall}GB on drive ${driveLetter}: or use -DriversFolder parameter to specify a different location."
+        }
+    }
+
+    return $result
+}
+
 function Get-MicrosoftDrivers {
     <#
     .SYNOPSIS

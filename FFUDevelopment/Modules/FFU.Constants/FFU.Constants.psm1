@@ -491,6 +491,53 @@ class FFUConstants {
 
     #endregion
 
+    #region Driver Disk Space
+
+    # Driver extraction multiplier (4x)
+    # OEM driver packages (exe/cab) extract to 3-4x their compressed size
+    # Dell Latitude driver pack: 2GB compressed -> 8GB extracted
+    static [int] $DRIVER_EXTRACTION_MULTIPLIER = 4
+
+    # Minimum free space for driver operations (5GB)
+    # Safety margin for extraction workspace and temporary files
+    static [uint64] $MIN_DRIVER_FREE_SPACE = 5GB
+
+    # Estimated size thresholds for driver sets
+    # Small: < 500MB compressed (Microsoft Surface, HP single model)
+    # Medium: 500MB - 2GB (Dell business laptop)
+    # Large: > 2GB (Dell full catalog, HP enterprise)
+    static [uint64] $DRIVER_SET_SMALL_THRESHOLD = 500MB
+    static [uint64] $DRIVER_SET_LARGE_THRESHOLD = 2GB
+
+    # Driver disk space warning threshold
+    # Warn if free space < estimated need + 2GB buffer
+    static [uint64] $DRIVER_SPACE_WARNING_BUFFER = 2GB
+
+    #endregion
+
+    #region OEM Catalog URLs
+
+    # Dell driver catalog URLs
+    # Primary: downloads.dell.com (official CDN)
+    # Note: Dell does not provide official mirror, so backup is same URL via HTTPS
+    static [string] $DELL_CATALOG_PC_URL = "https://downloads.dell.com/catalog/CatalogPC.cab"
+    static [string] $DELL_CATALOG_SERVER_URL = "https://downloads.dell.com/catalog/Catalog.cab"
+
+    # HP driver catalog URLs
+    # Primary: hpia.hpcloud.hp.com (HP Image Assistant cloud)
+    # Note: HP provides a single endpoint, no official backup
+    static [string] $HP_PLATFORM_LIST_URL = "https://hpia.hpcloud.hp.com/ref/platformList.cab"
+
+    # Lenovo driver catalog base URL
+    # Note: Lenovo PSREF API and catalog URLs are model-specific, not cacheable as single file
+    static [string] $LENOVO_CATALOG_BASE_URL = "https://download.lenovo.com/catalog/"
+
+    # Catalog cache settings
+    # Default staleness: 7 days (OEM catalogs updated weekly at most)
+    static [int] $OEM_CATALOG_CACHE_HOURS = 168
+
+    #endregion
+
     #region FFU File Lock Settings
 
     # FFU file lock wait time (120 seconds / 2 minutes)
