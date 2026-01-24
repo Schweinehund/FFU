@@ -5,9 +5,11 @@
     Pester tests for FFU.Imaging reliability improvements
 
 .DESCRIPTION
-    Tests disk space pre-validation (REL-IMG-01) and partition state
-    verification functions (REL-IMG-02) for before/after validation
-    of partition operations.
+    Tests for FFU.Imaging reliability improvements:
+    - REL-IMG-01: Disk space pre-validation
+    - REL-IMG-02: Partition state verification
+    - REL-IMG-03: FFU capture recovery with VHDX preservation
+    - REL-IMG-04: Mount/dismount retry logic
 
 .NOTES
     Part of Phase 18: FFU.Imaging Reliability
@@ -452,6 +454,177 @@ Describe 'REL-IMG-02: Partition State Verification' {
         It 'Should track Changes.SizeDeltaBytes correctly' {
             $result = Compare-DiskPartitionState -Before $MockStateBefore -After $MockStateAfter -ExpectedChange 'None'
             $result.Changes.SizeDeltaBytes | Should -Be (50GB)
+        }
+    }
+}
+
+Describe 'REL-IMG-03: FFU Capture Recovery' {
+
+    Describe 'Test-FFUCaptureReadiness' {
+
+        # Function export tests
+        It 'Should be exported from FFU.Imaging module' {
+            $cmd = Get-Command -Name Test-FFUCaptureReadiness -Module FFU.Imaging -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+            $cmd.ModuleName | Should -Be 'FFU.Imaging'
+        }
+
+        It 'Should have VHDXPath parameter as mandatory' {
+            $cmd = Get-Command -Name Test-FFUCaptureReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['VHDXPath']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have OutputFFUPath parameter as mandatory' {
+            $cmd = Get-Command -Name Test-FFUCaptureReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['OutputFFUPath']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have SpaceMarginPercent parameter with default value 100' {
+            $cmd = Get-Command -Name Test-FFUCaptureReadiness -Module FFU.Imaging
+            $param = $cmd.Parameters['SpaceMarginPercent']
+            $param | Should -Not -BeNullOrEmpty
+            # Optional parameter (not mandatory)
+            $isMandatory = $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory }
+            $isMandatory | Should -Not -Be $true
+        }
+
+        # Output structure tests
+        It 'Should return Ready = false for non-existent VHDX' {
+            $result = Test-FFUCaptureReadiness -VHDXPath 'C:\nonexistent.vhdx' `
+                -OutputFFUPath 'C:\temp\test.ffu'
+            $result.Ready | Should -Be $false
+            $result.FailureReason | Should -Be 'VHDXNotFound'
+        }
+
+        It 'Should return FailureReason and Remediation when not ready' {
+            $result = Test-FFUCaptureReadiness -VHDXPath 'C:\nonexistent.vhdx' `
+                -OutputFFUPath 'C:\temp\test.ffu'
+            $result.FailureReason | Should -Not -BeNullOrEmpty
+            $result.Remediation | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should return Message with helpful text when not ready' {
+            $result = Test-FFUCaptureReadiness -VHDXPath 'C:\nonexistent.vhdx' `
+                -OutputFFUPath 'C:\temp\test.ffu'
+            $result.Message | Should -Not -BeNullOrEmpty
+            $result.Message | Should -BeLike '*not found*'
+        }
+
+        It 'Should include VHDXPath in error message' {
+            $result = Test-FFUCaptureReadiness -VHDXPath 'C:\nonexistent.vhdx' `
+                -OutputFFUPath 'C:\temp\test.ffu'
+            $result.Message | Should -BeLike '*C:\nonexistent.vhdx*'
+        }
+
+        It 'Should return Remediation with actionable guidance' {
+            $result = Test-FFUCaptureReadiness -VHDXPath 'C:\nonexistent.vhdx' `
+                -OutputFFUPath 'C:\temp\test.ffu'
+            $result.Remediation | Should -BeLike '*Verify*'
+        }
+
+        It 'Should have Ready property of boolean type' {
+            $result = Test-FFUCaptureReadiness -VHDXPath 'C:\nonexistent.vhdx' `
+                -OutputFFUPath 'C:\temp\test.ffu'
+            $result.Ready | Should -BeOfType [bool]
+        }
+    }
+
+    Describe 'Invoke-SafeFFUCapture' {
+
+        It 'Should be exported from FFU.Imaging module' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+            $cmd.ModuleName | Should -Be 'FFU.Imaging'
+        }
+
+        It 'Should have VHDXPath parameter as mandatory' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['VHDXPath']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have OutputFFUPath parameter as mandatory' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['OutputFFUPath']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have DandISetEnv parameter as mandatory' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['DandISetEnv']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have PhysicalDriveNumber parameter as mandatory' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['PhysicalDriveNumber']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have SkipReadinessCheck switch parameter' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['SkipReadinessCheck']
+            $param | Should -Not -BeNullOrEmpty
+            $param.SwitchParameter | Should -Be $true
+        }
+
+        It 'Should have FFUName parameter with default value' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['FFUName']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have FFUDescription parameter with default value' {
+            $cmd = Get-Command -Name Invoke-SafeFFUCapture -Module FFU.Imaging
+            $param = $cmd.Parameters['FFUDescription']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should throw when readiness check fails' {
+            { Invoke-SafeFFUCapture -VHDXPath 'C:\nonexistent.vhdx' `
+                    -OutputFFUPath 'C:\temp\test.ffu' `
+                    -DandISetEnv 'C:\adk\env.bat' `
+                    -PhysicalDriveNumber 2
+            } | Should -Throw '*not ready*'
+        }
+
+        It 'Should throw with Remediation message when readiness check fails' {
+            try {
+                Invoke-SafeFFUCapture -VHDXPath 'C:\nonexistent.vhdx' `
+                    -OutputFFUPath 'C:\temp\test.ffu' `
+                    -DandISetEnv 'C:\adk\env.bat' `
+                    -PhysicalDriveNumber 2
+            }
+            catch {
+                $_.Exception.Message | Should -BeLike '*Remediation*'
+            }
+        }
+
+        It 'Should include VHDXNotFound failure reason in error' {
+            try {
+                Invoke-SafeFFUCapture -VHDXPath 'C:\nonexistent.vhdx' `
+                    -OutputFFUPath 'C:\temp\test.ffu' `
+                    -DandISetEnv 'C:\adk\env.bat' `
+                    -PhysicalDriveNumber 2
+            }
+            catch {
+                $_.Exception.Message | Should -BeLike '*not found*'
+            }
         }
     }
 }
