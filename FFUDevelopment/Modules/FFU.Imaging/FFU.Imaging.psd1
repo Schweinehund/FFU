@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.7'
+    ModuleVersion = '1.1.8'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -87,6 +87,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.1.8 - REL-IMG-01: Add disk space pre-validation
+- Added Test-DiskSpaceForOperation function for validating space before imaging operations
+- Returns structured result with available/required space and remediation guidance
+- Uses System.IO.DriveInfo for cross-platform compatibility (no Storage module required)
+- Configurable safety margin (default 10%) to prevent mid-operation failures
+- 29 Pester tests for disk space validation
+
 v1.1.7 - REL-IMG-02: Add partition state verification
 - Added Get-DiskPartitionState function for capturing partition state before operations
 - Added Compare-DiskPartitionState function for validating expected changes occurred
