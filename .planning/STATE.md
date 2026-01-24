@@ -141,7 +141,7 @@ None.
 **Last session:** 2026-01-24
 **Stopped at:** Completed Phase 21 (FFU.Drivers Reliability)
 **Resume file:** None
-**Next action:** Execute Phase 22 (FFU.Apps Reliability)
+**Next action:** Plan Phase 22 (FFU.Preflight Reliability)
 
 ---
 *State updated: 2026-01-24*
