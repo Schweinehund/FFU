@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.13'
+ModuleVersion = '0.0.14'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -76,6 +76,7 @@ NestedModules = @('FFUUI.Core.Applications.psm1',
                 'FFUUI.Core.Handlers.psm1',
                 'FFUUI.Core.Initialize.psm1',
                 'FFUUI.Core.Shared.psm1',
+                'FFUUI.Core.StateRecovery.psm1',
                 'FFUUI.Core.WindowsSettings.psm1',
                 'FFUUI.Core.Winget.psm1')
 
@@ -119,6 +120,16 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.14: Centralized UI state recovery
+- NEW: FFUUI.Core.StateRecovery module for consistent UI state management
+- NEW: Reset-FFUUIToIdle function resets all controls after errors
+- NEW: Save-FFUUIState/Restore-FFUUIState for rollback scenarios
+- FIXED: Progress bar now properly hides after build errors
+- FIXED: Build button re-enables with "Build FFU" after errors
+- Addresses REL-UI-03: UI state remains consistent after errors
+
+v0.0.13: Internal release (no user-facing changes)
+
 v0.0.12: VMware NetworkType and NicType UI settings
 - ADDED: VMware Network Type dropdown (NAT/Bridged/Host-Only)
 - ADDED: VMware NIC Type dropdown (E1000E/VMXNET3/E1000)

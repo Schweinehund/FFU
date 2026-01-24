@@ -807,28 +807,34 @@ $script:uiState.Controls.btnRun.Add_Click({
                             $errorMsg += "Error: $reason"
 
                             [System.Windows.MessageBox]::Show($errorMsg, "Build Error", "OK", "Error") | Out-Null
-                            $script:uiState.Controls.pbOverallProgress.Visibility = 'Collapsed'
+
+                            # Receive & remove job before UI reset
+                            $currentJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
+                            Remove-Job -Job $currentJob -Force
+                            $script:uiState.Data.currentBuildJob = $null
+
+                            # Use centralized UI reset (REL-UI-03)
+                            Reset-FFUUIToIdle -State $script:uiState -StatusMessage "Build failed. Check log for details."
                         }
                         else {
                             # Job completed successfully with no errors
                             WriteLog "BuildFFUVM.ps1 job completed successfully."
-                            $finalStatusText = "FFU build completed successfully."
+
+                            # Receive & remove job
+                            $currentJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
+                            Remove-Job -Job $currentJob -Force
+                            $script:uiState.Data.currentBuildJob = $null
+
+                            # Update UI for success
                             $script:uiState.Controls.pbOverallProgress.Value = 100
+                            $script:uiState.Controls.txtStatus.Text = "FFU build completed successfully."
+
+                            # Reset button and flags for next run
+                            $script:uiState.Flags.isBuilding = $false
+                            $script:uiState.Flags.isCleanupRunning = $false
+                            $script:uiState.Controls.btnRun.Content = "Build FFU"
+                            $script:uiState.Controls.btnRun.IsEnabled = $true
                         }
-
-                        # Update UI elements
-                        $script:uiState.Controls.txtStatus.Text = $finalStatusText
-
-                        # Receive & remove job and clear state
-                        $currentJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
-                        Remove-Job -Job $currentJob -Force
-                        $script:uiState.Data.currentBuildJob = $null
-
-                        # Reset button and flags for next run
-                        $script:uiState.Flags.isBuilding = $false
-                        $script:uiState.Flags.isCleanupRunning = $false
-                        $script:uiState.Controls.btnRun.Content = "Build FFU"
-                        $script:uiState.Controls.btnRun.IsEnabled = $true
                     }
                 })
             
@@ -846,21 +852,9 @@ $script:uiState.Controls.btnRun.Add_Click({
             WriteLog $errorMessage
             [System.Windows.MessageBox]::Show($errorMessage, "Error", "OK", "Error")
 
-            # Clean up messaging context if it was created
-            if ($null -ne $script:uiState.Data.messagingContext) {
-                Close-FFUMessagingContext -Context $script:uiState.Data.messagingContext
-                $script:uiState.Data.messagingContext = $null
-            }
-
-            # Re-enable UI elements
-            $script:uiState.Controls.txtStatus.Text = "FFU build failed to start."
-            $script:uiState.Controls.pbOverallProgress.Visibility = 'Collapsed'
-            if ($null -ne $script:uiState.Controls.btnRun) {
-                $script:uiState.Controls.btnRun.IsEnabled = $true
-                $script:uiState.Controls.btnRun.Content = "Build FFU"
-                $script:uiState.Flags.isBuilding = $false
-                $script:uiState.Flags.isCleanupRunning = $false
-            }
+            # Use centralized UI reset (REL-UI-03)
+            # Reset-FFUUIToIdle handles messaging context cleanup internally
+            Reset-FFUUIToIdle -State $script:uiState -StatusMessage "Build failed to start."
         }
     })
 
