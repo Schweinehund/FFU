@@ -355,6 +355,170 @@ function Set-LocalUserAccountExpiry {
 
 #endregion Cross-Version Local User Management Helper Functions
 
+#region VM Creation Diagnostics
+
+function Get-VMCreationDiagnostics {
+    <#
+    .SYNOPSIS
+    Analyzes VM creation failures and returns actionable guidance.
+
+    .DESCRIPTION
+    Pattern-matches common VM creation errors and provides classified error types,
+    remediation guidance, and information about resources that may need cleanup.
+    This function supports the REL-VM-01 reliability requirement.
+
+    .PARAMETER ErrorMessage
+    The exception message from the failed operation.
+
+    .PARAMETER FailedStep
+    Which step failed during VM creation.
+    Valid values: CreateVM, ConfigureProcessor, MountISO, ConfigureTPM, StartVM, ConfigureBoot
+
+    .PARAMETER VMName
+    Name of the VM being created.
+
+    .PARAMETER VMPath
+    Path where VM was being created (optional).
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - ErrorType: Classified error type (AlreadyExists, InsufficientResources, PathNotFound, AccessDenied, HypervisorNotAvailable, TPMConfiguration, Unknown)
+    - FailedStep: Which step failed
+    - OriginalError: The original error message
+    - Remediation: Actionable guidance string
+    - IsCritical: Boolean - false for TPM errors, true for others
+    - ResourcesCreated: Array of resources that may need cleanup
+
+    .EXAMPLE
+    $diagnostics = Get-VMCreationDiagnostics -ErrorMessage "A virtual machine with the same name already exists" `
+                                              -FailedStep "CreateVM" -VMName "FFU-Build-VM"
+
+    .NOTES
+    REL-VM-01: Provides detailed failure analysis for VM creation errors
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ErrorMessage,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('CreateVM', 'ConfigureProcessor', 'MountISO', 'ConfigureTPM', 'StartVM', 'ConfigureBoot')]
+        [string]$FailedStep,
+
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$VMPath
+    )
+
+    # Initialize result object
+    $result = [PSCustomObject]@{
+        ErrorType        = 'Unknown'
+        FailedStep       = $FailedStep
+        OriginalError    = $ErrorMessage
+        Remediation      = ''
+        IsCritical       = $true
+        ResourcesCreated = @()
+    }
+
+    # Determine which resources may have been created based on failed step
+    switch ($FailedStep) {
+        'StartVM' {
+            $result.ResourcesCreated = @('VM', 'HGSGuardian', 'TPM')
+        }
+        'ConfigureTPM' {
+            $result.ResourcesCreated = @('VM')
+        }
+        'ConfigureBoot' {
+            $result.ResourcesCreated = @('VM')
+        }
+        'MountISO' {
+            $result.ResourcesCreated = @('VM')
+        }
+        'ConfigureProcessor' {
+            $result.ResourcesCreated = @('VM')
+        }
+        'CreateVM' {
+            $result.ResourcesCreated = @()
+        }
+    }
+
+    # Pattern match common errors and classify
+    $lowerError = $ErrorMessage.ToLower()
+
+    # Already exists error
+    if ($lowerError -match 'already exists' -or $lowerError -match 'name is already in use') {
+        $result.ErrorType = 'AlreadyExists'
+        $result.Remediation = "A VM with this name already exists. Remove it with: Remove-VM -Name '$VMName' -Force"
+        $result.IsCritical = $true
+    }
+    # Insufficient memory/resources
+    elseif ($lowerError -match 'insufficient memory' -or $lowerError -match 'not enough memory' -or
+            $lowerError -match 'insufficient.*resource' -or $lowerError -match 'out of memory') {
+        $result.ErrorType = 'InsufficientResources'
+        $result.Remediation = "Not enough memory available. Close applications or reduce VM memory allocation. Current system memory usage may be too high."
+        $result.IsCritical = $true
+    }
+    # Path not found
+    elseif ($lowerError -match 'cannot find path' -or $lowerError -match 'path.*does not exist' -or
+            $lowerError -match 'directory not found' -or $lowerError -match 'could not find.*path') {
+        $result.ErrorType = 'PathNotFound'
+        $pathInfo = if ($VMPath) { " at '$VMPath'" } else { '' }
+        $result.Remediation = "Path does not exist$pathInfo. Create the directory or verify the path exists before creating the VM."
+        $result.IsCritical = $true
+    }
+    # Access denied
+    elseif ($lowerError -match 'access denied' -or $lowerError -match 'access is denied' -or
+            $lowerError -match 'unauthorized' -or $lowerError -match 'permission') {
+        $result.ErrorType = 'AccessDenied'
+        $result.Remediation = "Access denied. Run PowerShell as Administrator or check folder permissions for the VM path."
+        $result.IsCritical = $true
+    }
+    # Hyper-V not enabled/available
+    elseif ($lowerError -match 'hyper-v.*not.*enabled' -or $lowerError -match 'hypervisor.*not.*running' -or
+            $lowerError -match 'virtualization.*not.*enabled' -or $lowerError -match 'vmms.*not.*running' -or
+            $lowerError -match 'hyper-v.*not.*available') {
+        $result.ErrorType = 'HypervisorNotAvailable'
+        $result.Remediation = "Hyper-V is not available. Enable with: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All`nThen restart the computer."
+        $result.IsCritical = $true
+    }
+    # TPM/HGS/Guardian errors (non-critical)
+    elseif ($lowerError -match 'hgs' -or $lowerError -match 'guardian' -or $lowerError -match 'key protector' -or
+            $lowerError -match 'tpm' -or $lowerError -match 'shielded' -or $lowerError -match 'attestation') {
+        $result.ErrorType = 'TPMConfiguration'
+        $result.Remediation = "TPM/HGS configuration failed. This is non-critical - the VM can work without TPM. Some Windows features like BitLocker may be limited."
+        $result.IsCritical = $false
+    }
+    # Disk/VHDX errors
+    elseif ($lowerError -match 'vhdx' -or $lowerError -match 'virtual hard disk' -or $lowerError -match 'disk.*in use') {
+        $result.ErrorType = 'DiskError'
+        $result.Remediation = "Virtual disk error. The VHDX may be in use by another process or corrupted. Check if another VM is using this disk."
+        $result.IsCritical = $true
+    }
+    # Unknown error
+    else {
+        $result.ErrorType = 'Unknown'
+        $result.Remediation = "Unknown error occurred at step '$FailedStep'. Original error: $ErrorMessage"
+        $result.IsCritical = $true
+    }
+
+    # Log diagnostics
+    WriteLog "VM Creation Diagnostics:"
+    WriteLog "  Error Type: $($result.ErrorType)"
+    WriteLog "  Failed Step: $($result.FailedStep)"
+    WriteLog "  Is Critical: $($result.IsCritical)"
+    WriteLog "  Remediation: $($result.Remediation)"
+    if ($result.ResourcesCreated.Count -gt 0) {
+        WriteLog "  Resources to cleanup: $($result.ResourcesCreated -join ', ')"
+    }
+
+    return $result
+}
+
+#endregion VM Creation Diagnostics
+
 function New-FFUVM {
     <#
     .SYNOPSIS
@@ -1949,6 +2113,7 @@ Export-ModuleMember -Function @(
     'Remove-LocalUserAccount',
     'Set-LocalUserPassword',
     'Set-LocalUserAccountExpiry',
+    'Get-VMCreationDiagnostics',
     'New-FFUVM',
     'Remove-FFUVM',
     'Remove-FFUBuildArtifacts',

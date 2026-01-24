@@ -21,6 +21,7 @@
         'Remove-LocalUserAccount',
         'Set-LocalUserPassword',
         'Set-LocalUserAccountExpiry',
+        'Get-VMCreationDiagnostics',
         'New-FFUVM',
         'Remove-FFUVM',
         'Remove-FFUBuildArtifacts',
