@@ -1,5 +1,34 @@
 # Project Milestones: FFU Builder
 
+## v1.9.1 Build Phase Integration (Shipped: 2026-01-24)
+
+**Delivered:** Complete graceful degradation integration by wrapping all BuildFFUVM.ps1 build phases with Invoke-BuildPhase for consistent error handling and build resilience.
+
+**Phases completed:** 26 (3 plans total)
+
+**Key accomplishments:**
+
+- Wrapped critical phases (VHDX creation, VM creation, FFU capture) with Invoke-BuildPhase -Critical $true (halt on failure)
+- Wrapped non-critical phases (driver download, deployment media, USB creation, FFU cleanup) with -Critical $false (continue on failure)
+- Added error aggregation initialization at build start with ThreadJob-safe guard pattern
+- Implemented user-friendly warning messages for non-critical failures with actionable guidance
+- Created 33 new Pester tests verifying critical vs non-critical behavior and error aggregation
+- Established full graceful degradation across all BuildFFUVM.ps1 build phases
+
+**Stats:**
+
+- 14 commits
+- 12 files modified
+- 2,412 lines added, 120 lines modified
+- 1 phase, 3 plans, 4 requirements
+- 1 day (2026-01-24)
+
+**Git range:** `be56cad` → `0f63e43`
+
+**What's next:** Define requirements for next improvement cycle
+
+---
+
 ## v1.9.0 Reliability Hardening (Shipped: 2026-01-24)
 
 **Delivered:** Systematic reliability audit of all modules and scripts to bulletproof the FFU build pipeline with comprehensive error handling, actionable messages, and self-healing capabilities.

@@ -64,13 +64,16 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Config validation at load time preventing invalid builds
   - WinPE script reliability for constrained environments
   - 45+ test files with ~1,385 new Pester tests
+- **Build Phase Integration** — v1.9.1
+  - All BuildFFUVM.ps1 phases wrapped with Invoke-BuildPhase
+  - Critical phases (VHDX, VM, FFU capture) halt on failure
+  - Non-critical phases (drivers, USB, cleanup) continue on failure with warnings
+  - Error aggregation across all phases with final build summary
+  - 33 new Pester tests for phase integration verification
 
 ### Active
 
 **Current Milestone:** Planning next milestone
-
-**Identified enhancement:**
-- Integrate Invoke-BuildPhase into BuildFFUVM.ps1 for full graceful degradation across all build phases
 
 **Deferred bugs (carry forward):**
 - HP driver extraction exit code 1168 (all HP models)
@@ -125,4 +128,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-24 after v1.9.0 milestone shipped*
+*Last updated: 2026-01-24 after v1.9.1 milestone shipped*
