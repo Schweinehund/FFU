@@ -11,18 +11,19 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 16 of 25 (FFU.Hypervisor Reliability)
-**Plan:** 2 of 3 complete
-**Status:** In progress
-**Last activity:** 2026-01-23 — Completed 16-02-PLAN.md (VM State Detection)
+**Plan:** 4 of 4 complete
+**Status:** Phase complete
+**Last activity:** 2026-01-24 — Completed 16-04-PLAN.md (Service Recovery)
 
 Progress: Milestone v1.9.0
-[##--------] 18% (2/11 phases - Phase 16 in progress)
+[###-------] 27% (3/11 phases - Phase 16 complete)
 
 ## Completed Phases This Milestone
 
 | Phase | Name | Plans | Date |
 |-------|------|-------|------|
 | 15 | FFU.Core Reliability | 3/3 | 2026-01-23 |
+| 16 | FFU.Hypervisor Reliability | 4/4 | 2026-01-24 |
 
 ## Completed Milestones
 
@@ -46,22 +47,20 @@ Progress: Milestone v1.9.0
 | Transient states not final | Starting/Stopping/Saving/Restoring should not be treated as stable | 2026-01-23 |
 | VMware 5s race window | VMware process may not be detectable for 5s after StartVM | 2026-01-23 |
 | Confidence levels for VMware | High/Medium/Low based on detection method reliability | 2026-01-23 |
+| Exponential backoff with jitter | Prevents thundering herd on service recovery | 2026-01-24 |
+| Service errors via pattern matching | Simple and reliable for known error messages | 2026-01-24 |
+| Non-service errors not retried | Prevents wasting time on permanent failures | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 16-04-PLAN.md (Service Recovery) - REL-HYP-04, Phase 16 complete
+- 2026-01-24: FFU.Hypervisor v1.3.8, main version v1.8.15
+- 2026-01-24: Added Test-HypervisorService, Invoke-WithHypervisorRetry, Test-IsServiceError
+- 2026-01-24: 29 new Pester tests for service recovery
+- 2026-01-23: Executed 16-03-PLAN.md (Provider Switch Validation) - REL-HYP-03
 - 2026-01-23: Executed 16-02-PLAN.md (VM State Detection Reliability) - REL-HYP-02
-- 2026-01-23: FFU.Hypervisor v1.3.6, main version v1.8.14
-- 2026-01-23: Added transient state helpers, GetVMStateStable, AllowTransient parameter
-- 2026-01-23: 27 new Pester tests for VM state detection
 - 2026-01-23: Executed 16-01-PLAN.md (Provider Detection with Remediation) - REL-HYP-01
-- 2026-01-23: FFU.Hypervisor v1.3.5, main version v1.8.13
-- 2026-01-23: Added ErrorCode and Remediation to GetAvailabilityDetails
-- 2026-01-23: 32 new Pester tests for provider detection
 - 2026-01-23: Executed 15-03-PLAN.md (Session Recovery & Credential Validation) - Phase 15 complete
-- 2026-01-23: FFU.Core v1.0.20 (47 functions)
-- 2026-01-23: Added Restore-FFUSession, Test-FFUSessionExists, Test-FFUCredentials
-- 2026-01-23: Executed 15-02-PLAN.md (Pre-flight Validation Improvements)
-- 2026-01-23: Executed 15-01-PLAN.md (Error Handling Enhancement) - 47/53 tests passing (6 skipped)
 - 2026-01-21: v1.8.3 shipped (VMware UI Settings complete)
 
 ## Blockers
@@ -70,10 +69,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-01-23
-**Stopped at:** Completed 16-02-PLAN.md
+**Last session:** 2026-01-24
+**Stopped at:** Completed 16-04-PLAN.md (Phase 16 complete)
 **Resume file:** None
-**Next action:** Execute 16-03-PLAN.md (Power State Transition Reliability)
+**Next action:** Execute Phase 17 (next reliability phase)
 
 ---
-*State updated: 2026-01-23*
+*State updated: 2026-01-24*
