@@ -4163,9 +4163,16 @@ if ($InstallApps) {
             # Force volume flush for the specific file
             # IMPORTANT: fsutil volume flush can cause Windows to release the drive letter
             # on file-backed virtual disks (VHD/VHDX). We must re-acquire after flush.
+            # CRITICAL: The CIM disk instance ($disk) becomes STALE after fsutil flush.
+            # We must store the disk number BEFORE flush and get a FRESH disk object AFTER.
             WriteLog "  Flushing volume for unattend file..."
             WriteLog "  DEBUG: Pre-flush drive letter: '$osPartitionDriveLetter'"
             WriteLog "  DEBUG: Pre-flush partition state:"
+
+            # Store disk number BEFORE flush - the $disk CIM instance will become stale after flush
+            $diskNumber = $disk.Number
+            WriteLog "  DEBUG: Storing disk number for post-flush recovery: $diskNumber"
+
             $disk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' } | ForEach-Object {
                 WriteLog "    Partition $($_.PartitionNumber): DriveLetter='$($_.DriveLetter)', AccessPaths=$($_.AccessPaths -join '; ')"
             }
@@ -4176,9 +4183,32 @@ if ($InstallApps) {
             # Wait for flush to complete and Windows to settle
             Start-Sleep -Milliseconds 500
 
-            # POST-FLUSH: Check if drive letter was released by fsutil (common with VHD/VHDX)
+            # POST-FLUSH: The original $disk CIM instance is now STALE and cannot be used.
+            # We must get a FRESH disk object using the stored disk number.
+            WriteLog "  DEBUG: Post-flush - refreshing disk object (original CIM instance is stale)..."
+            $freshDisk = Get-Disk -Number $diskNumber -ErrorAction SilentlyContinue
+
+            if (-not $freshDisk) {
+                WriteLog "  WARNING: Could not get fresh disk object for disk $diskNumber"
+                WriteLog "  Attempting to find disk by path: $VHDXPath"
+                $freshDisk = Get-Disk | Where-Object {
+                    $_.Location -eq $VHDXPath -or
+                    ($_.BusType -eq 'File Backed Virtual' -and $_.Number -eq $diskNumber)
+                } | Select-Object -First 1
+            }
+
+            if (-not $freshDisk) {
+                throw "Cannot verify unattend file: Disk $diskNumber not found after fsutil flush"
+            }
+
+            WriteLog "  DEBUG: Fresh disk object acquired: Disk $($freshDisk.Number)"
+
+            # Update $disk to use the fresh object for any subsequent operations
+            $disk = $freshDisk
+
+            # Now get partition from the FRESH disk object
             WriteLog "  DEBUG: Post-flush partition state check..."
-            $osPartitionRefresh = $disk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
+            $osPartitionRefresh = $freshDisk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
             $postFlushDriveLetter = $osPartitionRefresh.DriveLetter
             WriteLog "  DEBUG: Post-flush drive letter from partition: '$postFlushDriveLetter'"
 
@@ -4189,9 +4219,10 @@ if ($InstallApps) {
 
                 try {
                     # Use the centralized utility to re-establish drive letter
+                    # Use the FRESH disk object, not the stale $disk
                     # Use the original preferred letter (W) if current variable is empty
                     $preferredLetter = if ([string]::IsNullOrWhiteSpace($osPartitionDriveLetter)) { 'W' } else { [char]$osPartitionDriveLetter }
-                    $reacquiredLetter = Set-OSPartitionDriveLetter -Disk $disk -PreferredLetter $preferredLetter -RetryCount 5
+                    $reacquiredLetter = Set-OSPartitionDriveLetter -Disk $freshDisk -PreferredLetter $preferredLetter -RetryCount 5
                     WriteLog "  SUCCESS: Re-acquired drive letter: $reacquiredLetter"
 
                     # Update the variables with the new drive letter
@@ -4201,15 +4232,21 @@ if ($InstallApps) {
                 }
                 catch {
                     WriteLog "  ERROR: Failed to re-acquire drive letter: $($_.Exception.Message)"
-                    WriteLog "  Attempting diskpart-based recovery..."
+                    WriteLog "  Attempting direct partition assignment recovery..."
 
-                    # Emergency fallback: try to assign using diskpart directly
+                    # Emergency fallback: get fresh partition from fresh disk and assign directly
+                    $freshOsPartition = $freshDisk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
+
+                    if (-not $freshOsPartition) {
+                        throw "Cannot recover: No OS partition found on disk $diskNumber after refresh"
+                    }
+
                     $usedLetters = (Get-Volume).DriveLetter
                     $availableLetter = [char[]](90..68) | Where-Object { $_ -notin $usedLetters } | Select-Object -First 1
 
                     if ($availableLetter) {
                         WriteLog "  Assigning emergency drive letter $availableLetter via Set-Partition..."
-                        $osPartitionRefresh | Set-Partition -NewDriveLetter $availableLetter -ErrorAction Stop
+                        $freshOsPartition | Set-Partition -NewDriveLetter $availableLetter -ErrorAction Stop
                         Start-Sleep -Milliseconds 500
 
                         $osPartitionDriveLetter = $availableLetter
