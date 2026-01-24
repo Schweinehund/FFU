@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 20 of 25 (FFU.Updates Reliability)
-**Plan:** 1 of 4 (Catalog Query Retry)
+**Plan:** 3 of 4 (Update Application Isolation)
 **Status:** In progress
-**Last activity:** 2026-01-24 — Completed 20-01-PLAN.md (REL-UPD-01)
+**Last activity:** 2026-01-24 — Completed 20-03-PLAN.md (REL-UPD-03)
 
 Progress: Milestone v1.9.0
-[#####-----] 50% (5/11 phases complete, 20-01 done)
+[#####-----] 50% (5/11 phases complete, 20-01/02/03 done)
 
 ## Completed Phases This Milestone
 
@@ -33,8 +33,8 @@ Progress: Milestone v1.9.0
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 20-01 | Catalog Query Retry | Complete | 8584031 |
-| 20-02 | MSU Download Validation | Pending | - |
-| 20-03 | Update Application Isolation | Pending | - |
+| 20-02 | MSU Download Validation | In progress | - |
+| 20-03 | Update Application Isolation | Complete | 715f89d |
 | 20-04 | Catalog Cache Management | Pending | - |
 
 ## Completed Milestones
@@ -96,9 +96,13 @@ Progress: Milestone v1.9.0
 | Invoke-CatalogQueryWithRetry internal | Helper function not exported, used by Get-ProductsCab internally | 2026-01-24 |
 | Metadata lookup reduced retries | MaxRetries 2 for non-critical metadata (3 for main search) | 2026-01-24 |
 | Catalog retry jitter 0-3s | Prevents thundering herd on service recovery | 2026-01-24 |
+| AllowEmptyCollection for updates | Edge case: empty updates array should return success result | 2026-01-24 |
+| Continue-by-default after failures | One update failure should not block others | 2026-01-24 |
+| StopOnCriticalFailure optional | Users can opt-in to halt on critical failures | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 20-03-PLAN.md (Update Application Isolation) - REL-UPD-03, 22 Pester tests
 - 2026-01-24: Executed 20-01-PLAN.md (Catalog Query Retry) - REL-UPD-01, FFU.Updates v1.0.6
 - 2026-01-24: Completed Phase 19 (FFU.Media Reliability) - 4/4 plans, verified
 - 2026-01-24: FFU.Media v1.8.0, main version v1.8.27, 134 FFU.Media reliability Pester tests
@@ -114,9 +118,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 20-01-PLAN.md (Catalog Query Retry)
+**Stopped at:** Completed 20-03-PLAN.md (Update Application Isolation)
 **Resume file:** None
-**Next action:** Execute 20-02-PLAN.md (MSU Download Validation)
+**Next action:** Execute 20-04-PLAN.md (Catalog Cache Management)
 
 ---
 *State updated: 2026-01-24*
