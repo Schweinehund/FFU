@@ -48,6 +48,7 @@
         'New-PEMedia',
         'Test-ArchitectureCapability',
         'Test-WinPEMediaReadiness',
+        'Test-ISOCreationReadiness',
         'Get-PEArchitecture'
     )
 

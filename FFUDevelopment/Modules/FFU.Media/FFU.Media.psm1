@@ -1866,6 +1866,177 @@ function Test-WinPEMediaReadiness {
 
 #endregion REL-MED-01
 
+#region REL-MED-03: ISO Disk Space Pre-Validation
+
+function Test-ISOCreationReadiness {
+    <#
+    .SYNOPSIS
+    Validates disk space is sufficient for ISO creation before running oscdimg.
+
+    .DESCRIPTION
+    Estimates ISO size from WinPE media folder contents and verifies sufficient disk space
+    exists at the output destination BEFORE calling oscdimg. This prevents mid-write failures
+    due to disk space exhaustion.
+
+    The ISO size estimate is based on the media folder size plus a configurable safety margin
+    to account for UDF metadata overhead and compression variations.
+
+    .PARAMETER WinPEPath
+    Path to the WinPE working directory (contains 'media' subfolder).
+
+    .PARAMETER OutputISOPath
+    Full path where the ISO file will be created.
+
+    .PARAMETER SafetyMarginPercent
+    Percentage to add to estimated size for safety (default: 10).
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - HasSufficientSpace: Boolean indicating if space is sufficient
+    - EstimatedSizeBytes: Estimated ISO size in bytes (with margin)
+    - EstimatedSizeGB: Estimated ISO size in GB
+    - AvailableBytes: Available disk space in bytes
+    - AvailableGB: Available disk space in GB
+    - MediaFolderSizeBytes: Actual media folder size in bytes
+    - MediaFolderSizeGB: Actual media folder size in GB
+    - ShortfallGB: Space shortfall (0 if sufficient)
+    - Drive: Drive root (e.g., "C:\")
+    - Message: Human-readable status message
+    - Remediation: Guidance when space insufficient (null if sufficient)
+
+    .EXAMPLE
+    $result = Test-ISOCreationReadiness -WinPEPath 'C:\FFU\WinPE' -OutputISOPath 'C:\FFU\Capture.iso'
+    if (-not $result.HasSufficientSpace) {
+        Write-Error "$($result.Message)`nRemediation: $($result.Remediation)"
+    }
+
+    .EXAMPLE
+    # Check with custom safety margin
+    $result = Test-ISOCreationReadiness -WinPEPath 'C:\FFU\WinPE' -OutputISOPath 'D:\ISO\Deploy.iso' -SafetyMarginPercent 20
+
+    .NOTES
+    REL-MED-03: ISO creation estimates size and checks disk space early
+    Depends on Test-DiskSpaceForOperation from FFU.Imaging module.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$WinPEPath,
+
+        [Parameter(Mandatory)]
+        [string]$OutputISOPath,
+
+        [Parameter()]
+        [int]$SafetyMarginPercent = 10
+    )
+
+    # Validate WinPE media folder exists
+    $mediaPath = Join-Path $WinPEPath 'media'
+    if (-not (Test-Path $mediaPath)) {
+        return [PSCustomObject]@{
+            HasSufficientSpace   = $false
+            EstimatedSizeBytes   = 0
+            EstimatedSizeGB      = 0
+            AvailableBytes       = 0
+            AvailableGB          = 0
+            MediaFolderSizeBytes = 0
+            MediaFolderSizeGB    = 0
+            ShortfallGB          = 0
+            Drive                = $null
+            Message              = "WinPE media folder not found: $mediaPath"
+            Remediation          = "Ensure WinPE media was created before calling ISO creation."
+        }
+    }
+
+    # Calculate folder size (estimate ISO size)
+    $folderSize = (Get-ChildItem -Path $mediaPath -Recurse -File -ErrorAction SilentlyContinue |
+        Measure-Object -Property Length -Sum).Sum
+
+    if ($null -eq $folderSize) { $folderSize = 0 }
+
+    # ISO overhead is minimal (UDF metadata only) - add safety margin
+    $estimatedSize = [int64]($folderSize * (1 + $SafetyMarginPercent / 100))
+
+    # Check disk space at output location using Test-DiskSpaceForOperation from FFU.Imaging
+    # Uses InvokeCommand.GetCommand for ThreadJob compatibility
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DiskSpaceForOperation', 'Function')) {
+        $spaceCheck = Test-DiskSpaceForOperation -Path $OutputISOPath `
+            -RequiredBytes $estimatedSize -SafetyMarginPercent 0 `
+            -OperationName 'ISO creation'
+
+        return [PSCustomObject]@{
+            HasSufficientSpace   = $spaceCheck.HasSufficientSpace
+            EstimatedSizeBytes   = $estimatedSize
+            EstimatedSizeGB      = [math]::Round($estimatedSize / 1GB, 2)
+            AvailableBytes       = $spaceCheck.AvailableBytes
+            AvailableGB          = $spaceCheck.AvailableGB
+            MediaFolderSizeBytes = $folderSize
+            MediaFolderSizeGB    = [math]::Round($folderSize / 1GB, 2)
+            ShortfallGB          = if ($spaceCheck.HasSufficientSpace) { 0 } else { $spaceCheck.ShortfallGB }
+            Drive                = $spaceCheck.Drive
+            Message              = $spaceCheck.Message
+            Remediation          = if (-not $spaceCheck.HasSufficientSpace) {
+                "Free up at least $([math]::Round($spaceCheck.ShortfallGB, 2)) GB on $($spaceCheck.Drive) or change the ISO output location."
+            } else { $null }
+        }
+    }
+    else {
+        # Fallback when Test-DiskSpaceForOperation not available
+        # Use System.IO.DriveInfo directly
+        try {
+            $driveLetter = [System.IO.Path]::GetPathRoot($OutputISOPath)
+            if ([string]::IsNullOrEmpty($driveLetter)) {
+                $driveLetter = [System.IO.Path]::GetPathRoot((Get-Location).Path)
+            }
+            $driveInfo = [System.IO.DriveInfo]::new($driveLetter.Substring(0, 1))
+            $availableBytes = $driveInfo.AvailableFreeSpace
+            $availableGB = [math]::Round($availableBytes / 1GB, 2)
+            $estimatedGB = [math]::Round($estimatedSize / 1GB, 2)
+            $hasSufficient = $availableBytes -ge $estimatedSize
+            $shortfallBytes = [int64][math]::Max([int64]0, [int64]($estimatedSize - $availableBytes))
+            $shortfallGB = [math]::Round($shortfallBytes / 1GB, 2)
+
+            return [PSCustomObject]@{
+                HasSufficientSpace   = $hasSufficient
+                EstimatedSizeBytes   = $estimatedSize
+                EstimatedSizeGB      = $estimatedGB
+                AvailableBytes       = $availableBytes
+                AvailableGB          = $availableGB
+                MediaFolderSizeBytes = $folderSize
+                MediaFolderSizeGB    = [math]::Round($folderSize / 1GB, 2)
+                ShortfallGB          = if ($hasSufficient) { 0 } else { $shortfallGB }
+                Drive                = $driveLetter
+                Message              = if ($hasSufficient) {
+                    "Sufficient disk space for ISO creation. Estimated: ${estimatedGB}GB, Available: ${availableGB}GB on $driveLetter"
+                } else {
+                    "Insufficient disk space for ISO creation. Estimated: ${estimatedGB}GB, Available: ${availableGB}GB on $driveLetter"
+                }
+                Remediation          = if (-not $hasSufficient) {
+                    "Free up at least $shortfallGB GB on $driveLetter or change the ISO output location."
+                } else { $null }
+            }
+        }
+        catch {
+            return [PSCustomObject]@{
+                HasSufficientSpace   = $false
+                EstimatedSizeBytes   = $estimatedSize
+                EstimatedSizeGB      = [math]::Round($estimatedSize / 1GB, 2)
+                AvailableBytes       = 0
+                AvailableGB          = 0
+                MediaFolderSizeBytes = $folderSize
+                MediaFolderSizeGB    = [math]::Round($folderSize / 1GB, 2)
+                ShortfallGB          = 0
+                Drive                = $null
+                Message              = "Failed to check disk space: $($_.Exception.Message)"
+                Remediation          = "Verify the output path is accessible and the drive exists."
+            }
+        }
+    }
+}
+
+#endregion REL-MED-03
+
 function Get-PEArchitecture {
     param(
         [string]$FilePath
@@ -1907,5 +2078,6 @@ Export-ModuleMember -Function @(
     'New-PEMedia',
     'Test-ArchitectureCapability',
     'Test-WinPEMediaReadiness',
+    'Test-ISOCreationReadiness',
     'Get-PEArchitecture'
 )
