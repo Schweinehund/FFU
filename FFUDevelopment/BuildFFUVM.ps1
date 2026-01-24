@@ -4490,8 +4490,9 @@ if ($InstallApps) {
 
     # Step 3: Create VM and start app installation (AFTER WinPE ISO is ready)
     Set-Progress -Percentage 48 -Message "Starting VM for app installation..."
-    #Create VM and attach VHDX
-    try {
+
+    # === CRITICAL PHASE: VM Creation (INT-BUILD-01, INT-BUILD-03) ===
+    $vmCreationResult = Invoke-BuildPhase -PhaseName 'VM Creation' -Critical $true -Action {
         WriteLog 'Creating new FFU VM using hypervisor provider'
 
         # Create VMConfiguration for hypervisor-agnostic VM creation
@@ -4523,11 +4524,22 @@ if ($InstallApps) {
 
         # Create VM using the initialized hypervisor provider
         Set-Progress -Percentage 47 -Message "Creating virtual machine..."
-        $FFUVM = $script:HypervisorProvider.CreateVM($vmConfig)
-        WriteLog "FFU VM Created: $($FFUVM.Name) [HypervisorType: $($FFUVM.HypervisorType)]"
+        $vm = $script:HypervisorProvider.CreateVM($vmConfig)
+        WriteLog "FFU VM Created: $($vm.Name) [HypervisorType: $($vm.HypervisorType)]"
 
-        # Start the VM - CreateVM only creates it, doesn't start it
-        # (Original New-FFUVM function called Start-VM internally, hypervisor provider does not)
+        # Return the VM object for use outside the phase
+        return $vm
+    }
+
+    if (-not $vmCreationResult.Success) {
+        throw "VM creation failed: $($vmCreationResult.Error.Message)"
+    }
+    $FFUVM = $vmCreationResult.Result
+
+    # VM startup is separate from creation - keeping outside Invoke-BuildPhase
+    # Start the VM - CreateVM only creates it, doesn't start it
+    # (Original New-FFUVM function called Start-VM internally, hypervisor provider does not)
+    try {
 
         # === CANCELLATION CHECKPOINT 5: Before VM Start ===
         # Last chance to cancel before VM starts running (point of no return for VM operations)
@@ -4619,15 +4631,14 @@ if ($InstallApps) {
         WriteLog "Registered VM cleanup handler (ID: $vmCleanupId)"
     }
     catch {
-        Write-Host 'VM creation failed'
-        Writelog "VM creation failed with error $_"
+        Write-Host 'VM startup failed'
+        WriteLog "VM startup failed with error $_"
         # Use hypervisor-agnostic cleanup helper
         Remove-FFUVMWithProvider -VM $FFUVM -VMName $VMName -VMPath $VMPath `
                                  -InstallApps $InstallApps -VhdxDisk $vhdxDisk `
                                  -FFUDevelopmentPath $FFUDevelopmentPath `
                                  -HypervisorProvider $script:HypervisorProvider
         throw $_
-
     }
 }
 
