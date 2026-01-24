@@ -80,17 +80,127 @@ function New-FFUCheckResult {
         [string]$Remediation = '',
 
         [Parameter()]
-        [int]$DurationMs = 0
+        [int]$DurationMs = 0,
+
+        # Severity classification for tiered checks (REL-PRE-04)
+        # Critical = build cannot proceed, Warning = build may have issues, Info = optional improvement
+        [Parameter()]
+        [ValidateSet('Critical', 'Warning', 'Info')]
+        [string]$Severity = 'Warning'
     )
 
     [PSCustomObject]@{
         CheckName   = $CheckName
         Status      = $Status
+        Severity    = $Severity
         Message     = $Message
         Details     = $Details
         Remediation = $Remediation
         DurationMs  = $DurationMs
     }
+}
+
+function New-FFURemediationBlock {
+    <#
+    .SYNOPSIS
+    Creates a standardized remediation block with consistent formatting.
+
+    .DESCRIPTION
+    Generates a remediation string with sections for:
+    - ISSUE: What the problem is
+    - IMPACT: What will happen if not fixed
+    - FIX: Specific commands to run (PowerShell and/or manual steps)
+    - VERIFY: How to confirm the fix worked
+
+    .PARAMETER Issue
+    Brief description of what failed
+
+    .PARAMETER Impact
+    What happens if this isn't fixed (e.g., "Build will fail at WinPE creation")
+
+    .PARAMETER PowerShellCommands
+    Array of PowerShell commands to fix the issue (can be copy-pasted)
+
+    .PARAMETER ManualSteps
+    Array of manual steps if PowerShell can't fix it
+
+    .PARAMETER VerifyCommand
+    Command to verify the fix worked
+
+    .EXAMPLE
+    New-FFURemediationBlock -Issue "Hyper-V not installed" `
+        -Impact "Cannot create build VM" `
+        -PowerShellCommands @(
+            "Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart"
+        ) `
+        -ManualSteps @(
+            "Restart computer after enabling Hyper-V"
+        ) `
+        -VerifyCommand "Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All"
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Issue,
+
+        [Parameter()]
+        [string]$Impact = 'Build cannot proceed',
+
+        [Parameter()]
+        [string[]]$PowerShellCommands = @(),
+
+        [Parameter()]
+        [string[]]$ManualSteps = @(),
+
+        [Parameter()]
+        [string]$VerifyCommand = ''
+    )
+
+    $sb = [System.Text.StringBuilder]::new()
+
+    # ISSUE section
+    [void]$sb.AppendLine("=== ISSUE ===")
+    [void]$sb.AppendLine($Issue)
+    [void]$sb.AppendLine()
+
+    # IMPACT section
+    [void]$sb.AppendLine("=== IMPACT ===")
+    [void]$sb.AppendLine($Impact)
+    [void]$sb.AppendLine()
+
+    # FIX section
+    [void]$sb.AppendLine("=== FIX ===")
+
+    if ($PowerShellCommands.Count -gt 0) {
+        [void]$sb.AppendLine("Run these PowerShell commands (as Administrator):")
+        [void]$sb.AppendLine()
+        foreach ($cmd in $PowerShellCommands) {
+            [void]$sb.AppendLine("    $cmd")
+        }
+        [void]$sb.AppendLine()
+    }
+
+    if ($ManualSteps.Count -gt 0) {
+        [void]$sb.AppendLine("Manual steps:")
+        $stepNum = 1
+        foreach ($step in $ManualSteps) {
+            [void]$sb.AppendLine("    $stepNum. $step")
+            $stepNum++
+        }
+        [void]$sb.AppendLine()
+    }
+
+    # VERIFY section
+    if ($VerifyCommand) {
+        [void]$sb.AppendLine("=== VERIFY ===")
+        [void]$sb.AppendLine("Run this to confirm the fix worked:")
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine("    $VerifyCommand")
+        [void]$sb.AppendLine()
+    }
+
+    return $sb.ToString()
 }
 
 function Get-FFURequirements {
@@ -259,6 +369,7 @@ function Test-FFUAdministrator {
         }
         else {
             New-FFUCheckResult -CheckName 'Administrator' -Status 'Failed' `
+                -Severity 'Critical' `
                 -Message 'Not running with Administrator privileges' `
                 -Details @{
                     UserName  = $currentPrincipal.Identity.Name
@@ -279,6 +390,7 @@ Alternative (from existing terminal):
     catch {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'Administrator' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "Failed to check Administrator privileges: $($_.Exception.Message)" `
             -Remediation 'Ensure the security system is accessible and try running as Administrator' `
             -DurationMs $stopwatch.ElapsedMilliseconds
@@ -1144,6 +1256,102 @@ Common JSON errors:
 }
 
 #region WimMount Helper Functions
+
+function Invoke-WimMountRepairWithRetry {
+    <#
+    .SYNOPSIS
+    Attempts WIMMount repair with retry logic and exponential backoff.
+
+    .DESCRIPTION
+    Wraps WIMMount repair operations (service start, fltmc load) with retry
+    logic to handle transient failures. Uses exponential backoff with jitter
+    to prevent resource contention.
+
+    .PARAMETER RepairAction
+    ScriptBlock containing the repair action to execute
+
+    .PARAMETER ActionName
+    Human-readable name for logging (e.g., "service start", "filter load")
+
+    .PARAMETER MaxRetries
+    Maximum number of retry attempts (default: 3)
+
+    .PARAMETER BaseDelaySeconds
+    Base delay between retries in seconds (default: 2)
+
+    .PARAMETER Details
+    Hashtable to update with repair actions (passed by reference)
+
+    .OUTPUTS
+    Boolean - $true if repair succeeded, $false if all retries exhausted
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)]
+        [scriptblock]$RepairAction,
+
+        [Parameter(Mandatory)]
+        [string]$ActionName,
+
+        [Parameter()]
+        [int]$MaxRetries = 3,
+
+        [Parameter()]
+        [int]$BaseDelaySeconds = 2,
+
+        [Parameter()]
+        [hashtable]$Details = @{}
+    )
+
+    $attempt = 0
+    $lastError = $null
+
+    while ($attempt -lt $MaxRetries) {
+        $attempt++
+
+        try {
+            $result = & $RepairAction
+
+            # Check for success indicators
+            if ($LASTEXITCODE -eq 0 -or $result -eq $true) {
+                if ($Details.RemediationActions) {
+                    $Details.RemediationActions.Add("$ActionName succeeded on attempt $attempt")
+                }
+                return $true
+            }
+
+            # Exit code indicates failure but didn't throw
+            $lastError = "Exit code: $LASTEXITCODE"
+        }
+        catch {
+            $lastError = $_.Exception.Message
+        }
+
+        # Log failure and prepare for retry
+        if ($Details.RemediationActions) {
+            $Details.RemediationActions.Add("$ActionName failed (attempt $attempt): $lastError")
+        }
+
+        if ($attempt -lt $MaxRetries) {
+            # Calculate delay with exponential backoff + jitter
+            $jitter = Get-Random -Minimum 0 -Maximum 1000
+            $delayMs = ($BaseDelaySeconds * 1000 * [math]::Pow(2, $attempt - 1)) + $jitter
+
+            if ($Details.RemediationActions) {
+                $Details.RemediationActions.Add("Waiting $([math]::Round($delayMs / 1000, 1))s before retry...")
+            }
+
+            Start-Sleep -Milliseconds $delayMs
+        }
+    }
+
+    # All retries exhausted
+    if ($Details.RemediationActions) {
+        $Details.RemediationActions.Add("$ActionName failed after $MaxRetries attempts: $lastError")
+    }
+    return $false
+}
 
 function Test-WimMountDriverIntegrity {
     <#
