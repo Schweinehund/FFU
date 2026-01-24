@@ -3712,18 +3712,27 @@ try {
             $index = Get-Index -WindowsImagePath $wimPath -WindowsSKU $WindowsSKU -ISOPath $ISOPath
         }
 
+        # === CRITICAL PHASE: VHDX/VHD Creation (INT-BUILD-01, INT-BUILD-03) ===
         # Use appropriate disk creation function based on hypervisor type
         # - Hyper-V: New-ScratchVhdx (uses Hyper-V cmdlets, creates VHDX)
         # - VMware: New-ScratchVhd (uses diskpart, creates dynamic VHD - VMware cannot read VHDX format)
         #   Dynamic VHD is used for VMware to avoid disk space issues (grows as needed vs fixed allocation)
-        if ($HypervisorType -eq 'VMware') {
-            WriteLog "Creating dynamic VHD for VMware using diskpart (no Hyper-V dependency)..."
-            $vhdxDisk = New-ScratchVhd -VhdPath $VHDXPath -SizeBytes $disksize -Dynamic
+        $diskCreationResult = Invoke-BuildPhase -PhaseName 'Disk Creation' -Critical $true -Action {
+            if ($HypervisorType -eq 'VMware') {
+                WriteLog "Creating dynamic VHD for VMware using diskpart (no Hyper-V dependency)..."
+                New-ScratchVhd -VhdPath $VHDXPath -SizeBytes $disksize -Dynamic
+            }
+            else {
+                WriteLog "Creating VHDX for Hyper-V..."
+                New-ScratchVhdx -VhdxPath $VHDXPath -SizeBytes $disksize -LogicalSectorSizeBytes $LogicalSectorSizeBytes
+            }
         }
-        else {
-            WriteLog "Creating VHDX for Hyper-V..."
-            $vhdxDisk = New-ScratchVhdx -VhdxPath $VHDXPath -SizeBytes $disksize -LogicalSectorSizeBytes $LogicalSectorSizeBytes
+
+        if (-not $diskCreationResult.Success) {
+            # Critical phase already threw, but add explicit check for clarity
+            throw "Disk creation failed: $($diskCreationResult.Error.Message)"
         }
+        $vhdxDisk = $diskCreationResult.Result
 
         $systemPartitionDriveLetter = New-SystemPartition -VhdxDisk $vhdxDisk
     
