@@ -26,6 +26,200 @@
 # Import constants module
 using module ..\FFU.Constants\FFU.Constants.psm1
 
+#region DISM Error Remediation Table (REL-MED-02)
+# ============================================================================
+# Known DISM/ADK error patterns with specific remediation guidance
+# Each entry contains: Code (short name), ShortMessage, and detailed Remediation steps
+# ============================================================================
+$script:DISMErrorRemediation = @{
+    '0x800704DB' = @{
+        Code = 'ServiceNotExist'
+        ShortMessage = 'WIMMount service not available'
+        Remediation = @'
+The WIMMount filter driver is not registered. Try these steps:
+
+1. Load the filter driver manually:
+   fltmc load WimMount
+
+2. If step 1 fails, register the service:
+   sc create wimmount type= filesys binPath= system32\drivers\wimmount.sys
+   fltmc load WimMount
+
+3. If still failing, repair ADK installation:
+   - Run: adksetup.exe /repair
+   - Or reinstall Windows PE add-on
+
+4. Check Event Viewer > System for related errors
+'@
+    }
+
+    '0x80070005' = @{
+        Code = 'AccessDenied'
+        ShortMessage = 'Access denied during DISM operation'
+        Remediation = @'
+Access was denied. Check the following:
+
+1. Run PowerShell as Administrator
+2. Temporarily disable antivirus (Windows Defender, third-party)
+3. Add exclusions for:
+   - C:\Windows\System32\dism.exe
+   - C:\Windows\System32\DismHost.exe
+   - Your FFUDevelopment folder
+4. Verify the target path is not read-only
+5. Check if another process has files locked (use Process Monitor)
+'@
+    }
+
+    '0x800F081F' = @{
+        Code = 'SourceNotFound'
+        ShortMessage = 'Required source files not found'
+        Remediation = @'
+Required source files were not found. Check:
+
+1. ADK installation is complete (both ADK and WinPE add-on)
+2. Verify winpe.wim exists at:
+   <ADK Path>\Windows Preinstallation Environment\<arch>\en-us\winpe.wim
+3. Reinstall WinPE add-on if missing
+'@
+    }
+
+    '0xc1510114' = @{
+        Code = 'MountCorrupted'
+        ShortMessage = 'WIM mount point is corrupted'
+        Remediation = @'
+The WIM mount point is corrupted. Try:
+
+1. Run DISM cleanup:
+   Dism.exe /Cleanup-Mountpoints
+
+2. Delete the mount directory manually
+3. Restart the TrustedInstaller service:
+   net stop TrustedInstaller
+   net start TrustedInstaller
+
+4. Reboot if issue persists
+'@
+    }
+
+    '0x800700b7' = @{
+        Code = 'AlreadyMounted'
+        ShortMessage = 'WIM file is already mounted'
+        Remediation = @'
+The WIM file is already mounted. Try:
+
+1. Check existing mounts:
+   Get-WindowsImage -Mounted
+
+2. Dismount any stale mounts:
+   Dism.exe /Cleanup-Mountpoints
+
+3. Or dismount specific mount:
+   Dismount-WindowsImage -Path <mount-path> -Discard
+'@
+    }
+
+    '0x80070070' = @{
+        Code = 'DiskFull'
+        ShortMessage = 'Insufficient disk space'
+        Remediation = @'
+There is not enough space on the disk. Try:
+
+1. Free up at least 15 GB on the target drive
+2. Use Disk Cleanup to remove temporary files
+3. Move FFUDevelopment folder to a drive with more space
+4. Clear DISM scratch space: Remove-Item -Path "$env:TEMP\DISM*" -Recurse -Force
+'@
+    }
+}
+#endregion
+
+#region DISM Error Classification Function (REL-MED-02)
+function Get-ADKToolFailureRemediation {
+    <#
+    .SYNOPSIS
+    Classifies DISM/ADK errors and returns remediation guidance
+
+    .DESCRIPTION
+    Analyzes an error message from DISM or ADK tools, matches it against known
+    error patterns, and returns structured remediation guidance. For unknown
+    errors, provides generic troubleshooting steps including the original error.
+
+    .PARAMETER ErrorMessage
+    The error message to classify (typically from DISM, ADK tools, or exception)
+
+    .PARAMETER ToolName
+    The name of the tool that generated the error (default: 'DISM')
+
+    .OUTPUTS
+    [PSCustomObject] with properties:
+    - ErrorCode: The matched error code or 'Unknown'
+    - ErrorName: Short classification name (e.g., 'ServiceNotExist', 'AccessDenied')
+    - Message: Brief description of the error
+    - Remediation: Detailed steps to resolve the issue
+    - ToolName: The tool that generated the error
+    - IsKnown: Boolean indicating if the error matched a known pattern
+
+    .EXAMPLE
+    Get-ADKToolFailureRemediation -ErrorMessage 'Error 0x800704DB: The specified service does not exist'
+
+    Returns detailed remediation for WIMMount service issues.
+
+    .EXAMPLE
+    Get-ADKToolFailureRemediation -ErrorMessage 'Access denied' -ToolName 'oscdimg'
+
+    Returns access denied remediation with oscdimg as the tool name.
+
+    .NOTES
+    Part of REL-MED-02: DISM/ADK Error Classification
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ErrorMessage,
+
+        [Parameter()]
+        [string]$ToolName = 'DISM'
+    )
+
+    # Match against known error patterns
+    foreach ($pattern in $script:DISMErrorRemediation.Keys) {
+        if ($ErrorMessage -match $pattern) {
+            $info = $script:DISMErrorRemediation[$pattern]
+            return [PSCustomObject]@{
+                ErrorCode    = $pattern
+                ErrorName    = $info.Code
+                Message      = $info.ShortMessage
+                Remediation  = $info.Remediation
+                ToolName     = $ToolName
+                IsKnown      = $true
+            }
+        }
+    }
+
+    # Generic remediation if no pattern matches
+    [PSCustomObject]@{
+        ErrorCode    = 'Unknown'
+        ErrorName    = 'UnclassifiedError'
+        Message      = "Unrecognized $ToolName error"
+        Remediation  = @"
+An unrecognized error occurred during $ToolName operation.
+
+Try these general troubleshooting steps:
+1. Run: Dism.exe /Cleanup-Mountpoints
+2. Restart TrustedInstaller service
+3. Check DISM logs: `$env:SystemRoot\Logs\DISM\dism.log
+4. Review Event Viewer > Application for DISM events
+5. Try running with -UpdateADK `$true to reinstall ADK
+
+Original error: $ErrorMessage
+"@
+        ToolName     = $ToolName
+        IsKnown      = $false
+    }
+}
+#endregion
+
 function Invoke-DISMPreFlightCleanup {
     <#
     .SYNOPSIS
@@ -1204,6 +1398,7 @@ function Get-PEArchitecture {
 
 # Export all public functions
 Export-ModuleMember -Function @(
+    'Get-ADKToolFailureRemediation',
     'Invoke-DISMPreFlightCleanup',
     'Invoke-CopyPEWithRetry',
     'New-WinPEMediaNative',
