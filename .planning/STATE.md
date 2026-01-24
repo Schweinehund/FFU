@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 21 of 25 (FFU.Drivers Reliability) - In Progress
-**Plan:** 2 of 4 (Vendor-Specific Extraction Error Handling) - Complete
-**Status:** Plan 21-02 complete
-**Last activity:** 2026-01-24 - Completed 21-02-PLAN.md (REL-DRV-02)
+**Plan:** 3 of 4 (Catalog Fallback Sources) - Complete
+**Status:** Plan 21-03 complete
+**Last activity:** 2026-01-24 - Completed 21-03-PLAN.md (REL-DRV-03)
 
 Progress: Milestone v1.9.0
-[######----] 57% (6/11 phases complete, 21-02 done)
+[######----] 59% (6/11 phases complete, 21-03 done)
 
 ## Completed Phases This Milestone
 
@@ -35,7 +35,7 @@ Progress: Milestone v1.9.0
 |------|------|--------|--------|
 | 21-01 | Driver Download Retry | Complete | e304a4d |
 | 21-02 | Vendor-Specific Extraction Error Handling | Complete | d808183 |
-| 21-03 | Extraction Progress Tracking | Not Started | - |
+| 21-03 | Catalog Fallback Sources | Complete | 8dd6e06 |
 | 21-04 | Driver Injection Verification | Not Started | - |
 
 ## Completed Milestones
@@ -110,9 +110,13 @@ Progress: Milestone v1.9.0
 | Reboot codes (1641, 3010) are Success | Extraction completed, reboot is irrelevant for image builds | 2026-01-24 |
 | Unknown exit codes default to Warn | Continue-by-default for unrecognized exit codes | 2026-01-24 |
 | ${DriverName} syntax for messages | Prevents PowerShell parser confusion with colons | 2026-01-24 |
+| 7-day OEM catalog cache staleness | OEM catalogs update weekly at most | 2026-01-24 |
+| Stale cache as network fallback | When network fails, use stale cache with warning | 2026-01-24 |
+| Get-CachedOEMCatalog internal function | Not exported, used only by OEM driver functions | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 21-03-PLAN.md (Catalog Fallback Sources) - REL-DRV-03, 12 Pester tests, catalog caching
 - 2026-01-24: Completed 21-02-PLAN.md (Vendor-Specific Extraction Error Handling) - REL-DRV-02, 23 Pester tests
 - 2026-01-24: Executed 21-01-PLAN.md (Driver Download Retry) - REL-DRV-01/02, 38 Pester tests, FFU.Drivers v1.1.0
 - 2026-01-24: Executed 20-04-PLAN.md (Catalog Cache Management) - REL-UPD-04, 23 Pester tests
@@ -134,9 +138,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 21-02-PLAN.md (Vendor-Specific Extraction Error Handling)
+**Stopped at:** Completed 21-03-PLAN.md (Catalog Fallback Sources)
 **Resume file:** None
-**Next action:** Execute 21-03-PLAN.md (Extraction Progress Tracking)
+**Next action:** Execute 21-04-PLAN.md (Driver Injection Verification)
 
 ---
 *State updated: 2026-01-24*
