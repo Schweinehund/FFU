@@ -210,8 +210,13 @@ Plans:
   2. Background job failures surface with full context, not "Job failed"
   3. Errors don't leave UI in stuck state (progress bars reset, buttons re-enable)
   4. Invalid config detected at load time, not after build starts
-**Research**: Unlikely (existing UI error patterns)
-**Plans**: TBD
+**Research**: Complete (25-RESEARCH.md - UI error patterns documented)
+**Plans:** 4 plans
+Plans:
+- [ ] 25-01-PLAN.md - UI state consistency (REL-UI-03)
+- [ ] 25-02-PLAN.md - Structured error display (REL-UI-01)
+- [ ] 25-03-PLAN.md - Job failure context extraction (REL-UI-02)
+- [ ] 25-04-PLAN.md - Load-time config validation (REL-UI-04)
 
 ## Progress
 
@@ -230,7 +235,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 22. FFU.Preflight Reliability | 4/4 | Complete | 2026-01-24 |
 | 23. BuildFFUVM.ps1 Reliability | 4/4 | Complete | 2026-01-24 |
 | 24. WinPE Scripts Reliability | 4/4 | Complete | 2026-01-24 |
-| 25. FFUUI.Core Reliability | 0/TBD | Not started | - |
+| 25. FFUUI.Core Reliability | 0/4 | Planning complete | - |
 
 ---
 *Created: 2026-01-23 for v1.9.0 Reliability Hardening*
