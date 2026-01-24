@@ -806,7 +806,7 @@ Describe 'REL-UPD-03: Update Application Isolation' -Tag 'Unit', 'FFU.Updates', 
 
 Describe 'FFU.Updates Module Version' -Tag 'Unit', 'FFU.Updates', 'Version' {
 
-    It 'Should have version 1.0.6 or higher (includes REL-UPD-01, REL-UPD-03)' {
+    It 'Should have version 1.0.6 or higher (includes REL-UPD-01, REL-UPD-02, REL-UPD-03)' {
         $ManifestPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psd1'
         $manifest = Test-ModuleManifest -Path $ManifestPath
         $version = [Version]$manifest.Version
@@ -817,6 +817,17 @@ Describe 'FFU.Updates Module Version' -Tag 'Unit', 'FFU.Updates', 'Version' {
         $ManifestPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psd1'
         $manifestContent = Get-Content $ManifestPath -Raw
         $manifestContent | Should -Match 'REL-UPD-01'
+    }
+
+    It 'Should have REL-UPD-02 mentioned in release notes' {
+        $ManifestPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUDevelopment\Modules\FFU.Updates\FFU.Updates.psd1'
+        $manifestContent = Get-Content $ManifestPath -Raw
+        $manifestContent | Should -Match 'REL-UPD-02'
+    }
+
+    It 'Should export Test-MSUIntegrity (REL-UPD-02)' {
+        $cmd = Get-Command -Name 'Test-MSUIntegrity' -Module 'FFU.Updates' -ErrorAction SilentlyContinue
+        $cmd | Should -Not -BeNullOrEmpty
     }
 
     It 'Should export Invoke-UpdatesWithIsolation (REL-UPD-03)' {
