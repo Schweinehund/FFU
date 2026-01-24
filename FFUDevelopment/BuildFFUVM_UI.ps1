@@ -66,7 +66,9 @@ $script:uiState = [PSCustomObject]@{
         logData                     = $null;
         pollTimer                   = $null;
         lastConfigFilePath          = $null;
-        messagingContext            = $null   # Synchronized queue for real-time UI updates
+        messagingContext            = $null;   # Synchronized queue for real-time UI updates
+        configValidationResult      = $null;   # REL-UI-05: Stores validation result from config loading
+        hasValidationErrors         = $false   # REL-UI-05: Quick flag for build-time check
     };
     Flags              = @{
         installAppsForcedByUpdates        = $false;
@@ -418,6 +420,23 @@ $script:uiState.Controls.btnRun.Add_Click({
             }
 
             # Not currently building: start a new build
+
+            # REL-UI-05: Check for known validation errors from config loading
+            if ($script:uiState.Data.hasValidationErrors) {
+                $userChoice = [System.Windows.MessageBox]::Show(
+                    "The current configuration has validation errors.`n`nDo you want to start the build anyway?",
+                    "Configuration Warning",
+                    [System.Windows.MessageBoxButton]::YesNo,
+                    [System.Windows.MessageBoxImage]::Warning
+                )
+                if ($userChoice -ne [System.Windows.MessageBoxResult]::Yes) {
+                    WriteLog "Build cancelled due to validation errors."
+                    $script:uiState.Controls.txtStatus.Text = "Build canceled: Configuration has validation errors."
+                    return
+                }
+                WriteLog "User chose to proceed with build despite validation errors."
+            }
+
             $btnRun.IsEnabled = $false
 
             # Switch to Monitor Tab
