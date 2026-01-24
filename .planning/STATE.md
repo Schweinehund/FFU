@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 23 BuildFFUVM.ps1 Reliability - COMPLETE
+**Current focus:** Phase 24 WinPE Scripts Reliability - IN PROGRESS
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 23 of 25 (BuildFFUVM.ps1 Reliability) - COMPLETE
-**Plan:** 4 of 4 (Termination Cleanup Enhancement complete)
-**Status:** Phase complete
-**Last activity:** 2026-01-24 - Completed 23-04-PLAN.md (REL-BUILD-02/04/05)
+**Phase:** 24 of 25 (WinPE Scripts Reliability) - IN PROGRESS
+**Plan:** 1 of 4 (CaptureFFU Disk Validation complete)
+**Status:** In progress
+**Last activity:** 2026-01-24 - Completed 24-01-PLAN.md (REL-WINPE-01)
 
 Progress: Milestone v1.9.0
 [#########-] 82% (9/11 phases complete)
@@ -32,14 +32,14 @@ Progress: Milestone v1.9.0
 | 22 | FFU.Preflight Reliability | 4/4 | 2026-01-24 |
 | 23 | BuildFFUVM.ps1 Reliability | 4/4 | 2026-01-24 |
 
-## Phase 23 Progress (COMPLETE)
+## Phase 24 Progress (IN PROGRESS)
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
-| 23-01 | Build Error Aggregation | Complete | d39caff |
-| 23-02 | Phase Wrapper with Continue-on-Failure | Complete | cebd9c6 |
-| 23-03 | Checkpoint Resume Integration | Complete | (Phase 8) |
-| 23-04 | Termination Cleanup Enhancement | Complete | 67ede03 |
+| 24-01 | CaptureFFU Disk Validation | Complete | f266bd3 |
+| 24-02 | Orchestrator Dependency Detection | Pending | - |
+| 24-03 | Log Preservation Enhancement | Pending | - |
+| 24-04 | Resource Handling | Pending | - |
 
 ## Completed Milestones
 
@@ -130,9 +130,13 @@ Progress: Milestone v1.9.0
 | Structured result object | PSCustomObject with Success, Skipped, Cancelled, Error, Result enables inspection | 2026-01-24 |
 | Error summary before cleanup | Users need to see all errors before resources are cleaned up | 2026-01-24 |
 | Severity colors Red/Yellow/Cyan | Standard console color conventions for error display | 2026-01-24 |
+| WMI disk query for WinPE | Get-CimInstance Win32_DiskDrive instead of Get-Disk (Storage module not in WinPE) | 2026-01-24 |
+| Virtual disk pattern match | Model -notmatch 'Virtual\|VMware' catches both Hyper-V and VMware VMs | 2026-01-24 |
+| Fail-fast before diskpart | Validate disk before any partition manipulation begins | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 24-01-PLAN.md (CaptureFFU Disk Validation) - REL-WINPE-01, 21 tests
 - 2026-01-24: Completed 23-04-PLAN.md (Termination Cleanup Enhancement) - REL-BUILD-02/04/05, 30 tests, v1.8.36
 - 2026-01-24: Completed Phase 23 (BuildFFUVM.ps1 Reliability) - 4/4 plans
 - 2026-01-24: Completed 23-02-PLAN.md (Phase Wrapper with Continue-on-Failure) - REL-BUILD-01, 43 tests, FFU.Core v1.0.22
@@ -162,9 +166,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed Phase 23 (BuildFFUVM.ps1 Reliability)
+**Stopped at:** Completed 24-01-PLAN.md (CaptureFFU Disk Validation)
 **Resume file:** None
-**Next action:** Plan Phase 24 (WinPE Scripts Reliability)
+**Next action:** Execute 24-02-PLAN.md (Orchestrator Dependency Detection)
 
 ---
 *State updated: 2026-01-24*
