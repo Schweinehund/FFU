@@ -144,6 +144,198 @@ function Invoke-DriverDownloadWithRetry {
     throw $lastError
 }
 
+function Get-DriverExtractionResult {
+    <#
+    .SYNOPSIS
+    Classifies vendor-specific driver extraction exit codes
+
+    .DESCRIPTION
+    Analyzes exit codes from driver extraction processes (HP softpaq, Lenovo SCCM,
+    Dell, Microsoft MSI) and determines whether extraction succeeded, failed non-critically,
+    or encountered a critical error requiring attention.
+
+    REL-DRV-02: Vendor-Specific Extraction Error Handling
+
+    .PARAMETER Vendor
+    The OEM vendor (Dell, HP, Lenovo, Microsoft)
+
+    .PARAMETER ExitCode
+    The process exit code from the extraction command
+
+    .PARAMETER DriverName
+    Name of the driver being extracted (for logging/messages)
+
+    .OUTPUTS
+    PSCustomObject with Success, Critical, Message, and Action properties
+
+    .EXAMPLE
+    $result = Get-DriverExtractionResult -Vendor 'HP' -ExitCode 3010 -DriverName 'sp12345'
+    # Returns: Success=$true, Action='Continue' (reboot required is normal)
+
+    .NOTES
+    Internal function - not exported.
+    Exit code classifications based on vendor documentation:
+    - HP softpaq: https://support.hp.com/document/c03672226
+    - Lenovo: Standard Windows Installer codes
+    - Dell: Dell Command Update documentation
+    - Microsoft: Windows Installer exit codes
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Dell', 'HP', 'Lenovo', 'Microsoft')]
+        [string]$Vendor,
+
+        [Parameter(Mandatory)]
+        [int]$ExitCode,
+
+        [Parameter()]
+        [string]$DriverName = 'Unknown'
+    )
+
+    $result = [PSCustomObject]@{
+        Success  = $false
+        Critical = $false
+        Message  = ''
+        Action   = 'Continue'
+    }
+
+    switch ($Vendor) {
+        'HP' {
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "HP ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "HP ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                2       {
+                    $result.Critical = $true
+                    $result.Message = "HP ${DriverName} - Invalid command line"
+                    $result.Action = 'Fail'
+                }
+                3       {
+                    $result.Message = "HP ${DriverName} initialization error (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                1641    {
+                    $result.Success = $true
+                    $result.Message = "HP ${DriverName} extracted (reboot initiated - ignored)"
+                }
+                3010    {
+                    $result.Success = $true
+                    $result.Message = "HP ${DriverName} extracted (reboot required - expected)"
+                }
+                default {
+                    $result.Message = "HP ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Lenovo' {
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Lenovo ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Lenovo ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                2       {
+                    $result.Critical = $true
+                    $result.Message = "Lenovo ${DriverName} - Invalid parameter"
+                    $result.Action = 'Fail'
+                }
+                3       {
+                    $result.Critical = $true
+                    $result.Message = "Lenovo ${DriverName} - File not found"
+                    $result.Action = 'Fail'
+                }
+                5       {
+                    $result.Critical = $true
+                    $result.Message = "Lenovo ${DriverName} - Access denied"
+                    $result.Action = 'Fail'
+                }
+                1603    {
+                    $result.Message = "Lenovo ${DriverName} - Fatal error during extraction (non-critical, continuing)"
+                    $result.Action = 'Warn'
+                }
+                3010    {
+                    $result.Success = $true
+                    $result.Message = "Lenovo ${DriverName} extracted (reboot required - expected)"
+                }
+                default {
+                    $result.Message = "Lenovo ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Dell' {
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Dell ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Dell ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                2       {
+                    $result.Critical = $true
+                    $result.Message = "Dell ${DriverName} - Invalid parameter"
+                    $result.Action = 'Fail'
+                }
+                3010    {
+                    $result.Success = $true
+                    $result.Message = "Dell ${DriverName} extracted (reboot required - expected)"
+                }
+                default {
+                    $result.Message = "Dell ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Microsoft' {
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Microsoft ${DriverName} extracted successfully"
+                }
+                1601    {
+                    $result.Message = "Microsoft ${DriverName} - Windows Installer service not accessible (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                1602    {
+                    $result.Message = "Microsoft ${DriverName} - User cancelled (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                1603    {
+                    $result.Message = "Microsoft ${DriverName} - Fatal error during installation (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                1618    {
+                    $result.Message = "Microsoft ${DriverName} - Another installation in progress (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                3010    {
+                    $result.Success = $true
+                    $result.Message = "Microsoft ${DriverName} extracted (reboot required - expected)"
+                }
+                default {
+                    $result.Message = "Microsoft ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+    }
+
+    return $result
+}
+
 function Get-MicrosoftDrivers {
     <#
     .SYNOPSIS
@@ -395,17 +587,11 @@ function Get-MicrosoftDrivers {
             WriteLog "Downloading $Model driver file to $filePath"
             Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
             try {
-                Start-BitsTransferWithRetry -Source $downloadLink -Destination $filePath -ErrorAction Stop
-                WriteLog "Download complete"
-            }
-            catch [System.Net.WebException] {
-                Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
-                WriteLog "ERROR: Network error downloading $Model drivers: $($_.Exception.Message)"
-                throw "Failed to download drivers for '$Model': $($_.Exception.Message)"
+                Invoke-DriverDownloadWithRetry -Source $downloadLink -Destination $filePath -OperationName "Microsoft Surface driver for $Model"
             }
             catch {
                 Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
-                WriteLog "ERROR: Failed to download $Model drivers: $($_.Exception.Message)"
+                WriteLog "ERROR: Failed to download $Model drivers after all retries: $($_.Exception.Message)"
                 throw
             }
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
@@ -540,15 +726,10 @@ function Get-HPDrivers {
     }
     WriteLog "Downloading $PlatformListUrl to $PlatformListCab"
     try {
-        Start-BitsTransferWithRetry -Source $PlatformListUrl -Destination $PlatformListCab -ErrorAction Stop
-        WriteLog "Download complete"
-    }
-    catch [System.Net.WebException] {
-        WriteLog "ERROR: Network error downloading HP platform list: $($_.Exception.Message)"
-        throw "Failed to download HP platform catalog: $($_.Exception.Message)"
+        Invoke-DriverDownloadWithRetry -Source $PlatformListUrl -Destination $PlatformListCab -OperationName "HP platform catalog"
     }
     catch {
-        WriteLog "ERROR: Failed to download HP platform list: $($_.Exception.Message)"
+        WriteLog "ERROR: Failed to download HP platform catalog after all retries: $($_.Exception.Message)"
         throw
     }
 
@@ -696,14 +877,10 @@ function Get-HPDrivers {
     # Download and extract the driver XML cab
     WriteLog "Downloading HP Driver cab from $DriverCabUrl to $DriverCabFile"
     try {
-        Start-BitsTransferWithRetry -Source $DriverCabUrl -Destination $DriverCabFile -ErrorAction Stop
-    }
-    catch [System.Net.WebException] {
-        WriteLog "ERROR: Network error downloading HP driver catalog: $($_.Exception.Message)"
-        throw "Failed to download HP driver catalog for $ProductName : $($_.Exception.Message)"
+        Invoke-DriverDownloadWithRetry -Source $DriverCabUrl -Destination $DriverCabFile -OperationName "HP driver catalog for $ProductName"
     }
     catch {
-        WriteLog "ERROR: Failed to download HP driver catalog: $($_.Exception.Message)"
+        WriteLog "ERROR: Failed to download HP driver catalog after all retries: $($_.Exception.Message)"
         throw
     }
 
@@ -761,18 +938,12 @@ function Get-HPDrivers {
         WriteLog "Downloading driver to: $DriverFilePath"
         Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $DriverFilePath
         try {
-            Start-BitsTransferWithRetry -Source $DriverUrl -Destination $DriverFilePath -ErrorAction Stop
+            Invoke-DriverDownloadWithRetry -Source $DriverUrl -Destination $DriverFilePath -OperationName "HP driver $Name"
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $DriverFilePath
-            WriteLog 'Driver downloaded'
-        }
-        catch [System.Net.WebException] {
-            Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $DriverFilePath
-            WriteLog "WARNING: Network error downloading HP driver '$Name': $($_.Exception.Message)"
-            continue
         }
         catch {
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $DriverFilePath
-            WriteLog "WARNING: Failed to download HP driver '$Name': $($_.Exception.Message)"
+            WriteLog "WARNING: Failed to download HP driver '$Name' after all retries: $($_.Exception.Message)"
             continue
         }
 
@@ -788,12 +959,23 @@ function Get-HPDrivers {
             continue
         }
 
-        # Extract the driver
+        # Extract the driver with exit code classification (REL-DRV-02)
         $arguments = "/s /e /f `"$extractFolder`""
         WriteLog "Extracting driver"
         try {
-            Invoke-Process -FilePath $DriverFilePath -ArgumentList $arguments -ErrorAction Stop | Out-Null
-            WriteLog "Driver extracted to: $extractFolder"
+            $extractProcess = Start-Process -FilePath $DriverFilePath -ArgumentList $arguments -PassThru -Wait -NoNewWindow
+            $extractionResult = Get-DriverExtractionResult -Vendor 'HP' -ExitCode $extractProcess.ExitCode -DriverName $Name
+
+            if ($extractionResult.Action -eq 'Warn') {
+                WriteLog "WARNING: $($extractionResult.Message)"
+            }
+            elseif ($extractionResult.Action -eq 'Fail') {
+                WriteLog "ERROR: $($extractionResult.Message)"
+                continue  # Skip to next driver, don't halt entire build
+            }
+            else {
+                WriteLog "Driver extracted to: $extractFolder"
+            }
         }
         catch {
             WriteLog "WARNING: Failed to extract HP driver '$Name': $($_.Exception.Message)"
@@ -1014,15 +1196,10 @@ function Get-LenovoDrivers {
     $LenovoCatalogXML = "$DriversFolder\$ModelRelease.xml"
     WriteLog "Downloading $catalogUrl to $LenovoCatalogXML"
     try {
-        Start-BitsTransferWithRetry -Source $catalogUrl -Destination $LenovoCatalogXML -ErrorAction Stop
-        WriteLog "Download Complete"
-    }
-    catch [System.Net.WebException] {
-        WriteLog "ERROR: Network error downloading Lenovo driver catalog: $($_.Exception.Message)"
-        throw "Failed to download Lenovo driver catalog for $model : $($_.Exception.Message)"
+        Invoke-DriverDownloadWithRetry -Source $catalogUrl -Destination $LenovoCatalogXML -OperationName "Lenovo driver catalog for $model"
     }
     catch {
-        WriteLog "ERROR: Failed to download Lenovo driver catalog: $($_.Exception.Message)"
+        WriteLog "ERROR: Failed to download Lenovo driver catalog after all retries: $($_.Exception.Message)"
         throw
     }
 
@@ -1116,19 +1293,12 @@ function Get-LenovoDrivers {
         WriteLog "Downloading driver: $driverUrl to $driverFilePath"
         Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
         try {
-            Start-BitsTransferWithRetry -Source $driverUrl -Destination $driverFilePath -ErrorAction Stop
+            Invoke-DriverDownloadWithRetry -Source $driverUrl -Destination $driverFilePath -OperationName "Lenovo driver $packageTitle"
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-            WriteLog "Driver downloaded"
-        }
-        catch [System.Net.WebException] {
-            Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-            WriteLog "WARNING: Network error downloading Lenovo driver '$packageTitle': $($_.Exception.Message)"
-            Remove-Item -Path $packageXMLPath -Force -ErrorAction SilentlyContinue
-            continue
         }
         catch {
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-            WriteLog "WARNING: Failed to download Lenovo driver '$packageTitle': $($_.Exception.Message)"
+            WriteLog "WARNING: Failed to download Lenovo driver '$packageTitle' after all retries: $($_.Exception.Message)"
             Remove-Item -Path $packageXMLPath -Force -ErrorAction SilentlyContinue
             continue
         }
@@ -1149,11 +1319,23 @@ function Get-LenovoDrivers {
         # Modify the extract command
         $modifiedExtractCommand = $extractCommand -replace '%PACKAGEPATH%', "`"$extractFolder`""
 
-        # Extract the driver
+        # Extract the driver with exit code classification (REL-DRV-02)
         WriteLog "Extracting driver: $driverFilePath to $extractFolder"
         try {
-            Invoke-Process -FilePath $driverFilePath -ArgumentList $modifiedExtractCommand -ErrorAction Stop | Out-Null
-            WriteLog "Driver extracted"
+            $extractProcess = Start-Process -FilePath $driverFilePath -ArgumentList $modifiedExtractCommand -PassThru -Wait -NoNewWindow
+            $extractionResult = Get-DriverExtractionResult -Vendor 'Lenovo' -ExitCode $extractProcess.ExitCode -DriverName $packageTitle
+
+            if ($extractionResult.Action -eq 'Warn') {
+                WriteLog "WARNING: $($extractionResult.Message)"
+            }
+            elseif ($extractionResult.Action -eq 'Fail') {
+                WriteLog "ERROR: $($extractionResult.Message)"
+                Remove-Item -Path $packageXMLPath -Force -ErrorAction SilentlyContinue
+                continue  # Skip to next driver
+            }
+            else {
+                WriteLog "Driver extracted"
+            }
         }
         catch {
             WriteLog "WARNING: Failed to extract Lenovo driver '$packageTitle': $($_.Exception.Message)"
@@ -1280,15 +1462,10 @@ function Get-DellDrivers {
 
     WriteLog "Downloading Dell Catalog cab file: $catalogUrl to $DellCabFile"
     try {
-        Start-BitsTransferWithRetry -Source $catalogUrl -Destination $DellCabFile -ErrorAction Stop
-        WriteLog "Dell Catalog cab file downloaded"
-    }
-    catch [System.Net.WebException] {
-        WriteLog "ERROR: Network error downloading Dell catalog: $($_.Exception.Message)"
-        throw "Failed to download Dell driver catalog: $($_.Exception.Message)"
+        Invoke-DriverDownloadWithRetry -Source $catalogUrl -Destination $DellCabFile -OperationName "Dell driver catalog"
     }
     catch {
-        WriteLog "ERROR: Failed to download Dell catalog: $($_.Exception.Message)"
+        WriteLog "ERROR: Failed to download Dell driver catalog after all retries: $($_.Exception.Message)"
         throw
     }
 
@@ -1405,14 +1582,14 @@ function Get-DellDrivers {
             }
 
             WriteLog "Downloading driver: $($driver.DownloadUrl) to $driverFilePath"
+            Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
             try {
-                Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-                Start-BitsTransferWithRetry -Source $driver.DownloadUrl -Destination $driverFilePath
+                Invoke-DriverDownloadWithRetry -Source $driver.DownloadUrl -Destination $driverFilePath -OperationName "Dell driver $($driver.Name)"
                 Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-                WriteLog "Driver downloaded"
             }
             catch {
-                WriteLog "Failed to download driver: $($driver.DownloadUrl) to $driverFilePath"
+                Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
+                WriteLog "WARNING: Failed to download Dell driver '$($driver.Name)' after all retries: $($_.Exception.Message)"
                 continue
             }
 
@@ -1450,7 +1627,18 @@ function Get-DellDrivers {
                         Start-Sleep -Seconds ([FFUConstants]::SERVICE_STARTUP_WAIT)  # Allow cleanup
                     }
                     else {
-                        WriteLog "Chipset driver extraction completed with exit code: $($process.ExitCode)"
+                        # REL-DRV-02: Classify Dell Chipset driver extraction exit code
+                        $extractionResult = Get-DriverExtractionResult -Vendor 'Dell' -ExitCode $process.ExitCode -DriverName $driver.Name
+                        if ($extractionResult.Action -eq 'Warn') {
+                            WriteLog "WARNING: $($extractionResult.Message)"
+                        }
+                        elseif ($extractionResult.Action -eq 'Fail') {
+                            WriteLog "ERROR: $($extractionResult.Message)"
+                            continue  # Skip to next driver
+                        }
+                        else {
+                            WriteLog "Chipset driver extraction completed successfully"
+                        }
                     }
                 }
                 #If Category is Network and $isServer is $false, use timeout-based extraction to prevent hanging on Intel network driver GUI windows
@@ -1479,11 +1667,31 @@ function Get-DellDrivers {
                         continue
                     }
                     else {
-                        WriteLog "Network driver extraction completed with exit code: $($process.ExitCode)"
+                        # REL-DRV-02: Classify Dell Network driver extraction exit code
+                        $extractionResult = Get-DriverExtractionResult -Vendor 'Dell' -ExitCode $process.ExitCode -DriverName $driver.Name
+                        if ($extractionResult.Action -eq 'Warn') {
+                            WriteLog "WARNING: $($extractionResult.Message)"
+                        }
+                        elseif ($extractionResult.Action -eq 'Fail') {
+                            WriteLog "ERROR: $($extractionResult.Message)"
+                            continue  # Skip to next driver
+                        }
+                        else {
+                            WriteLog "Network driver extraction completed successfully"
+                        }
                     }
                 }
                 else {
-                    Invoke-Process -FilePath $driverFilePath -ArgumentList $arguments | Out-Null
+                    # Other Dell drivers - use Invoke-Process with exit code classification (REL-DRV-02)
+                    $dellProcess = Start-Process -FilePath $driverFilePath -ArgumentList $arguments -PassThru -Wait -NoNewWindow
+                    $extractionResult = Get-DriverExtractionResult -Vendor 'Dell' -ExitCode $dellProcess.ExitCode -DriverName $driver.Name
+                    if ($extractionResult.Action -eq 'Warn') {
+                        WriteLog "WARNING: $($extractionResult.Message)"
+                    }
+                    elseif ($extractionResult.Action -eq 'Fail') {
+                        WriteLog "ERROR: $($extractionResult.Message)"
+                        continue  # Skip to next driver
+                    }
                 }
                 # If $extractFolder is empty, try alternative extraction method
                 if (!(Get-ChildItem -Path $extractFolder -Recurse | Where-Object { -not $_.PSIsContainer })) {
