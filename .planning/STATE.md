@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 21 of 25 (FFU.Drivers Reliability) - In Progress
-**Plan:** 1 of 4 (Driver Download Retry) - Complete
-**Status:** Plan 21-01 complete
-**Last activity:** 2026-01-24 - Completed 21-01-PLAN.md (REL-DRV-01/02)
+**Plan:** 2 of 4 (Vendor-Specific Extraction Error Handling) - Complete
+**Status:** Plan 21-02 complete
+**Last activity:** 2026-01-24 - Completed 21-02-PLAN.md (REL-DRV-02)
 
 Progress: Milestone v1.9.0
-[######----] 55% (6/11 phases complete, 21-01 done)
+[######----] 57% (6/11 phases complete, 21-02 done)
 
 ## Completed Phases This Milestone
 
@@ -34,7 +34,7 @@ Progress: Milestone v1.9.0
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 21-01 | Driver Download Retry | Complete | e304a4d |
-| 21-02 | Vendor-Specific Extraction Error Handling | Not Started | - |
+| 21-02 | Vendor-Specific Extraction Error Handling | Complete | d808183 |
 | 21-03 | Extraction Progress Tracking | Not Started | - |
 | 21-04 | Driver Injection Verification | Not Started | - |
 
@@ -106,9 +106,14 @@ Progress: Milestone v1.9.0
 | JSON metadata file | .meta file alongside cached cab for human-readable tracking | 2026-01-24 |
 | 24h default cache staleness | Products.cab rarely changes more than daily | 2026-01-24 |
 | Reuse Test-MSUIntegrity for cache | MinimumSizeBytes=0 since products.cab can be small | 2026-01-24 |
+| Exit code classification vendor-specific | HP/Lenovo/Dell/Microsoft have different exit code semantics | 2026-01-24 |
+| Reboot codes (1641, 3010) are Success | Extraction completed, reboot is irrelevant for image builds | 2026-01-24 |
+| Unknown exit codes default to Warn | Continue-by-default for unrecognized exit codes | 2026-01-24 |
+| ${DriverName} syntax for messages | Prevents PowerShell parser confusion with colons | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 21-02-PLAN.md (Vendor-Specific Extraction Error Handling) - REL-DRV-02, 23 Pester tests
 - 2026-01-24: Executed 21-01-PLAN.md (Driver Download Retry) - REL-DRV-01/02, 38 Pester tests, FFU.Drivers v1.1.0
 - 2026-01-24: Executed 20-04-PLAN.md (Catalog Cache Management) - REL-UPD-04, 23 Pester tests
 - 2026-01-24: Completed Phase 20 (FFU.Updates Reliability) - 4/4 plans, FFU.Updates v1.1.0
@@ -129,9 +134,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 21-01-PLAN.md (Driver Download Retry)
+**Stopped at:** Completed 21-02-PLAN.md (Vendor-Specific Extraction Error Handling)
 **Resume file:** None
-**Next action:** Execute 21-02-PLAN.md (Vendor-Specific Extraction Error Handling)
+**Next action:** Execute 21-03-PLAN.md (Extraction Progress Tracking)
 
 ---
 *State updated: 2026-01-24*
