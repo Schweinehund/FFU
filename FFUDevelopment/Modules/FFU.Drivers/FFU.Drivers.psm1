@@ -936,6 +936,17 @@ function Get-HPDrivers {
         WriteLog "Drivers folder created"
     }
 
+    # Disk space validation (REL-DRV-04)
+    # HP driver sets are typically smaller (1-2GB) but validate anyway
+    $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'HP' -EstimatedCompressedSizeMB 1500
+    if (-not $spaceCheck.HasSpace) {
+        WriteLog "WARNING: $($spaceCheck.Message)"
+        WriteLog "WARNING: $($spaceCheck.Recommendation)"
+    }
+    else {
+        WriteLog $spaceCheck.Message
+    }
+
     try {
         $PlatformListCab = Get-CachedOEMCatalog -Vendor 'HP' -CatalogType 'Platform' `
             -PrimaryUrl ([FFUConstants]::HP_PLATFORM_LIST_URL) -CachePath $PlatformListCab
@@ -1404,6 +1415,16 @@ function Get-LenovoDrivers {
         WriteLog "Drivers folder created"
     }
 
+    # Disk space validation (REL-DRV-04)
+    $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Lenovo' -EstimatedCompressedSizeMB 1500
+    if (-not $spaceCheck.HasSpace) {
+        WriteLog "WARNING: $($spaceCheck.Message)"
+        WriteLog "WARNING: $($spaceCheck.Recommendation)"
+    }
+    else {
+        WriteLog $spaceCheck.Message
+    }
+
     # Download and parse the Lenovo catalog XML
     $LenovoCatalogXML = "$DriversFolder\$ModelRelease.xml"
     WriteLog "Downloading $catalogUrl to $LenovoCatalogXML"
@@ -1651,6 +1672,18 @@ function Get-DellDrivers {
     WriteLog "Creating Dell Drivers folder: $DriversFolder"
     New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
     WriteLog "Dell Drivers folder created"
+
+    # Disk space validation (REL-DRV-04)
+    # Dell driver sets can be large (2-4GB compressed, 8-12GB extracted)
+    $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Dell' -EstimatedCompressedSizeMB 2500
+    if (-not $spaceCheck.HasSpace) {
+        WriteLog "WARNING: $($spaceCheck.Message)"
+        WriteLog "WARNING: $($spaceCheck.Recommendation)"
+        # Continue anyway - user was warned, drivers may partially download
+    }
+    else {
+        WriteLog $spaceCheck.Message
+    }
 
     #CatalogPC.cab is the catalog for Windows client PCs, Catalog.cab is the catalog for Windows Server (with caching)
     if ($WindowsRelease -le 11) {
