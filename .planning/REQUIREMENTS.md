@@ -101,10 +101,10 @@ Systematic reliability audit of all modules and scripts to bulletproof the FFU b
 | REL-IMG-03 | Phase 18 | Complete |
 | REL-IMG-04 | Phase 18 | Complete |
 | REL-IMG-05 | Phase 18 | Complete |
-| REL-MED-01 | Phase 19 | Pending |
-| REL-MED-02 | Phase 19 | Pending |
-| REL-MED-03 | Phase 19 | Pending |
-| REL-MED-04 | Phase 19 | Pending |
+| REL-MED-01 | Phase 19 | Complete |
+| REL-MED-02 | Phase 19 | Complete |
+| REL-MED-03 | Phase 19 | Complete |
+| REL-MED-04 | Phase 19 | Complete |
 | REL-UPD-01 | Phase 20 | Pending |
 | REL-UPD-02 | Phase 20 | Pending |
 | REL-UPD-03 | Phase 20 | Pending |
