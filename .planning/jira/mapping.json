@@ -1,0 +1,110 @@
+{
+  "cloudId": "a04fcb6a-ae5a-4f81-95e7-83941226b47b",
+  "projectKey": "RTS",
+  "epicIssueTypeId": "10000",
+  "milestones": {
+    "v1.0.x": {
+      "epicKey": "RTS-75",
+      "status": "Done",
+      "summary": "FFU Builder v1.0.x - Foundation & Initial Release",
+      "shipped": "2025-12-04"
+    },
+    "v1.1.0": {
+      "epicKey": "RTS-76",
+      "status": "Done",
+      "summary": "FFU Builder v1.1.0 - Parallel Windows Update Downloads",
+      "shipped": "2025-12-08"
+    },
+    "v1.2.x": {
+      "epicKey": "RTS-77",
+      "status": "Done",
+      "summary": "FFU Builder v1.2.x - Centralized Versioning",
+      "shipped": "2025-12-10"
+    },
+    "v1.3.x": {
+      "epicKey": "RTS-78",
+      "status": "Done",
+      "summary": "FFU Builder v1.3.x - WinPE & WimMount Improvements",
+      "shipped": "2025-12-17"
+    },
+    "v1.4.0": {
+      "epicKey": "RTS-79",
+      "status": "Done",
+      "summary": "FFU Builder v1.4.0 - FFU.Hypervisor Module",
+      "shipped": "2026-01-06"
+    },
+    "v1.5.0": {
+      "epicKey": "RTS-80",
+      "status": "Done",
+      "summary": "FFU Builder v1.5.0 - Full VMware Provider",
+      "shipped": "2026-01-07"
+    },
+    "v1.6.0": {
+      "epicKey": "RTS-81",
+      "status": "Done",
+      "summary": "FFU Builder v1.6.0 - VMware UI Integration",
+      "shipped": "2026-01-07"
+    },
+    "v1.8.0": {
+      "epicKey": "RTS-82",
+      "status": "Done",
+      "summary": "FFU Builder v1.8.0 - Codebase Health Initiative",
+      "shipped": "2026-01-20"
+    },
+    "v1.8.1": {
+      "epicKey": "RTS-97",
+      "status": "Done",
+      "summary": "FFU Builder v1.8.1 Bug Fixes",
+      "shipped": "2026-01-20"
+    },
+    "v1.8.3": {
+      "epicKey": "RTS-101",
+      "status": "Done",
+      "summary": "Phase 14: VMware UI Settings",
+      "shipped": "2026-01-21",
+      "stories": [
+        {
+          "key": "RTS-103",
+          "summary": "Plan 14-02: Config migration schema v1.1 → v1.2",
+          "status": "Done"
+        }
+      ]
+    },
+    "v1.9.0": {
+      "epicKey": "RTS-105",
+      "status": "Done",
+      "summary": "FFU Builder v1.9.0 - Reliability Hardening",
+      "created": "2026-01-23",
+      "shipped": "2026-01-24",
+      "phases": "15-25",
+      "requirements": 44,
+      "deliverables": {
+        "truthsVerified": 54,
+        "pesterTests": 1385,
+        "testFiles": 45,
+        "testCodeLines": 20170,
+        "integrationConnections": 22,
+        "e2eFlows": 4
+      }
+    },
+    "v1.9.1": {
+      "epicKey": "RTS-106",
+      "status": "Done",
+      "summary": "FFU Builder v1.9.1 - Build Phase Integration",
+      "created": "2026-01-24",
+      "shipped": "2026-01-24",
+      "phases": "26",
+      "requirements": 4,
+      "deliverables": {
+        "buildPhaseWrappers": 9,
+        "criticalPhases": 4,
+        "nonCriticalPhases": 4,
+        "pesterTests": 33,
+        "integrationConnections": 5,
+        "e2eFlows": 1
+      }
+    }
+  },
+  "lastAudit": "2026-01-24",
+  "notes": "v1.9.1 shipped - Jira transition pending (MCP session expired)"
+}
