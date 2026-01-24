@@ -106,15 +106,21 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-v1.1.0: REL-DRV-01/02 Driver Download Reliability Improvements
-- Added Invoke-DriverDownloadWithRetry internal function with exponential backoff
-- Retry logic: 3 attempts with delays of 5s, 10s, 20s (plus 0-3s random jitter)
-- Updated Get-MicrosoftDrivers, Get-HPDrivers, Get-LenovoDrivers, Get-DellDrivers
-- Added Get-DriverExtractionResult for vendor-specific exit code classification
-- HP/Lenovo/Dell/Microsoft exit codes classified as Success/Warn/Fail
-- Exit codes 3010 (reboot required) and 1641 (reboot initiated) treated as success
-- ThreadJob-safe logging pattern using $function:WriteLog check
-- Unified error handling reduces duplicate code across OEM functions
+v1.1.0: REL-DRV-* Reliability Hardening (Phase 21)
+- REL-DRV-01: Added Invoke-DriverDownloadWithRetry with exponential backoff + jitter
+  - Retry logic: 3 attempts with delays of 5s, 10s, 20s (plus 0-3s random jitter)
+  - ThreadJob-safe logging pattern using $function:WriteLog check
+- REL-DRV-02: Added Get-DriverExtractionResult for vendor-specific exit code handling
+  - HP softpaq exit codes 1641, 3010 (reboot) treated as success
+  - Lenovo exit codes 5 (access denied) classified as critical
+  - Non-critical failures continue, critical failures logged and skip driver
+- REL-DRV-03: Added Get-CachedOEMCatalog with fallback URL and stale cache support
+  - Dell and HP catalogs cached with 7-day staleness
+  - Network failures fall back to stale cache when available
+- REL-DRV-04: Added Test-DriverDiskSpace for pre-extraction validation
+  - Estimates space needed (4x compressed size + safety margin)
+  - Warns on insufficient space with actionable recommendations
+  - Large driver sets get VHDX expansion hint
 
 v1.0.6: BUG-04 Fix Dell Chipset Driver Extraction Hang
 - Fixed Dell Intel chipset driver extraction hanging indefinitely

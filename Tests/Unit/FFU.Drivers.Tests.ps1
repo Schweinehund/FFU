@@ -768,3 +768,158 @@ Describe 'Get-DriverExtractionResult' -Tag 'Unit', 'FFU.Drivers', 'Extraction', 
         }
     }
 }
+
+# =============================================================================
+# REL-DRV-04: Test-DriverDiskSpace Tests
+# =============================================================================
+
+Describe 'REL-DRV-04: Large Driver Set Disk Space Handling' -Tag 'Unit', 'FFU.Drivers', 'Reliability', 'REL-DRV-04' {
+
+    Context 'FFUConstants driver space settings' {
+
+        BeforeAll {
+            $module = Get-Module FFU.Drivers
+        }
+
+        It 'Should define DRIVER_EXTRACTION_MULTIPLIER as 4' {
+            # Access constants through module scope
+            $value = $module.Invoke({ [FFUConstants]::DRIVER_EXTRACTION_MULTIPLIER })
+            $value | Should -Be 4
+        }
+
+        It 'Should define MIN_DRIVER_FREE_SPACE (5GB)' {
+            $value = $module.Invoke({ [FFUConstants]::MIN_DRIVER_FREE_SPACE })
+            $value | Should -Be (5GB)
+        }
+
+        It 'Should define DRIVER_SET_SMALL_THRESHOLD (500MB)' {
+            $value = $module.Invoke({ [FFUConstants]::DRIVER_SET_SMALL_THRESHOLD })
+            $value | Should -Be (500MB)
+        }
+
+        It 'Should define DRIVER_SET_LARGE_THRESHOLD (2GB)' {
+            $value = $module.Invoke({ [FFUConstants]::DRIVER_SET_LARGE_THRESHOLD })
+            $value | Should -Be (2GB)
+        }
+
+        It 'Should define DRIVER_SPACE_WARNING_BUFFER (2GB)' {
+            $value = $module.Invoke({ [FFUConstants]::DRIVER_SPACE_WARNING_BUFFER })
+            $value | Should -Be (2GB)
+        }
+    }
+
+    Context 'Test-DriverDiskSpace function' {
+
+        BeforeAll {
+            $module = Get-Module FFU.Drivers
+            $Script:TestDriverDiskSpace = $module.Invoke({
+                Get-Item 'function:Test-DriverDiskSpace' -ErrorAction SilentlyContinue
+            })
+        }
+
+        It 'Should exist as internal function' {
+            $Script:TestDriverDiskSpace | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have required parameters' {
+            $funcBody = $Script:TestDriverDiskSpace.ScriptBlock.ToString()
+            $funcBody | Should -Match '\$DriversFolder'
+            $funcBody | Should -Match '\$EstimatedCompressedSizeMB'
+            $funcBody | Should -Match '\$Vendor'
+        }
+
+        It 'Should return object with expected properties' {
+            $module = Get-Module FFU.Drivers
+            $result = $module.Invoke({
+                Test-DriverDiskSpace -DriversFolder $env:TEMP -Vendor 'Dell'
+            })
+            $result.PSObject.Properties.Name | Should -Contain 'HasSpace'
+            $result.PSObject.Properties.Name | Should -Contain 'FreeSpaceGB'
+            $result.PSObject.Properties.Name | Should -Contain 'EstimatedNeedGB'
+            $result.PSObject.Properties.Name | Should -Contain 'SizeCategory'
+            $result.PSObject.Properties.Name | Should -Contain 'Message'
+            $result.PSObject.Properties.Name | Should -Contain 'Recommendation'
+        }
+
+        It 'Should calculate estimated need based on multiplier' {
+            $module = Get-Module FFU.Drivers
+            $result = $module.Invoke({
+                Test-DriverDiskSpace -DriversFolder $env:TEMP -Vendor 'Dell' -EstimatedCompressedSizeMB 1000
+            })
+            # 1000MB * 4 (multiplier) + 5GB (min) + 2GB (buffer) = ~11GB
+            $result.EstimatedNeedGB | Should -BeGreaterThan 10
+        }
+
+        It 'Should classify small driver sets correctly' {
+            $module = Get-Module FFU.Drivers
+            $result = $module.Invoke({
+                Test-DriverDiskSpace -DriversFolder $env:TEMP -Vendor 'Microsoft' -EstimatedCompressedSizeMB 200
+            })
+            $result.SizeCategory | Should -Be 'small'
+        }
+
+        It 'Should classify medium driver sets correctly' {
+            $module = Get-Module FFU.Drivers
+            $result = $module.Invoke({
+                Test-DriverDiskSpace -DriversFolder $env:TEMP -Vendor 'HP' -EstimatedCompressedSizeMB 1000
+            })
+            $result.SizeCategory | Should -Be 'medium'
+        }
+
+        It 'Should classify large driver sets correctly' {
+            $module = Get-Module FFU.Drivers
+            $result = $module.Invoke({
+                Test-DriverDiskSpace -DriversFolder $env:TEMP -Vendor 'Dell' -EstimatedCompressedSizeMB 3000
+            })
+            $result.SizeCategory | Should -Be 'large'
+        }
+
+        It 'Should provide message with free and needed space' {
+            $module = Get-Module FFU.Drivers
+            $result = $module.Invoke({
+                Test-DriverDiskSpace -DriversFolder $env:TEMP -Vendor 'Dell'
+            })
+            $result.Message | Should -Match 'Free:'
+            $result.Message | Should -Match 'Need:'
+        }
+    }
+
+    Context 'Get-DellDrivers disk space integration' {
+
+        It 'Should use Test-DriverDiskSpace for pre-validation' {
+            $source = (Get-Command Get-DellDrivers).ScriptBlock.ToString()
+            $source | Should -Match 'Test-DriverDiskSpace'
+        }
+
+        It 'Should use Dell vendor parameter' {
+            $source = (Get-Command Get-DellDrivers).ScriptBlock.ToString()
+            $source | Should -Match "Vendor 'Dell'"
+        }
+    }
+
+    Context 'Get-HPDrivers disk space integration' {
+
+        It 'Should use Test-DriverDiskSpace for pre-validation' {
+            $source = (Get-Command Get-HPDrivers).ScriptBlock.ToString()
+            $source | Should -Match 'Test-DriverDiskSpace'
+        }
+
+        It 'Should use HP vendor parameter' {
+            $source = (Get-Command Get-HPDrivers).ScriptBlock.ToString()
+            $source | Should -Match "Vendor 'HP'"
+        }
+    }
+
+    Context 'Get-LenovoDrivers disk space integration' {
+
+        It 'Should use Test-DriverDiskSpace for pre-validation' {
+            $source = (Get-Command Get-LenovoDrivers).ScriptBlock.ToString()
+            $source | Should -Match 'Test-DriverDiskSpace'
+        }
+
+        It 'Should use Lenovo vendor parameter' {
+            $source = (Get-Command Get-LenovoDrivers).ScriptBlock.ToString()
+            $source | Should -Match "Vendor 'Lenovo'"
+        }
+    }
+}
