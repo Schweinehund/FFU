@@ -872,6 +872,72 @@ function Remove-FFUVM {
         catch {
             WriteLog "WARNING: Error during certificate cleanup: $($_.Exception.Message)"
         }
+
+        # Clean up VMware lock files if present (REL-VM-02)
+        WriteLog 'Checking for VMware lock files'
+        try {
+            if (-not [string]::IsNullOrWhiteSpace($VMPath) -and (Test-Path -Path $VMPath)) {
+                $lockDirs = Get-ChildItem -Path $VMPath -Filter '*.lck' -Directory -Recurse -ErrorAction SilentlyContinue
+                foreach ($lockDir in $lockDirs) {
+                    try {
+                        # Only remove if no vmware-vmx process is running for this VM
+                        $vmxRunning = Get-Process -Name 'vmware-vmx' -ErrorAction SilentlyContinue |
+                            Where-Object { $_.Path -like "*$VMPath*" }
+
+                        if (-not $vmxRunning) {
+                            WriteLog "Removing orphaned lock directory: $($lockDir.FullName)"
+                            Remove-Item $lockDir.FullName -Recurse -Force -ErrorAction Stop
+                            WriteLog 'Lock directory removed'
+                        }
+                        else {
+                            WriteLog "WARNING: Lock directory in use by running process, skipping: $($lockDir.Name)"
+                        }
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to remove lock directory: $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+        catch {
+            WriteLog "WARNING: Error scanning for VMware lock files: $($_.Exception.Message)"
+        }
+
+        # Clean up orphaned AVHDX files (checkpoint leftovers - REL-VM-02)
+        WriteLog 'Checking for orphaned checkpoint files'
+        try {
+            if (-not [string]::IsNullOrWhiteSpace($VMPath) -and (Test-Path -Path $VMPath)) {
+                $avhdxFiles = Get-ChildItem -Path $VMPath -Filter '*.avhdx' -Recurse -ErrorAction SilentlyContinue
+                foreach ($avhdx in $avhdxFiles) {
+                    try {
+                        # Check if this AVHDX is part of an active checkpoint
+                        $isOrphaned = $true
+                        if ($VMName) {
+                            $snapshots = Get-VMSnapshot -VMName $VMName -ErrorAction SilentlyContinue
+                            foreach ($snap in $snapshots) {
+                                $snapVHDs = Get-VMHardDiskDrive -VMSnapshot $snap -ErrorAction SilentlyContinue
+                                if ($snapVHDs.Path -contains $avhdx.FullName) {
+                                    $isOrphaned = $false
+                                    break
+                                }
+                            }
+                        }
+
+                        if ($isOrphaned) {
+                            WriteLog "Removing orphaned checkpoint file: $($avhdx.Name)"
+                            Remove-Item $avhdx.FullName -Force -ErrorAction Stop
+                            WriteLog 'Orphaned checkpoint file removed'
+                        }
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to remove orphaned checkpoint file: $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+        catch {
+            WriteLog "WARNING: Error scanning for AVHDX files: $($_.Exception.Message)"
+        }
     }
 
     #If just building the FFU from vhdx, remove the vhdx path

@@ -42,11 +42,13 @@
             LicenseUri = 'https://github.com/Schweinehund/FFU/blob/feature/improvements-and-fixes/LICENSE'
             ProjectUri = 'https://github.com/Schweinehund/FFU'
             ReleaseNotes = @'
-v1.0.9: REL-VM-02 Orphan Detection and Cleanup
-- Added Get-OrphanedVMResources function for comprehensive orphan scanning
-- Scans for: VMs, VHDXs, HGS Guardians, certificates, VMware locks, checkpoint files
-- Returns structured result with orphan lists and optional cleanup actions
-- Supports -IncludeVMware and -ScanOnly switches
+v1.0.9: REL-VM-01 VM Creation Diagnostics and Cleanup Registration
+- Added Get-VMCreationDiagnostics function for failure analysis with remediation guidance
+- Pattern-matches common errors: AlreadyExists, InsufficientResources, PathNotFound, AccessDenied, HypervisorNotAvailable, TPMConfiguration, DiskError
+- Updated New-FFUVM with progressive cleanup registration (Register-VMCleanup, Register-CleanupAction)
+- Tracks current step for accurate failure diagnosis
+- Unregisters cleanup on success; provides diagnostic output on failure
+- REL-VM-02: Added Get-OrphanedVMResources for comprehensive orphan scanning
 
 v1.0.8: ThreadJob function scope fix - Export Remove-FFUVMWithProvider
 - Added Remove-FFUVMWithProvider function (previously script-scope in BuildFFUVM.ps1)
