@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 23 BuildFFUVM.ps1 Reliability - Plan 3 complete
+**Current focus:** Phase 23 BuildFFUVM.ps1 Reliability - Plan 02 complete
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
 **Phase:** 23 of 25 (BuildFFUVM.ps1 Reliability) - In Progress
-**Plan:** 3 of 4 (Checkpoint Resume Integration complete)
+**Plan:** 2 of 4 (Phase Wrapper with Continue-on-Failure complete)
 **Status:** In progress
-**Last activity:** 2026-01-24 - Completed 23-03-PLAN.md (REL-BUILD-03 - already implemented in Phase 8)
+**Last activity:** 2026-01-24 - Completed 23-02-PLAN.md (REL-BUILD-01)
 
 Progress: Milestone v1.9.0
 [########--] 73% (8/11 phases complete)
@@ -36,7 +36,7 @@ Progress: Milestone v1.9.0
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
 | 23-01 | Build Error Aggregation | Complete | d39caff |
-| 23-02 | Phase Wrapper with Continue-on-Failure | Pending | - |
+| 23-02 | Phase Wrapper with Continue-on-Failure | Complete | cebd9c6 |
 | 23-03 | Checkpoint Resume Integration | Complete | (Phase 8) |
 | 23-04 | Termination Cleanup Enhancement | Pending | - |
 
@@ -125,9 +125,12 @@ Progress: Milestone v1.9.0
 | Only Critical failures block builds | Warning/Info issues displayed for awareness but don't prevent builds | 2026-01-24 |
 | Script-scope error collector | Matches CleanupRegistry pattern, available across module functions | 2026-01-24 |
 | Existing implementation reuse | Document Phase 8 work as satisfying 23-03 requirements | 2026-01-24 |
+| Critical=true default for Invoke-BuildPhase | Safe default - phases fail build unless explicitly marked non-critical | 2026-01-24 |
+| Structured result object | PSCustomObject with Success, Skipped, Cancelled, Error, Result enables inspection | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 23-02-PLAN.md (Phase Wrapper with Continue-on-Failure) - REL-BUILD-01, 43 tests, FFU.Core v1.0.22
 - 2026-01-24: Completed 23-03-PLAN.md (Checkpoint Resume Integration) - REL-BUILD-03, requirements already met by Phase 8
 - 2026-01-24: Completed 23-01-PLAN.md (Build Error Aggregation) - REL-BUILD-04, 42 tests, FFU.Core v1.0.21
 - 2026-01-24: Completed 22-01-PLAN.md (Enhanced Prerequisite Detection) - REL-PRE-01, 30 tests, FFU.Preflight v1.3.0
@@ -154,9 +157,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 23-03-PLAN.md (Checkpoint Resume Integration)
+**Stopped at:** Completed 23-02-PLAN.md (Phase Wrapper with Continue-on-Failure)
 **Resume file:** None
-**Next action:** Execute 23-02-PLAN.md or 23-04-PLAN.md
+**Next action:** Execute 23-04-PLAN.md (Termination Cleanup Enhancement)
 
 ---
 *State updated: 2026-01-24*
