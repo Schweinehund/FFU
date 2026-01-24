@@ -3739,6 +3739,157 @@ function Write-BuildErrorSummary {
 }
 
 # =============================================================================
+# Phase Execution Wrapper
+# Provides consistent phase execution with graceful degradation support
+# =============================================================================
+
+function Invoke-BuildPhase {
+    <#
+    .SYNOPSIS
+    Executes a build phase with consistent error handling and optional graceful degradation.
+
+    .DESCRIPTION
+    Wraps phase execution to provide:
+    - Pre-execution cancellation check
+    - Consistent logging (phase start/complete)
+    - Error collection via Add-BuildError
+    - Graceful degradation for non-critical phases
+    - Re-throw for critical phase failures
+
+    This function enables builds to continue past failures in non-critical phases
+    (e.g., USB creation, deployment media) while still halting on critical failures
+    (e.g., VHDX creation, FFU capture).
+
+    .PARAMETER PhaseName
+    Display name for the phase (used in logs and error messages).
+
+    .PARAMETER Action
+    ScriptBlock containing the phase logic to execute.
+
+    .PARAMETER Critical
+    When true (default), phase failure stops the build. When false, failure is logged
+    but build continues with degraded capability.
+
+    .PARAMETER MessagingContext
+    Optional hashtable for UI messaging integration. Used for cancellation checks.
+
+    .EXAMPLE
+    # Critical phase (default) - failure stops the build
+    Invoke-BuildPhase -PhaseName 'VHDX Creation' -Action {
+        New-VHD -Path $vhdxPath -SizeBytes 50GB
+    }
+
+    .EXAMPLE
+    # Non-critical phase - failure logs warning but continues
+    $result = Invoke-BuildPhase -PhaseName 'USB Media' -Action {
+        Create-USBMedia -Path $usbPath
+    } -Critical $false
+
+    if (-not $result.Success) {
+        Write-Output "USB creation skipped, continuing with other outputs"
+    }
+
+    .EXAMPLE
+    # With cancellation support
+    Invoke-BuildPhase -PhaseName 'Driver Download' -Action {
+        Download-OEMDrivers -Model $model
+    } -Critical $false -MessagingContext $messagingContext
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Success: [bool] True if phase completed without error
+    - Skipped: [bool] True if phase was skipped (future use)
+    - Cancelled: [bool] True if phase was cancelled via UI
+    - Error: [Exception] The exception that caused failure, or null
+    - Result: [any] Return value from the Action scriptblock
+
+    .NOTES
+    Added in v1.0.22 for REL-BUILD-01 (Phase Wrapper with Continue-on-Failure).
+    Uses ThreadJob-safe logging pattern.
+    Integrates with Add-BuildError for error aggregation.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$PhaseName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNull()]
+        [scriptblock]$Action,
+
+        [Parameter()]
+        [bool]$Critical = $true,
+
+        [Parameter()]
+        [hashtable]$MessagingContext = $null
+    )
+
+    # Result template
+    $result = [PSCustomObject]@{
+        Success   = $false
+        Skipped   = $false
+        Cancelled = $false
+        Error     = $null
+        Result    = $null
+    }
+
+    # ThreadJob-safe logging helper
+    $logFn = {
+        param([string]$msg)
+        if ($function:WriteLog) { WriteLog $msg }
+        else { Write-Verbose $msg }
+    }
+
+    # Check for cancellation before starting (using InvokeCommand.GetCommand for ThreadJob safety)
+    $testCancellationCmd = $ExecutionContext.InvokeCommand.GetCommand('Test-BuildCancellation', 'Function')
+    if ($null -ne $testCancellationCmd) {
+        if (Test-BuildCancellation -MessagingContext $MessagingContext -PhaseName $PhaseName) {
+            $result.Cancelled = $true
+            & $logFn "Phase '$PhaseName' cancelled before execution"
+            return $result
+        }
+    }
+
+    try {
+        # Log phase start
+        & $logFn "=== Starting Phase: $PhaseName ==="
+
+        # Execute the phase action
+        $result.Result = & $Action
+
+        # Log phase completion
+        & $logFn "=== Completed Phase: $PhaseName ==="
+        $result.Success = $true
+    }
+    catch {
+        # Determine severity based on Critical flag
+        $severity = if ($Critical) { 'Critical' } else { 'Warning' }
+
+        # Add to error collector (using InvokeCommand.GetCommand for ThreadJob safety)
+        $addBuildErrorCmd = $ExecutionContext.InvokeCommand.GetCommand('Add-BuildError', 'Function')
+        if ($null -ne $addBuildErrorCmd) {
+            Add-BuildError -Phase $PhaseName -Message $_.Exception.Message -Severity $severity -Exception $_.Exception
+        }
+
+        $result.Error = $_.Exception
+
+        if ($Critical) {
+            # Critical failure - log and re-throw to stop build
+            & $logFn "CRITICAL: Phase '$PhaseName' failed: $($_.Exception.Message)"
+            throw
+        }
+        else {
+            # Non-critical - log warning and continue
+            & $logFn "WARNING: Phase '$PhaseName' failed but continuing (non-critical): $($_.Exception.Message)"
+        }
+    }
+
+    return $result
+}
+
+# =============================================================================
 # Specialized Cleanup Registration Functions
 # Convenience functions for common resource types
 # =============================================================================
@@ -4310,6 +4461,8 @@ Export-ModuleMember -Function @(
     'Get-BuildErrorSummary'
     'Clear-BuildErrors'
     'Write-BuildErrorSummary'
+    # Phase execution wrapper (v1.0.22 - REL-BUILD-01)
+    'Invoke-BuildPhase'
 )
 
 # Export backward compatibility aliases (deprecated - use new function names)
@@ -4318,4 +4471,4 @@ Export-ModuleMember -Alias @(
     'Mark-DownloadInProgress'           # Deprecated: Use Set-DownloadInProgress
     'Cleanup-CurrentRunDownloads'       # Deprecated: Use Clear-CurrentRunDownloads
 )
-# Module updated: 2026-01-24 - v1.0.21 REL-BUILD-04 Build Error Aggregation
+# Module updated: 2026-01-24 - v1.0.22 REL-BUILD-01 Phase Wrapper with Graceful Degradation

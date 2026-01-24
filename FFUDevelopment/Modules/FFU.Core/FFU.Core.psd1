@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.21'
+    ModuleVersion = '1.0.22'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -100,7 +100,9 @@
         'Add-BuildError',
         'Get-BuildErrorSummary',
         'Clear-BuildErrors',
-        'Write-BuildErrorSummary'
+        'Write-BuildErrorSummary',
+        # Phase execution wrapper (v1.0.22 - REL-BUILD-01)
+        'Invoke-BuildPhase'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -131,7 +133,17 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.21
+# Release Notes - FFU.Core v1.0.22
+
+## v1.0.22 - Phase Wrapper with Graceful Degradation (REL-BUILD-01)
+- Added Invoke-BuildPhase: Wraps phase execution with consistent error handling
+- Critical=true (default): Phase failure stops the build (re-throws exception)
+- Critical=false: Phase failure logs warning but continues (graceful degradation)
+- Integrates with Add-BuildError for error aggregation with correct severity
+- Pre-execution cancellation check via Test-BuildCancellation
+- Returns structured result: Success, Skipped, Cancelled, Error, Result
+- ThreadJob-safe using InvokeCommand.GetCommand pattern
+- 52 total functions now exported
 
 ## v1.0.21 - Build Error Aggregation (REL-BUILD-04)
 - Added Add-BuildError: Accumulates errors throughout build with Phase, Message, Severity, Exception, Timestamp
