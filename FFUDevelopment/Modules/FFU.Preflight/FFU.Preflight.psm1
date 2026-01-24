@@ -441,6 +441,7 @@ function Test-FFUPowerShellVersion {
     }
     else {
         New-FFUCheckResult -CheckName 'PowerShellVersion' -Status 'Failed' `
+            -Severity 'Critical' `
             -Message "PowerShell $currentVersion detected. FFU Builder requires PowerShell 7.0 or higher." `
             -Details @{
                 Version       = $currentVersion.ToString()
@@ -554,6 +555,7 @@ function Test-FFUHyperV {
 
                 New-FFUCheckResult -CheckName 'HyperV' -Status 'Failed' `
                     -Message "Hyper-V feature is not installed (State: $featureState)" `
+                    -Severity 'Critical' `
                     -Details @{
                         OSType       = if ($isServer) { 'Server' } else { 'Client' }
                         FeatureState = $featureState
@@ -576,6 +578,7 @@ function Test-FFUHyperV {
     $stopwatch.Stop()
     New-FFUCheckResult -CheckName 'HyperV' -Status 'Failed' `
         -Message "Failed to check Hyper-V status after $MaxRetries attempts: $($lastError.Exception.Message)" `
+        -Severity 'Critical' `
         -Details @{
             Attempts  = $attempt
             LastError = $lastError.Exception.Message
@@ -774,6 +777,7 @@ function Test-FFUADK {
 
             New-FFUCheckResult -CheckName 'ADK' -Status 'Failed' `
                 -Message "ADK validation failed: $($errors -join '; ')" `
+                -Severity 'Critical' `
                 -Details $details `
                 -Remediation $remediation `
                 -DurationMs $stopwatch.ElapsedMilliseconds
@@ -783,6 +787,7 @@ function Test-FFUADK {
         $stopwatch.Stop()
         New-FFUCheckResult -CheckName 'ADK' -Status 'Failed' `
             -Message "Failed to validate ADK: $($_.Exception.Message)" `
+            -Severity 'Critical' `
             -Details @{
                 WindowsArch = $WindowsArch
                 Error       = $_.Exception.Message

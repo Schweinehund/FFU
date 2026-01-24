@@ -629,17 +629,23 @@ Describe 'REL-PRE-04: Tiered Check Severity Classification' -Tag 'Unit', 'FFU.Pr
     Context 'Severity display in summary' {
 
         It 'Should format errors with [CRITICAL] prefix' {
-            $source = (Get-Command Invoke-FFUPreflight).ScriptBlock.ToString()
+            # [CRITICAL] prefix is in Add-CheckToResult helper which tracks failed checks
+            $module = Get-Module FFU.Preflight
+            $source = $module.Invoke({ ${function:Add-CheckToResult}.ToString() })
             $source | Should -Match '\[CRITICAL\]'
         }
 
         It 'Should format warnings with [WARNING] prefix' {
-            $source = (Get-Command Invoke-FFUPreflight).ScriptBlock.ToString()
+            # [WARNING] prefix is in Add-CheckToResult helper which tracks failed checks
+            $module = Get-Module FFU.Preflight
+            $source = $module.Invoke({ ${function:Add-CheckToResult}.ToString() })
             $source | Should -Match '\[WARNING\]'
         }
 
         It 'Should format info with [INFO] prefix' {
-            $source = (Get-Command Invoke-FFUPreflight).ScriptBlock.ToString()
+            # [INFO] prefix is in Add-CheckToResult helper which tracks failed checks
+            $module = Get-Module FFU.Preflight
+            $source = $module.Invoke({ ${function:Add-CheckToResult}.ToString() })
             $source | Should -Match '\[INFO\]'
         }
 
