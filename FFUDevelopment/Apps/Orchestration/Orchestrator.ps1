@@ -325,6 +325,10 @@ if (Test-Path -Path $sysprepScript) {
             Write-Host "  Expected: $expectedSysprepHash" -ForegroundColor Red
             Write-Host "  Actual:   $sysprepHash" -ForegroundColor Red
             Write-Host "Skipping execution of Run-Sysprep.ps1" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = "Run-Sysprep.ps1"
+                Error = "Integrity check failed"
+            })
             $skipSysprep = $true
         }
         elseif (-not [string]::IsNullOrEmpty($expectedSysprepHash)) {
@@ -337,11 +341,73 @@ if (Test-Path -Path $sysprepScript) {
         Write-Host "---------------------------------------------------" -ForegroundColor Yellow
         Write-Host " Running script: Run-Sysprep.ps1                   " -ForegroundColor Yellow
         Write-Host "---------------------------------------------------" -ForegroundColor Yellow
-        # Run script and wait for it to finish
-        & $sysprepScript
+        # REL-WINPE-02: Track execution with error handling
+        try {
+            & $sysprepScript
+            [void]$script:executionSummary.Executed.Add("Run-Sysprep.ps1")
+        }
+        catch {
+            Write-Host "[ERROR] Script failed: Run-Sysprep.ps1" -ForegroundColor Red
+            Write-Host "        Error: $_" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = "Run-Sysprep.ps1"
+                Error = $_.Exception.Message
+            })
+        }
     }
 } else {
-    Write-Host "Run-Sysprep.ps1 not found!"
+    # REL-WINPE-02: Run-Sysprep.ps1 is CRITICAL - cannot proceed without it
+    Write-Host "" -ForegroundColor Red
+    Write-Host "============================================" -ForegroundColor Red
+    Write-Host " CRITICAL ERROR: Run-Sysprep.ps1 not found! " -ForegroundColor Red
+    Write-Host "============================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Run-Sysprep.ps1 is required to finalize the image." -ForegroundColor Yellow
+    Write-Host "Without Sysprep, the FFU will not be properly generalized." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Expected location: $sysprepScript" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Possible causes:" -ForegroundColor White
+    Write-Host "  1. Apps ISO was not created correctly" -ForegroundColor Gray
+    Write-Host "  2. Orchestration folder is missing files" -ForegroundColor Gray
+    Write-Host "  3. File was accidentally deleted" -ForegroundColor Gray
+    Write-Host ""
+    [void]$script:executionSummary.Failed.Add(@{
+        Script = "Run-Sysprep.ps1"
+        Error = "Critical script not found"
+    })
+    throw "CRITICAL: Run-Sysprep.ps1 not found at $sysprepScript - cannot proceed"
 }
 
+# ============================================================================
+# Execution Summary (REL-WINPE-02)
+# ============================================================================
+Write-Host ""
+Write-Host "---------------------------------------------------" -ForegroundColor Cyan
+Write-Host "           Orchestrator Execution Summary           " -ForegroundColor Cyan
+Write-Host "---------------------------------------------------" -ForegroundColor Cyan
 
+Write-Host ""
+Write-Host "Scripts Executed: $($script:executionSummary.Executed.Count)" -ForegroundColor Green
+foreach ($executed in $script:executionSummary.Executed) {
+    Write-Host "  [OK] $executed" -ForegroundColor Green
+}
+
+if ($script:executionSummary.Skipped.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Scripts Skipped: $($script:executionSummary.Skipped.Count)" -ForegroundColor Yellow
+    foreach ($skipped in $script:executionSummary.Skipped) {
+        Write-Host "  [--] $($skipped.Script): $($skipped.Reason)" -ForegroundColor Yellow
+    }
+}
+
+if ($script:executionSummary.Failed.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Scripts Failed: $($script:executionSummary.Failed.Count)" -ForegroundColor Red
+    foreach ($failed in $script:executionSummary.Failed) {
+        Write-Host "  [!!] $($failed.Script): $($failed.Error)" -ForegroundColor Red
+    }
+}
+
+Write-Host ""
+Write-Host "---------------------------------------------------" -ForegroundColor Cyan
