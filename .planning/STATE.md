@@ -38,7 +38,7 @@ Progress: Milestone v1.9.0
 | 22-01 | Enhanced Prerequisite Detection | Complete | 8f0acb0 |
 | 22-02 | Remediation Steps Quality | Complete | cbc9508 |
 | 22-03 | WIMMount Repair Resilience | Complete | dad3b75 |
-| 22-04 | Tiered Check Severity Classification | Complete | 461210f |
+| 22-04 | Tiered Check Severity Classification | Complete | d60afcd |
 
 ## Completed Milestones
 
@@ -121,6 +121,8 @@ Progress: Milestone v1.9.0
 | VHDX expansion hint for large sets | Users can expand VHDX before driver injection | 2026-01-24 |
 | FltMgr restart as last resort | Filter Manager restart disruptive but may clear stuck filter states | 2026-01-24 |
 | WimMount retry MaxRetries 3, BaseDelay 2s | Balance between quick success and not waiting too long | 2026-01-24 |
+| Three severity levels (Critical/Warning/Info) | Clear distinction between build blockers, potential issues, and optional improvements | 2026-01-24 |
+| Only Critical failures block builds | Warning/Info issues displayed for awareness but don't prevent builds | 2026-01-24 |
 
 ## Recent Activity
 
