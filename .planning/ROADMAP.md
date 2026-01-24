@@ -20,7 +20,7 @@
 - [x] **Phase 17: FFU.VM Reliability** - VM lifecycle, cleanup, retry logic ✓
 - [x] **Phase 18: FFU.Imaging Reliability** - Disk operations, partitions, mount/dismount ✓
 - [x] **Phase 19: FFU.Media Reliability** - WinPE creation, ADK tools, ISO generation ✓
-- [ ] **Phase 20: FFU.Updates Reliability** - Update catalog, MSU handling, caching
+- [x] **Phase 20: FFU.Updates Reliability** - Update catalog, MSU handling, caching ✓
 - [ ] **Phase 21: FFU.Drivers Reliability** - OEM downloads, extraction, fallbacks
 - [ ] **Phase 22: FFU.Preflight Reliability** - Pre-flight checks, remediation, WIMMount
 - [ ] **Phase 23: BuildFFUVM.ps1 Reliability** - Orchestration, cancellation, cleanup
@@ -127,10 +127,10 @@ Plans:
 **Research**: Complete (20-RESEARCH.md - existing patterns to extend)
 **Plans:** 4 plans
 Plans:
-- [ ] 20-01-PLAN.md - Catalog query retry with exponential backoff (REL-UPD-01)
-- [ ] 20-02-PLAN.md - MSU download validation with re-download (REL-UPD-02)
-- [ ] 20-03-PLAN.md - Update application isolation (REL-UPD-03)
-- [ ] 20-04-PLAN.md - Catalog cache management with staleness detection (REL-UPD-04)
+- [x] 20-01-PLAN.md - Catalog query retry with exponential backoff (REL-UPD-01) ✓
+- [x] 20-02-PLAN.md - MSU download validation with re-download (REL-UPD-02) ✓
+- [x] 20-03-PLAN.md - Update application isolation (REL-UPD-03) ✓
+- [x] 20-04-PLAN.md - Catalog cache management with staleness detection (REL-UPD-04) ✓
 
 ### Phase 21: FFU.Drivers Reliability
 **Goal**: Make OEM driver operations resilient to network issues, vendor quirks, and disk space limits
@@ -205,7 +205,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 17. FFU.VM Reliability | 4/4 | Complete | 2026-01-24 |
 | 18. FFU.Imaging Reliability | 5/5 | Complete | 2026-01-24 |
 | 19. FFU.Media Reliability | 4/4 | Complete | 2026-01-24 |
-| 20. FFU.Updates Reliability | 0/4 | Planned | - |
+| 20. FFU.Updates Reliability | 4/4 | Complete | 2026-01-24 |
 | 21. FFU.Drivers Reliability | 0/TBD | Not started | - |
 | 22. FFU.Preflight Reliability | 0/TBD | Not started | - |
 | 23. BuildFFUVM.ps1 Reliability | 0/TBD | Not started | - |

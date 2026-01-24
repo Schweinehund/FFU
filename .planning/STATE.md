@@ -130,7 +130,7 @@ None.
 **Last session:** 2026-01-24
 **Stopped at:** Completed Phase 20 (FFU.Updates Reliability)
 **Resume file:** None
-**Next action:** Execute Phase 21 plans (FFU.ADK Reliability)
+**Next action:** Plan Phase 21 (FFU.Drivers Reliability)
 
 ---
 *State updated: 2026-01-24*
