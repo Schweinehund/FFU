@@ -1,0 +1,36 @@
+# Requirements: v1.9.1 Build Phase Integration
+
+## Overview
+
+Complete the graceful degradation integration by wrapping all BuildFFUVM.ps1 build phases with Invoke-BuildPhase.
+
+## v1 Requirements
+
+### INT-BUILD: Build Phase Integration
+- **INT-BUILD-01**: All build phases in BuildFFUVM.ps1 wrapped with Invoke-BuildPhase function
+- **INT-BUILD-02**: Non-critical phases (driver injection, USB media) continue on failure with warning
+- **INT-BUILD-03**: Critical phases (VM creation, FFU capture) halt build on failure
+- **INT-BUILD-04**: Final build summary includes all phase errors/warnings, not just first failure
+
+## v2 Requirements (Future)
+
+- Phase dependency graph for intelligent ordering
+- Parallel phase execution where dependencies allow
+- Phase timing metrics for build optimization
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| INT-BUILD-01 | Phase 26 | Not started |
+| INT-BUILD-02 | Phase 26 | Not started |
+| INT-BUILD-03 | Phase 26 | Not started |
+| INT-BUILD-04 | Phase 26 | Not started |
+
+**Coverage:**
+- v1 requirements: 4 total
+- Mapped to phases: 4
+- Unmapped: 0
+
+---
+*Created: 2026-01-24 for v1.9.1 Build Phase Integration*
