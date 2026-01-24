@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.36",
+    "version": "1.8.37",
     "buildDate": "2026-01-24",
 
     "versioningPolicy": {
@@ -24,9 +24,9 @@
             "description": "Structured logging with levels, JSON output, session correlation"
         },
         "FFUUI.Core": {
-            "version": "0.0.13",
+            "version": "0.0.15",
             "path": "FFUUI.Core/FFUUI.Core.psd1",
-            "description": "WPF UI framework with FFU file lock wait setting, VMware network settings, ShowVMConsole default true"
+            "description": "Centralized UI state recovery (REL-UI-03), Reset-FFUUIToIdle for consistent UI state after errors"
         },
         "FFU.Core": {
             "version": "1.0.22",

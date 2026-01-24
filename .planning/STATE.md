@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 24 WinPE Scripts Reliability - COMPLETE
+**Current focus:** Phase 25 FFUUI.Core Reliability - IN PROGRESS
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 24 of 25 (WinPE Scripts Reliability) - COMPLETE
-**Plan:** 4 of 4 (Resource Exhaustion Handling complete)
-**Status:** Phase complete
-**Last activity:** 2026-01-24 - Completed 24-04-PLAN.md (REL-WINPE-04)
+**Phase:** 25 of 25 (FFUUI.Core Reliability) - IN PROGRESS
+**Plan:** 1 of 4 (Centralized UI State Recovery complete)
+**Status:** In progress
+**Last activity:** 2026-01-24 - Completed 25-01-PLAN.md (REL-UI-03)
 
 Progress: Milestone v1.9.0
-[##########] 91% (10/11 phases complete)
+[##########] 93% (10.25/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -33,14 +33,14 @@ Progress: Milestone v1.9.0
 | 23 | BuildFFUVM.ps1 Reliability | 4/4 | 2026-01-24 |
 | 24 | WinPE Scripts Reliability | 4/4 | 2026-01-24 |
 
-## Phase 24 Progress (COMPLETE)
+## Phase 25 Progress (IN PROGRESS)
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
-| 24-01 | CaptureFFU Disk Validation | Complete | f266bd3 |
-| 24-02 | Orchestrator Dependency Detection | Complete | ce4c65b |
-| 24-03 | Log Preservation Enhancement | Complete | fa1b5ef |
-| 24-04 | Resource Exhaustion Handling | Complete | a46fa68 |
+| 25-01 | Centralized UI State Recovery | Complete | 459933a |
+| 25-02 | Structured Error Display | Pending | - |
+| 25-03 | Job Failure Context Extraction | Pending | - |
+| 25-04 | Load-Time Config Validation | Pending | - |
 
 ## Completed Milestones
 
@@ -145,9 +145,12 @@ Progress: Milestone v1.9.0
 | 20GB critical disk threshold | Fail-fast for network share disk space | 2026-01-24 |
 | 60GB warning disk threshold | Continue with warning for low disk space | 2026-01-24 |
 | Memory warns, disk critical throws | Memory low can still work, disk full cannot | 2026-01-24 |
+| Centralized UI reset function | Single Reset-FFUUIToIdle handles all UI control resets after errors | 2026-01-24 |
+| Defensive null checks in UI | All control access wrapped in null checks for graceful degradation | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 25-01-PLAN.md (Centralized UI State Recovery) - REL-UI-03, 30 tests, FFUUI.Core v0.0.15
 - 2026-01-24: Completed Phase 24 (WinPE Scripts Reliability) - 4/4 plans, 141 Pester tests
 - 2026-01-24: Completed 24-04-PLAN.md (Resource Exhaustion Handling) - REL-WINPE-04, 40 tests
 - 2026-01-24: Completed 24-03-PLAN.md (Log Preservation Enhancement) - REL-WINPE-03, 45 tests
@@ -182,9 +185,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed Phase 24 (WinPE Scripts Reliability)
+**Stopped at:** Completed 25-01-PLAN.md (Centralized UI State Recovery)
 **Resume file:** None
-**Next action:** Plan Phase 25 (FFUUI.Core Reliability)
+**Next action:** Execute 25-02-PLAN.md (Structured Error Display)
 
 ---
 *State updated: 2026-01-24*
