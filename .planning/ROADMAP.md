@@ -158,8 +158,13 @@ Plans:
   2. Failed checks tell user exactly what command/action to take
   3. WIMMount issues auto-repaired where possible (service restart, registry fix)
   4. Critical vs warning vs info checks help user prioritize what to fix
-**Research**: Unlikely (existing preflight patterns)
-**Plans**: TBD
+**Research**: Not needed (existing preflight patterns, enhancing mature module)
+**Plans:** 4 plans
+Plans:
+- [ ] 22-01-PLAN.md - Prerequisite detection completeness (REL-PRE-01)
+- [ ] 22-02-PLAN.md - Standardized remediation format (REL-PRE-02)
+- [ ] 22-03-PLAN.md - WIMMount repair retry logic (REL-PRE-03)
+- [ ] 22-04-PLAN.md - Severity classification and output formatting (REL-PRE-04)
 
 ### Phase 23: BuildFFUVM.ps1 Reliability
 **Goal**: Make build orchestrator handle failures gracefully with complete cleanup and useful diagnostics
@@ -212,7 +217,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 19. FFU.Media Reliability | 4/4 | Complete | 2026-01-24 |
 | 20. FFU.Updates Reliability | 4/4 | Complete | 2026-01-24 |
 | 21. FFU.Drivers Reliability | 4/4 | Complete | 2026-01-24 |
-| 22. FFU.Preflight Reliability | 0/TBD | Not started | - |
+| 22. FFU.Preflight Reliability | 0/4 | Planned | - |
 | 23. BuildFFUVM.ps1 Reliability | 0/TBD | Not started | - |
 | 24. WinPE Scripts Reliability | 0/TBD | Not started | - |
 | 25. FFUUI.Core Reliability | 0/TBD | Not started | - |
