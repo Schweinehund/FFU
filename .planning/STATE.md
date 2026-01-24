@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 22 FFU.Preflight Reliability complete - ready for Phase 23
+**Current focus:** Phase 23 BuildFFUVM.ps1 Reliability - Plan 1 complete
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 22 of 25 (FFU.Preflight Reliability) - Complete
-**Plan:** 4 of 4 (all complete)
-**Status:** Phase complete
-**Last activity:** 2026-01-24 - Completed 22-03-PLAN.md (REL-PRE-03)
+**Phase:** 23 of 25 (BuildFFUVM.ps1 Reliability) - In Progress
+**Plan:** 1 of 4 (Build Error Aggregation complete)
+**Status:** In progress
+**Last activity:** 2026-01-24 - Completed 23-01-PLAN.md (REL-BUILD-04)
 
 Progress: Milestone v1.9.0
 [########--] 73% (8/11 phases complete)
@@ -31,14 +31,14 @@ Progress: Milestone v1.9.0
 | 21 | FFU.Drivers Reliability | 4/4 | 2026-01-24 |
 | 22 | FFU.Preflight Reliability | 4/4 | 2026-01-24 |
 
-## Phase 22 Progress
+## Phase 23 Progress
 
 | Plan | Name | Status | Commit |
 |------|------|--------|--------|
-| 22-01 | Enhanced Prerequisite Detection | Complete | 8f0acb0 |
-| 22-02 | Remediation Steps Quality | Complete | cbc9508 |
-| 22-03 | WIMMount Repair Resilience | Complete | dad3b75 |
-| 22-04 | Tiered Check Severity Classification | Complete | d60afcd |
+| 23-01 | Build Error Aggregation | Complete | d39caff |
+| 23-02 | Phase Wrapper with Continue-on-Failure | Pending | - |
+| 23-03 | Checkpoint Resume Integration | Pending | - |
+| 23-04 | Termination Cleanup Enhancement | Pending | - |
 
 ## Completed Milestones
 
@@ -123,9 +123,11 @@ Progress: Milestone v1.9.0
 | WimMount retry MaxRetries 3, BaseDelay 2s | Balance between quick success and not waiting too long | 2026-01-24 |
 | Three severity levels (Critical/Warning/Info) | Clear distinction between build blockers, potential issues, and optional improvements | 2026-01-24 |
 | Only Critical failures block builds | Warning/Info issues displayed for awareness but don't prevent builds | 2026-01-24 |
+| Script-scope error collector | Matches CleanupRegistry pattern, available across module functions | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Completed 23-01-PLAN.md (Build Error Aggregation) - REL-BUILD-04, 42 tests, FFU.Core v1.0.21
 - 2026-01-24: Completed 22-01-PLAN.md (Enhanced Prerequisite Detection) - REL-PRE-01, 30 tests, FFU.Preflight v1.3.0
 - 2026-01-24: Completed 22-03-PLAN.md (WIMMount Repair Resilience) - REL-PRE-03, 22 tests, retry with exponential backoff
 - 2026-01-24: Completed Phase 22 (FFU.Preflight Reliability) - 4/4 plans, FFU.Preflight v1.3.0
@@ -150,9 +152,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed Phase 22 (FFU.Preflight Reliability) - all 4/4 plans
+**Stopped at:** Completed 23-01-PLAN.md (Build Error Aggregation)
 **Resume file:** None
-**Next action:** Execute Phase 23 (FFU.Apps Reliability)
+**Next action:** Execute 23-02-PLAN.md (Phase Wrapper with Continue-on-Failure)
 
 ---
 *State updated: 2026-01-24*
