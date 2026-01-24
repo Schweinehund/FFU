@@ -29,6 +29,16 @@ Write-Host "---------------------------------------------------" -ForegroundColo
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 # ============================================================================
+# Execution Tracking (REL-WINPE-02)
+# Tracks script execution status for summary reporting
+# ============================================================================
+$script:executionSummary = @{
+    Executed = [System.Collections.ArrayList]@()
+    Skipped = [System.Collections.ArrayList]@()
+    Failed = [System.Collections.ArrayList]@()
+}
+
+# ============================================================================
 # Script Integrity Verification (SEC-03)
 # Verifies scripts against hash manifest before execution to detect tampering
 # ============================================================================
@@ -93,50 +103,87 @@ $scriptList = @(
 foreach ($script in $scriptList) {
     $scriptFile = Join-Path -Path $scriptPath -ChildPath $script
     if (-not (Test-Path -Path $scriptFile)) {
+        # REL-WINPE-02: Log warning for missing scripts instead of silent skip
+        Write-Host "[SKIP] Script not found: $script" -ForegroundColor Yellow
+        Write-Host "       Expected at: $scriptFile" -ForegroundColor Gray
+        [void]$script:executionSummary.Skipped.Add(@{
+            Script = $script
+            Reason = "File not found"
+            Path = $scriptFile
+        })
         continue
     }
 
     $shouldRun = $true # Default to run if script exists
+    $skipReason = $null
     switch ($script) {
         "Install-Win32Apps.ps1" {
             $wingetAppsJsonFile = Join-Path -Path $scriptPath -ChildPath "WinGetWin32Apps.json"
             $userAppsJsonFile = Join-Path -Path (Split-Path -Parent $scriptPath) -ChildPath "UserAppList.json"
             if (-not (Test-Path -Path $wingetAppsJsonFile) -and -not (Test-Path -Path $userAppsJsonFile)) {
                 $shouldRun = $false
+                $skipReason = "No WinGetWin32Apps.json or UserAppList.json found"
             }
         }
         "Install-StoreApps.ps1" {
             $msStorePath = "D:\MSStore"
             if (-not (Test-Path -Path $msStorePath) -or -not (Get-ChildItem -Path $msStorePath)) {
                 $shouldRun = $false
+                $skipReason = "MSStore folder empty or not found at $msStorePath"
             }
         }
     }
 
-    if ($shouldRun) {
-        # Verify script integrity before execution (SEC-03)
-        if ($verifyIntegrity -and $null -ne $manifest) {
-            $scriptHash = (Get-FileHash -Path $scriptFile -Algorithm SHA256).Hash
-            $expectedHash = $manifest.scripts.$script
+    if (-not $shouldRun) {
+        # REL-WINPE-02: Log warning for skipped scripts due to missing dependencies
+        Write-Host "[SKIP] Script skipped: $script" -ForegroundColor Yellow
+        Write-Host "       Reason: $skipReason" -ForegroundColor Gray
+        [void]$script:executionSummary.Skipped.Add(@{
+            Script = $script
+            Reason = $skipReason
+            Path = $scriptFile
+        })
+        continue
+    }
 
-            if (-not [string]::IsNullOrEmpty($expectedHash) -and $scriptHash -ne $expectedHash) {
-                Write-Host "SECURITY ERROR: $script integrity check failed!" -ForegroundColor Red
-                Write-Host "  Expected: $expectedHash" -ForegroundColor Red
-                Write-Host "  Actual:   $scriptHash" -ForegroundColor Red
-                Write-Host "Skipping execution of $script" -ForegroundColor Red
-                continue  # Skip this script but continue with others
-            }
-            elseif (-not [string]::IsNullOrEmpty($expectedHash)) {
-                Write-Host "SECURITY: $script verified" -ForegroundColor Green
-            }
+    # Verify script integrity before execution (SEC-03)
+    if ($verifyIntegrity -and $null -ne $manifest) {
+        $scriptHash = (Get-FileHash -Path $scriptFile -Algorithm SHA256).Hash
+        $expectedHash = $manifest.scripts.$script
+
+        if (-not [string]::IsNullOrEmpty($expectedHash) -and $scriptHash -ne $expectedHash) {
+            Write-Host "SECURITY ERROR: $script integrity check failed!" -ForegroundColor Red
+            Write-Host "  Expected: $expectedHash" -ForegroundColor Red
+            Write-Host "  Actual:   $scriptHash" -ForegroundColor Red
+            Write-Host "Skipping execution of $script" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = $script
+                Error = "Integrity check failed"
+            })
+            continue  # Skip this script but continue with others
         }
+        elseif (-not [string]::IsNullOrEmpty($expectedHash)) {
+            Write-Host "SECURITY: $script verified" -ForegroundColor Green
+        }
+    }
 
-        Write-Host "`n" # Add a newline for spacing
-        Write-Host "---------------------------------------------------" -ForegroundColor Yellow
-        Write-Host " Running script: $script                           " -ForegroundColor Yellow
-        Write-Host "---------------------------------------------------" -ForegroundColor Yellow
-        # Run script and wait for it to finish
+    Write-Host "`n" # Add a newline for spacing
+    Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+    Write-Host " Running script: $script                           " -ForegroundColor Yellow
+    Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+
+    # REL-WINPE-02: Track execution with error handling
+    try {
         & $scriptFile
+        [void]$script:executionSummary.Executed.Add($script)
+    }
+    catch {
+        Write-Host "[ERROR] Script failed: $script" -ForegroundColor Red
+        Write-Host "        Error: $_" -ForegroundColor Red
+        [void]$script:executionSummary.Failed.Add(@{
+            Script = $script
+            Error = $_.Exception.Message
+        })
     }
 }
 
@@ -155,6 +202,10 @@ if ((Test-Path -Path $appsScriptFile) -and (Test-Path -Path $appsScriptVarsJsonP
             Write-Host "  Expected: $expectedAppsScriptHash" -ForegroundColor Red
             Write-Host "  Actual:   $appsScriptHash" -ForegroundColor Red
             Write-Host "Skipping execution of Invoke-AppsScript.ps1" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = "Invoke-AppsScript.ps1"
+                Error = "Integrity check failed"
+            })
             $skipAppsScript = $true
         }
         elseif (-not [string]::IsNullOrEmpty($expectedAppsScriptHash)) {
@@ -169,8 +220,40 @@ if ((Test-Path -Path $appsScriptFile) -and (Test-Path -Path $appsScriptVarsJsonP
         Write-Host "---------------------------------------------------" -ForegroundColor Yellow
 
         Write-Host "Using AppsScriptVariables from JSON file: $appsScriptVarsJsonPath"
-        & $appsScriptFile
+        # REL-WINPE-02: Track execution with error handling
+        try {
+            & $appsScriptFile
+            [void]$script:executionSummary.Executed.Add("Invoke-AppsScript.ps1")
+        }
+        catch {
+            Write-Host "[ERROR] Script failed: Invoke-AppsScript.ps1" -ForegroundColor Red
+            Write-Host "        Error: $_" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = "Invoke-AppsScript.ps1"
+                Error = $_.Exception.Message
+            })
+        }
     }
+}
+elseif (-not (Test-Path -Path $appsScriptFile)) {
+    # REL-WINPE-02: Log if script doesn't exist (optional script)
+    Write-Host "[SKIP] Script not found: Invoke-AppsScript.ps1" -ForegroundColor Yellow
+    Write-Host "       Expected at: $appsScriptFile" -ForegroundColor Gray
+    [void]$script:executionSummary.Skipped.Add(@{
+        Script = "Invoke-AppsScript.ps1"
+        Reason = "File not found"
+        Path = $appsScriptFile
+    })
+}
+elseif (-not (Test-Path -Path $appsScriptVarsJsonPath)) {
+    # REL-WINPE-02: Log if config doesn't exist
+    Write-Host "[SKIP] Script skipped: Invoke-AppsScript.ps1" -ForegroundColor Yellow
+    Write-Host "       Reason: AppsScriptVariables.json not found at $appsScriptVarsJsonPath" -ForegroundColor Gray
+    [void]$script:executionSummary.Skipped.Add(@{
+        Script = "Invoke-AppsScript.ps1"
+        Reason = "AppsScriptVariables.json not found"
+        Path = $appsScriptFile
+    })
 }
 
 # Run-DiskCleanup.ps1 must run before Run-Sysprep.ps1
@@ -187,6 +270,10 @@ if (Test-Path -Path $diskCleanupScript) {
             Write-Host "  Expected: $expectedDiskCleanupHash" -ForegroundColor Red
             Write-Host "  Actual:   $diskCleanupHash" -ForegroundColor Red
             Write-Host "Skipping execution of Run-DiskCleanup.ps1" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = "Run-DiskCleanup.ps1"
+                Error = "Integrity check failed"
+            })
             $skipDiskCleanup = $true
         }
         elseif (-not [string]::IsNullOrEmpty($expectedDiskCleanupHash)) {
@@ -199,11 +286,29 @@ if (Test-Path -Path $diskCleanupScript) {
         Write-Host "---------------------------------------------------" -ForegroundColor Yellow
         Write-Host " Running script: Run-DiskCleanup.ps1               " -ForegroundColor Yellow
         Write-Host "---------------------------------------------------" -ForegroundColor Yellow
-        # Run script and wait for it to finish
-        & $diskCleanupScript
+        # REL-WINPE-02: Track execution with error handling
+        try {
+            & $diskCleanupScript
+            [void]$script:executionSummary.Executed.Add("Run-DiskCleanup.ps1")
+        }
+        catch {
+            Write-Host "[ERROR] Script failed: Run-DiskCleanup.ps1" -ForegroundColor Red
+            Write-Host "        Error: $_" -ForegroundColor Red
+            [void]$script:executionSummary.Failed.Add(@{
+                Script = "Run-DiskCleanup.ps1"
+                Error = $_.Exception.Message
+            })
+        }
     }
 } else {
-    Write-Host "Run-DiskCleanup.ps1 not found!"
+    # REL-WINPE-02: Log warning for missing disk cleanup script
+    Write-Host "[SKIP] Script not found: Run-DiskCleanup.ps1" -ForegroundColor Yellow
+    Write-Host "       Expected at: $diskCleanupScript" -ForegroundColor Gray
+    [void]$script:executionSummary.Skipped.Add(@{
+        Script = "Run-DiskCleanup.ps1"
+        Reason = "File not found"
+        Path = $diskCleanupScript
+    })
 }
 
 # Run-Sysprep.ps1 must run last
