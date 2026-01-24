@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 21 FFU.Drivers Reliability in progress
+**Current focus:** Phase 21 FFU.Drivers Reliability complete
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 21 of 25 (FFU.Drivers Reliability) - In Progress
-**Plan:** 3 of 4 (Catalog Fallback Sources) - Complete
-**Status:** Plan 21-03 complete
-**Last activity:** 2026-01-24 - Completed 21-03-PLAN.md (REL-DRV-03)
+**Phase:** 21 of 25 (FFU.Drivers Reliability) - Complete
+**Plan:** 4 of 4 (Driver Injection Verification) - Complete
+**Status:** Phase 21 complete
+**Last activity:** 2026-01-24 - Completed 21-04-PLAN.md (REL-DRV-04)
 
 Progress: Milestone v1.9.0
-[######----] 59% (6/11 phases complete, 21-03 done)
+[#######---] 64% (7/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -28,6 +28,7 @@ Progress: Milestone v1.9.0
 | 18 | FFU.Imaging Reliability | 5/5 | 2026-01-24 |
 | 19 | FFU.Media Reliability | 4/4 | 2026-01-24 |
 | 20 | FFU.Updates Reliability | 4/4 | 2026-01-24 |
+| 21 | FFU.Drivers Reliability | 4/4 | 2026-01-24 |
 
 ## Phase 21 Progress
 
@@ -35,8 +36,8 @@ Progress: Milestone v1.9.0
 |------|------|--------|--------|
 | 21-01 | Driver Download Retry | Complete | e304a4d |
 | 21-02 | Vendor-Specific Extraction Error Handling | Complete | d808183 |
-| 21-03 | Catalog Fallback Sources | Complete | 8dd6e06 |
-| 21-04 | Driver Injection Verification | Not Started | - |
+| 21-03 | Catalog Fallback Sources | Complete | d051210 |
+| 21-04 | Driver Injection Verification | Complete | b7780af |
 
 ## Completed Milestones
 
@@ -113,23 +114,23 @@ Progress: Milestone v1.9.0
 | 7-day OEM catalog cache staleness | OEM catalogs update weekly at most | 2026-01-24 |
 | Stale cache as network fallback | When network fails, use stale cache with warning | 2026-01-24 |
 | Get-CachedOEMCatalog internal function | Not exported, used only by OEM driver functions | 2026-01-24 |
+| 4x driver extraction multiplier | OEM packages extract to 3-4x compressed size | 2026-01-24 |
+| Disk space warning-only | Continue-by-default for driver operations | 2026-01-24 |
+| VHDX expansion hint for large sets | Users can expand VHDX before driver injection | 2026-01-24 |
 
 ## Recent Activity
 
-- 2026-01-24: Completed 21-03-PLAN.md (Catalog Fallback Sources) - REL-DRV-03, 12 Pester tests, catalog caching
+- 2026-01-24: Completed 21-04-PLAN.md (Driver Injection Verification) - REL-DRV-04, 19 Pester tests, disk space validation
+- 2026-01-24: Completed Phase 21 (FFU.Drivers Reliability) - 4/4 plans, FFU.Drivers v1.1.0
+- 2026-01-24: Completed 21-03-PLAN.md (Catalog Fallback Sources) - REL-DRV-03, catalog caching
 - 2026-01-24: Completed 21-02-PLAN.md (Vendor-Specific Extraction Error Handling) - REL-DRV-02, 23 Pester tests
-- 2026-01-24: Executed 21-01-PLAN.md (Driver Download Retry) - REL-DRV-01/02, 38 Pester tests, FFU.Drivers v1.1.0
-- 2026-01-24: Executed 20-04-PLAN.md (Catalog Cache Management) - REL-UPD-04, 23 Pester tests
+- 2026-01-24: Executed 21-01-PLAN.md (Driver Download Retry) - REL-DRV-01/02, 38 Pester tests
 - 2026-01-24: Completed Phase 20 (FFU.Updates Reliability) - 4/4 plans, FFU.Updates v1.1.0
-- 2026-01-24: Executed 20-02-PLAN.md (MSU Download Validation) - REL-UPD-02, Test-MSUIntegrity + Save-KB integration
-- 2026-01-24: Executed 20-03-PLAN.md (Update Application Isolation) - REL-UPD-03, 22 Pester tests
-- 2026-01-24: Executed 20-01-PLAN.md (Catalog Query Retry) - REL-UPD-01
-- 2026-01-24: Completed Phase 19 (FFU.Media Reliability) - 4/4 plans, verified
-- 2026-01-24: FFU.Media v1.8.0, main version v1.8.27, 134 FFU.Media reliability Pester tests
-- 2026-01-24: Completed Phase 18 (FFU.Imaging Reliability) - 5/5 plans, verified
-- 2026-01-24: Completed Phase 17 (FFU.VM Reliability) - 4/4 plans, verified
-- 2026-01-24: Completed Phase 16 (FFU.Hypervisor Reliability) - 4/4 plans, verified
-- 2026-01-23: Completed Phase 15 (FFU.Core Reliability) - 3/3 plans, verified
+- 2026-01-24: Completed Phase 19 (FFU.Media Reliability) - 4/4 plans, FFU.Media v1.8.0
+- 2026-01-24: Completed Phase 18 (FFU.Imaging Reliability) - 5/5 plans, FFU.Imaging v1.3.0
+- 2026-01-24: Completed Phase 17 (FFU.VM Reliability) - 4/4 plans
+- 2026-01-24: Completed Phase 16 (FFU.Hypervisor Reliability) - 4/4 plans
+- 2026-01-23: Completed Phase 15 (FFU.Core Reliability) - 3/3 plans
 
 ## Blockers
 
@@ -138,9 +139,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 21-03-PLAN.md (Catalog Fallback Sources)
+**Stopped at:** Completed Phase 21 (FFU.Drivers Reliability)
 **Resume file:** None
-**Next action:** Execute 21-04-PLAN.md (Driver Injection Verification)
+**Next action:** Execute Phase 22 (FFU.Apps Reliability)
 
 ---
 *State updated: 2026-01-24*
