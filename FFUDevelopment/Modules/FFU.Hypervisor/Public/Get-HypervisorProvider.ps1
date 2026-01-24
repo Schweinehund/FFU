@@ -9,6 +9,9 @@
     When a provider is unavailable, error messages include actionable remediation
     steps to help users resolve the issue.
 
+    Supports provider switching validation to detect orphaned VMs and config
+    incompatibilities before switching.
+
 .PARAMETER Type
     The type of hypervisor provider to return:
     - 'HyperV': Microsoft Hyper-V provider
@@ -18,6 +21,19 @@
 .PARAMETER Validate
     If specified, validates that the provider is available before returning it.
     Throws an error if the requested provider is not available.
+
+.PARAMETER ValidateSwitch
+    If specified, validates the switch from the previous provider to the requested
+    provider using Test-ProviderSwitch. Logs warnings and throws on blockers
+    (unless -Force is also specified).
+
+.PARAMETER Force
+    When combined with -ValidateSwitch, proceeds despite blockers from
+    Test-ProviderSwitch. Logs warnings but does not throw.
+
+.PARAMETER Config
+    Optional VMConfiguration object to pass to Test-ProviderSwitch for
+    configuration compatibility validation when using -ValidateSwitch.
 
 .EXAMPLE
     $provider = Get-HypervisorProvider -Type 'HyperV'
@@ -31,14 +47,25 @@
     $provider = Get-HypervisorProvider -Type 'VMware'
     # Returns VMware provider (uses vmrun.exe, no credentials needed)
 
+.EXAMPLE
+    # Validate switch from previous provider to VMware
+    $provider = Get-HypervisorProvider -Type 'VMware' -ValidateSwitch
+    # Throws if blockers exist (e.g., running VMs from previous provider)
+
+.EXAMPLE
+    # Force switch despite blockers
+    $provider = Get-HypervisorProvider -Type 'VMware' -ValidateSwitch -Force
+    # Logs warnings but proceeds
+
 .OUTPUTS
     IHypervisorProvider
 
 .NOTES
     Module: FFU.Hypervisor
-    Version: 1.3.0
+    Version: 1.3.7
     VMware provider uses vmrun.exe/vmxtoolkit (no REST API/credentials required)
     Enhanced error messages with remediation guidance (REL-HYP-01)
+    Provider switch validation (REL-HYP-03)
 #>
 function Get-HypervisorProvider {
     [CmdletBinding()]
@@ -49,7 +76,16 @@ function Get-HypervisorProvider {
         [string]$Type = 'Auto',
 
         [Parameter(Mandatory = $false)]
-        [switch]$Validate
+        [switch]$Validate,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ValidateSwitch,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [object]$Config
     )
 
     process {
@@ -100,6 +136,64 @@ function Get-HypervisorProvider {
                 $details = $provider.GetAvailabilityDetails()
                 $errorMessage = Format-SingleProviderError -ProviderDetails $details
                 throw $errorMessage
+            }
+        }
+
+        # Provider switch validation (REL-HYP-03)
+        if ($ValidateSwitch -and $provider) {
+            $previousProviderType = $script:PreviousProviderType
+
+            # Only validate if there was a previous provider and it's different
+            if ($previousProviderType -and $previousProviderType -ne $provider.Name) {
+                WriteLog "Validating switch from $previousProviderType to $($provider.Name)..."
+
+                $switchParams = @{
+                    FromProvider = $previousProviderType
+                    ToProvider = $provider.Name
+                }
+                if ($Config) {
+                    $switchParams['Config'] = $Config
+                }
+
+                $switchResult = Test-ProviderSwitch @switchParams
+
+                # Log warnings
+                foreach ($warning in $switchResult.Warnings) {
+                    WriteLog "WARNING: $warning"
+                }
+
+                # Handle blockers
+                if ($switchResult.Blockers.Count -gt 0) {
+                    $blockerList = $switchResult.Blockers -join '; '
+
+                    if ($Force) {
+                        WriteLog "WARNING: Proceeding with provider switch despite blockers: $blockerList"
+                    }
+                    else {
+                        $errorMsg = "Provider switch blocked: $blockerList"
+                        if ($switchResult.RecommendedActions.Count -gt 0) {
+                            $errorMsg += "`nRecommended actions:`n  - $($switchResult.RecommendedActions -join "`n  - ")"
+                        }
+                        throw $errorMsg
+                    }
+                }
+            }
+            elseif (-not $previousProviderType) {
+                WriteLog "First provider request - no switch validation needed"
+            }
+            else {
+                WriteLog "Same provider type ($($provider.Name)) - no switch validation needed"
+            }
+        }
+
+        # Track provider type for future switch validation
+        if ($provider) {
+            $previousType = $script:PreviousProviderType
+            $script:PreviousProviderType = $provider.Name
+
+            # Log if switching providers
+            if ($previousType -and $previousType -ne $provider.Name) {
+                WriteLog "Switching hypervisor from $previousType to $($provider.Name)"
             }
         }
 
