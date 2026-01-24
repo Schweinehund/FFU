@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 20 — FFU.Updates Reliability
+**Current focus:** Phase 20 complete, ready for Phase 21
 
 ## Current Position
 
 **Milestone:** v1.9.0 Reliability Hardening
-**Phase:** 20 of 25 (FFU.Updates Reliability)
-**Plan:** 2 of 4 (MSU Download Validation) - Complete
-**Status:** In progress
-**Last activity:** 2026-01-24 — Completed 20-02-PLAN.md (REL-UPD-02)
+**Phase:** 20 of 25 (FFU.Updates Reliability) - Complete
+**Plan:** 4 of 4 (Catalog Cache Management) - Complete
+**Status:** Phase 20 complete
+**Last activity:** 2026-01-24 - Completed 20-04-PLAN.md (REL-UPD-04)
 
 Progress: Milestone v1.9.0
-[#####-----] 50% (5/11 phases complete, 20-01/02/03 done)
+[######----] 55% (6/11 phases complete)
 
 ## Completed Phases This Milestone
 
@@ -27,6 +27,7 @@ Progress: Milestone v1.9.0
 | 17 | FFU.VM Reliability | 4/4 | 2026-01-24 |
 | 18 | FFU.Imaging Reliability | 5/5 | 2026-01-24 |
 | 19 | FFU.Media Reliability | 4/4 | 2026-01-24 |
+| 20 | FFU.Updates Reliability | 4/4 | 2026-01-24 |
 
 ## Phase 20 Progress
 
@@ -35,7 +36,7 @@ Progress: Milestone v1.9.0
 | 20-01 | Catalog Query Retry | Complete | 8584031 |
 | 20-02 | MSU Download Validation | Complete | 4dcb858 |
 | 20-03 | Update Application Isolation | Complete | 715f89d |
-| 20-04 | Catalog Cache Management | Pending | - |
+| 20-04 | Catalog Cache Management | Complete | 48a3424 |
 
 ## Completed Milestones
 
@@ -101,12 +102,18 @@ Progress: Milestone v1.9.0
 | StopOnCriticalFailure optional | Users can opt-in to halt on critical failures | 2026-01-24 |
 | Invoke-ValidatedDownload internal helper | Encapsulates download-validate-retry pattern in Save-KB | 2026-01-24 |
 | MaxValidationRetries default 2 | Two re-download attempts before giving up on corrupted file | 2026-01-24 |
+| Cache naming with underscores | products_{arch}_{version}.cab - filesystem-safe | 2026-01-24 |
+| JSON metadata file | .meta file alongside cached cab for human-readable tracking | 2026-01-24 |
+| 24h default cache staleness | Products.cab rarely changes more than daily | 2026-01-24 |
+| Reuse Test-MSUIntegrity for cache | MinimumSizeBytes=0 since products.cab can be small | 2026-01-24 |
 
 ## Recent Activity
 
+- 2026-01-24: Executed 20-04-PLAN.md (Catalog Cache Management) - REL-UPD-04, 23 Pester tests
+- 2026-01-24: Completed Phase 20 (FFU.Updates Reliability) - 4/4 plans, FFU.Updates v1.1.0
 - 2026-01-24: Executed 20-02-PLAN.md (MSU Download Validation) - REL-UPD-02, Test-MSUIntegrity + Save-KB integration
 - 2026-01-24: Executed 20-03-PLAN.md (Update Application Isolation) - REL-UPD-03, 22 Pester tests
-- 2026-01-24: Executed 20-01-PLAN.md (Catalog Query Retry) - REL-UPD-01, FFU.Updates v1.0.6
+- 2026-01-24: Executed 20-01-PLAN.md (Catalog Query Retry) - REL-UPD-01
 - 2026-01-24: Completed Phase 19 (FFU.Media Reliability) - 4/4 plans, verified
 - 2026-01-24: FFU.Media v1.8.0, main version v1.8.27, 134 FFU.Media reliability Pester tests
 - 2026-01-24: Completed Phase 18 (FFU.Imaging Reliability) - 5/5 plans, verified
@@ -121,9 +128,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-24
-**Stopped at:** Completed 20-02-PLAN.md (MSU Download Validation)
+**Stopped at:** Completed Phase 20 (FFU.Updates Reliability)
 **Resume file:** None
-**Next action:** Execute 20-04-PLAN.md (Catalog Cache Management)
+**Next action:** Execute Phase 21 plans (FFU.ADK Reliability)
 
 ---
 *State updated: 2026-01-24*
