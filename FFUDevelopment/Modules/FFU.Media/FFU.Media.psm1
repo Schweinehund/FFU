@@ -1020,6 +1020,35 @@ function New-PEMedia {
     $DandIEnv = "$adkPath`Assessment and Deployment Kit\Deployment Tools\DandISetEnv.bat"
     $WinPEFFUPath = "$FFUDevelopmentPath\WinPE"
 
+    # REL-MED-01/04: Pre-operation dependency validation (fail-fast before cleanup)
+    WriteLog "=== WinPE Media Pre-Validation Starting ==="
+
+    # Map WindowsArch to validation format (x64, arm64)
+    $validationArch = switch ($WindowsArch.ToLower()) {
+        'x64'   { 'x64' }
+        'x86'   { 'x64' }   # x86 builds use x64 ADK tools
+        'arm64' { 'arm64' }
+        default { 'x64' }
+    }
+
+    $readinessResult = Test-WinPEMediaReadiness -Architecture $validationArch `
+        -FFUDevelopmentPath $FFUDevelopmentPath `
+        -ADKPath $adkPath `
+        -CreateCapture:$Capture `
+        -CreateDeploy:$Deploy `
+        -CaptureISOPath $CaptureISO `
+        -DeployISOPath $DeployISO
+
+    if (-not $readinessResult.Ready) {
+        WriteLog "ERROR: WinPE media pre-validation failed"
+        WriteLog "Failure: $($readinessResult.Message)"
+        WriteLog "Remediation: $($readinessResult.Remediation)"
+        throw "WinPE media creation cannot proceed: $($readinessResult.Message). $($readinessResult.Remediation)"
+    }
+
+    WriteLog "Pre-validation passed: $($readinessResult.Message)"
+    WriteLog "=== WinPE Media Pre-Validation Complete ==="
+
     # ENHANCED: Comprehensive pre-flight cleanup before WinPE creation
     WriteLog "Performing DISM pre-flight cleanup before WinPE media creation..."
     $cleanupSuccess = Invoke-DISMPreFlightCleanup -WinPEPath $WinPEFFUPath -MinimumFreeSpaceGB 10
