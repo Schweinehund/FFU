@@ -5,7 +5,7 @@
 - v1.8.0 Codebase Health - Phases 1-10 (shipped 2026-01-20)
 - v1.8.1 Bug Fixes - Phases 11-13 (shipped 2026-01-20)
 - v1.8.3 VMware UI Settings - Phase 14 (shipped 2026-01-21)
-- **v1.9.0 Reliability Hardening** - Phases 15-25 (in progress)
+- **v1.9.0 Reliability Hardening** - Phases 15-25 (complete 2026-01-24)
 
 ## Phases
 
@@ -25,7 +25,7 @@
 - [x] **Phase 22: FFU.Preflight Reliability** - Pre-flight checks, remediation, WIMMount ✓
 - [x] **Phase 23: BuildFFUVM.ps1 Reliability** - Orchestration, cancellation, cleanup ✓
 - [x] **Phase 24: WinPE Scripts Reliability** - CaptureFFU, orchestrator, in-VM scripts ✓
-- [ ] **Phase 25: FFUUI.Core Reliability** - Error display, job failures, state consistency
+- [x] **Phase 25: FFUUI.Core Reliability** - Error display, job failures, state consistency ✓
 
 ## Phase Details
 
@@ -213,10 +213,10 @@ Plans:
 **Research**: Complete (25-RESEARCH.md - UI error patterns documented)
 **Plans:** 4 plans
 Plans:
-- [ ] 25-01-PLAN.md - UI state consistency (REL-UI-03)
-- [ ] 25-02-PLAN.md - Structured error display (REL-UI-01)
-- [ ] 25-03-PLAN.md - Job failure context extraction (REL-UI-02)
-- [ ] 25-04-PLAN.md - Load-time config validation (REL-UI-04)
+- [x] 25-01-PLAN.md - UI state consistency (REL-UI-03) ✓
+- [x] 25-02-PLAN.md - Structured error display (REL-UI-01) ✓
+- [x] 25-03-PLAN.md - Job failure context extraction (REL-UI-02) ✓
+- [x] 25-04-PLAN.md - Load-time config validation (REL-UI-04) ✓
 
 ## Progress
 
@@ -235,7 +235,7 @@ Phases 15-25 execute sequentially, with some parallelization possible for indepe
 | 22. FFU.Preflight Reliability | 4/4 | Complete | 2026-01-24 |
 | 23. BuildFFUVM.ps1 Reliability | 4/4 | Complete | 2026-01-24 |
 | 24. WinPE Scripts Reliability | 4/4 | Complete | 2026-01-24 |
-| 25. FFUUI.Core Reliability | 0/4 | Planning complete | - |
+| 25. FFUUI.Core Reliability | 4/4 | Complete | 2026-01-24 |
 
 ---
 *Created: 2026-01-23 for v1.9.0 Reliability Hardening*
