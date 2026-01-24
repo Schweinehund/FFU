@@ -335,6 +335,99 @@ function Resolve-HostNameDotNet {
     }
 }
 
+function Test-CaptureTargetDisk {
+    <#
+    .SYNOPSIS
+    Validates target disk before FFU capture
+
+    .DESCRIPTION
+    Performs pre-capture validation to ensure the target disk is:
+    1. Present and accessible
+    2. A virtual disk (Hyper-V or VMware)
+
+    This validation prevents accidentally capturing wrong disks (USB drives,
+    physical hardware) when boot order changes or multiple disks are present.
+
+    SECURITY RATIONALE:
+    FFU capture is a destructive operation that writes the entire disk to a file.
+    Capturing a physical disk by mistake could:
+    - Expose sensitive data from the wrong machine
+    - Create unusable FFU images
+    - Waste significant time on incorrect captures
+
+    By requiring virtual disk validation, we ensure the capture target is the
+    intended Hyper-V or VMware VM virtual disk, not host hardware.
+
+    .PARAMETER DiskNumber
+    Physical disk number to validate (default: 0)
+
+    .EXAMPLE
+    $result = Test-CaptureTargetDisk -DiskNumber 0
+    if (-not $result.Valid) {
+        throw $result.Error
+    }
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Valid: Boolean indicating if disk is valid for capture
+    - DiskInfo: Win32_DiskDrive CIM object (if found)
+    - Error: Error message (if validation failed)
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [int]$DiskNumber = 0
+    )
+
+    try {
+        Write-Host "Validating target disk $DiskNumber for FFU capture..." -ForegroundColor Cyan
+
+        $disk = Get-CimInstance -ClassName Win32_DiskDrive -ErrorAction Stop |
+            Where-Object { $_.DeviceID -eq "\\.\PHYSICALDRIVE$DiskNumber" }
+
+        if (-not $disk) {
+            # Get list of available disks for helpful error message
+            $availableDisks = Get-CimInstance -ClassName Win32_DiskDrive -ErrorAction SilentlyContinue |
+                ForEach-Object { "$($_.DeviceID) ($($_.Model))" }
+            $diskList = if ($availableDisks) { $availableDisks -join ', ' } else { 'None found' }
+
+            return [PSCustomObject]@{
+                Valid = $false
+                DiskInfo = $null
+                Error = "Disk $DiskNumber not found. Available disks: $diskList"
+            }
+        }
+
+        # Verify it's a virtual disk (Hyper-V or VMware)
+        # Hyper-V: "Microsoft Virtual Disk"
+        # VMware: "VMware Virtual disk", "VMware, VMware Virtual S"
+        if ($disk.Model -notmatch 'Virtual|VMware') {
+            return [PSCustomObject]@{
+                Valid = $false
+                DiskInfo = $disk
+                Error = "Disk $DiskNumber is NOT a virtual disk (Model: $($disk.Model)). FFU capture requires a Hyper-V or VMware virtual disk to prevent accidental data loss on physical hardware."
+            }
+        }
+
+        # Additional info for logging
+        $sizeGB = [math]::Round($disk.Size / 1GB, 2)
+        Write-Host "  Disk validated: $($disk.Model), Size: ${sizeGB}GB" -ForegroundColor Green
+
+        return [PSCustomObject]@{
+            Valid = $true
+            DiskInfo = $disk
+            Error = $null
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            Valid = $false
+            DiskInfo = $null
+            Error = "Failed to query disk information: $_"
+        }
+    }
+}
+
 function Wait-For-NetworkReady {
     <#
     .SYNOPSIS
@@ -830,6 +923,25 @@ try {
     pause
     throw
 }
+
+# Validate target disk before proceeding with capture
+Write-Host "`n========== Target Disk Validation ==========" -ForegroundColor Yellow
+$diskValidation = Test-CaptureTargetDisk -DiskNumber 0
+
+if (-not $diskValidation.Valid) {
+    Write-Host "[CRITICAL] Disk validation FAILED" -ForegroundColor Red
+    Write-Host "  Error: $($diskValidation.Error)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "SAFETY: FFU capture aborted to prevent accidental data loss." -ForegroundColor Yellow
+    Write-Host "This check ensures only virtual disks (Hyper-V/VMware) are captured." -ForegroundColor Yellow
+    Write-Host ""
+    throw "Target disk validation failed: $($diskValidation.Error)"
+}
+
+Write-Host "[OK] Target disk validated successfully" -ForegroundColor Green
+Write-Host "  Model: $($diskValidation.DiskInfo.Model)" -ForegroundColor Cyan
+Write-Host "  Size: $([math]::Round($diskValidation.DiskInfo.Size / 1GB, 2)) GB" -ForegroundColor Cyan
+Write-Host "=========================================`n"
 
 $AssignDriveLetter = 'x:\AssignDriveLetter.txt'
 try {
