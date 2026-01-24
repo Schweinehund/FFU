@@ -455,3 +455,231 @@ Describe 'REL-IMG-02: Partition State Verification' {
         }
     }
 }
+
+Describe 'REL-IMG-04: Mount/Dismount Retry Logic' {
+
+    Describe 'Test-IsTransientImagingError' {
+
+        # Function export tests
+        It 'Should be exported from FFU.Imaging module' {
+            $cmd = Get-Command -Name Test-IsTransientImagingError -Module FFU.Imaging -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+            $cmd.ModuleName | Should -Be 'FFU.Imaging'
+        }
+
+        It 'Should have ErrorMessage parameter as mandatory' {
+            $cmd = Get-Command -Name Test-IsTransientImagingError -Module FFU.Imaging
+            $param = $cmd.Parameters['ErrorMessage']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have HResult parameter as optional' {
+            $cmd = Get-Command -Name Test-IsTransientImagingError -Module FFU.Imaging
+            $param = $cmd.Parameters['HResult']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        # Transient error tests
+        It 'Should return $true for sharing violation' {
+            Test-IsTransientImagingError -ErrorMessage 'sharing violation occurred' | Should -Be $true
+        }
+
+        It 'Should return $true for file in use' {
+            Test-IsTransientImagingError -ErrorMessage 'file is in use by another process' | Should -Be $true
+        }
+
+        It 'Should return $true for file locked' {
+            Test-IsTransientImagingError -ErrorMessage 'file is locked' | Should -Be $true
+        }
+
+        It 'Should return $true for drive in use' {
+            Test-IsTransientImagingError -ErrorMessage 'drive is in use' | Should -Be $true
+        }
+
+        It 'Should return $true for device not ready' {
+            Test-IsTransientImagingError -ErrorMessage 'device is not ready' | Should -Be $true
+        }
+
+        It 'Should return $true for path already mounted' {
+            Test-IsTransientImagingError -ErrorMessage 'path is already mounted' | Should -Be $true
+        }
+
+        It 'Should return $true for RPC unavailable' {
+            Test-IsTransientImagingError -ErrorMessage 'rpc server is unavailable' | Should -Be $true
+        }
+
+        It 'Should return $true for directory not empty' {
+            Test-IsTransientImagingError -ErrorMessage 'directory is not empty' | Should -Be $true
+        }
+
+        It 'Should return $true for cannot access' {
+            Test-IsTransientImagingError -ErrorMessage 'cannot access the file' | Should -Be $true
+        }
+
+        It 'Should return $true for HResult 0x80070020 (sharing violation)' {
+            Test-IsTransientImagingError -ErrorMessage 'error' -HResult -2147024864 | Should -Be $true
+        }
+
+        It 'Should return $true for device not connected' {
+            Test-IsTransientImagingError -ErrorMessage 'device is not connected' | Should -Be $true
+        }
+
+        # Permanent error tests
+        It 'Should return $false for not found' {
+            Test-IsTransientImagingError -ErrorMessage 'file not found' | Should -Be $false
+        }
+
+        It 'Should return $false for does not exist' {
+            Test-IsTransientImagingError -ErrorMessage 'path does not exist' | Should -Be $false
+        }
+
+        It 'Should return $false for access is denied' {
+            Test-IsTransientImagingError -ErrorMessage 'access is denied' | Should -Be $false
+        }
+
+        It 'Should return $false for invalid parameter' {
+            Test-IsTransientImagingError -ErrorMessage 'invalid parameter specified' | Should -Be $false
+        }
+
+        It 'Should return $false for invalid argument' {
+            Test-IsTransientImagingError -ErrorMessage 'invalid argument' | Should -Be $false
+        }
+
+        It 'Should return $false for registry corrupt' {
+            Test-IsTransientImagingError -ErrorMessage 'registry is corrupt' | Should -Be $false
+        }
+
+        It 'Should return $false for element not found (Error 1168)' {
+            Test-IsTransientImagingError -ErrorMessage 'element not found' | Should -Be $false
+        }
+
+        It 'Should return $false for not a valid disk' {
+            Test-IsTransientImagingError -ErrorMessage 'not a valid disk' | Should -Be $false
+        }
+
+        # Edge cases
+        It 'Should return $false for unknown errors (fail fast)' {
+            Test-IsTransientImagingError -ErrorMessage 'some random error happened' | Should -Be $false
+        }
+
+        It 'Should return $false for empty string' {
+            Test-IsTransientImagingError -ErrorMessage '' | Should -Be $false
+        }
+
+        It 'Should be case-insensitive for transient patterns' {
+            Test-IsTransientImagingError -ErrorMessage 'SHARING VIOLATION' | Should -Be $true
+        }
+
+        It 'Should be case-insensitive for permanent patterns' {
+            Test-IsTransientImagingError -ErrorMessage 'FILE NOT FOUND' | Should -Be $false
+        }
+
+        It 'Should prioritize permanent patterns over transient' {
+            # "access is denied" is permanent, even though "cannot access" is transient
+            Test-IsTransientImagingError -ErrorMessage 'access is denied to the file' | Should -Be $false
+        }
+    }
+
+    Describe 'Invoke-ImagingOperationWithRetry' {
+
+        It 'Should be exported from FFU.Imaging module' {
+            $cmd = Get-Command -Name Invoke-ImagingOperationWithRetry -Module FFU.Imaging -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+            $cmd.ModuleName | Should -Be 'FFU.Imaging'
+        }
+
+        It 'Should have ScriptBlock parameter as mandatory' {
+            $cmd = Get-Command -Name Invoke-ImagingOperationWithRetry -Module FFU.Imaging
+            $param = $cmd.Parameters['ScriptBlock']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] } |
+                ForEach-Object { $_.Mandatory | Should -Be $true }
+        }
+
+        It 'Should have RunDismCleanupOnRetry switch parameter' {
+            $cmd = Get-Command -Name Invoke-ImagingOperationWithRetry -Module FFU.Imaging
+            $param = $cmd.Parameters['RunDismCleanupOnRetry']
+            $param | Should -Not -BeNullOrEmpty
+            $param.SwitchParameter | Should -Be $true
+        }
+
+        It 'Should have OperationName parameter with default value' {
+            $cmd = Get-Command -Name Invoke-ImagingOperationWithRetry -Module FFU.Imaging
+            $param = $cmd.Parameters['OperationName']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have MaxRetries parameter' {
+            $cmd = Get-Command -Name Invoke-ImagingOperationWithRetry -Module FFU.Imaging
+            $param = $cmd.Parameters['MaxRetries']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have BaseDelaySeconds parameter' {
+            $cmd = Get-Command -Name Invoke-ImagingOperationWithRetry -Module FFU.Imaging
+            $param = $cmd.Parameters['BaseDelaySeconds']
+            $param | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should return result on success' {
+            $result = Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock { 'success' }
+            $result | Should -Be 'success'
+        }
+
+        It 'Should return complex objects on success' {
+            $result = Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock {
+                [PSCustomObject]@{ Name = 'test'; Value = 42 }
+            }
+            $result.Name | Should -Be 'test'
+            $result.Value | Should -Be 42
+        }
+
+        It 'Should throw immediately on permanent error' {
+            { Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock {
+                throw 'file not found'
+            } } | Should -Throw '*not found*'
+        }
+
+        It 'Should throw immediately on invalid parameter error' {
+            { Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock {
+                throw 'invalid parameter'
+            } } | Should -Throw '*invalid parameter*'
+        }
+
+        It 'Should throw immediately on does not exist error' {
+            { Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock {
+                throw 'path does not exist'
+            } } | Should -Throw '*does not exist*'
+        }
+
+        It 'Should preserve original error message for permanent errors' {
+            $errorThrown = $false
+            $errorMessage = ''
+            try {
+                Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock {
+                    throw 'the file was not found in the specified location'
+                }
+            }
+            catch {
+                $errorThrown = $true
+                $errorMessage = $_.Exception.Message
+            }
+            $errorThrown | Should -Be $true
+            $errorMessage | Should -BeLike '*not found*'
+        }
+
+        It 'Should accept custom MaxRetries value' {
+            # This should work without error - just testing parameter acceptance
+            $result = Invoke-ImagingOperationWithRetry -OperationName 'test' -MaxRetries 5 -ScriptBlock { 'ok' }
+            $result | Should -Be 'ok'
+        }
+
+        It 'Should accept custom BaseDelaySeconds value' {
+            # This should work without error - just testing parameter acceptance
+            $result = Invoke-ImagingOperationWithRetry -OperationName 'test' -BaseDelaySeconds 1 -ScriptBlock { 'ok' }
+            $result | Should -Be 'ok'
+        }
+    }
+}

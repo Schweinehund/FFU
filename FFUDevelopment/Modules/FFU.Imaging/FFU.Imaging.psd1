@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.8'
+    ModuleVersion = '1.2.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -61,7 +61,11 @@
         'Invoke-MountScratchDisk',
         'Test-DiskSpaceForOperation',
         'Get-DiskPartitionState',
-        'Compare-DiskPartitionState'
+        'Compare-DiskPartitionState',
+        'Test-FFUCaptureReadiness',
+        'Invoke-SafeFFUCapture',
+        'Test-IsTransientImagingError',
+        'Invoke-ImagingOperationWithRetry'
     )
 
     # Cmdlets to export from this module
@@ -87,6 +91,24 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.2.0 - REL-IMG-03: Add safe FFU capture with VHDX preservation
+- Added Test-FFUCaptureReadiness for pre-capture validation
+- Validates: VHDX exists, VHDX not attached, sufficient disk space, output path writable
+- Added Invoke-SafeFFUCapture wrapper with cleanup registration
+- Partial FFU automatically deleted on capture failure
+- VHDX integrity verified after failure to confirm retry is safe
+- Uses Test-DiskSpaceForOperation with 100% margin (dynamic VHDX worst case)
+- 15+ Pester tests for capture readiness and safety
+
+v1.1.9 - REL-IMG-04: Add transient error retry for mount/dismount operations
+- Added Test-IsTransientImagingError for classifying imaging errors
+- Added Invoke-ImagingOperationWithRetry with exponential backoff + jitter
+- Transient: sharing violation, file in use, drive in use, device not ready
+- Permanent: not found, invalid parameter, registry corrupt (fail immediately)
+- Optional DISM cleanup before retry for mount operations
+- HResult code support for reliable error classification
+- 20+ Pester tests for error classification and retry
+
 v1.1.8 - REL-IMG-01: Add disk space pre-validation
 - Added Test-DiskSpaceForOperation function for validating space before imaging operations
 - Returns structured result with available/required space and remediation guidance

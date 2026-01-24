@@ -3880,6 +3880,562 @@ function Compare-DiskPartitionState {
 
 #endregion REL-IMG-02
 
+#region REL-IMG-03: FFU Capture Recovery
+
+function Test-FFUCaptureReadiness {
+    <#
+    .SYNOPSIS
+    Validates that all prerequisites are met for FFU capture.
+
+    .DESCRIPTION
+    Pre-capture validation that ensures:
+    - VHDX file exists
+    - VHDX is not currently attached/mounted
+    - Sufficient disk space for FFU output
+    - Output directory is writable
+
+    Returns a structured result with Ready status, failure reason, and remediation guidance.
+
+    .PARAMETER VHDXPath
+    Full path to the source VHDX file that will be captured.
+
+    .PARAMETER OutputFFUPath
+    Full path where the FFU output file will be created.
+
+    .PARAMETER SpaceMarginPercent
+    Percentage margin for space estimation. Default is 100% because FFU can be as large as
+    the VHDX maximum size for dynamic VHDs. For fixed VHDs, actual space may be less.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Ready: Boolean indicating if capture can proceed
+    - FailureReason: String code when not ready (VHDXNotFound, VHDXAttached, InsufficientSpace, OutputPathNotWritable)
+    - Message: Human-readable status message
+    - Remediation: Actionable guidance when not ready
+    - VHDXPath: Path validated (when ready)
+    - OutputFFUPath: Output path validated (when ready)
+    - SourceSizeGB: Estimated source size in GB (when ready)
+    - AvailableSpaceGB: Available space in GB (when ready)
+    - SpaceDetails: Full space check result (when space check performed)
+
+    .EXAMPLE
+    $result = Test-FFUCaptureReadiness -VHDXPath 'C:\VM\disk.vhdx' -OutputFFUPath 'D:\FFU\output.ffu'
+    if (-not $result.Ready) {
+        Write-Error "$($result.Message)`nRemediation: $($result.Remediation)"
+    }
+
+    .NOTES
+    REL-IMG-03: FFU capture operations validate readiness before starting
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$VHDXPath,
+
+        [Parameter(Mandatory)]
+        [string]$OutputFFUPath,
+
+        [Parameter()]
+        [int]$SpaceMarginPercent = 100  # FFU can be as large as VHDX max size
+    )
+
+    # 1. Validate VHDX exists
+    if (-not (Test-Path $VHDXPath)) {
+        return [PSCustomObject]@{
+            Ready         = $false
+            FailureReason = 'VHDXNotFound'
+            Message       = "VHDX file not found: $VHDXPath"
+            Remediation   = "Verify the VHDX path is correct and the file exists."
+        }
+    }
+
+    # 2. Get VHDX state (Hyper-V)
+    $vhd = $null
+    $estimatedSize = 0
+    try {
+        $vhd = Get-VHD -Path $VHDXPath -ErrorAction Stop
+    }
+    catch {
+        # May fail if Hyper-V not installed or VHD file (not VHDX)
+        # Fall back to file size estimation
+        $vhd = $null
+        $estimatedSize = (Get-Item $VHDXPath).Length
+    }
+
+    # 3. Check VHDX is not attached
+    if ($vhd -and $vhd.Attached) {
+        return [PSCustomObject]@{
+            Ready         = $false
+            FailureReason = 'VHDXAttached'
+            Message       = "VHDX is currently attached. It must be dismounted before FFU capture."
+            Remediation   = "Run: Dismount-VHD -Path '$VHDXPath'"
+        }
+    }
+
+    # 4. Calculate required space
+    # Use maximum size for dynamic VHDX, file size for VHD
+    $sourceSize = if ($vhd) {
+        if ($vhd.VhdType -eq 'Dynamic') { $vhd.Size } else { $vhd.FileSize }
+    }
+    else {
+        $estimatedSize
+    }
+
+    # 5. Check disk space for output
+    $spaceCheck = Test-DiskSpaceForOperation -Path $OutputFFUPath `
+        -RequiredBytes $sourceSize -SafetyMarginPercent $SpaceMarginPercent `
+        -OperationName 'FFU capture'
+
+    if (-not $spaceCheck.HasSufficientSpace) {
+        return [PSCustomObject]@{
+            Ready         = $false
+            FailureReason = 'InsufficientSpace'
+            Message       = "Insufficient disk space for FFU output. Required: $($spaceCheck.RequiredGB) GB, Available: $($spaceCheck.AvailableGB) GB"
+            Remediation   = $spaceCheck.Remediation
+            SpaceDetails  = $spaceCheck
+        }
+    }
+
+    # 6. Check output path is writable
+    $outputDir = Split-Path -Parent $OutputFFUPath
+    if (-not [string]::IsNullOrEmpty($outputDir) -and -not (Test-Path $outputDir)) {
+        try {
+            New-Item -Path $outputDir -ItemType Directory -Force | Out-Null
+        }
+        catch {
+            return [PSCustomObject]@{
+                Ready         = $false
+                FailureReason = 'OutputPathNotWritable'
+                Message       = "Cannot create output directory: $outputDir"
+                Remediation   = "Verify write permissions or choose a different output location."
+            }
+        }
+    }
+
+    # 7. Return ready
+    [PSCustomObject]@{
+        Ready            = $true
+        VHDXPath         = $VHDXPath
+        OutputFFUPath    = $OutputFFUPath
+        SourceSizeGB     = [math]::Round($sourceSize / 1GB, 2)
+        AvailableSpaceGB = $spaceCheck.AvailableGB
+        Message          = "Ready for FFU capture. Source: $([math]::Round($sourceSize / 1GB, 2)) GB, Available: $($spaceCheck.AvailableGB) GB"
+    }
+}
+
+function Invoke-SafeFFUCapture {
+    <#
+    .SYNOPSIS
+    Performs FFU capture with cleanup registration and VHDX integrity verification.
+
+    .DESCRIPTION
+    Wrapper for FFU capture that provides:
+    - Pre-capture readiness validation
+    - Cleanup registration for partial FFU on failure
+    - VHDX integrity verification after failure
+    - Automatic cleanup of partial files
+
+    This function is intended to wrap the actual DISM capture operation, providing
+    safety guarantees that the source VHDX remains intact after any failure.
+
+    .PARAMETER VHDXPath
+    Full path to the source VHDX file. Used for integrity verification after capture failure.
+
+    .PARAMETER OutputFFUPath
+    Full path where the FFU output file will be created.
+
+    .PARAMETER DandISetEnv
+    Path to the ADK DandISetEnv.bat file for setting up DISM environment.
+
+    .PARAMETER PhysicalDriveNumber
+    Physical drive number for the mounted VHDX (e.g., 2 for \\.\PhysicalDrive2).
+
+    .PARAMETER FFUName
+    Name to embed in the FFU image. Default is 'Windows'.
+
+    .PARAMETER FFUDescription
+    Description to embed in the FFU image.
+
+    .PARAMETER SkipReadinessCheck
+    Skip the pre-capture readiness check. Use when caller has already verified readiness.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Success: Boolean indicating capture success
+    - FFUPath: Path to the created FFU file
+    - SizeBytes: Size of the FFU file in bytes
+    - SizeGB: Size of the FFU file in GB
+
+    .EXAMPLE
+    $result = Invoke-SafeFFUCapture -VHDXPath 'C:\VM\disk.vhdx' -OutputFFUPath 'D:\FFU\output.ffu' `
+        -DandISetEnv 'C:\ADK\env.bat' -PhysicalDriveNumber 2
+    if ($result.Success) {
+        Write-Host "FFU created: $($result.FFUPath) ($($result.SizeGB) GB)"
+    }
+
+    .NOTES
+    REL-IMG-03: Failed FFU capture leaves VHDX intact for retry
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$VHDXPath,
+
+        [Parameter(Mandatory)]
+        [string]$OutputFFUPath,
+
+        [Parameter(Mandatory)]
+        [string]$DandISetEnv,
+
+        [Parameter(Mandatory)]
+        [int]$PhysicalDriveNumber,
+
+        [Parameter()]
+        [string]$FFUName = 'Windows',
+
+        [Parameter()]
+        [string]$FFUDescription = 'FFU image captured by FFU Builder',
+
+        [Parameter()]
+        [switch]$SkipReadinessCheck
+    )
+
+    # 1. Run readiness check (unless skipped)
+    if (-not $SkipReadinessCheck) {
+        $readiness = Test-FFUCaptureReadiness -VHDXPath $VHDXPath -OutputFFUPath $OutputFFUPath
+        if (-not $readiness.Ready) {
+            throw "FFU capture not ready: $($readiness.Message)`nRemediation: $($readiness.Remediation)"
+        }
+        WriteLog "INFO: Pre-capture validation passed. $($readiness.Message)"
+    }
+
+    # 2. Register cleanup for partial FFU
+    $ffuCleanupId = Register-CleanupAction -Name "Remove partial FFU: $OutputFFUPath" `
+        -ResourceType 'TempFile' -ResourceId $OutputFFUPath -Action {
+        param($Path)
+        if (Test-Path $Path) {
+            if ($function:WriteLog) {
+                WriteLog "INFO: Cleaning up partial FFU file: $Path"
+            }
+            Remove-Item -Path $Path -Force -ErrorAction SilentlyContinue
+        }
+    }.GetNewClosure()
+
+    # 3. Execute DISM capture
+    try {
+        WriteLog "INFO: Starting FFU capture from $VHDXPath to $OutputFFUPath"
+        WriteLog "INFO: Using physical drive: \\.\PhysicalDrive$PhysicalDriveNumber"
+
+        # Build DISM command
+        $captureArgs = "/c call `"$DandISetEnv`" && dism.exe /Capture-FFU /ImageFile:`"$OutputFFUPath`" /CaptureDrive:\\.\PhysicalDrive$PhysicalDriveNumber /Name:`"$FFUName`" /Description:`"$FFUDescription`""
+
+        WriteLog "INFO: Executing: cmd.exe $captureArgs"
+
+        # Execute
+        $process = Start-Process -FilePath 'cmd.exe' -ArgumentList $captureArgs `
+            -Wait -PassThru -NoNewWindow
+
+        if ($process.ExitCode -ne 0) {
+            throw "DISM /Capture-FFU failed with exit code $($process.ExitCode)"
+        }
+
+        WriteLog "INFO: FFU capture completed successfully"
+
+        # Success - unregister cleanup (FFU is complete)
+        Unregister-CleanupAction -CleanupId $ffuCleanupId | Out-Null
+
+        # Get FFU file info
+        $ffuFile = Get-Item $OutputFFUPath
+
+        return [PSCustomObject]@{
+            Success   = $true
+            FFUPath   = $OutputFFUPath
+            SizeBytes = $ffuFile.Length
+            SizeGB    = [math]::Round($ffuFile.Length / 1GB, 2)
+        }
+    }
+    catch {
+        WriteLog "ERROR: FFU capture failed: $($_.Exception.Message)"
+
+        # Verify VHDX integrity after failure
+        try {
+            if (Test-Path $VHDXPath) {
+                $vhdState = Get-VHD -Path $VHDXPath -ErrorAction Stop
+                WriteLog "INFO: VHDX integrity verified after capture failure. Attached: $($vhdState.Attached)"
+            }
+        }
+        catch {
+            WriteLog "WARNING: Could not verify VHDX integrity: $($_.Exception.Message)"
+        }
+
+        # Cleanup runs automatically via Invoke-FailureCleanup when the caller handles the error
+        throw
+    }
+}
+
+#endregion REL-IMG-03
+
+#region REL-IMG-04: Mount/Dismount Retry Logic
+
+function Test-IsTransientImagingError {
+    <#
+    .SYNOPSIS
+    Tests if an imaging operation error is transient and retryable.
+
+    .DESCRIPTION
+    Analyzes error messages and HResult codes to determine if they indicate a transient
+    condition (sharing violation, file in use, drive in use) that might succeed on retry,
+    versus permanent errors (not found, invalid parameter) that should fail immediately.
+
+    Follows the pattern established by Test-IsTransientVMError in FFU.VM module.
+
+    .PARAMETER ErrorMessage
+    The error message to analyze.
+
+    .PARAMETER HResult
+    Optional HResult code from the exception. Some errors are more reliably
+    detected via HResult than message pattern matching.
+
+    .OUTPUTS
+    Boolean - true if the error appears to be transient/retryable.
+
+    .EXAMPLE
+    if (Test-IsTransientImagingError -ErrorMessage $_.Exception.Message) {
+        # Retry the operation
+    }
+
+    .EXAMPLE
+    # With HResult for more reliable detection
+    $isTransient = Test-IsTransientImagingError -ErrorMessage $_.Exception.Message -HResult $_.Exception.HResult
+
+    .NOTES
+    REL-IMG-04: Mount/dismount operations retry on transient failures
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$ErrorMessage,
+
+        [Parameter()]
+        [int]$HResult = 0
+    )
+
+    if ([string]::IsNullOrEmpty($ErrorMessage)) {
+        return $false
+    }
+
+    # Define PERMANENT error patterns (check these FIRST - they take precedence)
+    $permanentPatterns = @(
+        'not found',
+        'does not exist',
+        'access is denied',           # Usually permission issue, not transient
+        'invalid parameter',
+        'invalid argument',
+        'registry.*corrupt',           # Error 1009
+        'request.*not supported',      # Error 50
+        'not a valid disk',
+        'object reference not set',    # Null reference
+        'element not found'            # Error 1168
+    )
+
+    # Define TRANSIENT error patterns
+    $transientPatterns = @(
+        'sharing violation',           # 0x80070020 - file in use
+        'file.*in use',
+        'file.*locked',
+        'drive.*in use',
+        'device is not connected',     # 0x8007048f - mount lost
+        'device is not ready',
+        'cannot access',
+        'rpc.*unavailable',
+        'network.*timeout',
+        'operation cannot be performed while.*in use',
+        'path is already mounted',     # Stale mount point
+        'directory is not empty'       # Mount cleanup needed
+    )
+
+    # Define transient HResult codes
+    $transientHResults = @(
+        -2147024864,  # 0x80070020 ERROR_SHARING_VIOLATION
+        -2147023729,  # 0x8007048F ERROR_INVALID_ADDRESS (device disconnected)
+        -2147024891   # 0x80070005 ERROR_ACCESS_DENIED (can be transient for mounts)
+    )
+    # Note: ERROR_DISK_FULL (0x80070070) is NOT transient for imaging - user must free space
+
+    $lowerError = $ErrorMessage.ToLower()
+
+    # Check permanent patterns first - if matches, NOT transient
+    foreach ($pattern in $permanentPatterns) {
+        if ($lowerError -imatch $pattern) {
+            return $false
+        }
+    }
+
+    # Check transient HResults
+    if ($HResult -ne 0 -and $transientHResults -contains $HResult) {
+        return $true
+    }
+
+    # Check transient patterns
+    foreach ($pattern in $transientPatterns) {
+        if ($lowerError -imatch $pattern) {
+            return $true
+        }
+    }
+
+    # Default to NOT transient (fail fast for unknown errors)
+    return $false
+}
+
+function Invoke-ImagingOperationWithRetry {
+    <#
+    .SYNOPSIS
+    Retry wrapper for imaging operations that handles transient failures.
+
+    .DESCRIPTION
+    Wraps imaging operations with automatic retry logic when transient errors
+    (sharing violation, file in use, drive in use) are detected. Uses exponential
+    backoff with jitter to avoid hammering the system.
+
+    Follows the pattern established by Invoke-VMOperationWithRetry in FFU.VM module.
+
+    .PARAMETER ScriptBlock
+    The script block containing the imaging operation to execute.
+
+    .PARAMETER OperationName
+    Name of the operation for logging purposes. Default is 'imaging operation'.
+
+    .PARAMETER MaxRetries
+    Maximum number of retry attempts. Default is 3.
+
+    .PARAMETER BaseDelaySeconds
+    Base delay between retries in seconds. Default is 3.
+    Actual delay uses exponential backoff: BaseDelay * (2 ^ (attempt - 1))
+
+    .PARAMETER RunDismCleanupOnRetry
+    If specified, runs 'dism.exe /Cleanup-Mountpoints' before each retry.
+    Useful for mount operations where stale mount points may be blocking.
+
+    .OUTPUTS
+    The result of the ScriptBlock on success.
+
+    .EXAMPLE
+    Invoke-ImagingOperationWithRetry -OperationName 'Mount Windows Image' -ScriptBlock {
+        Mount-WindowsImage -ImagePath $ffuFile -Index 1 -Path $mountPath -ErrorAction Stop
+    } -RunDismCleanupOnRetry
+
+    .EXAMPLE
+    $result = Invoke-ImagingOperationWithRetry -OperationName 'test' -ScriptBlock { 'success' }
+
+    .NOTES
+    REL-IMG-04: Mount/dismount operations retry on transient failures
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [scriptblock]$ScriptBlock,
+
+        [Parameter()]
+        [string]$OperationName = 'imaging operation',
+
+        [Parameter()]
+        [int]$MaxRetries = 3,
+
+        [Parameter()]
+        [int]$BaseDelaySeconds = 3,
+
+        [Parameter()]
+        [switch]$RunDismCleanupOnRetry
+    )
+
+    # Initialize attempt tracking
+    $attempt = 0
+    $lastError = $null
+    $attemptHistory = @()
+
+    # Retry loop
+    while ($attempt -lt $MaxRetries) {
+        $attempt++
+        try {
+            $result = & $ScriptBlock
+            # Success - return result
+            if ($attempt -gt 1) {
+                if ($function:WriteLog) {
+                    WriteLog "INFO: $OperationName succeeded on attempt $attempt"
+                }
+            }
+            return $result
+        }
+        catch {
+            $lastError = $_
+            $errorMsg = $_.Exception.Message
+            $hresult = if ($_.Exception.HResult) { $_.Exception.HResult } else { 0 }
+
+            # Check if error is transient
+            $isTransient = Test-IsTransientImagingError -ErrorMessage $errorMsg -HResult $hresult
+
+            if (-not $isTransient) {
+                # Permanent error - fail immediately
+                if ($function:WriteLog) {
+                    WriteLog "ERROR: $OperationName failed with permanent error: $errorMsg"
+                }
+                throw
+            }
+
+            # Transient error - log and retry
+            $attemptHistory += [PSCustomObject]@{
+                Attempt   = $attempt
+                Error     = $errorMsg
+                Timestamp = [DateTime]::Now
+            }
+
+            if ($attempt -ge $MaxRetries) {
+                if ($function:WriteLog) {
+                    WriteLog "ERROR: $OperationName failed after $MaxRetries attempts"
+                }
+                break
+            }
+
+            # Calculate delay with exponential backoff + jitter
+            $baseDelay = $BaseDelaySeconds * [math]::Pow(2, $attempt - 1)
+            $jitter = Get-Random -Minimum 0 -Maximum ([int]($baseDelay * 0.3))
+            $delay = [int]$baseDelay + $jitter
+
+            if ($function:WriteLog) {
+                WriteLog "WARNING: $OperationName failed (attempt $attempt/$MaxRetries): $errorMsg"
+                WriteLog "INFO: Retrying in $delay seconds..."
+            }
+
+            # Run DISM cleanup if requested (for mount operations)
+            if ($RunDismCleanupOnRetry) {
+                if ($function:WriteLog) {
+                    WriteLog "INFO: Running DISM cleanup before retry..."
+                }
+                try {
+                    & dism.exe /Cleanup-Mountpoints 2>&1 | Out-Null
+                }
+                catch {
+                    if ($function:WriteLog) {
+                        WriteLog "WARNING: DISM cleanup failed: $($_.Exception.Message)"
+                    }
+                }
+            }
+
+            Start-Sleep -Seconds $delay
+        }
+    }
+
+    # Build detailed error message
+    $historyMsg = ($attemptHistory | ForEach-Object { "  Attempt $($_.Attempt): $($_.Error)" }) -join "`n"
+    $finalError = "$OperationName failed after $MaxRetries retries.`nAttempt history:`n$historyMsg"
+    throw $finalError
+}
+
+#endregion REL-IMG-04
+
 # Export module members
 Export-ModuleMember -Function @(
     'Initialize-DISMService',
@@ -3910,5 +4466,9 @@ Export-ModuleMember -Function @(
     'Invoke-MountScratchDisk',
     'Test-DiskSpaceForOperation',
     'Get-DiskPartitionState',
-    'Compare-DiskPartitionState'
+    'Compare-DiskPartitionState',
+    'Test-FFUCaptureReadiness',
+    'Invoke-SafeFFUCapture',
+    'Test-IsTransientImagingError',
+    'Invoke-ImagingOperationWithRetry'
 )
