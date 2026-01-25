@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 29 Plan 01 Complete - Content Manifest Functions
+**Current focus:** Phase 29 Plan 03 Complete - Disk Space Estimation
 
 ## Current Position
 
 **Milestone:** v1.9.3 Smart Configuration & Bug Fixes
 **Phase:** 29 of 29 (Smart Apps.iso & Disk Estimation)
-**Plan:** 1/4 complete
+**Plan:** 3/4 complete
 **Status:** In progress
-**Last activity:** 2026-01-25 - Completed 29-01-PLAN.md
+**Last activity:** 2026-01-25 - Completed 29-03-PLAN.md
 
-Progress: Plan 29-01 complete
-[########..] 80% - 8/10 plans
+Progress: Plan 29-03 complete
+[#########.] 90% - 9/10 plans
 
 ## Milestone Scope
 
@@ -27,7 +27,7 @@ Progress: Plan 29-01 complete
 2. Phase 28: VM Host IP Dropdown (3 plans) - COMPLETE
 3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans) - IN PROGRESS
 
-**Requirements:** 13 total (11 complete, 2 pending)
+**Requirements:** 13 total (12 complete, 1 pending)
 
 ## Shipped Milestones
 
@@ -46,13 +46,14 @@ Progress: Plan 29-01 complete
 |------|-------------|--------|---------|
 | 29-01 | Content manifest functions | COMPLETE | b830f82 |
 | 29-02 | Staleness detection | Pending | - |
-| 29-03 | Disk space estimation | Pending | - |
+| 29-03 | Disk space estimation | COMPLETE | 04f7f52, 0675eab, da94b22 |
 | 29-04 | BuildFFUVM integration | Pending | - |
 
-**Key functions delivered (29-01):**
-- `New-AppsContentManifest` - Generates SHA256 hashes for Apps folder content
-- `Get-AppsContentManifest` - Reads existing manifest files
-- FFU.Apps module bumped to v1.1.0
+**Key functions delivered:**
+- `New-AppsContentManifest` - Generates SHA256 hashes for Apps folder content (29-01)
+- `Get-AppsContentManifest` - Reads existing manifest files (29-01)
+- `Get-AppsISODiskEstimate` - Calculates required disk space for Apps.iso (29-03)
+- FFU.Apps module v1.1.0, FFU.Preflight module v1.4.0
 
 ## Decisions Log
 
@@ -70,6 +71,9 @@ Progress: Plan 29-01 complete
 | Manifest version 1.0.0 | 29-01 | Initial schema version for future compatibility |
 | SHA256 hashing via Get-FileHash | 29-01 | Consistent with existing orchestration-hashes.json pattern |
 | Store manifest at .manifest.json | 29-01 | Dotfile convention in Apps folder |
+| Scriptblock closure for measurement helper | 29-03 | Avoid code duplication across 6 component measurements |
+| 50% temp space multiplier for oscdimg | 29-03 | Conservative estimate for ISO creation working space |
+| Track actual vs estimated separately | 29-03 | Provides transparency about which values are measured vs fallback |
 
 ## Blockers
 
@@ -78,9 +82,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 29-01-PLAN.md
+**Stopped at:** Completed 29-03-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:execute-plan 29-02`
+**Next action:** `/gsd:execute-plan 29-02` or `/gsd:execute-plan 29-04`
 
 ---
 *State updated: 2026-01-25*
