@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Milestone:** v1.9.2 Smart Configuration & Bug Fixes
 **Phase:** 28 of 29 (VM Host IP Dropdown) - IN PROGRESS
-**Plan:** 1/3 complete
-**Status:** Plan 28-01 complete (Network Adapter Enumeration)
-**Last activity:** 2026-01-25 — Completed 28-01-PLAN.md
+**Plan:** 2/3 complete
+**Status:** Plan 28-02 complete (UI Dropdown Implementation)
+**Last activity:** 2026-01-25 — Completed 28-02-PLAN.md
 
 Progress: Phase 28 in progress
-[###.......] 33% — 3/9 plans
+[######....] 67% — 6/9 plans
 
 ## Milestone Scope
 
@@ -63,6 +63,8 @@ Progress: Phase 28 in progress
 | Version jump to 1.9.2 | 27-02 | Reflects milestone progression (v1.9.0, v1.9.1 already shipped) |
 | PSCustomObject array with 6 properties | 28-01 | Provides all metadata needed for dropdown display and backend operations |
 | Default gateway route for primary detection | 28-01 | Standard method to identify the adapter with internet connectivity |
+| PSCustomObject items with DisplayMemberPath | 28-02 | Enables flexible ComboBox rendering with accessible data properties |
+| State.Data for dropdown state | 28-02 | Cross-handler access to selectedVMHostIP, customVMHostIP, hostNetworkAdapters |
 
 ## Blockers
 
@@ -71,9 +73,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 28-01-PLAN.md
+**Stopped at:** Completed 28-02-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:execute-plan 28-02`
+**Next action:** `/gsd:execute-plan 28-03`
 
 ---
 *State updated: 2026-01-25*
