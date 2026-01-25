@@ -45,13 +45,13 @@ Plans:
   2. User can select "Custom" to enter IP manually
   3. VMware auto-selects best IP if none configured
   4. Pre-flight warns if configured IP not found on host
-**Research**: Unlikely (uses existing Get-NetIPAddress patterns)
-**Plans**: TBD (estimated 2-3)
+**Research**: Complete (28-RESEARCH.md)
+**Plans**: 3 plans
 
 Plans:
-- [ ] 28-01: Network adapter enumeration function
-- [ ] 28-02: UI dropdown implementation with Custom option
-- [ ] 28-03: Pre-flight validation and auto-selection logic
+- [ ] 28-01-PLAN.md — Network adapter enumeration function (Get-HostNetworkAdapters)
+- [ ] 28-02-PLAN.md — UI dropdown implementation with Custom option
+- [ ] 28-03-PLAN.md — Pre-flight validation and auto-selection logic
 
 #### Phase 29: Smart Apps.iso & Disk Estimation
 **Goal**: Optimize Apps.iso rebuilds with content hashing and add disk space estimation
@@ -78,7 +78,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 27. Bug Fixes Consolidation | 2/2 | Complete ✓ | 2026-01-25 |
-| 28. VM Host IP Dropdown | 0/3 | Not started | - |
+| 28. VM Host IP Dropdown | 0/3 | Planned | - |
 | 29. Smart Apps.iso & Disk Estimation | 0/4 | Not started | - |
 
 ---
@@ -113,4 +113,4 @@ See `.planning/milestones/` for archived milestone details.
 </details>
 
 ---
-*Last updated: 2026-01-25 — Phase 27 complete, verified ✓*
+*Last updated: 2026-01-25 — Phase 28 planned (3 plans)*
