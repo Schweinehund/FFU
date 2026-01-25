@@ -1,5 +1,34 @@
 # Project Milestones: FFU Builder
 
+## v1.9.2 Smart Configuration & Bug Fixes (Shipped: 2026-01-25)
+
+**Delivered:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
+
+**Phases completed:** 27-30 (10 plans total)
+
+**Key accomplishments:**
+
+- Documented and closed 5 session bug fixes (VHD stability, config persistence, Winget CLI issues)
+- VM Host IP Address dropdown with network adapter context (format: IP - Adapter - Description)
+- VMware auto-selection logic using primary adapter with default gateway
+- Apps.iso smart staleness detection with content hashing (skip rebuild when unchanged)
+- Component-based disk space estimation with pre-flight validation (fail if insufficient)
+- Test-FFUHostIPAddress integration into Invoke-FFUPreflight pipeline (gap closure)
+
+**Stats:**
+
+- 47 commits
+- 50 files modified
+- +8,620 / -204 lines
+- 4 phases, 10 plans, 13 requirements
+- 1 day (2026-01-25)
+
+**Git range:** `b12f5f8` → `947f0b8`
+
+**What's next:** Define requirements for next improvement cycle
+
+---
+
 ## v1.9.1 Build Phase Integration (Shipped: 2026-01-24)
 
 **Delivered:** Complete graceful degradation integration by wrapping all BuildFFUVM.ps1 build phases with Invoke-BuildPhase for consistent error handling and build resilience.

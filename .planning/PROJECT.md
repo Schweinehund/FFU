@@ -70,19 +70,18 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Non-critical phases (drivers, USB, cleanup) continue on failure with warnings
   - Error aggregation across all phases with final build summary
   - 33 new Pester tests for phase integration verification
+- **Smart Configuration & Bug Fixes** — v1.9.2
+  - Consolidated 5 session bug fixes (VHD stability, config persistence, Winget CLI issues)
+  - VM Host IP Address dropdown with network adapter context
+  - VMware auto-selection logic using primary adapter with default gateway
+  - Apps.iso smart staleness detection with content hashing
+  - Component-based disk space estimation with pre-flight validation
+  - Test-FFUHostIPAddress integration into Invoke-FFUPreflight pipeline
+  - 75+ new Pester tests for network, Apps.iso, and disk estimation
 
 ### Active
 
-**Current Milestone:** v1.9.2 Smart Configuration & Bug Fixes
-
-**Goal:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
-
-**Target features:**
-- [ ] Session Bug Fixes consolidation (5 bugs already committed)
-- [ ] VM Host IP Address Dropdown with adapter context
-- [ ] Apps.iso Smart Validation & Rebuild with content hashing
-- [ ] Component-Based Disk Space Estimation for pre-flight validation
-- [ ] Logging Pattern Adherence across new features
+**Current Milestone:** None (awaiting `/gsd:discuss-milestone`)
 
 **Deferred bugs (carry forward):**
 - HP driver extraction exit code 1168 (all HP models)
@@ -137,4 +136,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-25 after v1.9.2 milestone started*
+*Last updated: 2026-01-25 after v1.9.2 milestone shipped*
