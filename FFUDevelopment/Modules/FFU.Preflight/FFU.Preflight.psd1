@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.4.0'
+    ModuleVersion = '1.5.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -93,7 +93,24 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.4.0
+# Release Notes - FFU.Preflight v1.5.0
+
+## v1.5.0 (2026-01-25)
+### Phase 30: VM Host IP Pre-flight Integration
+- **ENHANCED**: Invoke-FFUPreflight now accepts VMHostIPAddress parameter
+- **INTEGRATED**: Test-FFUHostIPAddress called in Tier 2 validation when:
+  - HypervisorType is 'VMware'
+  - VMHostIPAddress is configured (non-empty)
+- **WARNING-LEVEL**: IP not found on host produces warning (non-blocking)
+  - Allows build to proceed for manual intervention scenarios
+  - Follows NET-02 requirement for non-blocking validation
+- **SEVERITY TRACKING**: WarningCount incremented for warning results (REL-PRE-04)
+- **SKIP LOGIC**: Check skipped with descriptive reason when:
+  - Using Hyper-V hypervisor (Hyper-V has different network model)
+  - No IP configured (InstallApps may be disabled)
+- Part of Phase 30: VM Host IP Pre-flight Integration (NET-02 gap closure)
+
+---
 
 ## v1.4.0 (2026-01-25)
 ### Phase 29: Apps.iso Disk Estimation
