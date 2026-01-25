@@ -1709,7 +1709,8 @@ if (-not $Cleanup -and -not $skipPreflightValidation) {
         -VHDXSizeGB $preflightVHDXSize `
         -WindowsArch $WindowsArch `
         -ConfigFile $ConfigFile `
-        -HypervisorType $HypervisorType
+        -HypervisorType $HypervisorType `
+        -VMHostIPAddress $VMHostIPAddress
 
     # Check for blocking errors
     if (-not $preflightResult.IsValid) {
