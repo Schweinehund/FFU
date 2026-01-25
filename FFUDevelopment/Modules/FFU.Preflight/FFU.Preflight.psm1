@@ -322,6 +322,156 @@ function Get-FFURequirements {
     }
 }
 
+function Get-AppsISODiskEstimate {
+    <#
+    .SYNOPSIS
+    Calculates required disk space for Apps.iso creation based on enabled features.
+
+    .DESCRIPTION
+    Estimates the disk space needed to create Apps.iso by analyzing enabled features
+    and measuring actual component sizes when folders exist, or using empirical
+    estimates for planned downloads. Returns a detailed breakdown including content
+    size, ISO size, temp space, and total required free space.
+
+    .PARAMETER AppsPath
+    Path to the Apps folder containing components (Office, Defender, MSRT, etc.)
+
+    .PARAMETER Features
+    Hashtable of enabled features with boolean values:
+    - InstallOffice: Include Office installer (~4GB)
+    - UpdateLatestDefender: Include Defender updates (~1GB)
+    - UpdateLatestMSRT: Include MSRT (~150MB)
+    - UpdateEdge: Include Edge installer (~150MB)
+    - UpdateOneDrive: Include OneDrive setup (~50MB)
+
+    .EXAMPLE
+    $features = @{
+        InstallOffice = $true
+        UpdateLatestDefender = $true
+        UpdateLatestMSRT = $false
+        UpdateEdge = $true
+        UpdateOneDrive = $true
+    }
+    $estimate = Get-AppsISODiskEstimate -AppsPath "C:\FFUDevelopment\Apps" -Features $features
+
+    .OUTPUTS
+    PSCustomObject with Components, TotalContentBytes, ISOSizeBytes, TempSpaceBytes,
+    RequiredFreeBytes (and GB versions), plus UsedActualSizes and UsedEstimates arrays.
+
+    .NOTES
+    Part of Phase 29: Smart Apps.iso & Disk Estimation (DISK-01)
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$AppsPath,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Features
+    )
+
+    # Component size estimates (bytes) - fallback values when folders don't exist
+    $ComponentDefaults = @{
+        Orchestration = 50MB    # Base scripts, always present
+        Office        = 4GB     # Full M365 Apps
+        Defender      = 1GB     # Platform + definitions
+        MSRT          = 150MB   # Malware removal tool
+        Edge          = 150MB   # Edge installer
+        OneDrive      = 50MB    # OneDrive setup
+    }
+
+    # Initialize result structure
+    $estimate = [PSCustomObject]@{
+        Components        = [ordered]@{}
+        TotalContentBytes = 0
+        ISOSizeBytes      = 0
+        TempSpaceBytes    = 0
+        RequiredFreeBytes = 0
+        # Human-readable versions
+        TotalContentGB    = 0.0
+        ISOSizeGB         = 0.0
+        TempSpaceGB       = 0.0
+        RequiredFreeGB    = 0.0
+        # Metadata tracking actual vs estimated
+        UsedActualSizes   = @()
+        UsedEstimates     = @()
+    }
+
+    # Helper function to measure folder size
+    $measureFolder = {
+        param([string]$FolderPath, [string]$ComponentName, [long]$DefaultSize)
+
+        if (Test-Path $FolderPath) {
+            $files = Get-ChildItem -Path $FolderPath -Recurse -File -ErrorAction SilentlyContinue
+            if ($files -and $files.Count -gt 0) {
+                $size = ($files | Measure-Object -Property Length -Sum).Sum
+                $estimate.Components[$ComponentName] = $size
+                $estimate.UsedActualSizes += $ComponentName
+            }
+            else {
+                $estimate.Components[$ComponentName] = $DefaultSize
+                $estimate.UsedEstimates += $ComponentName
+            }
+        }
+        else {
+            $estimate.Components[$ComponentName] = $DefaultSize
+            $estimate.UsedEstimates += $ComponentName
+        }
+    }
+
+    # Calculate Orchestration (always present)
+    $orchPath = Join-Path $AppsPath "Orchestration"
+    & $measureFolder $orchPath "Orchestration" $ComponentDefaults.Orchestration
+
+    # Feature-to-component mapping
+    $featureMapping = @{
+        Office   = @{ Path = "Office"; ConfigKey = "InstallOffice" }
+        Defender = @{ Path = "Defender"; ConfigKey = "UpdateLatestDefender" }
+        MSRT     = @{ Path = "MSRT"; ConfigKey = "UpdateLatestMSRT" }
+        Edge     = @{ Path = "Edge"; ConfigKey = "UpdateEdge" }
+        OneDrive = @{ Path = "OneDrive"; ConfigKey = "UpdateOneDrive" }
+    }
+
+    # Calculate each feature-dependent component
+    foreach ($component in $featureMapping.Keys) {
+        $mapping = $featureMapping[$component]
+        if ($Features[$mapping.ConfigKey]) {
+            $componentPath = Join-Path $AppsPath $mapping.Path
+            & $measureFolder $componentPath $component $ComponentDefaults[$component]
+        }
+    }
+
+    # Calculate totals
+    $estimate.TotalContentBytes = ($estimate.Components.Values | Measure-Object -Sum).Sum
+    $estimate.ISOSizeBytes = $estimate.TotalContentBytes  # ISO roughly equals content
+    $estimate.TempSpaceBytes = [long]($estimate.TotalContentBytes * 0.5)  # oscdimg working space
+    $estimate.RequiredFreeBytes = $estimate.TotalContentBytes + $estimate.ISOSizeBytes + $estimate.TempSpaceBytes
+
+    # Convert to GB for display
+    $estimate.TotalContentGB = [Math]::Round($estimate.TotalContentBytes / 1GB, 2)
+    $estimate.ISOSizeGB = [Math]::Round($estimate.ISOSizeBytes / 1GB, 2)
+    $estimate.TempSpaceGB = [Math]::Round($estimate.TempSpaceBytes / 1GB, 2)
+    $estimate.RequiredFreeGB = [Math]::Round($estimate.RequiredFreeBytes / 1GB, 2)
+
+    # Log estimate (using $function: pattern for ThreadJob compatibility)
+    if ($function:WriteLog) {
+        WriteLog "Apps.iso disk estimate:"
+        WriteLog "  Content: $($estimate.TotalContentGB) GB"
+        WriteLog "  ISO: $($estimate.ISOSizeGB) GB"
+        WriteLog "  Temp: $($estimate.TempSpaceGB) GB"
+        WriteLog "  Required: $($estimate.RequiredFreeGB) GB"
+        if ($estimate.UsedActualSizes.Count -gt 0) {
+            WriteLog "  Measured: $($estimate.UsedActualSizes -join ', ')"
+        }
+        if ($estimate.UsedEstimates.Count -gt 0) {
+            WriteLog "  Estimated: $($estimate.UsedEstimates -join ', ')"
+        }
+    }
+
+    return $estimate
+}
+
 #endregion Helper Functions
 
 #region Tier 1: Critical Validations
@@ -4168,5 +4318,7 @@ Export-ModuleMember -Function @(
     'Invoke-FFUDISMCleanup',
     # Helper functions
     'New-FFUCheckResult',
-    'Get-FFURequirements'
+    'Get-FFURequirements',
+    # Phase 29: Apps.iso Disk Estimation
+    'Get-AppsISODiskEstimate'
 )
