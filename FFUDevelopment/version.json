@@ -44,9 +44,9 @@
             "description": "Windows ADK validation and installation, background job compatible output"
         },
         "FFU.Apps": {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "path": "Modules/FFU.Apps/FFU.Apps.psd1",
-            "description": "Content manifest generation for Apps.iso staleness detection (New-AppsContentManifest, Get-AppsContentManifest)"
+            "description": "Smart Apps.iso staleness detection (Test-AppsISOStaleness) - Three-tier detection: ISO existence, config comparison, file hash comparison"
         },
         "FFU.Drivers": {
             "version": "1.1.0",

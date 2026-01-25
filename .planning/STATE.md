@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 29 Plan 03 Complete - Disk Space Estimation
+**Current focus:** Phase 29 Plan 04 Pending - BuildFFUVM Integration
 
 ## Current Position
 
 **Milestone:** v1.9.3 Smart Configuration & Bug Fixes
 **Phase:** 29 of 29 (Smart Apps.iso & Disk Estimation)
-**Plan:** 3/4 complete
+**Plan:** 3/4 complete (29-02 complete, 29-04 pending)
 **Status:** In progress
-**Last activity:** 2026-01-25 - Completed 29-03-PLAN.md
+**Last activity:** 2026-01-25 - Completed 29-02-PLAN.md
 
-Progress: Plan 29-03 complete
+Progress: Plans 29-01, 29-02, 29-03 complete
 [#########.] 90% - 9/10 plans
 
 ## Milestone Scope
@@ -45,15 +45,16 @@ Progress: Plan 29-03 complete
 | Plan | Description | Status | Commits |
 |------|-------------|--------|---------|
 | 29-01 | Content manifest functions | COMPLETE | b830f82 |
-| 29-02 | Staleness detection | Pending | - |
+| 29-02 | Staleness detection | COMPLETE | d39a6a6, 5d4d122 |
 | 29-03 | Disk space estimation | COMPLETE | 04f7f52, 0675eab, da94b22 |
 | 29-04 | BuildFFUVM integration | Pending | - |
 
 **Key functions delivered:**
 - `New-AppsContentManifest` - Generates SHA256 hashes for Apps folder content (29-01)
 - `Get-AppsContentManifest` - Reads existing manifest files (29-01)
+- `Test-AppsISOStaleness` - Three-tier staleness detection (29-02)
 - `Get-AppsISODiskEstimate` - Calculates required disk space for Apps.iso (29-03)
-- FFU.Apps module v1.1.0, FFU.Preflight module v1.4.0
+- FFU.Apps module v1.2.0, FFU.Preflight module v1.4.0
 
 ## Decisions Log
 
@@ -71,6 +72,8 @@ Progress: Plan 29-03 complete
 | Manifest version 1.0.0 | 29-01 | Initial schema version for future compatibility |
 | SHA256 hashing via Get-FileHash | 29-01 | Consistent with existing orchestration-hashes.json pattern |
 | Store manifest at .manifest.json | 29-01 | Dotfile convention in Apps folder |
+| Three-tier staleness detection | 29-02 | Check ISO existence -> manifest/config -> file hashes |
+| Structured result object | 29-02 | Enables detailed logging with Stale, Reason, Action, Details |
 | Scriptblock closure for measurement helper | 29-03 | Avoid code duplication across 6 component measurements |
 | 50% temp space multiplier for oscdimg | 29-03 | Conservative estimate for ISO creation working space |
 | Track actual vs estimated separately | 29-03 | Provides transparency about which values are measured vs fallback |
@@ -82,9 +85,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 29-03-PLAN.md
+**Stopped at:** Completed 29-02-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:execute-plan 29-02` or `/gsd:execute-plan 29-04`
+**Next action:** `/gsd:execute-plan 29-04`
 
 ---
 *State updated: 2026-01-25*
