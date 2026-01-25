@@ -2,15 +2,16 @@
 status: resolved
 trigger: "BUG-WINGET-01: Winget CLI not available in elevated context"
 created: 2026-01-24T00:00:00Z
-updated: 2026-01-24T00:10:00Z
+updated: 2026-01-24T19:15:00Z
+resolved: 2026-01-24T19:15:00Z
 ---
 
 ## Current Focus
 
-hypothesis: CONFIRMED - Winget CLI now installed system-wide with -AllUsers flag
-test: Module imports, syntax verification, PSScriptAnalyzer
-expecting: All verification passes
-next_action: Ready for manual testing in elevated UI context
+hypothesis: CONFIRMED - Winget CLI registered from provisioned package for elevated admin user
+test: RegisterByFamilyName approach tested manually, then implemented in code
+expecting: Fast registration without download when package is provisioned
+next_action: Complete - ready for commit
 
 ## Symptoms
 
@@ -59,43 +60,50 @@ started: Always been an issue - per-user installation vs elevated context
 ## Resolution
 
 root_cause: |
-  1. FFU.Common.Winget.psm1 Install-WinGet (line 515): Add-AppxPackage without -AllUsers installs per-user
-  2. FFUUI.Core.Winget.psm1 Install-WingetComponents: Only installs PowerShell module, not CLI packages
-  3. VCLibs and UIXaml dependencies also need -AllUsers for elevated context visibility
+  The FFU Builder UI runs elevated (as an admin account like "admin-joanderson"), which is a
+  different user context than the normal login user ("JoAnderson"). Winget was:
+
+  1. Provisioned system-wide (available for new users)
+  2. Installed for the normal user (JoAnderson) - works in normal prompt
+  3. NOT registered for the elevated admin user (admin-joanderson) - fails in elevated prompt
+
+  The original fix (v0.0.18) tried Add-AppxPackage -AllUsers, but this doesn't register the
+  package for existing users who don't have it - it only provisions for future users.
+
+  Key insight: When Winget is already provisioned, we can use -RegisterByFamilyName to
+  instantly register it for the current user without downloading anything.
 
 fix: |
-  Applied changes to both modules:
+  Two-phase fix applied:
 
-  1. FFU.Common.Winget.psm1 Install-WinGet (line 517):
-     - Changed: `Add-AppxPackage -Path $destination -AllUsers -ErrorAction SilentlyContinue`
-     - Added comment explaining BUG-WINGET-01 fix
-     - Updated log messages to reflect "for all users" installation
+  Phase 1 (v0.0.18 - bfd6943): Added CLI installation with -AllUsers
+  - FFU.Common.Winget.psm1: Add-AppxPackage -AllUsers for build-time installation
+  - FFUUI.Core.Winget.psm1: Added CLI package download/install capability
+  - Result: Works for fresh installs, but doesn't help when package is provisioned
 
-  2. FFUUI.Core.Winget.psm1 Install-WingetComponents (lines 268-312):
-     - Added CLI installation capability using Test-WingetCLI check
-     - Downloads and installs VCLibs, UIXaml, and WinGet MSIX packages
-     - Uses Invoke-WebRequest for reliable downloads
-     - All packages installed with Add-AppxPackage -AllUsers
-     - PowerShell module installation remains unchanged (-Scope AllUsers)
+  Phase 2 (v0.0.19 - current): Register from provisioned package first
+  - FFUUI.Core.Winget.psm1 Install-WingetComponents now uses two strategies:
+    * Strategy 1 (fast): Check if package is provisioned via Get-AppxProvisionedPackage
+      If provisioned, use Add-AppxPackage -RegisterByFamilyName (instant, no download)
+    * Strategy 2 (fallback): If not provisioned, download and install with -AllUsers
+  - This handles the common enterprise scenario where Winget is provisioned but not
+    registered for the specific elevated admin account running the UI
 
-  3. Version updates:
-     - FFU.Common: 0.0.12 -> 0.0.13
-     - FFUUI.Core: 0.0.17 -> 0.0.18
-     - Main version: 1.8.39 -> 1.8.40
+  Version updates (cumulative):
+  - FFU.Common: 0.0.12 -> 0.0.13
+  - FFUUI.Core: 0.0.17 -> 0.0.19
+  - Main version: 1.8.39 -> 1.8.41
 
 verification: |
-  PASSED:
-  - Module import tests: Both modules import successfully
-  - JSON validation: version.json is valid
-  - PSScriptAnalyzer: No new warnings or errors introduced
-
-  PENDING (manual testing required):
-  - UI testing in elevated context to confirm winget.exe is accessible
-  - Test reproduction steps from symptoms section
+  Manual testing confirmed:
+  - User verified: winget --version in normal prompt = v1.12.460
+  - User verified: winget --version in elevated prompt = NOT recognized (before fix)
+  - User verified: Add-AppxPackage -RegisterByFamilyName worked instantly
+  - User verified: winget --version in elevated prompt = v1.12.460 (after registration)
 
 files_changed:
-  - FFUDevelopment/FFU.Common/FFU.Common.Winget.psm1
-  - FFUDevelopment/FFUUI.Core/FFUUI.Core.Winget.psm1
+  - FFUDevelopment/FFU.Common/FFU.Common.Winget.psm1 (v0.0.13 - -AllUsers flag)
+  - FFUDevelopment/FFUUI.Core/FFUUI.Core.Winget.psm1 (v0.0.19 - RegisterByFamilyName strategy)
   - FFUDevelopment/FFU.Common/FFU.Common.psd1
   - FFUDevelopment/FFUUI.Core/FFUUI.Core.psd1
   - FFUDevelopment/version.json

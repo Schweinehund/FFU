@@ -267,48 +267,82 @@ function Install-WingetComponents {
 
     try {
         # First, check and install/update Winget CLI and dependencies
-        # BUG-WINGET-01: CLI must be installed with -AllUsers for elevated contexts
+        # BUG-WINGET-01: CLI must be available for elevated contexts (different user than normal login)
         $cliStatus = Test-WingetCLI
         $needsCliInstall = $cliStatus.Status -notmatch '^\d+\.\d+\.\d+$' -or ([version]$cliStatus.Version -lt $minVersion)
 
         if ($needsCliInstall) {
-            WriteLog "Winget CLI needs install/update. Installing for all users..."
+            WriteLog "Winget CLI needs install/update for current user context..."
             & $UiUpdateCallback "Installing CLI..." "Checking..."
 
-            # Detect system architecture for downloading correct packages
-            $arch = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+            # Strategy 1: Try to register from already-provisioned package (fast, no download)
+            # This handles the common case where winget is provisioned but not registered for the elevated admin user
+            WriteLog "Attempting to register Winget from provisioned package..."
+            $registered = $false
+            try {
+                $provisionedPackage = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+                    Where-Object { $_.DisplayName -eq 'Microsoft.DesktopAppInstaller' }
 
-            # Install VCLibs, UIXaml, and WinGet CLI with -AllUsers
-            $packages = @(
-                @{Name = "VCLibs"; Url = "https://aka.ms/Microsoft.VCLibs.$arch.14.00.Desktop.appx"; File = "Microsoft.VCLibs.$arch.14.00.Desktop.appx" },
-                @{Name = "UIXaml"; Url = "https://github.com/microsoft/microsoft-ui-xaml/releases/download/v2.8.6/Microsoft.UI.Xaml.2.8.$arch.appx"; File = "Microsoft.UI.Xaml.2.8.$arch.appx" },
-                @{Name = "WinGet"; Url = "https://aka.ms/getwinget"; File = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" }
-            )
-
-            $ProgressPreference = 'SilentlyContinue'
-            foreach ($package in $packages) {
-                $destination = Join-Path -Path $env:TEMP -ChildPath $package.File
-                WriteLog "Downloading $($package.Name) from $($package.Url)..."
-
-                # Use Invoke-WebRequest for reliable download (BITS may not be available in all contexts)
-                try {
-                    Invoke-WebRequest -Uri $package.Url -OutFile $destination -UseBasicParsing -ErrorAction Stop
+                if ($provisionedPackage) {
+                    WriteLog "Found provisioned Winget package (v$($provisionedPackage.Version)). Registering for current user..."
+                    Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction Stop
+                    WriteLog "Successfully registered Winget from provisioned package."
+                    $registered = $true
                 }
-                catch {
-                    WriteLog "Failed to download $($package.Name): $($_.Exception.Message)"
-                    throw
+                else {
+                    WriteLog "No provisioned Winget package found. Will attempt full installation."
                 }
-
-                WriteLog "Installing $($package.Name) for all users..."
-                # Install system-wide so elevated UI context can access winget.exe
-                Add-AppxPackage -Path $destination -AllUsers -ErrorAction SilentlyContinue
-
-                # Cleanup downloaded file
-                Remove-Item -Path $destination -Force -ErrorAction SilentlyContinue
             }
-            $ProgressPreference = 'Continue'
+            catch {
+                WriteLog "Failed to register from provisioned package: $($_.Exception.Message). Will attempt full installation."
+            }
 
-            WriteLog "Winget CLI installation complete (installed for all users)."
+            # Re-check CLI status after registration attempt
+            if ($registered) {
+                $cliStatus = Test-WingetCLI
+                $needsCliInstall = $cliStatus.Status -notmatch '^\d+\.\d+\.\d+$' -or ([version]$cliStatus.Version -lt $minVersion)
+            }
+
+            # Strategy 2: If registration didn't work, download and install packages
+            if ($needsCliInstall) {
+                WriteLog "Winget CLI still needs installation. Downloading packages..."
+                & $UiUpdateCallback "Downloading..." "Checking..."
+
+                # Detect system architecture for downloading correct packages
+                $arch = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+
+                # Install VCLibs, UIXaml, and WinGet CLI with -AllUsers
+                $packages = @(
+                    @{Name = "VCLibs"; Url = "https://aka.ms/Microsoft.VCLibs.$arch.14.00.Desktop.appx"; File = "Microsoft.VCLibs.$arch.14.00.Desktop.appx" },
+                    @{Name = "UIXaml"; Url = "https://github.com/microsoft/microsoft-ui-xaml/releases/download/v2.8.6/Microsoft.UI.Xaml.2.8.$arch.appx"; File = "Microsoft.UI.Xaml.2.8.$arch.appx" },
+                    @{Name = "WinGet"; Url = "https://aka.ms/getwinget"; File = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" }
+                )
+
+                $ProgressPreference = 'SilentlyContinue'
+                foreach ($package in $packages) {
+                    $destination = Join-Path -Path $env:TEMP -ChildPath $package.File
+                    WriteLog "Downloading $($package.Name) from $($package.Url)..."
+
+                    # Use Invoke-WebRequest for reliable download (BITS may not be available in all contexts)
+                    try {
+                        Invoke-WebRequest -Uri $package.Url -OutFile $destination -UseBasicParsing -ErrorAction Stop
+                    }
+                    catch {
+                        WriteLog "Failed to download $($package.Name): $($_.Exception.Message)"
+                        throw
+                    }
+
+                    WriteLog "Installing $($package.Name) for all users..."
+                    # Install system-wide so elevated UI context can access winget.exe
+                    Add-AppxPackage -Path $destination -AllUsers -ErrorAction SilentlyContinue
+
+                    # Cleanup downloaded file
+                    Remove-Item -Path $destination -Force -ErrorAction SilentlyContinue
+                }
+                $ProgressPreference = 'Continue'
+
+                WriteLog "Winget CLI installation complete (installed for all users)."
+            }
         }
 
         # Check and update PowerShell Module

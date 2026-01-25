@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.18'
+ModuleVersion = '0.0.19'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -122,6 +122,13 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.19: BUG-WINGET-01 - Register from provisioned package for elevated admin users
+- Fixed: Install-WingetComponents now tries RegisterByFamilyName first (instant, no download)
+- Root cause: Winget is provisioned system-wide but not registered for elevated admin accounts
+- Strategy 1: Register from provisioned package using Add-AppxPackage -RegisterByFamilyName
+- Strategy 2: Fall back to downloading and installing with -AllUsers if not provisioned
+- Much faster for common scenario (provisioned package exists, just needs registration)
+
 v0.0.18: BUG-WINGET-01 - Winget CLI not available in elevated context
 - Fixed: Install-WingetComponents now installs CLI packages in addition to PowerShell module
 - Root cause: UI only installed module (-Scope AllUsers) but not CLI APPX packages
