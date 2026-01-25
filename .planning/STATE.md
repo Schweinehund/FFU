@@ -5,29 +5,30 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 29 Complete - Smart Apps.iso & Disk Estimation
+**Current focus:** Phase 30 Complete - VM Host IP Pre-flight Integration
 
 ## Current Position
 
-**Milestone:** v1.9.3 Smart Configuration & Bug Fixes
-**Phase:** 29 of 29 (Smart Apps.iso & Disk Estimation)
-**Plan:** 4/4 complete
+**Milestone:** v1.9.4 Gap Closure
+**Phase:** 30 of 30 (VM Host IP Pre-flight)
+**Plan:** 1/1 complete
 **Status:** Phase complete
-**Last activity:** 2026-01-25 - Completed 29-04-PLAN.md
+**Last activity:** 2026-01-25 - Completed 30-01-PLAN.md
 
-Progress: Phase 29 complete
-[##########] 100% - 10/10 plans
+Progress: Phase 30 complete
+[##########] 100% - 11/11 plans
 
 ## Milestone Scope
 
-**Goal:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
+**Goal:** Close NET-02 gap by wiring Test-FFUHostIPAddress into pre-flight validation pipeline.
 
 **Phases:**
 1. Phase 27: Bug Fixes Consolidation (2 plans) - COMPLETE
 2. Phase 28: VM Host IP Dropdown (3 plans) - COMPLETE
 3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans) - COMPLETE
+4. Phase 30: VM Host IP Pre-flight (1 plan) - COMPLETE
 
-**Requirements:** 13 total (13 complete)
+**Requirements:** 14 total (14 complete)
 
 ## Shipped Milestones
 
@@ -38,25 +39,22 @@ Progress: Phase 29 complete
 | v1.8.3 VMware UI Settings | SHIPPED | 14 (2 plans) | 2026-01-21 |
 | v1.9.0 Reliability Hardening | SHIPPED | 15-25 (44 plans) | 2026-01-24 |
 | v1.9.1 Build Phase Integration | SHIPPED | 26 (3 plans) | 2026-01-24 |
-| v1.9.3 Smart Configuration | COMPLETE | 27-29 (10 plans) | 2026-01-25 |
+| v1.9.3 Smart Configuration | SHIPPED | 27-29 (10 plans) | 2026-01-25 |
+| v1.9.4 Gap Closure | COMPLETE | 30 (1 plan) | 2026-01-25 |
 
-## Phase 29 Progress
+## Phase 30 Progress
 
-**Smart Apps.iso & Disk Estimation:**
+**VM Host IP Pre-flight Integration:**
 | Plan | Description | Status | Commits |
 |------|-------------|--------|---------|
-| 29-01 | Content manifest functions | COMPLETE | b830f82 |
-| 29-02 | Staleness detection | COMPLETE | d39a6a6, 5d4d122 |
-| 29-03 | Disk space estimation | COMPLETE | 04f7f52, 0675eab, da94b22 |
-| 29-04 | Pre-flight disk validation | COMPLETE | a489a07, 5989da3, 3ead853 |
+| 30-01 | Wire Test-FFUHostIPAddress into pre-flight | COMPLETE | d35cd4a, f03d395, cfc1724 |
 
-**Key functions delivered:**
-- `New-AppsContentManifest` - Generates SHA256 hashes for Apps folder content (29-01)
-- `Get-AppsContentManifest` - Reads existing manifest files (29-01)
-- `Test-AppsISOStaleness` - Three-tier staleness detection (29-02)
-- `Get-AppsISODiskEstimate` - Calculates required disk space for Apps.iso (29-03)
-- `Test-FFUAppsISODiskSpace` - Pre-flight validation for Apps.iso disk space (29-04)
-- FFU.Apps module v1.2.0, FFU.Preflight module v1.4.0
+**Key changes delivered:**
+- Invoke-FFUPreflight accepts VMHostIPAddress parameter
+- Test-FFUHostIPAddress called in Tier 2 when VMware + IP configured
+- BuildFFUVM.ps1 passes VMHostIPAddress to Invoke-FFUPreflight
+- Warning-only behavior for IP not found (non-blocking per NET-02)
+- FFU.Preflight module v1.5.0, main version v1.9.4
 
 ## Decisions Log
 
@@ -80,6 +78,9 @@ Progress: Phase 29 complete
 | 50% temp space multiplier for oscdimg | 29-03 | Conservative estimate for ISO creation working space |
 | Track actual vs estimated separately | 29-03 | Provides transparency about which values are measured vs fallback |
 | Tier 2 conditional check | 29-04 | Only validate Apps.iso disk space when InstallApps enabled |
+| Warning not Failed for IP not found in pre-flight | 30-01 | Build may succeed with manual intervention |
+| Skip IP check when not VMware | 30-01 | Hyper-V has different network model |
+| Skip IP check when no IP configured | 30-01 | InstallApps may be disabled |
 
 ## Blockers
 
@@ -88,7 +89,7 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed Phase 29 (Milestone complete)
+**Stopped at:** Completed Phase 30 (NET-02 gap closure complete)
 **Resume file:** None
 **Next action:** `/gsd:audit-milestone` or `/gsd:complete-milestone`
 
