@@ -56,26 +56,26 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HP-01 | TBD | Pending |
-| HP-02 | TBD | Pending |
-| HP-03 | TBD | Pending |
-| HP-04 | TBD | Pending |
-| DELL-01 | TBD | Pending |
-| DELL-02 | TBD | Pending |
-| DELL-03 | TBD | Pending |
-| DELL-04 | TBD | Pending |
-| LOG-01 | TBD | Pending |
-| LOG-02 | TBD | Pending |
-| LOG-03 | TBD | Pending |
-| LOG-04 | TBD | Pending |
-| LOG-05 | TBD | Pending |
-| LOG-06 | TBD | Pending |
+| HP-01 | Phase 31 | Pending |
+| HP-02 | Phase 31 | Pending |
+| HP-03 | Phase 31 | Pending |
+| HP-04 | Phase 31 | Pending |
+| DELL-01 | Phase 32 | Pending |
+| DELL-02 | Phase 32 | Pending |
+| DELL-03 | Phase 32 | Pending |
+| DELL-04 | Phase 32 | Pending |
+| LOG-01 | Phase 33 | Pending |
+| LOG-02 | Phase 33 | Pending |
+| LOG-03 | Phase 33 | Pending |
+| LOG-04 | Phase 33 | Pending |
+| LOG-05 | Phase 33 | Pending |
+| LOG-06 | Phase 33 | Pending |
 
 **Coverage:**
-- v1 requirements: 16 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 16 (will be mapped by create-roadmap)
+- v1 requirements: 14 total
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-25 after initial definition*
+*Last updated: 2026-01-25 after roadmap creation*
