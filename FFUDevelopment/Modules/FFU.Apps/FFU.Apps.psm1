@@ -442,6 +442,256 @@ function Get-AppsContentManifest {
     return $manifest
 }
 
+function Test-AppsISOStaleness {
+    <#
+    .SYNOPSIS
+    Tests whether the Apps.iso needs to be rebuilt based on content hash comparison
+
+    .DESCRIPTION
+    Performs three-tier staleness detection:
+    - Tier 1: ISO existence check
+    - Tier 2: Manifest existence and configuration comparison
+    - Tier 3: File hash comparison against stored manifest
+
+    Returns a structured result indicating whether rebuild is needed and why.
+
+    .PARAMETER AppsISOPath
+    Full path to the Apps.iso file
+
+    .PARAMETER AppsPath
+    Path to the Apps folder (e.g., "C:\FFUDevelopment\Apps")
+
+    .PARAMETER CurrentConfig
+    Hashtable containing current configuration state:
+    - InstallOffice: Whether Office installation is enabled
+    - UpdateLatestDefender: Whether Defender update is enabled
+    - UpdateLatestMSRT: Whether MSRT update is enabled
+    - UpdateEdge: Whether Edge update is enabled
+    - UpdateOneDrive: Whether OneDrive update is enabled
+
+    .EXAMPLE
+    $config = @{
+        InstallOffice = $true
+        UpdateLatestDefender = $true
+        UpdateLatestMSRT = $false
+        UpdateEdge = $true
+        UpdateOneDrive = $true
+    }
+    $result = Test-AppsISOStaleness -AppsISOPath "C:\FFU\Apps.iso" -AppsPath "C:\FFU\Apps" -CurrentConfig $config
+    if ($result.Stale) {
+        Write-Host "Rebuild needed: $($result.Reason)"
+    }
+
+    .OUTPUTS
+    [PSCustomObject] with properties:
+    - Stale: [bool] Whether ISO needs rebuild
+    - Reason: [string] Explanation of staleness status
+    - Action: [string] "Create", "Rebuild", or "Skip"
+    - Details: [array] Specific items that changed
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$AppsISOPath,
+
+        [Parameter(Mandatory)]
+        [string]$AppsPath,
+
+        [Parameter(Mandatory)]
+        [hashtable]$CurrentConfig
+    )
+
+    WriteLog "Checking Apps.iso staleness..."
+
+    # Tier 1: ISO existence check
+    if (-not (Test-Path $AppsISOPath)) {
+        WriteLog "  Tier 1: ISO does not exist at $AppsISOPath"
+        WriteLog "  Result: Create - Apps.iso does not exist"
+        return [PSCustomObject]@{
+            Stale   = $true
+            Reason  = "Apps.iso does not exist"
+            Action  = "Create"
+            Details = @()
+        }
+    }
+    WriteLog "  Tier 1: ISO exists at $AppsISOPath"
+
+    # Tier 2: Manifest existence and config comparison
+    $storedManifest = Get-AppsContentManifest -AppsPath $AppsPath
+
+    if ($null -eq $storedManifest) {
+        WriteLog "  Tier 2: No content manifest found"
+        WriteLog "  Result: Rebuild - No content manifest found - first build or manifest deleted"
+        return [PSCustomObject]@{
+            Stale   = $true
+            Reason  = "No content manifest found - first build or manifest deleted"
+            Action  = "Rebuild"
+            Details = @()
+        }
+    }
+    WriteLog "  Tier 2: Manifest found, comparing configuration..."
+
+    # Compare configuration state
+    $configKeys = @('InstallOffice', 'UpdateLatestDefender', 'UpdateLatestMSRT', 'UpdateEdge', 'UpdateOneDrive')
+    $changedConfigs = @()
+
+    foreach ($key in $configKeys) {
+        $currentValue = [bool]$CurrentConfig[$key]
+        $storedValue = [bool]$storedManifest.ConfigState.$key
+
+        if ($currentValue -ne $storedValue) {
+            $changedConfigs += "$key changed from $storedValue to $currentValue"
+            WriteLog "  Tier 2: Config mismatch: $key changed from $storedValue to $currentValue"
+        }
+    }
+
+    if ($changedConfigs.Count -gt 0) {
+        WriteLog "  Result: Rebuild - Configuration changed"
+        return [PSCustomObject]@{
+            Stale   = $true
+            Reason  = "Configuration changed"
+            Action  = "Rebuild"
+            Details = $changedConfigs
+        }
+    }
+    WriteLog "  Tier 2: Configuration matches"
+
+    # Tier 3: File hash comparison
+    WriteLog "  Tier 3: Comparing file hashes..."
+
+    # Generate current manifest for comparison
+    $currentManifest = New-AppsContentManifest -AppsPath $AppsPath -ConfigState $CurrentConfig
+
+    $changedFiles = @()
+
+    # Get component names from both manifests
+    $allComponents = @()
+    if ($storedManifest.Components) {
+        # Handle both hashtable and PSCustomObject
+        if ($storedManifest.Components -is [hashtable]) {
+            $allComponents += $storedManifest.Components.Keys
+        }
+        else {
+            $allComponents += $storedManifest.Components.PSObject.Properties.Name
+        }
+    }
+    if ($currentManifest.Components) {
+        if ($currentManifest.Components -is [hashtable]) {
+            $allComponents += $currentManifest.Components.Keys
+        }
+        else {
+            $allComponents += $currentManifest.Components.PSObject.Properties.Name
+        }
+    }
+    $allComponents = $allComponents | Select-Object -Unique
+
+    foreach ($componentName in $allComponents) {
+        # Get stored component data
+        $storedComponent = $null
+        if ($storedManifest.Components) {
+            if ($storedManifest.Components -is [hashtable]) {
+                $storedComponent = $storedManifest.Components[$componentName]
+            }
+            else {
+                $storedComponent = $storedManifest.Components.$componentName
+            }
+        }
+
+        # Get current component data
+        $currentComponent = $null
+        if ($currentManifest.Components) {
+            if ($currentManifest.Components -is [hashtable]) {
+                $currentComponent = $currentManifest.Components[$componentName]
+            }
+            else {
+                $currentComponent = $currentManifest.Components.$componentName
+            }
+        }
+
+        # Component removed
+        if ($storedComponent -and -not $currentComponent) {
+            $changedFiles += "$componentName`: removed (was $($storedComponent.FileCount) files)"
+            WriteLog "  Tier 3: $componentName`: removed"
+            continue
+        }
+
+        # Component added
+        if (-not $storedComponent -and $currentComponent) {
+            $changedFiles += "$componentName`: added ($($currentComponent.FileCount) files)"
+            WriteLog "  Tier 3: $componentName`: added ($($currentComponent.FileCount) files)"
+            continue
+        }
+
+        # Compare file counts
+        $storedCount = if ($storedComponent.FileCount) { $storedComponent.FileCount } else { 0 }
+        $currentCount = if ($currentComponent.FileCount) { $currentComponent.FileCount } else { 0 }
+
+        if ($storedCount -ne $currentCount) {
+            $diff = $currentCount - $storedCount
+            $diffText = if ($diff -gt 0) { "+$diff" } else { "$diff" }
+            $changedFiles += "$componentName`: file count changed ($storedCount -> $currentCount, $diffText files)"
+            WriteLog "  Tier 3: $componentName`: file count changed ($storedCount -> $currentCount)"
+            continue
+        }
+
+        # Compare individual file hashes
+        $storedFiles = @{}
+        if ($storedComponent.Files) {
+            foreach ($file in $storedComponent.Files) {
+                $path = if ($file -is [hashtable]) { $file.Path } else { $file.Path }
+                $hash = if ($file -is [hashtable]) { $file.Hash } else { $file.Hash }
+                $storedFiles[$path] = $hash
+            }
+        }
+
+        $currentFiles = @{}
+        if ($currentComponent.Files) {
+            foreach ($file in $currentComponent.Files) {
+                $path = if ($file -is [hashtable]) { $file.Path } else { $file.Path }
+                $hash = if ($file -is [hashtable]) { $file.Hash } else { $file.Hash }
+                $currentFiles[$path] = $hash
+            }
+        }
+
+        $hashMismatches = 0
+        foreach ($path in $currentFiles.Keys) {
+            if ($storedFiles.ContainsKey($path)) {
+                if ($storedFiles[$path] -ne $currentFiles[$path]) {
+                    $hashMismatches++
+                }
+            }
+            else {
+                $hashMismatches++
+            }
+        }
+
+        if ($hashMismatches -gt 0) {
+            $changedFiles += "$componentName`: $hashMismatches file(s) with hash mismatch"
+            WriteLog "  Tier 3: $componentName`: $hashMismatches file(s) changed"
+        }
+    }
+
+    if ($changedFiles.Count -gt 0) {
+        WriteLog "  Result: Rebuild - Content files changed"
+        return [PSCustomObject]@{
+            Stale   = $true
+            Reason  = "Content files changed"
+            Action  = "Rebuild"
+            Details = $changedFiles
+        }
+    }
+
+    # No changes detected
+    WriteLog "  Result: Skip - Apps.iso is current - no content or config changes detected"
+    return [PSCustomObject]@{
+        Stale   = $false
+        Reason  = "Apps.iso is current - no content or config changes detected"
+        Action  = "Skip"
+        Details = @()
+    }
+}
+
 function Remove-Apps {
 
     # Check if the file exists before attempting to clear it
@@ -589,5 +839,6 @@ Export-ModuleMember -Function @(
     'Remove-Apps',
     'Remove-DisabledArtifacts',
     'New-AppsContentManifest',
-    'Get-AppsContentManifest'
+    'Get-AppsContentManifest',
+    'Test-AppsISOStaleness'
 )

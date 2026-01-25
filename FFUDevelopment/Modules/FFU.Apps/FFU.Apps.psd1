@@ -5,7 +5,7 @@
     RootModule = 'FFU.Apps.psm1'
 
     # Version number of this module
-    ModuleVersion = '1.1.0'
+    ModuleVersion = '1.2.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -41,7 +41,8 @@
         'Remove-Apps',
         'Remove-DisabledArtifacts',
         'New-AppsContentManifest',
-        'Get-AppsContentManifest'
+        'Get-AppsContentManifest',
+        'Test-AppsISOStaleness'
     )
 
     # Cmdlets to export from this module
@@ -67,6 +68,10 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+## Version 1.2.0
+- NEW: Test-AppsISOStaleness - Three-tier staleness detection (ISO existence, config, file hashes)
+- Part of Phase 29: Smart Apps.iso & Disk Estimation (ISO-02, ISO-03)
+
 ## Version 1.1.0
 - NEW: New-AppsContentManifest - Creates content manifest with SHA256 hashes for staleness detection
 - NEW: Get-AppsContentManifest - Reads existing manifest for comparison
