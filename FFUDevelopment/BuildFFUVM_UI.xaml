@@ -104,6 +104,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="200"/>
@@ -160,55 +161,57 @@
                         <TextBox x:Name="txtCustomVMSwitchName" Grid.Row="7" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Visibility="Collapsed" ToolTip="Enter your custom VM Switch Name if 'Other' is selected."/>
                         <!-- Row 8: VM Host IP Address -->
                         <StackPanel Grid.Row="8" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
-                            <TextBlock Text="VM Host IP Address" ToolTip="IP address of the host for FFU capture. Required when InstallApps is enabled. You must manually configure this."/>
+                            <TextBlock Text="VM Host IP Address" ToolTip="IP address of the host for FFU capture. Select from available network adapters or choose 'Custom...' to enter manually."/>
                         </StackPanel>
-                        <TextBox x:Name="txtVMHostIPAddress" Grid.Row="8" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
-                        <!-- Row 9: Disk Size (GB) -->
-                        <StackPanel Grid.Row="9" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <ComboBox x:Name="cmbVMHostIPAddress" Grid.Row="8" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" ToolTip="Select a network adapter IP address for FFU capture, or choose 'Custom...' to enter a custom IP."/>
+                        <!-- Row 9: Custom VM Host IP (shown when 'Custom...' selected) -->
+                        <TextBox x:Name="txtCustomVMHostIP" Grid.Row="9" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Visibility="Collapsed" ToolTip="Enter a custom IP address when 'Custom...' is selected above."/>
+                        <!-- Row 10: Disk Size (GB) -->
+                        <StackPanel Grid.Row="10" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="Disk Size (GB)" ToolTip="Size of the virtual hard disk for the virtual machine. Default is a 50GB dynamic disk."/>
                         </StackPanel>
-                        <TextBox x:Name="txtDiskSize" Grid.Row="9" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="50" ToolTip="Size of the virtual hard disk for the virtual machine. Default is a 50GB dynamic disk."/>
-                        <!-- Row 10: Memory (GB) -->
-                        <StackPanel Grid.Row="10" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <TextBox x:Name="txtDiskSize" Grid.Row="10" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="50" ToolTip="Size of the virtual hard disk for the virtual machine. Default is a 50GB dynamic disk."/>
+                        <!-- Row 11: Memory (GB) -->
+                        <StackPanel Grid.Row="11" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="Memory (GB)" ToolTip="Amount of memory to allocate for the virtual machine. Recommended to use 8GB if possible, especially for Windows 11. Default is 4GB."/>
                         </StackPanel>
-                        <TextBox x:Name="txtMemory" Grid.Row="10" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="4" ToolTip="Amount of memory to allocate for the virtual machine. Recommended to use 8GB if possible, especially for Windows 11. Default is 4GB."/>
-                        <!-- Row 11: Processors -->
-                        <StackPanel Grid.Row="11" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <TextBox x:Name="txtMemory" Grid.Row="11" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="4" ToolTip="Amount of memory to allocate for the virtual machine. Recommended to use 8GB if possible, especially for Windows 11. Default is 4GB."/>
+                        <!-- Row 12: Processors -->
+                        <StackPanel Grid.Row="12" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="Processors" ToolTip="Number of virtual processors for the virtual machine. Recommended to use at least 4."/>
                         </StackPanel>
-                        <TextBox x:Name="txtProcessors" Grid.Row="11" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="4" ToolTip="Number of virtual processors for the virtual machine. Recommended to use at least 4."/>
-                        <!-- Row 12: VM Location -->
-                        <StackPanel Grid.Row="12" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <TextBox x:Name="txtProcessors" Grid.Row="12" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="4" ToolTip="Number of virtual processors for the virtual machine. Recommended to use at least 4."/>
+                        <!-- Row 13: VM Location -->
+                        <StackPanel Grid.Row="13" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="VM Location" ToolTip="Location where the virtual disk and VM files will be created. Default is FFUDevelopmentPath\VM."/>
                         </StackPanel>
-                        <TextBox x:Name="txtVMLocation" Grid.Row="12" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="{x:Static sys:Environment.CurrentDirectory}" ToolTip="Location where the virtual disk and VM files will be created. Default is FFUDevelopmentPath\VM."/>
-                        <!-- Row 13: VM Name Prefix -->
-                        <StackPanel Grid.Row="13" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <TextBox x:Name="txtVMLocation" Grid.Row="13" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" Text="{x:Static sys:Environment.CurrentDirectory}" ToolTip="Location where the virtual disk and VM files will be created. Default is FFUDevelopmentPath\VM."/>
+                        <!-- Row 14: VM Name Prefix -->
+                        <StackPanel Grid.Row="14" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="VM Name Prefix" ToolTip="Prefix for the VM Name. The default is _FFU."/>
                         </StackPanel>
-                        <TextBox x:Name="txtVMNamePrefix" Grid.Row="13" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" ToolTip="Prefix for the VM Name. The default is _FFU."/>
-                        <!-- Row 14: Logical Sector Size -->
-                        <StackPanel Grid.Row="14" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <TextBox x:Name="txtVMNamePrefix" Grid.Row="14" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch" ToolTip="Prefix for the VM Name. The default is _FFU."/>
+                        <!-- Row 15: Logical Sector Size -->
+                        <StackPanel Grid.Row="15" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="Logical Sector Size" ToolTip="Unit32 value of 512 or 4096. Useful for 4Kn drives or devices shipping with UFS drives. Default is 512."/>
                         </StackPanel>
-                        <ComboBox x:Name="cmbLogicalSectorSize" Grid.Row="14" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Left" ToolTip="Unit32 value of 512 or 4096. Useful for 4Kn drives or devices shipping with UFS drives. Default is 512.">
+                        <ComboBox x:Name="cmbLogicalSectorSize" Grid.Row="15" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Left" ToolTip="Unit32 value of 512 or 4096. Useful for 4Kn drives or devices shipping with UFS drives. Default is 512.">
                             <ComboBoxItem Content="512" IsSelected="True"/>
                             <ComboBoxItem Content="4096"/>
                         </ComboBox>
-                        <!-- Row 15: VM Shutdown Timeout -->
-                        <StackPanel Grid.Row="15" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <!-- Row 16: VM Shutdown Timeout -->
+                        <StackPanel Grid.Row="16" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="VM Shutdown Timeout" ToolTip="Maximum time in minutes to wait for VM to complete FFU capture and shut down. Increase for slower systems or larger images."/>
                         </StackPanel>
-                        <StackPanel Grid.Row="15" Grid.Column="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
+                        <StackPanel Grid.Row="16" Grid.Column="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
                             <TextBox x:Name="txtVMShutdownTimeout" Width="60" Text="60" ToolTip="Maximum time in minutes to wait for VM shutdown (5-120 minutes)."/>
                             <TextBlock Text=" minutes" VerticalAlignment="Center" Margin="5,0,0,0"/>
                         </StackPanel>
-                        <!-- Row 16: FFU File Lock Wait -->
-                        <StackPanel Grid.Row="16" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
+                        <!-- Row 17: FFU File Lock Wait -->
+                        <StackPanel Grid.Row="17" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5">
                             <TextBlock Text="FFU File Lock Wait" ToolTip="Time to wait after FFU capture before accessing the file. Helps prevent file lock errors from Windows Defender or indexing services. Increase if experiencing file lock errors."/>
                         </StackPanel>
-                        <StackPanel Grid.Row="16" Grid.Column="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
+                        <StackPanel Grid.Row="17" Grid.Column="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
                             <TextBox x:Name="txtFFUFileLockWait" Width="60" Text="120" ToolTip="Time in seconds to wait after FFU capture (30-600 seconds). Default is 120 seconds (2 minutes)."/>
                             <TextBlock Text=" seconds" VerticalAlignment="Center" Margin="5,0,0,0"/>
                         </StackPanel>
