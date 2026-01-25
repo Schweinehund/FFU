@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 29 Plan 04 Pending - BuildFFUVM Integration
+**Current focus:** Phase 29 Complete - Smart Apps.iso & Disk Estimation
 
 ## Current Position
 
 **Milestone:** v1.9.3 Smart Configuration & Bug Fixes
 **Phase:** 29 of 29 (Smart Apps.iso & Disk Estimation)
-**Plan:** 3/4 complete (29-02 complete, 29-04 pending)
-**Status:** In progress
-**Last activity:** 2026-01-25 - Completed 29-02-PLAN.md
+**Plan:** 4/4 complete
+**Status:** Phase complete
+**Last activity:** 2026-01-25 - Completed 29-04-PLAN.md
 
-Progress: Plans 29-01, 29-02, 29-03 complete
-[#########.] 90% - 9/10 plans
+Progress: Phase 29 complete
+[##########] 100% - 10/10 plans
 
 ## Milestone Scope
 
@@ -25,9 +25,9 @@ Progress: Plans 29-01, 29-02, 29-03 complete
 **Phases:**
 1. Phase 27: Bug Fixes Consolidation (2 plans) - COMPLETE
 2. Phase 28: VM Host IP Dropdown (3 plans) - COMPLETE
-3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans) - IN PROGRESS
+3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans) - COMPLETE
 
-**Requirements:** 13 total (12 complete, 1 pending)
+**Requirements:** 13 total (13 complete)
 
 ## Shipped Milestones
 
@@ -38,6 +38,7 @@ Progress: Plans 29-01, 29-02, 29-03 complete
 | v1.8.3 VMware UI Settings | SHIPPED | 14 (2 plans) | 2026-01-21 |
 | v1.9.0 Reliability Hardening | SHIPPED | 15-25 (44 plans) | 2026-01-24 |
 | v1.9.1 Build Phase Integration | SHIPPED | 26 (3 plans) | 2026-01-24 |
+| v1.9.3 Smart Configuration | COMPLETE | 27-29 (10 plans) | 2026-01-25 |
 
 ## Phase 29 Progress
 
@@ -47,13 +48,14 @@ Progress: Plans 29-01, 29-02, 29-03 complete
 | 29-01 | Content manifest functions | COMPLETE | b830f82 |
 | 29-02 | Staleness detection | COMPLETE | d39a6a6, 5d4d122 |
 | 29-03 | Disk space estimation | COMPLETE | 04f7f52, 0675eab, da94b22 |
-| 29-04 | BuildFFUVM integration | Pending | - |
+| 29-04 | Pre-flight disk validation | COMPLETE | a489a07, 5989da3, 3ead853 |
 
 **Key functions delivered:**
 - `New-AppsContentManifest` - Generates SHA256 hashes for Apps folder content (29-01)
 - `Get-AppsContentManifest` - Reads existing manifest files (29-01)
 - `Test-AppsISOStaleness` - Three-tier staleness detection (29-02)
 - `Get-AppsISODiskEstimate` - Calculates required disk space for Apps.iso (29-03)
+- `Test-FFUAppsISODiskSpace` - Pre-flight validation for Apps.iso disk space (29-04)
 - FFU.Apps module v1.2.0, FFU.Preflight module v1.4.0
 
 ## Decisions Log
@@ -77,6 +79,7 @@ Progress: Plans 29-01, 29-02, 29-03 complete
 | Scriptblock closure for measurement helper | 29-03 | Avoid code duplication across 6 component measurements |
 | 50% temp space multiplier for oscdimg | 29-03 | Conservative estimate for ISO creation working space |
 | Track actual vs estimated separately | 29-03 | Provides transparency about which values are measured vs fallback |
+| Tier 2 conditional check | 29-04 | Only validate Apps.iso disk space when InstallApps enabled |
 
 ## Blockers
 
@@ -85,9 +88,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 29-02-PLAN.md
+**Stopped at:** Completed 29-04-PLAN.md (Phase 29 complete)
 **Resume file:** None
-**Next action:** `/gsd:execute-plan 29-04`
+**Next action:** Milestone v1.9.3 complete - ready for release or next milestone planning
 
 ---
 *State updated: 2026-01-25*
