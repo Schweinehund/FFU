@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 28 Complete - Ready for Phase 29
+**Current focus:** Phase 29 Plan 01 Complete - Content Manifest Functions
 
 ## Current Position
 
-**Milestone:** v1.9.2 Smart Configuration & Bug Fixes
-**Phase:** 28 of 29 (VM Host IP Dropdown) - COMPLETE
-**Plan:** 3/3 complete
-**Status:** Phase 28 complete
-**Last activity:** 2026-01-25 - Completed 28-03-PLAN.md
+**Milestone:** v1.9.3 Smart Configuration & Bug Fixes
+**Phase:** 29 of 29 (Smart Apps.iso & Disk Estimation)
+**Plan:** 1/4 complete
+**Status:** In progress
+**Last activity:** 2026-01-25 - Completed 29-01-PLAN.md
 
-Progress: Phase 28 complete, Phase 29 pending
-[#######...] 78% - 7/9 plans
+Progress: Plan 29-01 complete
+[########..] 80% - 8/10 plans
 
 ## Milestone Scope
 
@@ -25,9 +25,9 @@ Progress: Phase 28 complete, Phase 29 pending
 **Phases:**
 1. Phase 27: Bug Fixes Consolidation (2 plans) - COMPLETE
 2. Phase 28: VM Host IP Dropdown (3 plans) - COMPLETE
-3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans)
+3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans) - IN PROGRESS
 
-**Requirements:** 13 total (10 complete, 3 pending)
+**Requirements:** 13 total (11 complete, 2 pending)
 
 ## Shipped Milestones
 
@@ -39,19 +39,20 @@ Progress: Phase 28 complete, Phase 29 pending
 | v1.9.0 Reliability Hardening | SHIPPED | 15-25 (44 plans) | 2026-01-24 |
 | v1.9.1 Build Phase Integration | SHIPPED | 26 (3 plans) | 2026-01-24 |
 
-## Phase 28 Completed Work
+## Phase 29 Progress
 
-**VM Host IP Dropdown feature complete:**
-| Plan | Description | Commits |
-|------|-------------|---------|
-| 28-01 | Network adapter enumeration (Get-HostNetworkAdapters) | cf427fd, 75f45e7 |
-| 28-02 | UI dropdown integration (cmbVMHostIPAddress) | c78c91d, 64c43d1, 287e8ba |
-| 28-03 | Pre-flight validation & auto-selection | 68972c6, 90e951b, eafa73f |
+**Smart Apps.iso & Disk Estimation:**
+| Plan | Description | Status | Commits |
+|------|-------------|--------|---------|
+| 29-01 | Content manifest functions | COMPLETE | b830f82 |
+| 29-02 | Staleness detection | Pending | - |
+| 29-03 | Disk space estimation | Pending | - |
+| 29-04 | BuildFFUVM integration | Pending | - |
 
-**Key functions delivered:**
-- `Get-HostNetworkAdapters` - Enumerates physical adapters with IPv4
-- `Test-FFUHostIPAddress` - Pre-flight validation (Warning if IP not found)
-- VMware auto-selection in `Update-HypervisorStatus`
+**Key functions delivered (29-01):**
+- `New-AppsContentManifest` - Generates SHA256 hashes for Apps folder content
+- `Get-AppsContentManifest` - Reads existing manifest files
+- FFU.Apps module bumped to v1.1.0
 
 ## Decisions Log
 
@@ -66,6 +67,9 @@ Progress: Phase 28 complete, Phase 29 pending
 | State.Data for dropdown state | 28-02 | Cross-handler access to selectedVMHostIP, customVMHostIP, hostNetworkAdapters |
 | Warning not Failed for IP validation | 28-03 | IP mismatch is non-blocking - build may succeed with manual intervention |
 | Primary > First > Custom auto-select | 28-03 | Primary adapter has default gateway (most likely to work) |
+| Manifest version 1.0.0 | 29-01 | Initial schema version for future compatibility |
+| SHA256 hashing via Get-FileHash | 29-01 | Consistent with existing orchestration-hashes.json pattern |
+| Store manifest at .manifest.json | 29-01 | Dotfile convention in Apps folder |
 
 ## Blockers
 
@@ -74,9 +78,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 28-03-PLAN.md (Phase 28 complete)
+**Stopped at:** Completed 29-01-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:execute-phase 29` or `/gsd:execute-plan 29-01`
+**Next action:** `/gsd:execute-plan 29-02`
 
 ---
 *State updated: 2026-01-25*

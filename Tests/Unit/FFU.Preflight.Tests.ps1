@@ -40,9 +40,9 @@ Describe 'FFU.Preflight Module' -Tag 'Module', 'Preflight' {
             { Import-Module $script:ModulePath -Force -ErrorAction Stop } | Should -Not -Throw
         }
 
-        It 'Should export 21 functions' {
+        It 'Should export 22 functions' {
             $commands = Get-Command -Module FFU.Preflight
-            $commands.Count | Should -Be 21
+            $commands.Count | Should -Be 22
         }
 
         It 'Should export Invoke-FFUPreflight (main entry point)' {
