@@ -2,6 +2,18 @@
   "cloudId": "a04fcb6a-ae5a-4f81-95e7-83941226b47b",
   "projectKey": "RTS",
   "epicIssueTypeId": "10000",
+  "requiredFields": {
+    "duedate": "YYYY-MM-DD (system field)",
+    "customfield_10553": "Epic start date (YYYY-MM-DD)",
+    "customfield_10224": "Account ID - integer only (4=New Dev, 5=Maintenance, 6=Small)"
+  },
+  "transitions": {
+    "done": { "id": "41", "name": "Done" },
+    "canceled": { "id": "7", "name": "Canceled" },
+    "inProgress": { "id": "31", "name": "In Progress" },
+    "toDo": { "id": "2", "name": "To Do" },
+    "backlog": { "id": "11", "name": "Backlog" }
+  },
   "milestones": {
     "v1.0.x": {
       "epicKey": "RTS-75",
@@ -103,8 +115,25 @@
         "integrationConnections": 5,
         "e2eFlows": 1
       }
+    },
+    "v1.9.2": {
+      "epicKey": "RTS-107",
+      "status": "Done",
+      "summary": "FFU Builder v1.9.2 - Smart Configuration & Bug Fixes",
+      "created": "2026-01-25",
+      "shipped": "2026-01-25",
+      "phases": "27-30",
+      "requirements": 13,
+      "deliverables": {
+        "bugFixes": 5,
+        "pesterTests": 75,
+        "integrationConnections": 12,
+        "e2eFlows": 3,
+        "commits": 47,
+        "filesModified": 50
+      }
     }
   },
-  "lastAudit": "2026-01-24",
-  "notes": "v1.9.1 shipped - Jira transition pending (MCP session expired)"
+  "lastAudit": "2026-01-25",
+  "notes": "v1.9.2 complete - Jira epic RTS-107 transitioned to Done on 2026-01-25"
 }

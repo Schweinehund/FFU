@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.9.2 shipped — awaiting `/gsd:discuss-milestone` for next iteration
+**Current focus:** v1.9.3 OEM Driver Bug Fixes
 
 ## Current Position
 
-**Milestone:** None (v1.9.2 shipped)
-**Phase:** Ready to plan next milestone
-**Status:** Milestone complete
-**Last activity:** 2026-01-25 - v1.9.2 milestone shipped
+**Milestone:** v1.9.3 OEM Driver Bug Fixes
+**Phase:** Not started (run /gsd:define-requirements)
+**Status:** Defining requirements
+**Last activity:** 2026-01-25 - Milestone v1.9.3 started
 
-Progress: Milestone complete
-[##########] 100% - v1.9.2 shipped
+Progress: Defining requirements
+[          ] 0% - Requirements pending
 
 ## Shipped Milestones
 
@@ -30,21 +30,17 @@ Progress: Milestone complete
 
 **Total:** 30 phases, 97 plans shipped across 6 milestones
 
-## v1.9.2 Summary
+## v1.9.3 Scope
 
-**Key deliverables:**
-- 5 bug fixes consolidated (VHD stability, config persistence, Winget CLI)
-- VM Host IP Address dropdown with network adapter context
-- VMware auto-selection logic using primary adapter
-- Apps.iso smart staleness detection with content hashing
-- Component-based disk space estimation with pre-flight validation
-- Test-FFUHostIPAddress integration into pre-flight pipeline
+**Target features:**
+- Fix HP driver extraction exit code 1168 (affects all HP models)
+- Fix Dell CatalogPC.xml missing (catalog lookup failures)
 
-**Stats:** 47 commits, 50 files, +8,620/-204 lines, 13 requirements
+**Out of scope:** expand.exe MSU issue (fallback working)
 
 ## Decisions Log
 
-See `.planning/milestones/v1.9.2-ROADMAP.md` for v1.9.2 decisions.
+None yet for v1.9.3.
 
 ## Blockers
 
@@ -53,9 +49,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Milestone v1.9.2 complete and shipped
+**Stopped at:** Milestone v1.9.3 initialized, needs requirements
 **Resume file:** None
-**Next action:** `/gsd:discuss-milestone` to plan next iteration
+**Next action:** `/gsd:define-requirements` to define acceptance criteria
 
 ---
-*State updated: 2026-01-25 after v1.9.2 milestone shipped*
+*State updated: 2026-01-25 after v1.9.3 milestone started*

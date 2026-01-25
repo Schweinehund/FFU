@@ -81,12 +81,14 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ### Active
 
-**Current Milestone:** None (awaiting `/gsd:discuss-milestone`)
+**Current Milestone:** v1.9.3 OEM Driver Bug Fixes
+
+**Target features:**
+- Fix HP driver extraction exit code 1168 (affects all HP models)
+- Fix Dell CatalogPC.xml missing (catalog lookup failures)
 
 **Deferred bugs (carry forward):**
-- HP driver extraction exit code 1168 (all HP models)
-- Dell CatalogPC.xml missing
-- expand.exe fails on large MSU files (fallback works)
+- expand.exe fails on large MSU files (fallback works — explicitly out of scope for v1.9.3)
 
 ### Out of Scope
 
@@ -136,4 +138,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-25 after v1.9.2 milestone shipped*
+*Last updated: 2026-01-25 after v1.9.3 milestone started*
