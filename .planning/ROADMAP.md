@@ -11,7 +11,7 @@
 
 ## Phases
 
-- [ ] **Phase 27: Bug Fixes Consolidation** - Document and close committed bug fixes
+- [x] **Phase 27: Bug Fixes Consolidation** - Document and close committed bug fixes ✓
 - [ ] **Phase 28: VM Host IP Dropdown** - Network adapter enumeration and UI dropdown
 - [ ] **Phase 29: Smart Apps.iso & Disk Estimation** - Content validation and space calculation
 
@@ -33,8 +33,8 @@
 **Plans**: 2 plans
 
 Plans:
-- [ ] 27-01-PLAN.md - Document bug fixes in CHANGELOG_FORK.md
-- [ ] 27-02-PLAN.md - Archive debug files and update version.json
+- [x] 27-01-PLAN.md - Document bug fixes in CHANGELOG_FORK.md ✓
+- [x] 27-02-PLAN.md - Archive debug files and update version.json ✓
 
 #### Phase 28: VM Host IP Dropdown
 **Goal**: Replace text field with smart dropdown showing network adapters with context
@@ -77,7 +77,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 27. Bug Fixes Consolidation | 0/2 | Planned | - |
+| 27. Bug Fixes Consolidation | 2/2 | Complete ✓ | 2026-01-25 |
 | 28. VM Host IP Dropdown | 0/3 | Not started | - |
 | 29. Smart Apps.iso & Disk Estimation | 0/4 | Not started | - |
 
@@ -113,4 +113,4 @@ See `.planning/milestones/` for archived milestone details.
 </details>
 
 ---
-*Last updated: 2026-01-25 - Phase 27 planned (2 plans)*
+*Last updated: 2026-01-25 — Phase 27 complete, verified ✓*
