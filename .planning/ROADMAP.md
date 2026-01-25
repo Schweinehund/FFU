@@ -2,12 +2,12 @@
 
 ## Milestones
 
-- ✅ **v1.8.0 Codebase Health** - Phases 1-10 (shipped 2026-01-20)
-- ✅ **v1.8.1 Bug Fixes** - Phases 11-13 (shipped 2026-01-20)
-- ✅ **v1.8.3 VMware UI Settings** - Phase 14 (shipped 2026-01-21)
-- ✅ **v1.9.0 Reliability Hardening** - Phases 15-25 (shipped 2026-01-24)
-- ✅ **v1.9.1 Build Phase Integration** - Phase 26 (shipped 2026-01-24)
-- 🚧 **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-29 (in progress)
+- **v1.8.0 Codebase Health** - Phases 1-10 (shipped 2026-01-20)
+- **v1.8.1 Bug Fixes** - Phases 11-13 (shipped 2026-01-20)
+- **v1.8.3 VMware UI Settings** - Phase 14 (shipped 2026-01-21)
+- **v1.9.0 Reliability Hardening** - Phases 15-25 (shipped 2026-01-24)
+- **v1.9.1 Build Phase Integration** - Phase 26 (shipped 2026-01-24)
+- **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-29 (in progress)
 
 ## Phases
 
@@ -17,7 +17,7 @@
 
 ## Phase Details
 
-### 🚧 v1.9.2 Smart Configuration & Bug Fixes (In Progress)
+### v1.9.2 Smart Configuration & Bug Fixes (In Progress)
 
 **Milestone Goal:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
 
@@ -28,13 +28,13 @@
 **Success Criteria** (what must be TRUE):
   1. All 5 bug fixes documented in CHANGELOG_FORK.md
   2. Debug files archived or cleaned up
-  3. version.json updated with v1.9.2-bugfixes
-**Research**: Unlikely (documentation only)
-**Plans**: TBD (estimated 1-2)
+  3. version.json updated with v1.9.2
+**Research**: None (documentation only)
+**Plans**: 2 plans
 
 Plans:
-- [ ] 27-01: Document bug fixes and update changelog
-- [ ] 27-02: Archive debug files and update version
+- [ ] 27-01-PLAN.md - Document bug fixes in CHANGELOG_FORK.md
+- [ ] 27-02-PLAN.md - Archive debug files and update version.json
 
 #### Phase 28: VM Host IP Dropdown
 **Goal**: Replace text field with smart dropdown showing network adapters with context
@@ -73,18 +73,18 @@ Plans:
 
 ## Progress
 
-**Execution Order:** 27 → 28 → 29
+**Execution Order:** 27 -> 28 -> 29
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 27. Bug Fixes Consolidation | 0/2 | Not started | - |
+| 27. Bug Fixes Consolidation | 0/2 | Planned | - |
 | 28. VM Host IP Dropdown | 0/3 | Not started | - |
 | 29. Smart Apps.iso & Disk Estimation | 0/4 | Not started | - |
 
 ---
 
 <details>
-<summary>✅ v1.9.1 Build Phase Integration (Phase 26) - SHIPPED 2026-01-24</summary>
+<summary>v1.9.1 Build Phase Integration (Phase 26) - SHIPPED 2026-01-24</summary>
 
 ### Phase 26: Build Phase Integration
 **Goal**: Wrap all BuildFFUVM.ps1 phases with Invoke-BuildPhase for graceful degradation
@@ -98,7 +98,7 @@ Plans:
 </details>
 
 <details>
-<summary>✅ v1.9.0 Reliability Hardening (Phases 15-25) - SHIPPED 2026-01-24</summary>
+<summary>v1.9.0 Reliability Hardening (Phases 15-25) - SHIPPED 2026-01-24</summary>
 
 See `.planning/milestones/v1.9.0-reliability-hardening.md` for details.
 180+ commits, 11 phases, 44 plans.
@@ -106,11 +106,11 @@ See `.planning/milestones/v1.9.0-reliability-hardening.md` for details.
 </details>
 
 <details>
-<summary>✅ v1.8.x Milestones (Phases 1-14) - SHIPPED</summary>
+<summary>v1.8.x Milestones (Phases 1-14) - SHIPPED</summary>
 
 See `.planning/milestones/` for archived milestone details.
 
 </details>
 
 ---
-*Last updated: 2026-01-25 — v1.9.2 roadmap created*
+*Last updated: 2026-01-25 - Phase 27 planned (2 plans)*
