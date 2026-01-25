@@ -40,9 +40,9 @@ Describe 'FFU.Preflight Module' -Tag 'Module', 'Preflight' {
             { Import-Module $script:ModulePath -Force -ErrorAction Stop } | Should -Not -Throw
         }
 
-        It 'Should export 12 functions' {
+        It 'Should export 21 functions' {
             $commands = Get-Command -Module FFU.Preflight
-            $commands.Count | Should -Be 12
+            $commands.Count | Should -Be 21
         }
 
         It 'Should export Invoke-FFUPreflight (main entry point)' {
@@ -637,6 +637,245 @@ Describe 'No TrustedInstaller Check' -Tag 'Design', 'Preflight' {
 
             # Should not have TrustedInstaller as a required running service
             $moduleContent | Should -Not -Match '\$requiredServices.*TrustedInstaller'
+        }
+    }
+}
+
+Describe 'Test-FFUHostIPAddress' -Tag 'HostIPAddress', 'Preflight', 'Tier2' {
+
+    BeforeAll {
+        # Import the module
+        Import-Module $script:ModulePath -Force -ErrorAction Stop
+
+        # Import FFUUI.Core for Get-HostNetworkAdapters
+        $ffuuiCorePath = Join-Path $script:FFUDevelopmentPath 'FFUUI.Core'
+        Import-Module $ffuuiCorePath -Force -ErrorAction SilentlyContinue
+    }
+
+    Context 'When configured IP exists on host' {
+
+        It 'Returns Passed status' {
+            # Mock Get-HostNetworkAdapters to return predictable data
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '192.168.1.100'
+                        AdapterName    = 'Ethernet'
+                        Description    = 'Intel I219-V'
+                        DisplayText    = '192.168.1.100 (Ethernet - Intel I219-V)'
+                        InterfaceIndex = 12
+                        IsPrimary      = $true
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '192.168.1.100'
+            $result.Status | Should -Be 'Passed'
+            $result.Severity | Should -Be 'Info'
+        }
+
+        It 'Includes adapter details in result' {
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '10.0.0.50'
+                        AdapterName    = 'Wi-Fi'
+                        Description    = 'Intel Wireless'
+                        DisplayText    = '10.0.0.50 (Wi-Fi - Intel Wireless)'
+                        InterfaceIndex = 8
+                        IsPrimary      = $false
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '10.0.0.50'
+            $result.Status | Should -Be 'Passed'
+            $result.Details.AdapterName | Should -Be 'Wi-Fi'
+            $result.Details.ConfiguredIP | Should -Be '10.0.0.50'
+        }
+    }
+
+    Context 'When configured IP does not exist on host' {
+
+        It 'Returns Warning status (not Failed)' {
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '192.168.1.100'
+                        AdapterName    = 'Ethernet'
+                        Description    = 'Intel I219-V'
+                        DisplayText    = '192.168.1.100 (Ethernet - Intel I219-V)'
+                        InterfaceIndex = 12
+                        IsPrimary      = $true
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '10.99.99.99'
+            $result.Status | Should -Be 'Warning'
+            $result.Severity | Should -Be 'Warning'
+        }
+
+        It 'Includes available IPs in details' {
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '192.168.1.100'
+                        AdapterName    = 'Ethernet'
+                        Description    = 'Intel I219-V'
+                        DisplayText    = '192.168.1.100 (Ethernet - Intel I219-V)'
+                        InterfaceIndex = 12
+                        IsPrimary      = $true
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '10.99.99.99'
+            $result.Details.AvailableIPs | Should -Contain '192.168.1.100'
+        }
+
+        It 'Includes remediation guidance' {
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '192.168.1.100'
+                        AdapterName    = 'Ethernet'
+                        Description    = 'Intel'
+                        DisplayText    = '192.168.1.100 (Ethernet)'
+                        InterfaceIndex = 12
+                        IsPrimary      = $true
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '10.99.99.99'
+            $result.Remediation | Should -Match 'VM Settings'
+        }
+    }
+
+    Context 'When no IP is configured (empty string)' {
+
+        It 'Returns Warning status' {
+            $result = Test-FFUHostIPAddress -ConfiguredIP ''
+            $result.Status | Should -Be 'Warning'
+            $result.Severity | Should -Be 'Warning'
+        }
+
+        It 'Provides guidance to configure IP' {
+            $result = Test-FFUHostIPAddress -ConfiguredIP ''
+            $result.Remediation | Should -Match 'VM Settings'
+        }
+
+        It 'Message indicates no IP configured' {
+            $result = Test-FFUHostIPAddress -ConfiguredIP ''
+            $result.Message | Should -Match 'No VM Host IP Address configured'
+        }
+    }
+
+    Context 'When Get-HostNetworkAdapters fails' {
+
+        It 'Returns Warning status (graceful degradation)' {
+            Mock Get-HostNetworkAdapters { throw 'Network error' } -ModuleName FFU.Preflight
+            Mock Get-Command { $null } -ParameterFilter { $Name -eq 'Get-HostNetworkAdapters' } -ModuleName FFU.Preflight
+            Mock Test-Path { $false } -ParameterFilter { $Path -like '*FFUUI.Core*' } -ModuleName FFU.Preflight
+            Mock Get-NetAdapter { throw 'No access' } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '192.168.1.1'
+            $result.Status | Should -Be 'Warning'
+        }
+    }
+
+    Context 'Function export and signature' {
+
+        It 'Should be exported from module' {
+            Get-Command -Name 'Test-FFUHostIPAddress' -Module 'FFU.Preflight' | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should have mandatory ConfiguredIP parameter' {
+            $cmd = Get-Command -Name 'Test-FFUHostIPAddress' -Module 'FFU.Preflight'
+            $param = $cmd.Parameters['ConfiguredIP']
+            $param | Should -Not -BeNullOrEmpty
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] -and $_.Mandatory } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should allow empty string for ConfiguredIP' {
+            $cmd = Get-Command -Name 'Test-FFUHostIPAddress' -Module 'FFU.Preflight'
+            $param = $cmd.Parameters['ConfiguredIP']
+            $param.Attributes | Where-Object { $_ -is [System.Management.Automation.AllowEmptyStringAttribute] } | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should return PSCustomObject' {
+            $result = Test-FFUHostIPAddress -ConfiguredIP ''
+            $result | Should -BeOfType [PSCustomObject]
+        }
+
+        It 'Should have all required result properties' {
+            $result = Test-FFUHostIPAddress -ConfiguredIP ''
+            $result.PSObject.Properties.Name | Should -Contain 'CheckName'
+            $result.PSObject.Properties.Name | Should -Contain 'Status'
+            $result.PSObject.Properties.Name | Should -Contain 'Severity'
+            $result.PSObject.Properties.Name | Should -Contain 'Message'
+            $result.PSObject.Properties.Name | Should -Contain 'Details'
+            $result.PSObject.Properties.Name | Should -Contain 'DurationMs'
+        }
+    }
+
+    Context 'Multiple adapters scenario' {
+
+        It 'Finds IP among multiple adapters' {
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '192.168.1.100'
+                        AdapterName    = 'Ethernet'
+                        Description    = 'Intel I219-V'
+                        DisplayText    = '192.168.1.100 (Ethernet - Intel I219-V)'
+                        InterfaceIndex = 12
+                        IsPrimary      = $true
+                    },
+                    [PSCustomObject]@{
+                        IPAddress      = '10.0.0.50'
+                        AdapterName    = 'Wi-Fi'
+                        Description    = 'Intel Wireless'
+                        DisplayText    = '10.0.0.50 (Wi-Fi - Intel Wireless)'
+                        InterfaceIndex = 8
+                        IsPrimary      = $false
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '10.0.0.50'
+            $result.Status | Should -Be 'Passed'
+            $result.Details.AdapterName | Should -Be 'Wi-Fi'
+        }
+
+        It 'Returns all available IPs in details when IP not found' {
+            Mock Get-HostNetworkAdapters {
+                @(
+                    [PSCustomObject]@{
+                        IPAddress      = '192.168.1.100'
+                        AdapterName    = 'Ethernet'
+                        Description    = 'Intel'
+                        DisplayText    = '192.168.1.100 (Ethernet)'
+                        InterfaceIndex = 12
+                        IsPrimary      = $true
+                    },
+                    [PSCustomObject]@{
+                        IPAddress      = '10.0.0.50'
+                        AdapterName    = 'Wi-Fi'
+                        Description    = 'Intel Wireless'
+                        DisplayText    = '10.0.0.50 (Wi-Fi)'
+                        InterfaceIndex = 8
+                        IsPrimary      = $false
+                    }
+                )
+            } -ModuleName FFU.Preflight
+
+            $result = Test-FFUHostIPAddress -ConfiguredIP '172.16.0.1'
+            $result.Status | Should -Be 'Warning'
+            $result.Details.AvailableIPs | Should -HaveCount 2
+            $result.Details.AvailableIPs | Should -Contain '192.168.1.100'
+            $result.Details.AvailableIPs | Should -Contain '10.0.0.50'
         }
     }
 }
