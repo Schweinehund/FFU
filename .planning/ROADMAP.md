@@ -7,17 +7,17 @@
 - **v1.8.3 VMware UI Settings** - Phase 14 (shipped 2026-01-21)
 - **v1.9.0 Reliability Hardening** - Phases 15-25 (shipped 2026-01-24)
 - **v1.9.1 Build Phase Integration** - Phase 26 (shipped 2026-01-24)
-- **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-29 (in progress)
+- **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-29 (complete)
 
 ## Phases
 
 - [x] **Phase 27: Bug Fixes Consolidation** - Document and close committed bug fixes ✓
 - [x] **Phase 28: VM Host IP Dropdown** - Network adapter enumeration and UI dropdown ✓
-- [ ] **Phase 29: Smart Apps.iso & Disk Estimation** - Content validation and space calculation
+- [x] **Phase 29: Smart Apps.iso & Disk Estimation** - Content validation and space calculation ✓
 
 ## Phase Details
 
-### v1.9.2 Smart Configuration & Bug Fixes (In Progress)
+### v1.9.2 Smart Configuration & Bug Fixes (Complete)
 
 **Milestone Goal:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
 
@@ -66,10 +66,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 29-01-PLAN.md — Content manifest/hash generation (New-AppsContentManifest, Get-AppsContentManifest)
-- [ ] 29-02-PLAN.md — Smart rebuild logic with hash comparison (Test-AppsISOStaleness)
-- [ ] 29-03-PLAN.md — Component-based disk space calculation (Get-AppsISODiskEstimate)
-- [ ] 29-04-PLAN.md — Pre-flight disk space validation (Test-FFUAppsISODiskSpace, Pester tests)
+- [x] 29-01-PLAN.md — Content manifest/hash generation (New-AppsContentManifest, Get-AppsContentManifest) ✓
+- [x] 29-02-PLAN.md — Smart rebuild logic with hash comparison (Test-AppsISOStaleness) ✓
+- [x] 29-03-PLAN.md — Component-based disk space calculation (Get-AppsISODiskEstimate) ✓
+- [x] 29-04-PLAN.md — Pre-flight disk space validation (Test-FFUAppsISODiskSpace, Pester tests) ✓
 
 ## Progress
 
@@ -79,7 +79,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 27. Bug Fixes Consolidation | 2/2 | Complete ✓ | 2026-01-25 |
 | 28. VM Host IP Dropdown | 3/3 | Complete ✓ | 2026-01-25 |
-| 29. Smart Apps.iso & Disk Estimation | 0/4 | Planned | - |
+| 29. Smart Apps.iso & Disk Estimation | 4/4 | Complete ✓ | 2026-01-25 |
 
 ---
 
@@ -113,4 +113,4 @@ See `.planning/milestones/` for archived milestone details.
 </details>
 
 ---
-*Last updated: 2026-01-25 — Phase 29 planned (4 plans in 2 waves)*
+*Last updated: 2026-01-25 — Milestone v1.9.2 complete (all 9 plans executed)*

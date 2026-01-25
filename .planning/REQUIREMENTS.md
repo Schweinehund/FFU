@@ -54,16 +54,19 @@ This milestone improves UI intelligence for network configuration and optimizes 
   - Priority: v1
   - Hash ALL files: Office installer, custom apps, downloads
   - Detect changes to any component
+  - Status: COMPLETE
 
 - **ISO-02**: Skip ISO rebuild when content hash matches existing
   - Priority: v1
   - Log why rebuild was skipped or what changed
   - Extend existing staleness detection
+  - Status: COMPLETE
 
 - **ISO-03**: Enhanced logging for Apps.iso decisions
   - Priority: v1
   - Show what changed and why rebuild needed
   - Clear diagnostic messages for troubleshooting
+  - Status: COMPLETE
 
 ### Disk Space Estimation (DISK)
 
@@ -71,11 +74,13 @@ This milestone improves UI intelligence for network configuration and optimizes 
   - Priority: v1
   - Component sizes: Base ISO (~50MB), Edge (~150MB), OneDrive (~50MB), Defender (~1GB), MSRT (~150MB), Office (~4GB), Custom apps (sum)
   - Account for temp space (EstimatedSize * 1.5)
+  - Status: COMPLETE
 
 - **DISK-02**: Pre-flight disk space validation with actionable message
   - Priority: v1
   - Format: "Estimated Apps.iso: 5.2GB, Required free space: 7.8GB, Available: 15GB"
   - Fail pre-flight if insufficient space
+  - Status: COMPLETE
 
 ### Logging (LOG)
 
@@ -84,6 +89,7 @@ This milestone improves UI intelligence for network configuration and optimizes 
   - Network adapter enumeration diagnostics
   - Disk space calculation logging
   - Content hash comparison logging
+  - Status: COMPLETE
 
 ## Summary
 
@@ -91,10 +97,10 @@ This milestone improves UI intelligence for network configuration and optimizes 
 |----------|----------|--------|
 | Bug Fixes | 5 | COMPLETE |
 | Network | 2 | COMPLETE |
-| Apps.iso | 3 | Pending |
-| Disk Space | 2 | Pending |
-| Logging | 1 | Partial |
-| **Total** | **13** | 7 complete, 6 pending |
+| Apps.iso | 3 | COMPLETE |
+| Disk Space | 2 | COMPLETE |
+| Logging | 1 | COMPLETE |
+| **Total** | **13** | **13 complete** |
 
 ## Traceability
 
@@ -107,17 +113,17 @@ This milestone improves UI intelligence for network configuration and optimizes 
 | BUG-05 | Phase 27 | Complete |
 | NET-01 | Phase 28 | Complete |
 | NET-02 | Phase 28 | Complete |
-| ISO-01 | Phase 29 | Pending |
-| ISO-02 | Phase 29 | Pending |
-| ISO-03 | Phase 29 | Pending |
-| DISK-01 | Phase 29 | Pending |
-| DISK-02 | Phase 29 | Pending |
-| LOG-01 | Phase 28, 29 | Pending |
+| ISO-01 | Phase 29 | Complete |
+| ISO-02 | Phase 29 | Complete |
+| ISO-03 | Phase 29 | Complete |
+| DISK-01 | Phase 29 | Complete |
+| DISK-02 | Phase 29 | Complete |
+| LOG-01 | Phase 28, 29 | Complete |
 
 **Coverage:**
 - v1 requirements: 13 total
 - Mapped to phases: 13
-- Unmapped: 0 ✓
+- All complete ✓
 
 ---
-*Created: 2026-01-25 for milestone v1.9.2*
+*Updated: 2026-01-25 — All requirements complete*

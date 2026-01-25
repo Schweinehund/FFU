@@ -88,9 +88,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 29-04-PLAN.md (Phase 29 complete)
+**Stopped at:** Completed Phase 29 (Milestone complete)
 **Resume file:** None
-**Next action:** Milestone v1.9.3 complete - ready for release or next milestone planning
+**Next action:** `/gsd:audit-milestone` or `/gsd:complete-milestone`
 
 ---
 *State updated: 2026-01-25*
