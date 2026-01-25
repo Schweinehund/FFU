@@ -73,7 +73,16 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ### Active
 
-**Current Milestone:** Planning next milestone
+**Current Milestone:** v1.9.2 Smart Configuration & Bug Fixes
+
+**Goal:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
+
+**Target features:**
+- [ ] Session Bug Fixes consolidation (5 bugs already committed)
+- [ ] VM Host IP Address Dropdown with adapter context
+- [ ] Apps.iso Smart Validation & Rebuild with content hashing
+- [ ] Component-Based Disk Space Estimation for pre-flight validation
+- [ ] Logging Pattern Adherence across new features
 
 **Deferred bugs (carry forward):**
 - HP driver extraction exit code 1168 (all HP models)
@@ -128,4 +137,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-24 after v1.9.1 milestone shipped*
+*Last updated: 2026-01-25 after v1.9.2 milestone started*
