@@ -3693,6 +3693,26 @@ function Invoke-FFUPreflight {
         $result.RemediationSteps.Add($diskResult.Remediation)
     }
 
+    # Apps.iso disk space check (when InstallApps is enabled) - Phase 29 DISK-02
+    if ($Features.InstallApps) {
+        $appsISODiskResult = Test-FFUAppsISODiskSpace -AppsPath (Join-Path $FFUDevelopmentPath "Apps") -Features $Features
+        $result.Tier2Results['AppsISODiskSpace'] = $appsISODiskResult
+        if ($appsISODiskResult.Status -eq 'Passed') {
+            Write-Information "  Checking Apps.iso disk space... PASSED (Need $($appsISODiskResult.Details.RequiredFreeGB)GB, Have $($appsISODiskResult.Details.AvailableFreeGB)GB)"
+        }
+        else {
+            Write-Information "  Checking Apps.iso disk space... FAILED"
+            $result.IsValid = $false
+            $result.Errors.Add("AppsISODiskSpace: $($appsISODiskResult.Message)")
+            $result.RemediationSteps.Add($appsISODiskResult.Remediation)
+        }
+    }
+    else {
+        Write-Information "  Apps.iso disk space check... SKIPPED (InstallApps not enabled)"
+        $result.Tier2Results['AppsISODiskSpace'] = New-FFUCheckResult -CheckName 'AppsISODiskSpace' -Status 'Skipped' `
+            -Message 'Apps.iso disk space check skipped (InstallApps not enabled)'
+    }
+
     # Scratch space check - REL-PRE-01
     $scratchResult = Test-FFUScratchSpace -FFUDevelopmentPath $FFUDevelopmentPath
     $result.Tier2Results['ScratchSpace'] = $scratchResult

@@ -66,7 +66,8 @@
         'New-FFUCheckResult',
         'Get-FFURequirements',
         # Phase 29: Apps.iso Disk Estimation
-        'Get-AppsISODiskEstimate'
+        'Get-AppsISODiskEstimate',
+        'Test-FFUAppsISODiskSpace'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -101,7 +102,13 @@
   - Falls back to empirical estimates for planned downloads
   - Includes content, ISO, temp, and total required space
   - Tracks which values are actual vs estimated
-- Part of Phase 29: Smart Apps.iso & Disk Estimation (DISK-01)
+- **NEW**: Test-FFUAppsISODiskSpace - Pre-flight validation for Apps.iso disk space
+  - Calls Get-AppsISODiskEstimate for requirements
+  - Compares against available drive space
+  - Returns Passed/Failed with detailed breakdown
+  - Provides actionable remediation steps on failure
+  - Integrated into Invoke-FFUPreflight Tier 2 (when InstallApps enabled)
+- Part of Phase 29: Smart Apps.iso & Disk Estimation (DISK-01, DISK-02)
 
 ---
 
