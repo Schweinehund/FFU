@@ -143,7 +143,11 @@ function Get-UIConfig {
         Threads                        = [int]$State.Controls.txtThreads.Text
         MaxUSBDrives                   = [int]$State.Controls.txtMaxUSBDrives.Text
         Verbose                        = $State.Controls.chkVerbose.IsChecked
-        VMHostIPAddress                = $State.Controls.txtVMHostIPAddress.Text
+        VMHostIPAddress                = if ($State.Controls.cmbVMHostIPAddress.SelectedItem.DisplayText -eq 'Custom...') {
+            $State.Controls.txtCustomVMHostIP.Text
+        } else {
+            $State.Controls.cmbVMHostIPAddress.SelectedItem.IPAddress
+        }
         VMLocation                     = $State.Controls.txtVMLocation.Text
         VMSwitchName                   = if ($State.Controls.cmbVMSwitchName.SelectedItem -eq 'Other') {
             $State.Controls.txtCustomVMSwitchName.Text
@@ -493,7 +497,6 @@ function Select-VMSwitchFromConfig {
         $State.Controls.txtCustomVMSwitchName.Visibility = 'Visible'
         $State.Controls.txtCustomVMSwitchName.Text = $configSwitch
         $State.Data.customVMSwitchName = $configSwitch
-        $State.Data.customVMHostIP = $ConfigContent.VMHostIPAddress
         WriteLog "LoadConfig: VMSwitchName '$configSwitch' not found. Selected 'Other' and populated custom VM Switch Name textbox."
     }
 }
@@ -600,7 +603,36 @@ function Update-UIFromConfig {
     }
 
     Select-VMSwitchFromConfig -State $State -ConfigContent $ConfigContent
-    Set-UIValue -ControlName 'txtVMHostIPAddress' -PropertyName 'Text' -ConfigObject $ConfigContent -ConfigKey 'VMHostIPAddress' -State $State
+
+    # Handle VM Host IP Address dropdown selection
+    $configIP = $null
+    if ($ConfigContent.PSObject.Properties.Match('VMHostIPAddress').Count -gt 0) {
+        $configIP = $ConfigContent.VMHostIPAddress
+    }
+    if (-not [string]::IsNullOrWhiteSpace($configIP)) {
+        # Try to find adapter matching the configured IP
+        $matchingItem = $State.Controls.cmbVMHostIPAddress.Items |
+            Where-Object { $_.IPAddress -eq $configIP } |
+            Select-Object -First 1
+
+        if ($matchingItem) {
+            $State.Controls.cmbVMHostIPAddress.SelectedItem = $matchingItem
+            $State.Data.selectedVMHostIP = $configIP
+            WriteLog "VMHostIP: Loaded config IP matches adapter: $($matchingItem.DisplayText)"
+        }
+        else {
+            # IP not found in adapters - select Custom and set the value
+            $customItem = $State.Controls.cmbVMHostIPAddress.Items |
+                Where-Object { $_.DisplayText -eq 'Custom...' } |
+                Select-Object -First 1
+            $State.Controls.cmbVMHostIPAddress.SelectedItem = $customItem
+            $State.Controls.txtCustomVMHostIP.Text = $configIP
+            $State.Controls.txtCustomVMHostIP.Visibility = 'Visible'
+            $State.Data.customVMHostIP = $configIP
+            $State.Data.selectedVMHostIP = $configIP
+            WriteLog "VMHostIP: Config IP '$configIP' not found in adapters - using Custom entry"
+        }
+    }
     Set-UIValue -ControlName 'txtDiskSize' -PropertyName 'Text' -ConfigObject $ConfigContent -ConfigKey 'Disksize' -TransformValue { param($val) $val / 1GB } -State $State
     Set-UIValue -ControlName 'txtMemory' -PropertyName 'Text' -ConfigObject $ConfigContent -ConfigKey 'Memory' -TransformValue { param($val) $val / 1GB } -State $State
     Set-UIValue -ControlName 'txtProcessors' -PropertyName 'Text' -ConfigObject $ConfigContent -ConfigKey 'Processors' -State $State
