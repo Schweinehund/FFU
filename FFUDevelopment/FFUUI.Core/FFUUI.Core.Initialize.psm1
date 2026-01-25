@@ -122,7 +122,8 @@ function Initialize-UIControls {
     $State.Controls.cmbVMwareNicType = $window.FindName('cmbVMwareNicType')
     $State.Controls.pnlVMSwitchLabel = $window.FindName('pnlVMSwitchLabel')
     $State.Controls.cmbVMSwitchName = $window.FindName('cmbVMSwitchName')
-    $State.Controls.txtVMHostIPAddress = $window.FindName('txtVMHostIPAddress')
+    $State.Controls.cmbVMHostIPAddress = $window.FindName('cmbVMHostIPAddress')
+    $State.Controls.txtCustomVMHostIP = $window.FindName('txtCustomVMHostIP')
     $State.Controls.txtCustomVMSwitchName = $window.FindName('txtCustomVMSwitchName')
     $State.Controls.txtFFUDevPath = $window.FindName('txtFFUDevPath')
     $State.Controls.txtCustomFFUNameTemplate = $window.FindName('txtCustomFFUNameTemplate')
@@ -207,7 +208,7 @@ function Initialize-VMSwitchData {
     param([PSCustomObject]$State)
 
     WriteLog "Initializing VM Switch data..."
-    
+
     # Hyper-V Settings: Populate VM Switch ComboBox
     $vmSwitchData = Get-VMSwitchData
     $State.Data.vmSwitchMap = $vmSwitchData.SwitchMap
@@ -218,19 +219,78 @@ function Initialize-VMSwitchData {
     $State.Controls.cmbVMSwitchName.Items.Add('Other') | Out-Null
     if ($State.Controls.cmbVMSwitchName.Items.Count -gt 1) {
         $State.Controls.cmbVMSwitchName.SelectedIndex = 0
-        $firstSwitch = $State.Controls.cmbVMSwitchName.SelectedItem
-        if ($null -ne $firstSwitch -and $State.Data.vmSwitchMap.ContainsKey($firstSwitch)) {
-            $State.Controls.txtVMHostIPAddress.Text = $State.Data.vmSwitchMap[$firstSwitch]
-        }
-        else {
-            $State.Controls.txtVMHostIPAddress.Text = $State.Defaults.generalDefaults.VMHostIPAddress # Use default if IP not found or key null
-        }
         $State.Controls.txtCustomVMSwitchName.Visibility = 'Collapsed'
     }
     else {
         $State.Controls.cmbVMSwitchName.SelectedItem = 'Other'
         $State.Controls.txtCustomVMSwitchName.Visibility = 'Visible'
-        $State.Controls.txtVMHostIPAddress.Text = $State.Defaults.generalDefaults.VMHostIPAddress # Use default
+    }
+}
+
+function Initialize-VMHostIPData {
+    param([PSCustomObject]$State)
+
+    WriteLog "Initializing VM Host IP dropdown..."
+
+    # Initialize State.Data properties for VM Host IP
+    $State.Data.selectedVMHostIP = ''
+    $State.Data.customVMHostIP = ''
+    $State.Data.hostNetworkAdapters = @()
+
+    $State.Controls.cmbVMHostIPAddress.Items.Clear()
+
+    # Populate with available network adapters
+    $adapters = Get-HostNetworkAdapters
+    if ($adapters.Count -gt 0) {
+        WriteLog "VMHostIP: Found $($adapters.Count) network adapter(s)"
+        foreach ($adapter in $adapters) {
+            $item = [PSCustomObject]@{
+                DisplayText = $adapter.DisplayText
+                IPAddress   = $adapter.IPAddress
+                IsPrimary   = $adapter.IsPrimary
+            }
+            $State.Controls.cmbVMHostIPAddress.Items.Add($item) | Out-Null
+        }
+
+        # Store adapter data for later use
+        $State.Data.hostNetworkAdapters = $adapters
+    }
+    else {
+        WriteLog "VMHostIP: No network adapters found - only Custom option available"
+    }
+
+    # Add 'Custom...' option at the end
+    $customItem = [PSCustomObject]@{
+        DisplayText = 'Custom...'
+        IPAddress   = ''
+        IsPrimary   = $false
+    }
+    $State.Controls.cmbVMHostIPAddress.Items.Add($customItem) | Out-Null
+
+    # Set DisplayMemberPath for proper rendering
+    $State.Controls.cmbVMHostIPAddress.DisplayMemberPath = 'DisplayText'
+
+    # Select primary adapter by default if available
+    $primaryAdapter = $State.Controls.cmbVMHostIPAddress.Items | Where-Object { $_.IsPrimary -eq $true } | Select-Object -First 1
+    if ($primaryAdapter) {
+        $State.Controls.cmbVMHostIPAddress.SelectedItem = $primaryAdapter
+        $State.Data.selectedVMHostIP = $primaryAdapter.IPAddress
+        WriteLog "VMHostIP: Auto-selected primary adapter: $($primaryAdapter.DisplayText)"
+    }
+    elseif ($State.Controls.cmbVMHostIPAddress.Items.Count -gt 1) {
+        # If no primary, select first non-Custom adapter
+        $firstAdapter = $State.Controls.cmbVMHostIPAddress.Items | Where-Object { $_.DisplayText -ne 'Custom...' } | Select-Object -First 1
+        if ($firstAdapter) {
+            $State.Controls.cmbVMHostIPAddress.SelectedItem = $firstAdapter
+            $State.Data.selectedVMHostIP = $firstAdapter.IPAddress
+            WriteLog "VMHostIP: Auto-selected first adapter: $($firstAdapter.DisplayText)"
+        }
+    }
+    else {
+        # Only Custom option available - select it
+        $State.Controls.cmbVMHostIPAddress.SelectedIndex = 0
+        $State.Controls.txtCustomVMHostIP.Visibility = 'Visible'
+        WriteLog "VMHostIP: Only Custom option available, showing custom input"
     }
 }
 
@@ -289,6 +349,7 @@ function Initialize-UIDefaults {
 
     # Hyper-V Settings defaults from General Defaults
     Initialize-VMSwitchData -State $State
+    Initialize-VMHostIPData -State $State
     $State.Controls.txtDiskSize.Text = $State.Defaults.generalDefaults.DiskSizeGB
     $State.Controls.txtMemory.Text = $State.Defaults.generalDefaults.MemoryGB
     $State.Controls.txtProcessors.Text = $State.Defaults.generalDefaults.Processors
