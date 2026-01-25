@@ -7,17 +7,18 @@
 - **v1.8.3 VMware UI Settings** - Phase 14 (shipped 2026-01-21)
 - **v1.9.0 Reliability Hardening** - Phases 15-25 (shipped 2026-01-24)
 - **v1.9.1 Build Phase Integration** - Phase 26 (shipped 2026-01-24)
-- **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-29 (complete)
+- **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-30 (gap closure in progress)
 
 ## Phases
 
 - [x] **Phase 27: Bug Fixes Consolidation** - Document and close committed bug fixes ✓
 - [x] **Phase 28: VM Host IP Dropdown** - Network adapter enumeration and UI dropdown ✓
 - [x] **Phase 29: Smart Apps.iso & Disk Estimation** - Content validation and space calculation ✓
+- [ ] **Phase 30: Wire VM Host IP Pre-flight Validation** - Integrate Test-FFUHostIPAddress into pre-flight pipeline
 
 ## Phase Details
 
-### v1.9.2 Smart Configuration & Bug Fixes (Complete)
+### v1.9.2 Smart Configuration & Bug Fixes (Gap Closure)
 
 **Milestone Goal:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
 
@@ -71,15 +72,32 @@ Plans:
 - [x] 29-03-PLAN.md — Component-based disk space calculation (Get-AppsISODiskEstimate) ✓
 - [x] 29-04-PLAN.md — Pre-flight disk space validation (Test-FFUAppsISODiskSpace, Pester tests) ✓
 
+#### Phase 30: Wire VM Host IP Pre-flight Validation
+**Goal**: Integrate Test-FFUHostIPAddress into the pre-flight pipeline to complete NET-02 requirement
+**Depends on**: Phase 28 (function already exists)
+**Requirements**: NET-02 (complete)
+**Gap Closure**: Closes integration gap from v1.9.2-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. Invoke-FFUPreflight accepts VMHostIPAddress parameter
+  2. Invoke-FFUPreflight calls Test-FFUHostIPAddress when VMware and IP configured
+  3. BuildFFUVM.ps1 passes VMHostIPAddress to Invoke-FFUPreflight
+  4. Pre-flight shows warning (not failure) when IP not found on host
+**Research**: None (implementation path clear from audit)
+**Plans**: 1 plan
+
+Plans:
+- [ ] 30-01-PLAN.md — Wire Test-FFUHostIPAddress into Invoke-FFUPreflight and BuildFFUVM.ps1
+
 ## Progress
 
-**Execution Order:** 27 -> 28 -> 29
+**Execution Order:** 27 -> 28 -> 29 -> 30
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 27. Bug Fixes Consolidation | 2/2 | Complete ✓ | 2026-01-25 |
 | 28. VM Host IP Dropdown | 3/3 | Complete ✓ | 2026-01-25 |
 | 29. Smart Apps.iso & Disk Estimation | 4/4 | Complete ✓ | 2026-01-25 |
+| 30. Wire VM Host IP Pre-flight | 0/1 | Pending | - |
 
 ---
 
@@ -113,4 +131,4 @@ See `.planning/milestones/` for archived milestone details.
 </details>
 
 ---
-*Last updated: 2026-01-25 — Milestone v1.9.2 complete (all 9 plans executed)*
+*Last updated: 2026-01-25 — Phase 30 added for gap closure (audit found 1 integration gap)*
