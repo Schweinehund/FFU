@@ -3191,94 +3191,52 @@ if (Test-Path -Path 'd:\Defender\mpam-fe.exe') {
                 }
             }
 
-            # Layer 3: Force Apps.iso recreation if downloaded files are newer than existing ISO
-            if (Test-Path $AppsISO) {
-                $isoLastWrite = (Get-Item $AppsISO).LastWriteTime
-                WriteLog "Existing Apps.iso found (Last modified: $isoLastWrite). Checking if update files are newer..."
+            # Layer 3: Smart staleness detection using content hashing (Phase 29)
+            $currentConfig = @{
+                InstallOffice        = $InstallOffice
+                UpdateLatestDefender = $UpdateLatestDefender
+                UpdateLatestMSRT     = $UpdateLatestMSRT
+                UpdateEdge           = $UpdateEdge
+                UpdateOneDrive       = $UpdateOneDrive
+            }
 
-                $needsRebuild = $false
-                $newestFile = $null
-                $newestFileTime = $null
+            $stalenessResult = Test-AppsISOStaleness -AppsISOPath $AppsISO -AppsPath $AppsPath -CurrentConfig $currentConfig
 
-                # Check Defender files if UpdateLatestDefender was enabled
-                if ($UpdateLatestDefender -and (Test-Path -Path $DefenderPath)) {
-                    $defenderFiles = Get-ChildItem -Path $DefenderPath -Recurse -File -ErrorAction SilentlyContinue
-                    if ($defenderFiles) {
-                        $newestDefender = $defenderFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-                        if ($newestDefender.LastWriteTime -gt $isoLastWrite) {
-                            $needsRebuild = $true
-                            $newestFile = $newestDefender.FullName
-                            $newestFileTime = $newestDefender.LastWriteTime
-                            WriteLog "Defender file is newer than Apps.iso: $($newestDefender.Name) (Modified: $($newestDefender.LastWriteTime))"
-                        }
+            if ($stalenessResult.Stale) {
+                WriteLog "APPS.ISO STALENESS: $($stalenessResult.Reason)"
+                if ($stalenessResult.Details.Count -gt 0) {
+                    WriteLog "  Changed items:"
+                    foreach ($detail in $stalenessResult.Details) {
+                        WriteLog "    - $detail"
                     }
                 }
+                WriteLog "  Action: $($stalenessResult.Action)"
 
-                # Check MSRT files if UpdateLatestMSRT was enabled
-                if ($UpdateLatestMSRT -and (Test-Path -Path $MSRTPath)) {
-                    $msrtFiles = Get-ChildItem -Path $MSRTPath -Recurse -File -ErrorAction SilentlyContinue
-                    if ($msrtFiles) {
-                        $newestMSRT = $msrtFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-                        if ($newestMSRT.LastWriteTime -gt $isoLastWrite) {
-                            $needsRebuild = $true
-                            if (-not $newestFileTime -or $newestMSRT.LastWriteTime -gt $newestFileTime) {
-                                $newestFile = $newestMSRT.FullName
-                                $newestFileTime = $newestMSRT.LastWriteTime
-                            }
-                            WriteLog "MSRT file is newer than Apps.iso: $($newestMSRT.Name) (Modified: $($newestMSRT.LastWriteTime))"
-                        }
-                    }
-                }
-
-                # Check Edge files if UpdateEdge was enabled
-                if ($UpdateEdge -and (Test-Path -Path $EdgePath)) {
-                    $edgeFiles = Get-ChildItem -Path $EdgePath -Recurse -File -ErrorAction SilentlyContinue
-                    if ($edgeFiles) {
-                        $newestEdge = $edgeFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-                        if ($newestEdge.LastWriteTime -gt $isoLastWrite) {
-                            $needsRebuild = $true
-                            if (-not $newestFileTime -or $newestEdge.LastWriteTime -gt $newestFileTime) {
-                                $newestFile = $newestEdge.FullName
-                                $newestFileTime = $newestEdge.LastWriteTime
-                            }
-                            WriteLog "Edge file is newer than Apps.iso: $($newestEdge.Name) (Modified: $($newestEdge.LastWriteTime))"
-                        }
-                    }
-                }
-
-                # Check OneDrive files if UpdateOneDrive was enabled
-                if ($UpdateOneDrive -and (Test-Path -Path $OneDrivePath)) {
-                    $oneDriveFiles = Get-ChildItem -Path $OneDrivePath -Recurse -File -ErrorAction SilentlyContinue
-                    if ($oneDriveFiles) {
-                        $newestOneDrive = $oneDriveFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-                        if ($newestOneDrive.LastWriteTime -gt $isoLastWrite) {
-                            $needsRebuild = $true
-                            if (-not $newestFileTime -or $newestOneDrive.LastWriteTime -gt $newestFileTime) {
-                                $newestFile = $newestOneDrive.FullName
-                                $newestFileTime = $newestOneDrive.LastWriteTime
-                            }
-                            WriteLog "OneDrive file is newer than Apps.iso: $($newestOneDrive.Name) (Modified: $($newestOneDrive.LastWriteTime))"
-                        }
-                    }
-                }
-
-                if ($needsRebuild) {
-                    WriteLog "STALE APPS.ISO DETECTED: Removing outdated Apps.iso to force rebuild with latest files"
-                    WriteLog "Newest file: $newestFile (Modified: $newestFileTime)"
-                    WriteLog "Apps.iso age: $isoLastWrite"
+                # Remove stale ISO to force rebuild
+                if (Test-Path $AppsISO) {
                     if (-not [string]::IsNullOrWhiteSpace($AppsISO)) {
                         Remove-Item -Path $AppsISO -Force -ErrorAction SilentlyContinue
                     }
-                    WriteLog "Stale Apps.iso removed. New ISO will be created with all latest updates."
-                } else {
-                    WriteLog "Apps.iso is up-to-date. No rebuild required."
+                    WriteLog "Stale Apps.iso removed. New ISO will be created."
                 }
+            } else {
+                WriteLog "APPS.ISO CURRENT: $($stalenessResult.Reason)"
+                WriteLog "  Action: Skip rebuild"
             }
 
-            Set-Progress -Percentage 10 -Message "Creating Apps ISO..."
-            WriteLog "Creating $AppsISO file"
-            New-AppsISO -ADKPath $adkPath -AppsPath $AppsPath -AppsISO $AppsISO
-            WriteLog "$AppsISO created successfully"
+            # Only create ISO if staleness detected or ISO doesn't exist
+            if ($stalenessResult.Stale -or -not (Test-Path $AppsISO)) {
+                Set-Progress -Percentage 10 -Message "Creating Apps ISO..."
+                WriteLog "Creating $AppsISO file"
+                New-AppsISO -ADKPath $adkPath -AppsPath $AppsPath -AppsISO $AppsISO
+                WriteLog "$AppsISO created successfully"
+
+                # Generate new manifest after successful ISO creation
+                New-AppsContentManifest -AppsPath $AppsPath -ConfigState $currentConfig | Out-Null
+                WriteLog "Content manifest updated"
+            } else {
+                WriteLog "Skipping Apps.iso creation - using existing current ISO"
+            }
         }
         catch {
             Write-Host "Creating Apps ISO Failed"
