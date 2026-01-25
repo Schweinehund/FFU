@@ -53,6 +53,7 @@
         'Test-FFUHyperVSwitchConflict',
         'Test-FFUVMwareDrivers',
         'Test-FFUVMwareBridgeConfiguration',
+        'Test-FFUHostIPAddress',
         # REL-PRE-01: Enhanced prerequisite detection
         'Test-FFUVMResources',
         'Test-FFUScratchSpace',

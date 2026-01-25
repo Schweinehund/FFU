@@ -2465,6 +2465,188 @@ network share.
     }
 }
 
+function Test-FFUHostIPAddress {
+    <#
+    .SYNOPSIS
+    Validates that the configured VM Host IP address exists on the host system.
+
+    .DESCRIPTION
+    Pre-flight check that verifies the configured IP address is available on one of
+    the host's network adapters. Returns a warning (non-blocking) if the IP is not found,
+    as the build may still work with manual intervention.
+
+    This check is Feature-Dependent (Tier 2) and should be run when:
+    - InstallApps is enabled (apps deployment requires network connectivity)
+    - VMware hypervisor is selected (needs IP for bridged networking)
+
+    The function calls Get-HostNetworkAdapters from FFUUI.Core module to enumerate
+    available network adapters with valid IPv4 addresses.
+
+    .PARAMETER ConfiguredIP
+    The IP address configured in the UI or config file for VM Host IP.
+
+    .OUTPUTS
+    PSCustomObject - FFU check result with Status, Message, Remediation, etc.
+
+    .EXAMPLE
+    Test-FFUHostIPAddress -ConfiguredIP '192.168.1.100'
+    # Returns Passed if IP exists on a host adapter
+
+    .EXAMPLE
+    Test-FFUHostIPAddress -ConfiguredIP '10.99.99.99'
+    # Returns Warning if IP not found (non-blocking)
+
+    .EXAMPLE
+    Test-FFUHostIPAddress -ConfiguredIP ''
+    # Returns Warning if no IP configured
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$ConfiguredIP
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $checkName = 'HostIPAddress'
+
+    # Use safe logging pattern for ThreadJob compatibility
+    $logMessage = {
+        param([string]$msg)
+        if ($function:WriteLog) {
+            WriteLog $msg
+        }
+        else {
+            Write-Verbose $msg
+        }
+    }
+
+    try {
+        # Handle empty/null IP
+        if ([string]::IsNullOrWhiteSpace($ConfiguredIP)) {
+            $stopwatch.Stop()
+            return New-FFUCheckResult -CheckName $checkName -Status 'Warning' `
+                -Severity 'Warning' `
+                -Message "No VM Host IP Address configured" `
+                -Details @{ ConfiguredIP = ''; AvailableIPs = @() } `
+                -Remediation (New-FFURemediationBlock `
+                    -Issue "VM Host IP Address is not configured" `
+                    -Impact "FFU capture may fail if VM cannot reach host to copy FFU file" `
+                    -ManualSteps @(
+                        "Open VM Settings tab",
+                        "Select a network adapter from the dropdown",
+                        "Or select 'Custom...' and enter a valid host IP"
+                    )) `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+
+        # Get all valid host IPs using FFUUI.Core's Get-HostNetworkAdapters
+        # Try to import FFUUI.Core if not already loaded
+        $adapters = @()
+        $hostIPs = @()
+
+        # Check if Get-HostNetworkAdapters is available
+        if (Get-Command -Name 'Get-HostNetworkAdapters' -ErrorAction SilentlyContinue) {
+            $adapters = @(Get-HostNetworkAdapters -ErrorAction SilentlyContinue)
+            $hostIPs = @($adapters | ForEach-Object { $_.IPAddress })
+        }
+        else {
+            # Fallback: Try to import FFUUI.Core module
+            $ffuuiCorePath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'FFUUI.Core'
+            if (Test-Path $ffuuiCorePath) {
+                try {
+                    Import-Module $ffuuiCorePath -Force -ErrorAction Stop
+                    $adapters = @(Get-HostNetworkAdapters -ErrorAction SilentlyContinue)
+                    $hostIPs = @($adapters | ForEach-Object { $_.IPAddress })
+                }
+                catch {
+                    & $logMessage "Pre-flight: Failed to import FFUUI.Core: $($_.Exception.Message)"
+                }
+            }
+
+            # If still no adapters, use inline enumeration as last resort
+            if ($adapters.Count -eq 0) {
+                & $logMessage "Pre-flight: Using inline network enumeration fallback"
+                try {
+                    $physicalAdapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Status -eq 'Up' }
+
+                    foreach ($adapter in $physicalAdapters) {
+                        $ipAddresses = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue
+                        foreach ($ipInfo in $ipAddresses) {
+                            $ip = $ipInfo.IPAddress
+                            # Filter out APIPA and loopback
+                            if ($ip -notlike '169.254.*' -and $ip -notlike '127.*') {
+                                $hostIPs += $ip
+                                $adapters += [PSCustomObject]@{
+                                    IPAddress      = $ip
+                                    AdapterName    = $adapter.Name
+                                    Description    = $adapter.InterfaceDescription
+                                    DisplayText    = "$ip ($($adapter.Name) - $($adapter.InterfaceDescription))"
+                                    InterfaceIndex = $adapter.ifIndex
+                                    IsPrimary      = $false
+                                }
+                            }
+                        }
+                    }
+                }
+                catch {
+                    & $logMessage "Pre-flight: Inline enumeration failed: $($_.Exception.Message)"
+                }
+            }
+        }
+
+        & $logMessage "Pre-flight: Checking if configured IP '$ConfiguredIP' exists on host"
+        & $logMessage "Pre-flight: Available host IPs: $($hostIPs -join ', ')"
+
+        if ($hostIPs -contains $ConfiguredIP) {
+            $matchingAdapter = $adapters | Where-Object { $_.IPAddress -eq $ConfiguredIP } | Select-Object -First 1
+            $stopwatch.Stop()
+            return New-FFUCheckResult -CheckName $checkName -Status 'Passed' `
+                -Severity 'Info' `
+                -Message "Configured IP '$ConfiguredIP' found on adapter: $($matchingAdapter.AdapterName)" `
+                -Details @{
+                    ConfiguredIP       = $ConfiguredIP
+                    AdapterName        = $matchingAdapter.AdapterName
+                    AdapterDescription = $matchingAdapter.Description
+                    AvailableIPs       = $hostIPs
+                } `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+        else {
+            $stopwatch.Stop()
+            $availableIPsText = if ($hostIPs.Count -gt 0) { $hostIPs -join ', ' } else { 'none found' }
+            return New-FFUCheckResult -CheckName $checkName -Status 'Warning' `
+                -Severity 'Warning' `
+                -Message "Configured IP '$ConfiguredIP' not found on any network adapter" `
+                -Details @{
+                    ConfiguredIP = $ConfiguredIP
+                    AvailableIPs = $hostIPs
+                } `
+                -Remediation (New-FFURemediationBlock `
+                    -Issue "VM Host IP Address '$ConfiguredIP' is not assigned to any network adapter on this host" `
+                    -Impact "FFU capture may fail - the VM won't be able to reach the host to copy the FFU file" `
+                    -ManualSteps @(
+                        "Open VM Settings tab",
+                        "Select a valid IP from the dropdown (available: $availableIPsText)",
+                        "Or verify the IP '$ConfiguredIP' is correctly configured on a network adapter"
+                    ) `
+                    -VerifyCommand "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { `$_.IPAddress -eq '$ConfiguredIP' }") `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        & $logMessage "Pre-flight: Error validating Host IP: $($_.Exception.Message)"
+        return New-FFUCheckResult -CheckName $checkName -Status 'Warning' `
+            -Severity 'Warning' `
+            -Message "Unable to validate host IP: $($_.Exception.Message)" `
+            -Details @{ Error = $_.Exception.Message } `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+}
+
 #endregion Tier 2: Feature-Dependent Validations
 
 #region Tier 3: Recommended Validations
@@ -3975,6 +4157,7 @@ Export-ModuleMember -Function @(
     'Test-FFUHyperVSwitchConflict',
     'Test-FFUVMwareDrivers',
     'Test-FFUVMwareBridgeConfiguration',
+    'Test-FFUHostIPAddress',
     # REL-PRE-01: Enhanced prerequisite detection
     'Test-FFUVMResources',
     'Test-FFUScratchSpace',
