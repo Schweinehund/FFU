@@ -472,6 +472,131 @@ function Get-AppsISODiskEstimate {
     return $estimate
 }
 
+function Test-FFUAppsISODiskSpace {
+    <#
+    .SYNOPSIS
+    Validates sufficient disk space for Apps.iso creation.
+
+    .DESCRIPTION
+    Uses Get-AppsISODiskEstimate to calculate required space based on enabled features,
+    then validates against available free space on the Apps folder drive.
+
+    .PARAMETER AppsPath
+    Path to the Apps folder (e.g., "C:\FFUDevelopment\Apps")
+
+    .PARAMETER Features
+    Hashtable of enabled features (InstallOffice, UpdateLatestDefender, etc.)
+
+    .EXAMPLE
+    $result = Test-FFUAppsISODiskSpace -AppsPath "C:\FFU\Apps" -Features @{InstallOffice=$true}
+
+    .OUTPUTS
+    FFUCheckResult with Status (Passed/Failed), Message, Details, and Remediation
+
+    .NOTES
+    Part of Phase 29: Smart Apps.iso & Disk Estimation (DISK-02)
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$AppsPath,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Features
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        # Get disk estimate
+        $estimate = Get-AppsISODiskEstimate -AppsPath $AppsPath -Features $Features
+
+        # Get available disk space on the AppsPath drive
+        # Handle case where AppsPath doesn't exist yet
+        if (Test-Path $AppsPath) {
+            $driveLetter = (Resolve-Path $AppsPath).Drive.Name
+        }
+        else {
+            # Use parent path or root
+            $parentPath = Split-Path $AppsPath -Parent
+            if (Test-Path $parentPath) {
+                $driveLetter = (Resolve-Path $parentPath).Drive.Name
+            }
+            else {
+                # Fallback: extract drive letter from path string
+                $driveLetter = $AppsPath.Substring(0, 1)
+            }
+        }
+
+        $drive = Get-PSDrive -Name $driveLetter -ErrorAction Stop
+        $availableBytes = $drive.Free
+        $availableGB = [Math]::Round($availableBytes / 1GB, 2)
+
+        $stopwatch.Stop()
+
+        # Build details object
+        $details = [ordered]@{
+            EstimatedContentGB   = $estimate.TotalContentGB
+            EstimatedISOSizeGB   = $estimate.ISOSizeGB
+            EstimatedTempSpaceGB = $estimate.TempSpaceGB
+            RequiredFreeGB       = $estimate.RequiredFreeGB
+            AvailableFreeGB      = $availableGB
+            DriveLetter          = $driveLetter
+            Components           = $estimate.Components
+            UsedActualSizes      = $estimate.UsedActualSizes
+            UsedEstimates        = $estimate.UsedEstimates
+        }
+
+        # Compare and build result
+        if ($availableBytes -ge $estimate.RequiredFreeBytes) {
+            $marginGB = [Math]::Round(($availableBytes - $estimate.RequiredFreeBytes) / 1GB, 2)
+            return New-FFUCheckResult -CheckName 'AppsISODiskSpace' `
+                -Status 'Passed' `
+                -Message "Sufficient disk space for Apps.iso: Required $($estimate.RequiredFreeGB) GB, Available $availableGB GB (Margin: $marginGB GB)" `
+                -Details $details `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+        else {
+            $shortfallGB = [Math]::Round(($estimate.RequiredFreeBytes - $availableBytes) / 1GB, 2)
+            $remediation = New-FFURemediationBlock -Issue "Insufficient disk space for Apps.iso creation" `
+                -Impact "Build will fail when creating Apps.iso" `
+                -ManualSteps @(
+                    "Free up at least $shortfallGB GB on drive ${driveLetter}:"
+                    "Estimated Apps.iso content: $($estimate.TotalContentGB) GB"
+                    "Estimated ISO file: $($estimate.ISOSizeGB) GB"
+                    "Estimated temp space: $($estimate.TempSpaceGB) GB"
+                    "Total required: $($estimate.RequiredFreeGB) GB"
+                    "Currently available: $availableGB GB"
+                ) `
+                -VerifyCommand "Get-PSDrive $driveLetter | Select-Object Free"
+
+            return New-FFUCheckResult -CheckName 'AppsISODiskSpace' `
+                -Status 'Failed' `
+                -Severity 'Critical' `
+                -Message "Insufficient disk space: Need $($estimate.RequiredFreeGB) GB, have $availableGB GB (Short by $shortfallGB GB)" `
+                -Details $details `
+                -Remediation $remediation `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        return New-FFUCheckResult -CheckName 'AppsISODiskSpace' `
+            -Status 'Failed' `
+            -Severity 'Critical' `
+            -Message "Failed to check Apps.iso disk space: $($_.Exception.Message)" `
+            -Details @{
+                AppsPath = $AppsPath
+                Error    = $_.Exception.Message
+            } `
+            -Remediation (New-FFURemediationBlock -Issue "Failed to check disk space for Apps.iso" `
+                -Impact "Cannot determine if sufficient space exists for Apps.iso creation" `
+                -ManualSteps @("Ensure path '$AppsPath' is accessible", "Ensure drive is mounted")) `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+}
+
 #endregion Helper Functions
 
 #region Tier 1: Critical Validations
@@ -4320,5 +4445,6 @@ Export-ModuleMember -Function @(
     'New-FFUCheckResult',
     'Get-FFURequirements',
     # Phase 29: Apps.iso Disk Estimation
-    'Get-AppsISODiskEstimate'
+    'Get-AppsISODiskEstimate',
+    'Test-FFUAppsISODiskSpace'
 )
