@@ -39,12 +39,14 @@ This milestone improves UI intelligence for network configuration and optimizes 
   - Priority: v1
   - Show format: `192.168.1.100 (Ethernet - Intel I219-V)`
   - Include adapter name and description for context
+  - Status: COMPLETE
 
 - **NET-02**: Replace VM Host IP text field with dropdown
   - Priority: v1
   - Include "Custom" option for manual entry
   - Auto-select best IP if none configured
   - Pre-flight warning if configured IP doesn't exist
+  - Status: COMPLETE
 
 ### Apps.iso Validation (ISO)
 
@@ -88,11 +90,11 @@ This milestone improves UI intelligence for network configuration and optimizes 
 | Category | v1 Count | Status |
 |----------|----------|--------|
 | Bug Fixes | 5 | COMPLETE |
-| Network | 2 | Pending |
+| Network | 2 | COMPLETE |
 | Apps.iso | 3 | Pending |
 | Disk Space | 2 | Pending |
-| Logging | 1 | Pending |
-| **Total** | **13** | 5 complete, 8 pending |
+| Logging | 1 | Partial |
+| **Total** | **13** | 7 complete, 6 pending |
 
 ## Traceability
 
@@ -103,8 +105,8 @@ This milestone improves UI intelligence for network configuration and optimizes 
 | BUG-03 | Phase 27 | Complete |
 | BUG-04 | Phase 27 | Complete |
 | BUG-05 | Phase 27 | Complete |
-| NET-01 | Phase 28 | Pending |
-| NET-02 | Phase 28 | Pending |
+| NET-01 | Phase 28 | Complete |
+| NET-02 | Phase 28 | Complete |
 | ISO-01 | Phase 29 | Pending |
 | ISO-02 | Phase 29 | Pending |
 | ISO-03 | Phase 29 | Pending |

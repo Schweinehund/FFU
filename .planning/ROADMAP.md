@@ -12,7 +12,7 @@
 ## Phases
 
 - [x] **Phase 27: Bug Fixes Consolidation** - Document and close committed bug fixes ✓
-- [ ] **Phase 28: VM Host IP Dropdown** - Network adapter enumeration and UI dropdown
+- [x] **Phase 28: VM Host IP Dropdown** - Network adapter enumeration and UI dropdown ✓
 - [ ] **Phase 29: Smart Apps.iso & Disk Estimation** - Content validation and space calculation
 
 ## Phase Details
@@ -49,9 +49,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 28-01-PLAN.md — Network adapter enumeration function (Get-HostNetworkAdapters)
-- [ ] 28-02-PLAN.md — UI dropdown implementation with Custom option
-- [ ] 28-03-PLAN.md — Pre-flight validation and auto-selection logic
+- [x] 28-01-PLAN.md — Network adapter enumeration function (Get-HostNetworkAdapters) ✓
+- [x] 28-02-PLAN.md — UI dropdown implementation with Custom option ✓
+- [x] 28-03-PLAN.md — Pre-flight validation and auto-selection logic ✓
 
 #### Phase 29: Smart Apps.iso & Disk Estimation
 **Goal**: Optimize Apps.iso rebuilds with content hashing and add disk space estimation
@@ -78,7 +78,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 27. Bug Fixes Consolidation | 2/2 | Complete ✓ | 2026-01-25 |
-| 28. VM Host IP Dropdown | 0/3 | Planned | - |
+| 28. VM Host IP Dropdown | 3/3 | Complete ✓ | 2026-01-25 |
 | 29. Smart Apps.iso & Disk Estimation | 0/4 | Not started | - |
 
 ---
@@ -113,4 +113,4 @@ See `.planning/milestones/` for archived milestone details.
 </details>
 
 ---
-*Last updated: 2026-01-25 — Phase 28 planned (3 plans)*
+*Last updated: 2026-01-25 — Phase 28 complete (3 plans)*
