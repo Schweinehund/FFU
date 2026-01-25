@@ -159,6 +159,114 @@ function Get-VMwareHostIPAddress {
     }
 }
 
+# Function to enumerate host network adapters with IPv4 addresses for VM Host IP selection
+function Get-HostNetworkAdapters {
+    <#
+    .SYNOPSIS
+        Enumerates host network adapters with IPv4 addresses for VM Host IP dropdown selection.
+    .DESCRIPTION
+        This function retrieves all physical network adapters that are currently up and have
+        valid IPv4 addresses. It filters out APIPA (169.254.x.x) and loopback (127.x.x.x) addresses,
+        and identifies the primary adapter (the one with the default gateway).
+
+        The function returns an array of PSCustomObject with metadata for each adapter,
+        suitable for populating a dropdown/combobox in the UI.
+    .OUTPUTS
+        PSCustomObject[] - Array of adapter objects with properties:
+            - IPAddress (string): The IPv4 address
+            - AdapterName (string): The adapter name (e.g., "Ethernet", "Wi-Fi")
+            - Description (string): The adapter description (e.g., "Intel(R) Ethernet Connection")
+            - DisplayText (string): Formatted text for dropdown display
+            - InterfaceIndex (int): The interface index for network operations
+            - IsPrimary (bool): True if this adapter has the default gateway
+    .EXAMPLE
+        $adapters = Get-HostNetworkAdapters
+        $adapters | Format-Table -AutoSize
+
+        IPAddress      AdapterName Description                     DisplayText                                               InterfaceIndex IsPrimary
+        ---------      ----------- -----------                     -----------                                               -------------- ---------
+        192.168.1.100  Ethernet    Intel(R) Ethernet Connection    192.168.1.100 (Ethernet - Intel(R) Ethernet Connection)             12      True
+        10.0.0.50      Wi-Fi       Intel(R) Wi-Fi 6 AX201          10.0.0.50 (Wi-Fi - Intel(R) Wi-Fi 6 AX201)                            8     False
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject[]])]
+    param()
+
+    try {
+        WriteLog "Get-HostNetworkAdapters: Starting network adapter enumeration"
+
+        # Get the interface index of the primary adapter (the one with default gateway)
+        $primaryInterfaceIndex = $null
+        $defaultRoute = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+            Sort-Object -Property RouteMetric |
+            Select-Object -First 1
+
+        if ($defaultRoute) {
+            $primaryInterfaceIndex = $defaultRoute.InterfaceIndex
+            WriteLog "Get-HostNetworkAdapters: Primary adapter interface index: $primaryInterfaceIndex"
+        }
+        else {
+            WriteLog "Get-HostNetworkAdapters: No default route found, cannot determine primary adapter"
+        }
+
+        # Get physical adapters that are up
+        $physicalAdapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue |
+            Where-Object { $_.Status -eq 'Up' }
+
+        if (-not $physicalAdapters) {
+            WriteLog "Get-HostNetworkAdapters: No physical adapters with 'Up' status found"
+            return @()
+        }
+
+        WriteLog "Get-HostNetworkAdapters: Found $($physicalAdapters.Count) physical adapter(s) with 'Up' status"
+
+        $results = @()
+
+        foreach ($adapter in $physicalAdapters) {
+            # Get IPv4 addresses for this adapter
+            $ipAddresses = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue
+
+            foreach ($ipInfo in $ipAddresses) {
+                $ip = $ipInfo.IPAddress
+
+                # Filter out APIPA (169.254.x.x) addresses
+                if ($ip -like '169.254.*') {
+                    WriteLog "Get-HostNetworkAdapters: Filtering APIPA address $ip on adapter '$($adapter.Name)'"
+                    continue
+                }
+
+                # Filter out loopback (127.x.x.x) addresses
+                if ($ip -like '127.*') {
+                    WriteLog "Get-HostNetworkAdapters: Filtering loopback address $ip on adapter '$($adapter.Name)'"
+                    continue
+                }
+
+                $isPrimary = ($adapter.ifIndex -eq $primaryInterfaceIndex)
+                $displayText = "$ip ($($adapter.Name) - $($adapter.InterfaceDescription))"
+
+                $adapterInfo = [PSCustomObject]@{
+                    IPAddress      = $ip
+                    AdapterName    = $adapter.Name
+                    Description    = $adapter.InterfaceDescription
+                    DisplayText    = $displayText
+                    InterfaceIndex = $adapter.ifIndex
+                    IsPrimary      = $isPrimary
+                }
+
+                $results += $adapterInfo
+                WriteLog "Get-HostNetworkAdapters: Added adapter - $displayText (Primary: $isPrimary)"
+            }
+        }
+
+        WriteLog "Get-HostNetworkAdapters: Enumeration complete, returning $($results.Count) adapter(s)"
+        return $results
+    }
+    catch {
+        WriteLog "Get-HostNetworkAdapters Error: $($_.Exception.Message)"
+        return @()
+    }
+}
+
 # Function to return general default settings for various UI elements
 function Get-GeneralDefaults {
     [CmdletBinding()]
