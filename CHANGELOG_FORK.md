@@ -8,6 +8,81 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.9.2] - 2026-01-25
+
+### Bug Fixes
+
+- **BUG-01: VHD Drive Letter Destabilization After fsutil Flush** (BUILD)
+  - **Issue:** Build failed partway through when VHD drive letter became inaccessible after fsutil volume flush
+  - **Root Cause:** CIM disk instance becomes stale after fsutil volume flush on VHD/VHDX files. Windows may detach/reattach the virtual disk, invalidating the object reference. All subsequent operations piping through `$disk` fail.
+  - **Solution:** Store disk number before fsutil flush, get fresh disk object after flush using `Get-Disk -Number`, with fallback discovery by path/BusType if number lookup fails
+  - **Files Modified:**
+    - `FFUDevelopment/BuildFFUVM.ps1`
+    - `.planning/debug/os-partition-drive-letter-lost.md`
+  - **Commit:** b492a16
+
+- **BUG-02: CopyOfficeConfigXML Checkbox Not Persisting** (CONFIG)
+  - **Issue:** The "Copy Office Config XML" checkbox reset to default on every UI launch, losing user preference
+  - **Root Cause:** Config migration incorrectly treated CopyOfficeConfigXML as deprecated and removed it during config load, causing the checkbox state to reset on every UI launch
+  - **Solution:** Remove migration logic that deleted CopyOfficeConfigXML property, remove deprecated flag from schema definition
+  - **Files Modified:**
+    - `FFUDevelopment/Modules/FFU.ConfigMigration/FFU.ConfigMigration.psm1`
+    - `FFUDevelopment/Modules/FFU.ConfigMigration/FFU.ConfigMigration.psd1`
+    - `FFUDevelopment/config/ffubuilder-config.schema.json`
+  - **Commit:** ceb77eb
+
+- **BUG-03: Config Migration Always Triggered** (CONFIG)
+  - **Issue:** UI showed config migration prompt on every launch even after migration completed
+  - **Root Cause:** `Get-UIConfig` did not include `configSchemaVersion` in the saved config hashtable. On next load, missing version was treated as "0.0" which always triggered the migration prompt.
+  - **Solution:** Add configSchemaVersion to Get-UIConfig output, use Get-FFUConfigSchemaVersion if available with fallback to "1.2"
+  - **Files Modified:**
+    - `FFUDevelopment/FFUUI.Core/FFUUI.Core.Config.psm1`
+  - **Commit:** 6d9afde
+
+- **BUG-04: Winget CLI Not Available in Elevated Context** (WINGET)
+  - **Issue:** "Check Winget Status" failed even after installation; Winget CLI invisible to elevated admin context
+  - **Root Cause (Part 1):** `Add-AppxPackage` without `-AllUsers` installed VCLibs, UIXaml, and WinGet MSIX packages per-user only. Since FFU Builder UI runs elevated, the per-user CLI installation was invisible.
+  - **Root Cause (Part 2):** Winget was provisioned system-wide but not registered for the elevated admin account. `Add-AppxPackage -AllUsers` doesn't register for existing users - it only provisions for future users.
+  - **Solution (Part 1):** Install Winget CLI packages with `-AllUsers` for system-wide availability
+  - **Solution (Part 2):** Two-strategy approach - check if package is provisioned, then use `Add-AppxPackage -RegisterByFamilyName` to instantly register for current user; fall back to download/install if not provisioned
+  - **Files Modified:**
+    - `FFUDevelopment/FFU.Common/FFU.Common.Winget.psm1`
+    - `FFUDevelopment/FFU.Common/FFU.Common.psd1`
+    - `FFUDevelopment/FFUUI.Core/FFUUI.Core.Winget.psm1`
+    - `FFUDevelopment/FFUUI.Core/FFUUI.Core.psd1`
+    - `FFUDevelopment/version.json`
+  - **Commits:** bfd6943, f1ad60f
+
+- **BUG-05: Winget Source Package Not Registered for Admin** (WINGET)
+  - **Issue:** After BUG-04 fix, winget CLI worked but `winget search` failed with "Data required by the source is missing"
+  - **Root Cause:** `Microsoft.Winget.Source_8wekyb3d8bbwe` (the repository index) was not registered for the elevated admin account
+  - **Solution:** Extended Install-WingetComponents to register Winget Source package using `Add-AppxPackage -RegisterByFamilyName`, then initialize sources with `winget source reset --force` and update with `winget source update`
+  - **Files Modified:**
+    - `FFUDevelopment/FFUUI.Core/FFUUI.Core.Winget.psm1`
+    - `FFUDevelopment/FFUUI.Core/FFUUI.Core.psd1`
+    - `FFUDevelopment/version.json`
+  - **Commit:** 38c897c
+
+### Enhancements
+
+- **Intune Proactive Remediation Scripts for Winget** (WINGET)
+  - Added detection and remediation scripts for enterprise Winget registration deployment via Intune
+  - Scripts handle provisioned vs registered package states, source initialization, and fallback download
+  - **Files Created:**
+    - `FFUDevelopment/Intune/WingetRemediation/Detect-WingetRegistration.ps1`
+    - `FFUDevelopment/Intune/WingetRemediation/Remediate-WingetRegistration.ps1`
+    - `FFUDevelopment/Intune/WingetRemediation/README.md`
+  - **Commit:** 63461eb
+
+- **KB Article: Winget Registration Troubleshooting** (DOCS)
+  - Comprehensive knowledge base article for IT support covering symptoms, diagnostics, resolution procedures, error codes, and FAQ
+  - Suitable for publishing as internal KB article or help desk documentation
+  - **Files Created:**
+    - `FFUDevelopment/Intune/WingetRemediation/KB-Winget-Troubleshooting.md`
+  - **Commit:** c338b55
+
+---
+
 ## [1.8.12] - 2026-01-23
 
 ### Enhancements
@@ -605,4 +680,4 @@ When making changes to this fork:
 
 ---
 
-*Last Updated: 2025-12-11*
+*Last Updated: 2026-01-25*
