@@ -268,6 +268,7 @@ function Install-WingetComponents {
     try {
         # First, check and install/update Winget CLI and dependencies
         # BUG-WINGET-01: CLI must be available for elevated contexts (different user than normal login)
+        # BUG-WINGET-02: Source package must also be registered for winget search to work
         $cliStatus = Test-WingetCLI
         $needsCliInstall = $cliStatus.Status -notmatch '^\d+\.\d+\.\d+$' -or ([version]$cliStatus.Version -lt $minVersion)
 
@@ -286,7 +287,7 @@ function Install-WingetComponents {
                 if ($provisionedPackage) {
                     WriteLog "Found provisioned Winget package (v$($provisionedPackage.Version)). Registering for current user..."
                     Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction Stop
-                    WriteLog "Successfully registered Winget from provisioned package."
+                    WriteLog "Successfully registered Winget CLI from provisioned package."
                     $registered = $true
                 }
                 else {
@@ -343,6 +344,67 @@ function Install-WingetComponents {
 
                 WriteLog "Winget CLI installation complete (installed for all users)."
             }
+        }
+
+        # BUG-WINGET-02: Register the Winget Source package for the current user
+        # This package contains the winget community repository index database
+        # Without it, winget search fails with "Data required by the source is missing" (0x8a15000f)
+        WriteLog "Checking Winget Source package registration..."
+        & $UiUpdateCallback $cliStatus.Version "Checking sources..."
+
+        $sourcePackageRegistered = $false
+        try {
+            # Check if the source package is already registered for the current user
+            $sourcePackage = Get-AppxPackage -Name 'Microsoft.Winget.Source' -ErrorAction SilentlyContinue
+            if ($sourcePackage) {
+                WriteLog "Winget Source package already registered (v$($sourcePackage.Version))."
+                $sourcePackageRegistered = $true
+            }
+            else {
+                WriteLog "Winget Source package not registered for current user. Attempting registration..."
+
+                # Check if provisioned (available for registration)
+                $provisionedSource = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+                    Where-Object { $_.DisplayName -eq 'Microsoft.Winget.Source' }
+
+                if ($provisionedSource) {
+                    WriteLog "Found provisioned Winget Source package (v$($provisionedSource.Version)). Registering..."
+                    Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.Winget.Source_8wekyb3d8bbwe -ErrorAction Stop
+                    WriteLog "Successfully registered Winget Source package."
+                    $sourcePackageRegistered = $true
+                }
+                else {
+                    # Source package not provisioned - this is unusual but can happen
+                    # The source will be initialized on first winget source update
+                    WriteLog "WARNING: Winget Source package not provisioned. Will attempt source reset."
+                }
+            }
+        }
+        catch {
+            WriteLog "Failed to register Winget Source package: $($_.Exception.Message)"
+            # Continue - we'll try source reset as fallback
+        }
+
+        # Initialize/refresh winget sources
+        # This handles: source agreement acceptance, source index download, and recovery from missing source package
+        WriteLog "Initializing Winget sources..."
+        & $UiUpdateCallback $cliStatus.Version "Initializing sources..."
+
+        try {
+            # Reset sources to accept agreements and reinitialize
+            # --force bypasses confirmation prompts
+            $resetResult = & winget.exe source reset --force 2>&1
+            WriteLog "Winget source reset result: $resetResult"
+
+            # Update sources to ensure index is current
+            $updateResult = & winget.exe source update 2>&1
+            WriteLog "Winget source update result: $updateResult"
+
+            WriteLog "Winget sources initialized successfully."
+        }
+        catch {
+            WriteLog "WARNING: Winget source initialization had issues: $($_.Exception.Message)"
+            # Non-fatal - source may still work
         }
 
         # Check and update PowerShell Module

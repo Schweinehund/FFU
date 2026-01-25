@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.19'
+ModuleVersion = '0.0.20'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -122,6 +122,15 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.20: BUG-WINGET-02 - Winget Source package registration for elevated admin
+- Fixed: Install-WingetComponents now also registers Microsoft.Winget.Source package
+- Root cause: Source package (winget repository index) also needs registration for elevated admin
+- Without source package, winget search fails with "Data required by the source is missing" (0x8a15000f)
+- Added: Source package registration from provisioned package (same pattern as CLI)
+- Added: winget source reset --force to accept source agreements
+- Added: winget source update to ensure index is current
+- Comprehensive logging for each registration/initialization step
+
 v0.0.19: BUG-WINGET-01 - Register from provisioned package for elevated admin users
 - Fixed: Install-WingetComponents now tries RegisterByFamilyName first (instant, no download)
 - Root cause: Winget is provisioned system-wide but not registered for elevated admin accounts

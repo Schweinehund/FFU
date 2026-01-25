@@ -2,8 +2,9 @@
 status: resolved
 trigger: "BUG-WINGET-01: Winget CLI not available in elevated context"
 created: 2026-01-24T00:00:00Z
-updated: 2026-01-24T19:15:00Z
+updated: 2026-01-24T20:00:00Z
 resolved: 2026-01-24T19:15:00Z
+related: BUG-WINGET-02-winget-source-registration.md
 ---
 
 ## Current Focus
@@ -107,3 +108,9 @@ files_changed:
   - FFUDevelopment/FFU.Common/FFU.Common.psd1
   - FFUDevelopment/FFUUI.Core/FFUUI.Core.psd1
   - FFUDevelopment/version.json
+
+## Related Issues
+
+BUG-WINGET-02: After this fix, winget CLI works but search still fails because
+Microsoft.Winget.Source_8wekyb3d8bbwe (source index package) also needs registration.
+See: .planning/debug/BUG-WINGET-02-winget-source-registration.md
