@@ -62,14 +62,14 @@ Plans:
   2. User sees clear log message explaining why rebuild occurred or was skipped
   3. Pre-flight shows estimated Apps.iso size and required disk space
   4. Build fails pre-flight if insufficient disk space
-**Research**: Unlikely (extends existing staleness detection)
-**Plans**: TBD (estimated 3-4)
+**Research**: Complete (29-RESEARCH.md)
+**Plans**: 4 plans
 
 Plans:
-- [ ] 29-01: Content manifest/hash generation for Apps folder
-- [ ] 29-02: Smart rebuild logic with hash comparison
-- [ ] 29-03: Component-based disk space calculation
-- [ ] 29-04: Pre-flight disk space validation and messaging
+- [ ] 29-01-PLAN.md — Content manifest/hash generation (New-AppsContentManifest, Get-AppsContentManifest)
+- [ ] 29-02-PLAN.md — Smart rebuild logic with hash comparison (Test-AppsISOStaleness)
+- [ ] 29-03-PLAN.md — Component-based disk space calculation (Get-AppsISODiskEstimate)
+- [ ] 29-04-PLAN.md — Pre-flight disk space validation (Test-FFUAppsISODiskSpace, Pester tests)
 
 ## Progress
 
@@ -79,7 +79,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 27. Bug Fixes Consolidation | 2/2 | Complete ✓ | 2026-01-25 |
 | 28. VM Host IP Dropdown | 3/3 | Complete ✓ | 2026-01-25 |
-| 29. Smart Apps.iso & Disk Estimation | 0/4 | Not started | - |
+| 29. Smart Apps.iso & Disk Estimation | 0/4 | Planned | - |
 
 ---
 
@@ -113,4 +113,4 @@ See `.planning/milestones/` for archived milestone details.
 </details>
 
 ---
-*Last updated: 2026-01-25 — Phase 28 complete (3 plans)*
+*Last updated: 2026-01-25 — Phase 29 planned (4 plans in 2 waves)*
