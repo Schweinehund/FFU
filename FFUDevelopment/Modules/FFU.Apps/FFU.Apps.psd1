@@ -5,7 +5,7 @@
     RootModule = 'FFU.Apps.psm1'
 
     # Version number of this module
-    ModuleVersion = '1.0.0'
+    ModuleVersion = '1.1.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -39,7 +39,9 @@
         'Get-Office',
         'New-AppsISO',
         'Remove-Apps',
-        'Remove-DisabledArtifacts'
+        'Remove-DisabledArtifacts',
+        'New-AppsContentManifest',
+        'Get-AppsContentManifest'
     )
 
     # Cmdlets to export from this module
@@ -65,6 +67,11 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+## Version 1.1.0
+- NEW: New-AppsContentManifest - Creates content manifest with SHA256 hashes for staleness detection
+- NEW: Get-AppsContentManifest - Reads existing manifest for comparison
+- Part of Phase 29: Smart Apps.iso & Disk Estimation (ISO-01)
+
 ## Version 1.0.0
 - Initial module extraction from BuildFFUVM.ps1
 - Office Deployment Tool (ODT) URL retrieval and download

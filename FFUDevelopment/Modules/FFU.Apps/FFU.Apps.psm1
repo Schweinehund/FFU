@@ -263,6 +263,185 @@ function New-AppsISO {
     Invoke-Process $OSCDIMG "-n -m -d $AppsPathLong $AppsISO" | Out-Null
 }
 
+function New-AppsContentManifest {
+    <#
+    .SYNOPSIS
+    Creates a content manifest for the Apps folder with SHA256 hashes of all component files
+
+    .DESCRIPTION
+    Generates a .manifest.json file containing SHA256 hashes of all files in the Apps
+    folder components (Office, Defender, MSRT, Edge, OneDrive, Orchestration, Win32, MSStore).
+    The manifest includes configuration state to detect when build options change.
+    This enables accurate staleness detection for Apps.iso rebuilds.
+
+    .PARAMETER AppsPath
+    Path to the Apps folder (e.g., "C:\FFUDevelopment\Apps")
+
+    .PARAMETER ConfigState
+    Hashtable containing current configuration state:
+    - InstallOffice: Whether Office installation is enabled
+    - UpdateLatestDefender: Whether Defender update is enabled
+    - UpdateLatestMSRT: Whether MSRT update is enabled
+    - UpdateEdge: Whether Edge update is enabled
+    - UpdateOneDrive: Whether OneDrive update is enabled
+
+    .EXAMPLE
+    $config = @{
+        InstallOffice = $true
+        UpdateLatestDefender = $true
+        UpdateLatestMSRT = $false
+        UpdateEdge = $true
+        UpdateOneDrive = $true
+    }
+    $manifest = New-AppsContentManifest -AppsPath "C:\FFUDevelopment\Apps" -ConfigState $config
+
+    .OUTPUTS
+    [hashtable] The manifest data structure with Version, Generated, ConfigState, Components, and ManifestHash
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$AppsPath,
+
+        [Parameter(Mandatory)]
+        [hashtable]$ConfigState
+    )
+
+    try {
+        WriteLog "Generating Apps content manifest..."
+
+        # Initialize manifest structure
+        $manifest = @{
+            Version     = "1.0.0"
+            Generated   = [DateTime]::UtcNow.ToString("o")
+            ConfigState = @{
+                InstallOffice        = [bool]$ConfigState.InstallOffice
+                UpdateLatestDefender = [bool]$ConfigState.UpdateLatestDefender
+                UpdateLatestMSRT     = [bool]$ConfigState.UpdateLatestMSRT
+                UpdateEdge           = [bool]$ConfigState.UpdateEdge
+                UpdateOneDrive       = [bool]$ConfigState.UpdateOneDrive
+            }
+            Components  = @{}
+            TotalSize   = 0
+            ManifestHash = ""
+        }
+
+        # Define component paths relative to AppsPath
+        $componentNames = @(
+            'Orchestration',
+            'Office',
+            'Defender',
+            'MSRT',
+            'Edge',
+            'OneDrive',
+            'Win32',
+            'MSStore'
+        )
+
+        foreach ($componentName in $componentNames) {
+            $componentPath = Join-Path $AppsPath $componentName
+
+            if (Test-Path $componentPath) {
+                $componentFiles = Get-ChildItem -Path $componentPath -Recurse -File -ErrorAction SilentlyContinue
+
+                if ($componentFiles -and $componentFiles.Count -gt 0) {
+                    $fileEntries = @()
+                    $componentSize = 0
+
+                    foreach ($file in $componentFiles) {
+                        $hash = (Get-FileHash -Path $file.FullName -Algorithm SHA256).Hash
+                        $relativePath = $file.FullName.Substring($AppsPath.Length).TrimStart('\', '/')
+
+                        $fileEntries += @{
+                            Path = $relativePath
+                            Hash = $hash
+                            Size = $file.Length
+                        }
+                        $componentSize += $file.Length
+                    }
+
+                    $sizeGB = [Math]::Round($componentSize / 1GB, 2)
+                    WriteLog "  Hashing $componentName`: $($componentFiles.Count) files, $sizeGB GB"
+
+                    $manifest.Components[$componentName] = @{
+                        Path      = $componentName
+                        Files     = $fileEntries
+                        FileCount = $componentFiles.Count
+                        TotalSize = $componentSize
+                    }
+
+                    $manifest.TotalSize += $componentSize
+                }
+            }
+        }
+
+        # Calculate ManifestHash (SHA256 of manifest JSON without ManifestHash field)
+        $manifestForHash = $manifest.Clone()
+        $manifestForHash.ManifestHash = ""
+        $manifestJson = $manifestForHash | ConvertTo-Json -Depth 10 -Compress
+        $manifestBytes = [System.Text.Encoding]::UTF8.GetBytes($manifestJson)
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha256.ComputeHash($manifestBytes)
+        $manifest.ManifestHash = [BitConverter]::ToString($hashBytes).Replace("-", "")
+
+        # Write manifest to file
+        $manifestPath = Join-Path $AppsPath ".manifest.json"
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path $manifestPath -Force
+
+        WriteLog "Manifest saved: $manifestPath"
+
+        return $manifest
+    }
+    catch {
+        WriteLog "ERROR: Failed to create Apps content manifest: $($_.Exception.Message)"
+        throw
+    }
+}
+
+function Get-AppsContentManifest {
+    <#
+    .SYNOPSIS
+    Reads an existing Apps content manifest
+
+    .DESCRIPTION
+    Reads and returns the .manifest.json file from the Apps folder.
+    Returns $null if the manifest does not exist.
+
+    .PARAMETER AppsPath
+    Path to the Apps folder (e.g., "C:\FFUDevelopment\Apps")
+
+    .EXAMPLE
+    $manifest = Get-AppsContentManifest -AppsPath "C:\FFUDevelopment\Apps"
+    if ($manifest) {
+        Write-Host "Manifest version: $($manifest.Version)"
+    }
+
+    .OUTPUTS
+    [PSCustomObject] The parsed manifest data, or $null if manifest does not exist
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$AppsPath
+    )
+
+    $manifestPath = Join-Path $AppsPath ".manifest.json"
+    WriteLog "Reading Apps content manifest from $manifestPath"
+
+    if (-not (Test-Path $manifestPath)) {
+        WriteLog "  Manifest not found"
+        return $null
+    }
+
+    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+
+    WriteLog "  Manifest version: $($manifest.Version), generated: $($manifest.Generated)"
+
+    return $manifest
+}
+
 function Remove-Apps {
 
     # Check if the file exists before attempting to clear it
@@ -408,5 +587,7 @@ Export-ModuleMember -Function @(
     'Get-Office',
     'New-AppsISO',
     'Remove-Apps',
-    'Remove-DisabledArtifacts'
+    'Remove-DisabledArtifacts',
+    'New-AppsContentManifest',
+    'Get-AppsContentManifest'
 )
