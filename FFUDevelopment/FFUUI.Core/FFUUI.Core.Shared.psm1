@@ -1148,7 +1148,7 @@ function Update-HypervisorStatus {
         # VMware Host IP Address handling
         # Key insight: The VM Host IP dropdown is already populated via Initialize-VMHostIPData
         # which uses Get-HostNetworkAdapters to enumerate all available adapters.
-        # If no adapter is selected or Custom is selected with empty text, use fallback detection.
+        # For VMware, we auto-select the primary adapter when no IP is configured.
         if ($showVMwareControls -and $null -ne $State.Controls.cmbVMHostIPAddress) {
             $selectedItem = $State.Controls.cmbVMHostIPAddress.SelectedItem
             $currentIP = if ($null -ne $selectedItem -and $selectedItem.DisplayText -ne 'Custom...') {
@@ -1161,34 +1161,57 @@ function Update-HypervisorStatus {
                 ''
             }
 
-            if ([string]::IsNullOrWhiteSpace($currentIP)) {
-                # IP is empty - use fallback detection (for VMware-only systems without Hyper-V)
-                WriteLog "Update-HypervisorStatus: VMHostIPAddress is empty for VMware, attempting auto-detection..."
-                $vmwareHostIP = Get-VMwareHostIPAddress
-                if (-not [string]::IsNullOrWhiteSpace($vmwareHostIP)) {
-                    # Try to find matching adapter in dropdown
-                    $matchingItem = $State.Controls.cmbVMHostIPAddress.Items |
-                        Where-Object { $_.IPAddress -eq $vmwareHostIP } |
-                        Select-Object -First 1
-                    if ($matchingItem) {
-                        $State.Controls.cmbVMHostIPAddress.SelectedItem = $matchingItem
-                        WriteLog "Update-HypervisorStatus: Auto-selected VMHostIPAddress adapter for VMware: $($matchingItem.DisplayText)"
-                    }
-                    else {
-                        # Fallback to custom if detected IP not in dropdown
-                        $customItem = $State.Controls.cmbVMHostIPAddress.Items |
-                            Where-Object { $_.DisplayText -eq 'Custom...' } |
-                            Select-Object -First 1
-                        if ($customItem) {
-                            $State.Controls.cmbVMHostIPAddress.SelectedItem = $customItem
-                            $State.Controls.txtCustomVMHostIP.Text = $vmwareHostIP
-                            $State.Controls.txtCustomVMHostIP.Visibility = 'Visible'
-                        }
-                        WriteLog "Update-HypervisorStatus: Auto-populated VMHostIPAddress (Custom) for VMware: $vmwareHostIP"
-                    }
+            # Check if we need to auto-select for VMware
+            # Auto-select if: no IP configured OR custom is selected with empty text
+            $needsAutoSelect = [string]::IsNullOrWhiteSpace($currentIP) -or
+                ($null -eq $selectedItem) -or
+                ($selectedItem.DisplayText -eq 'Custom...' -and [string]::IsNullOrWhiteSpace($State.Controls.txtCustomVMHostIP.Text))
+
+            if ($needsAutoSelect) {
+                # VMware auto-selection: prefer primary adapter from dropdown
+                WriteLog "Update-HypervisorStatus: VMware detected - auto-selecting primary adapter..."
+
+                # Strategy 1: Find primary adapter (has default gateway)
+                $primaryAdapter = $State.Controls.cmbVMHostIPAddress.Items |
+                    Where-Object { $_.IsPrimary -eq $true } |
+                    Select-Object -First 1
+
+                if ($primaryAdapter) {
+                    $State.Controls.cmbVMHostIPAddress.SelectedItem = $primaryAdapter
+                    $State.Data.selectedVMHostIP = $primaryAdapter.IPAddress
+                    WriteLog "Update-HypervisorStatus: VMware auto-selected primary adapter: $($primaryAdapter.DisplayText)"
                 }
                 else {
-                    WriteLog "Update-HypervisorStatus: WARNING - Could not auto-detect host IP for VMware. User must select from dropdown."
+                    # Strategy 2: Select first non-Custom adapter
+                    $firstAdapter = $State.Controls.cmbVMHostIPAddress.Items |
+                        Where-Object { $_.DisplayText -ne 'Custom...' } |
+                        Select-Object -First 1
+
+                    if ($firstAdapter) {
+                        $State.Controls.cmbVMHostIPAddress.SelectedItem = $firstAdapter
+                        $State.Data.selectedVMHostIP = $firstAdapter.IPAddress
+                        WriteLog "Update-HypervisorStatus: VMware auto-selected first adapter: $($firstAdapter.DisplayText)"
+                    }
+                    else {
+                        # Strategy 3: Fallback to Get-VMwareHostIPAddress for custom entry
+                        $vmwareHostIP = Get-VMwareHostIPAddress
+                        if (-not [string]::IsNullOrWhiteSpace($vmwareHostIP)) {
+                            $customItem = $State.Controls.cmbVMHostIPAddress.Items |
+                                Where-Object { $_.DisplayText -eq 'Custom...' } |
+                                Select-Object -First 1
+                            if ($customItem) {
+                                $State.Controls.cmbVMHostIPAddress.SelectedItem = $customItem
+                                $State.Controls.txtCustomVMHostIP.Text = $vmwareHostIP
+                                $State.Controls.txtCustomVMHostIP.Visibility = 'Visible'
+                                $State.Data.selectedVMHostIP = $vmwareHostIP
+                                $State.Data.customVMHostIP = $vmwareHostIP
+                            }
+                            WriteLog "Update-HypervisorStatus: VMware auto-populated Custom IP: $vmwareHostIP"
+                        }
+                        else {
+                            WriteLog "Update-HypervisorStatus: WARNING - No network adapters available for VMware. User must select from dropdown or enter custom IP."
+                        }
+                    }
                 }
             }
             else {
