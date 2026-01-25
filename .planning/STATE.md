@@ -50,15 +50,15 @@ Progress: Phase 27 complete
 | BUG-04 | Winget CLI not available in elevated context | bfd6943, f1ad60f |
 | BUG-05 | Winget Source package not registered for admin | 38c897c |
 
-**Phase 27 Plan 02:**
-- Archived 3 debug files to .planning/debug/archive/
-- Updated version.json to v1.9.2
-- Commits: 698893d, d6c9e07
+**Phase 27 Plans:**
+- Plan 01: Documented all bug fixes in CHANGELOG_FORK.md v1.9.2 section (5665645)
+- Plan 02: Archived 3 debug files, updated version.json to v1.9.2 (698893d, d6c9e07)
 
 ## Decisions Log
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Document bug fixes in CHANGELOG | 27-01 | Create audit trail for v1.9.2 milestone release |
 | Archive debug files rather than delete | 27-02 | Preserve investigation history |
 | Version jump to 1.9.2 | 27-02 | Reflects milestone progression (v1.9.0, v1.9.1 already shipped) |
 
