@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.8.39",
+    "version": "1.8.40",
     "buildDate": "2026-01-24",
 
     "versioningPolicy": {
@@ -14,9 +14,9 @@
 
     "modules": {
         "FFU.Common": {
-            "version": "0.0.12",
+            "version": "0.0.13",
             "path": "FFU.Common/FFU.Common.psd1",
-            "description": "Core logging, process execution, shared utilities - ThreadJob compatible (Find-ExecutableInPath, $function: drive instead of Get-Command)"
+            "description": "BUG-WINGET-01: Winget CLI -AllUsers install for elevated context visibility"
         },
         "FFU.Common.Logging": {
             "version": "1.0.0",
@@ -24,9 +24,9 @@
             "description": "Structured logging with levels, JSON output, session correlation"
         },
         "FFUUI.Core": {
-            "version": "0.0.17",
+            "version": "0.0.18",
             "path": "FFUUI.Core/FFUUI.Core.psd1",
-            "description": "Load-time config validation (REL-UI-05) - Invoke-LoadConfiguration validates via Test-FFUConfiguration, stores result in State.Data, build-time check for known validation errors"
+            "description": "BUG-WINGET-01: Install-WingetComponents now installs CLI packages with -AllUsers for elevated context"
         },
         "FFU.Core": {
             "version": "1.0.22",

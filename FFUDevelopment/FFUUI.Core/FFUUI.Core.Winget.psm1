@@ -264,15 +264,60 @@ function Install-WingetComponents {
 
     $minVersion = [version]"1.8.1911"
     $module = $null
-    
+
     try {
+        # First, check and install/update Winget CLI and dependencies
+        # BUG-WINGET-01: CLI must be installed with -AllUsers for elevated contexts
+        $cliStatus = Test-WingetCLI
+        $needsCliInstall = $cliStatus.Status -notmatch '^\d+\.\d+\.\d+$' -or ([version]$cliStatus.Version -lt $minVersion)
+
+        if ($needsCliInstall) {
+            WriteLog "Winget CLI needs install/update. Installing for all users..."
+            & $UiUpdateCallback "Installing CLI..." "Checking..."
+
+            # Detect system architecture for downloading correct packages
+            $arch = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+
+            # Install VCLibs, UIXaml, and WinGet CLI with -AllUsers
+            $packages = @(
+                @{Name = "VCLibs"; Url = "https://aka.ms/Microsoft.VCLibs.$arch.14.00.Desktop.appx"; File = "Microsoft.VCLibs.$arch.14.00.Desktop.appx" },
+                @{Name = "UIXaml"; Url = "https://github.com/microsoft/microsoft-ui-xaml/releases/download/v2.8.6/Microsoft.UI.Xaml.2.8.$arch.appx"; File = "Microsoft.UI.Xaml.2.8.$arch.appx" },
+                @{Name = "WinGet"; Url = "https://aka.ms/getwinget"; File = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" }
+            )
+
+            $ProgressPreference = 'SilentlyContinue'
+            foreach ($package in $packages) {
+                $destination = Join-Path -Path $env:TEMP -ChildPath $package.File
+                WriteLog "Downloading $($package.Name) from $($package.Url)..."
+
+                # Use Invoke-WebRequest for reliable download (BITS may not be available in all contexts)
+                try {
+                    Invoke-WebRequest -Uri $package.Url -OutFile $destination -UseBasicParsing -ErrorAction Stop
+                }
+                catch {
+                    WriteLog "Failed to download $($package.Name): $($_.Exception.Message)"
+                    throw
+                }
+
+                WriteLog "Installing $($package.Name) for all users..."
+                # Install system-wide so elevated UI context can access winget.exe
+                Add-AppxPackage -Path $destination -AllUsers -ErrorAction SilentlyContinue
+
+                # Cleanup downloaded file
+                Remove-Item -Path $destination -Force -ErrorAction SilentlyContinue
+            }
+            $ProgressPreference = 'Continue'
+
+            WriteLog "Winget CLI installation complete (installed for all users)."
+        }
+
         # Check and update PowerShell Module
         $module = Get-InstalledModule -Name Microsoft.WinGet.Client -ErrorAction SilentlyContinue
         if (-not $module -or $module.Version -lt $minVersion) {
             WriteLog "Winget module needs install/update. Attempting..."
             # Invoke the callback provided by the UI script to update status
-            # Note: We don't have the CLI version readily available here, pass a placeholder or adjust if needed.
-            & $UiUpdateCallback "Checking..." "Installing..." 
+            $cliVersion = (Test-WingetCLI).Version
+            & $UiUpdateCallback $cliVersion "Installing..."
 
             # Store and modify PSGallery trust setting temporarily if needed
             $PSGalleryTrust = (Get-PSRepository -Name 'PSGallery').InstallationPolicy
@@ -282,19 +327,19 @@ function Install-WingetComponents {
 
             # Install/Update the module
             Install-Module -Name Microsoft.WinGet.Client -Force -Repository 'PSGallery' -Scope AllUsers
-            
+
             # Restore original PSGallery trust setting
             if ($PSGalleryTrust -eq 'Untrusted') {
                 Set-PSRepository -Name 'PSGallery' -InstallationPolicy Untrusted
             }
-            
+
             $module = Get-InstalledModule -Name Microsoft.WinGet.Client -ErrorAction Stop
         }
-        
+
         $module
     }
     catch {
-        Write-Error "Failed to install/update Winget PowerShell module: $_"
+        Write-Error "Failed to install/update Winget components: $_"
         throw
     }
 }

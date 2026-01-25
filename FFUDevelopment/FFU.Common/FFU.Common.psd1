@@ -12,7 +12,7 @@
 RootModule = 'FFU.Common.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.12'
+ModuleVersion = '0.0.13'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -115,6 +115,17 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.13: BUG-WINGET-01 - Winget CLI not available in elevated context
+- Fixed: Install-WinGet now uses Add-AppxPackage -AllUsers for system-wide installation
+- Root cause: Per-user package installation was invisible to elevated UI context
+- VCLibs, UIXaml, and WinGet MSIX packages now installed for all users
+- Affects all installations via FFU.Common.Winget.psm1 (build script path)
+- Enables winget.exe access from elevated processes (FFU Builder UI)
+
+v0.0.12: ThreadJob runspace isolation fix - Get-Command → $function: / try-catch / Find-ExecutableInPath
+- Fixed: "The term 'Get-Command' is not recognized" errors in ThreadJob contexts
+- Solution: Use $function: drive for function checks, Find-ExecutableInPath for executables
+
 v0.0.11: ThreadJob runspace isolation fix - "Write-Warning is not recognized" error
 - Fixed: Build failures with "The term 'Write-Warning' is not recognized" when running via UI
 - Root cause: WriteLog fallback warning used Write-Warning cmdlet which may not be available in ThreadJob runspaces

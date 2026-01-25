@@ -509,16 +509,18 @@ function Install-WinGet {
         $destination = Join-Path -Path $env:TEMP -ChildPath $package.File
         WriteLog "Downloading $($package.Name) from $($package.Url) to $destination"
         Start-BitsTransferWithRetry -Source $package.Url -Destination $destination
-        WriteLog "Installing $($package.Name)..."
+        WriteLog "Installing $($package.Name) for all users..."
         # Don't show progress bar for Add-AppxPackage - there's a weird issue where the progress stays on the screen after the apps are installed
         $ProgressPreference = 'SilentlyContinue'
-        Add-AppxPackage -Path $destination -ErrorAction SilentlyContinue
+        # BUG-WINGET-01: Use -AllUsers to install system-wide so elevated contexts can access the CLI
+        # Without -AllUsers, packages are installed per-user and invisible to elevated processes
+        Add-AppxPackage -Path $destination -AllUsers -ErrorAction SilentlyContinue
         # Set progress preference back to default
         $ProgressPreference = 'Continue'
-        WriteLog "Removing $($package.Name)..."
+        WriteLog "Removing $($package.Name) installer..."
         Remove-Item -Path $destination -Force -ErrorAction SilentlyContinue
     }
-    WriteLog "WinGet installation complete."
+    WriteLog "WinGet installation complete (installed for all users)."
 }
 function Confirm-WinGetInstallation {
     [CmdletBinding()]

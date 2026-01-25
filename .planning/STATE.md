@@ -52,6 +52,17 @@ Key decisions from recent milestones are documented in PROJECT.md.
 
 None.
 
+## Pending Bug Fixes for Next Milestone
+
+| Bug ID | Description | Status | Debug File |
+|--------|-------------|--------|------------|
+| BUG-DISK-01 | VHD drive letter lost after fsutil flush | FIXED (b492a16) | os-partition-drive-letter-lost.md |
+| BUG-OFFICE-01 | CopyOfficeConfigXML checkbox not persisting | FIXED (ceb77eb) | office-xml-checkbox-persistence.md |
+| BUG-CONFIG-01 | Config migration always triggered | FIXED (6d9afde) | config-migration-always-triggered.md |
+| BUG-WINGET-01 | Winget CLI not available in elevated context | FIXED (pending commit) | BUG-WINGET-01-elevated-context.md |
+
+**Note:** All bugs fixed in this session. Ready for commit and inclusion in next milestone.
+
 ## Session Continuity
 
 **Last session:** 2026-01-24

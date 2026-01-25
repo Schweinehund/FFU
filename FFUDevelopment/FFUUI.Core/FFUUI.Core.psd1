@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.17'
+ModuleVersion = '0.0.18'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -122,6 +122,14 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.18: BUG-WINGET-01 - Winget CLI not available in elevated context
+- Fixed: Install-WingetComponents now installs CLI packages in addition to PowerShell module
+- Root cause: UI only installed module (-Scope AllUsers) but not CLI APPX packages
+- Added CLI installation with -AllUsers flag for VCLibs, UIXaml, and WinGet
+- Uses Invoke-WebRequest for reliable package downloads
+- Enables "Check Winget Status" to succeed in elevated UI context
+- Both CLI and module now installed system-wide for elevated process access
+
 v0.0.17: Load-time configuration validation (REL-UI-05)
 - NEW: Invoke-LoadConfiguration validates config via Test-FFUConfiguration
 - NEW: Shows validation errors via Show-FFUValidationErrors (from Plan 02)
