@@ -3423,7 +3423,10 @@ function Invoke-FFUPreflight {
 
         [Parameter()]
         [ValidateSet('HyperV', 'VMware', 'Auto')]
-        [string]$HypervisorType = 'HyperV'
+        [string]$HypervisorType = 'HyperV',
+
+        [Parameter()]
+        [string]$VMHostIPAddress
     )
 
     $overallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -3676,6 +3679,39 @@ function Invoke-FFUPreflight {
         Write-Information "  VMware bridge configuration check... SKIPPED (not using VMware)"
         $result.Tier2Results['VMwareBridgeConfig'] = New-FFUCheckResult -CheckName 'VMwareBridgeConfig' -Status 'Skipped' `
             -Message 'VMware bridge configuration check skipped (not using VMware hypervisor)'
+    }
+
+    # Host IP Address check (when VMware and IP configured) - Phase 30 NET-02 gap closure
+    if ($HypervisorType -eq 'VMware' -and -not [string]::IsNullOrWhiteSpace($VMHostIPAddress)) {
+        $hostIPResult = Test-FFUHostIPAddress -ConfiguredIP $VMHostIPAddress
+        $result.Tier2Results['HostIPAddress'] = $hostIPResult
+        if ($hostIPResult.Status -eq 'Passed') {
+            Write-Information "  Checking host IP address... PASSED"
+        }
+        elseif ($hostIPResult.Status -eq 'Warning') {
+            Write-Warning "  Checking host IP address... WARNING"
+            $result.HasWarnings = $true
+            $result.WarningCount++
+            $result.Warnings.Add("HostIPAddress: $($hostIPResult.Message)")
+            # Note: Warnings are non-blocking per NET-02 requirement
+            if ($hostIPResult.Remediation) {
+                $result.RemediationSteps.Add($hostIPResult.Remediation)
+            }
+        }
+        else {
+            Write-Information "  Checking host IP address... FAILED"
+            $result.IsValid = $false
+            $result.Errors.Add("HostIPAddress: $($hostIPResult.Message)")
+            if ($hostIPResult.Remediation) {
+                $result.RemediationSteps.Add($hostIPResult.Remediation)
+            }
+        }
+    }
+    else {
+        $skipReason = if ($HypervisorType -ne 'VMware') { "not using VMware" } else { "no IP configured" }
+        Write-Information "  Host IP address check... SKIPPED ($skipReason)"
+        $result.Tier2Results['HostIPAddress'] = New-FFUCheckResult -CheckName 'HostIPAddress' -Status 'Skipped' `
+            -Message "Host IP address check skipped ($skipReason)"
     }
 
     # Disk space check
