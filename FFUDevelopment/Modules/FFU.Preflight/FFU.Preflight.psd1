@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.0'
+    ModuleVersion = '1.4.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -64,7 +64,9 @@
         'Invoke-FFUDISMCleanup',
         # Helper functions
         'New-FFUCheckResult',
-        'Get-FFURequirements'
+        'Get-FFURequirements',
+        # Phase 29: Apps.iso Disk Estimation
+        'Get-AppsISODiskEstimate'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -90,7 +92,18 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.3.0
+# Release Notes - FFU.Preflight v1.4.0
+
+## v1.4.0 (2026-01-25)
+### Phase 29: Apps.iso Disk Estimation
+- **NEW**: Get-AppsISODiskEstimate - Calculates required disk space for Apps.iso creation
+  - Measures actual component sizes when folders exist
+  - Falls back to empirical estimates for planned downloads
+  - Includes content, ISO, temp, and total required space
+  - Tracks which values are actual vs estimated
+- Part of Phase 29: Smart Apps.iso & Disk Estimation (DISK-01)
+
+---
 
 ## v1.3.0 (2026-01-24)
 ### REL-PRE-01: Enhanced Prerequisite Detection
