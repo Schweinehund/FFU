@@ -1146,27 +1146,54 @@ function Update-HypervisorStatus {
         }
 
         # VMware Host IP Address handling
-        # Key insight: If Hyper-V vSwitch IP is already populated, it's valid for VMware too
-        # (both use the same physical adapter). Only use fallback detection if IP is empty.
-        if ($showVMwareControls -and $null -ne $State.Controls.txtVMHostIPAddress) {
-            $currentIP = $State.Controls.txtVMHostIPAddress.Text
+        # Key insight: The VM Host IP dropdown is already populated via Initialize-VMHostIPData
+        # which uses Get-HostNetworkAdapters to enumerate all available adapters.
+        # If no adapter is selected or Custom is selected with empty text, use fallback detection.
+        if ($showVMwareControls -and $null -ne $State.Controls.cmbVMHostIPAddress) {
+            $selectedItem = $State.Controls.cmbVMHostIPAddress.SelectedItem
+            $currentIP = if ($null -ne $selectedItem -and $selectedItem.DisplayText -ne 'Custom...') {
+                $selectedItem.IPAddress
+            }
+            elseif ($null -ne $State.Controls.txtCustomVMHostIP) {
+                $State.Controls.txtCustomVMHostIP.Text
+            }
+            else {
+                ''
+            }
 
             if ([string]::IsNullOrWhiteSpace($currentIP)) {
                 # IP is empty - use fallback detection (for VMware-only systems without Hyper-V)
                 WriteLog "Update-HypervisorStatus: VMHostIPAddress is empty for VMware, attempting auto-detection..."
                 $vmwareHostIP = Get-VMwareHostIPAddress
                 if (-not [string]::IsNullOrWhiteSpace($vmwareHostIP)) {
-                    $State.Controls.txtVMHostIPAddress.Text = $vmwareHostIP
-                    WriteLog "Update-HypervisorStatus: Auto-populated VMHostIPAddress for VMware: $vmwareHostIP"
+                    # Try to find matching adapter in dropdown
+                    $matchingItem = $State.Controls.cmbVMHostIPAddress.Items |
+                        Where-Object { $_.IPAddress -eq $vmwareHostIP } |
+                        Select-Object -First 1
+                    if ($matchingItem) {
+                        $State.Controls.cmbVMHostIPAddress.SelectedItem = $matchingItem
+                        WriteLog "Update-HypervisorStatus: Auto-selected VMHostIPAddress adapter for VMware: $($matchingItem.DisplayText)"
+                    }
+                    else {
+                        # Fallback to custom if detected IP not in dropdown
+                        $customItem = $State.Controls.cmbVMHostIPAddress.Items |
+                            Where-Object { $_.DisplayText -eq 'Custom...' } |
+                            Select-Object -First 1
+                        if ($customItem) {
+                            $State.Controls.cmbVMHostIPAddress.SelectedItem = $customItem
+                            $State.Controls.txtCustomVMHostIP.Text = $vmwareHostIP
+                            $State.Controls.txtCustomVMHostIP.Visibility = 'Visible'
+                        }
+                        WriteLog "Update-HypervisorStatus: Auto-populated VMHostIPAddress (Custom) for VMware: $vmwareHostIP"
+                    }
                 }
                 else {
-                    WriteLog "Update-HypervisorStatus: WARNING - Could not auto-detect host IP for VMware. User must enter manually or select a VM Switch first."
+                    WriteLog "Update-HypervisorStatus: WARNING - Could not auto-detect host IP for VMware. User must select from dropdown."
                 }
             }
             else {
-                # IP already exists (from vSwitch selection or user entry) - PRESERVE IT
-                # This is the common case when Hyper-V is also installed with an External vSwitch
-                WriteLog "Update-HypervisorStatus: VMHostIPAddress preserved for VMware: $currentIP (from vSwitch or user entry)"
+                # IP already exists (from dropdown selection or custom entry) - PRESERVE IT
+                WriteLog "Update-HypervisorStatus: VMHostIPAddress preserved for VMware: $currentIP"
             }
         }
 
