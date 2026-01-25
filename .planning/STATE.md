@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 28 — VM Host IP Dropdown
+**Current focus:** Phase 28 Complete - Ready for Phase 29
 
 ## Current Position
 
 **Milestone:** v1.9.2 Smart Configuration & Bug Fixes
-**Phase:** 28 of 29 (VM Host IP Dropdown) - IN PROGRESS
-**Plan:** 2/3 complete
-**Status:** Plan 28-02 complete (UI Dropdown Implementation)
-**Last activity:** 2026-01-25 — Completed 28-02-PLAN.md
+**Phase:** 28 of 29 (VM Host IP Dropdown) - COMPLETE
+**Plan:** 3/3 complete
+**Status:** Phase 28 complete
+**Last activity:** 2026-01-25 - Completed 28-03-PLAN.md
 
-Progress: Phase 28 in progress
-[######....] 67% — 6/9 plans
+Progress: Phase 28 complete, Phase 29 pending
+[#######...] 78% - 7/9 plans
 
 ## Milestone Scope
 
@@ -24,10 +24,10 @@ Progress: Phase 28 in progress
 
 **Phases:**
 1. Phase 27: Bug Fixes Consolidation (2 plans) - COMPLETE
-2. Phase 28: VM Host IP Dropdown (3 plans)
+2. Phase 28: VM Host IP Dropdown (3 plans) - COMPLETE
 3. Phase 29: Smart Apps.iso & Disk Estimation (4 plans)
 
-**Requirements:** 13 total (7 complete, 6 pending)
+**Requirements:** 13 total (10 complete, 3 pending)
 
 ## Shipped Milestones
 
@@ -39,20 +39,19 @@ Progress: Phase 28 in progress
 | v1.9.0 Reliability Hardening | SHIPPED | 15-25 (44 plans) | 2026-01-24 |
 | v1.9.1 Build Phase Integration | SHIPPED | 26 (3 plans) | 2026-01-24 |
 
-## Phase 27 Completed Work
+## Phase 28 Completed Work
 
-**Bug fixes consolidated:**
-| Bug ID | Description | Commit |
-|--------|-------------|--------|
-| BUG-01 | VHD drive letter lost after fsutil flush | b492a16 |
-| BUG-02 | CopyOfficeConfigXML checkbox not persisting | ceb77eb |
-| BUG-03 | Config migration always triggered | 6d9afde |
-| BUG-04 | Winget CLI not available in elevated context | bfd6943, f1ad60f |
-| BUG-05 | Winget Source package not registered for admin | 38c897c |
+**VM Host IP Dropdown feature complete:**
+| Plan | Description | Commits |
+|------|-------------|---------|
+| 28-01 | Network adapter enumeration (Get-HostNetworkAdapters) | cf427fd, 75f45e7 |
+| 28-02 | UI dropdown integration (cmbVMHostIPAddress) | c78c91d, 64c43d1, 287e8ba |
+| 28-03 | Pre-flight validation & auto-selection | 68972c6, 90e951b, eafa73f |
 
-**Phase 27 Plans:**
-- Plan 01: Documented all bug fixes in CHANGELOG_FORK.md v1.9.2 section (5665645)
-- Plan 02: Archived 3 debug files, updated version.json to v1.9.2 (698893d, d6c9e07)
+**Key functions delivered:**
+- `Get-HostNetworkAdapters` - Enumerates physical adapters with IPv4
+- `Test-FFUHostIPAddress` - Pre-flight validation (Warning if IP not found)
+- VMware auto-selection in `Update-HypervisorStatus`
 
 ## Decisions Log
 
@@ -65,6 +64,8 @@ Progress: Phase 28 in progress
 | Default gateway route for primary detection | 28-01 | Standard method to identify the adapter with internet connectivity |
 | PSCustomObject items with DisplayMemberPath | 28-02 | Enables flexible ComboBox rendering with accessible data properties |
 | State.Data for dropdown state | 28-02 | Cross-handler access to selectedVMHostIP, customVMHostIP, hostNetworkAdapters |
+| Warning not Failed for IP validation | 28-03 | IP mismatch is non-blocking - build may succeed with manual intervention |
+| Primary > First > Custom auto-select | 28-03 | Primary adapter has default gateway (most likely to work) |
 
 ## Blockers
 
@@ -73,9 +74,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-25
-**Stopped at:** Completed 28-02-PLAN.md
+**Stopped at:** Completed 28-03-PLAN.md (Phase 28 complete)
 **Resume file:** None
-**Next action:** `/gsd:execute-plan 28-03`
+**Next action:** `/gsd:execute-phase 29` or `/gsd:execute-plan 29-01`
 
 ---
 *State updated: 2026-01-25*
