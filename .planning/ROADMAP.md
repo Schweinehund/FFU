@@ -74,7 +74,10 @@ See `.planning/milestones/` for archived milestone details.
   2. Build log shows specific exit code and remediation steps when HP extraction fails
   3. Pester tests verify exit code 1168 handling and actionable error messages
 **Research**: Unlikely (known bug, known fix pattern)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 31-01-PLAN.md -- Add exit code 1168 handling, actionable logging, Pester tests, and version bumps
 
 ### Phase 32: Dell Driver Fix
 **Goal**: Dell driver download handles missing CatalogPC.xml without failing the build
@@ -113,4 +116,4 @@ See `.planning/milestones/` for archived milestone details.
 **Total:** 30 phases, 97 plans completed across 6 milestones + 3 new phases in progress
 
 ---
-*Last updated: 2026-01-25 - v1.9.3 roadmap created*
+*Last updated: 2026-01-25 - Phase 31 planned (1 plan)*
