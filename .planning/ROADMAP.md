@@ -102,7 +102,12 @@ Plans:
   2. All OEM driver error paths include actionable remediation messages in log output
   3. Pester tests verify logging goes through WriteLog, not Write-Host or direct console output
 **Research**: Unlikely (audit and replace pattern)
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 33-01-PLAN.md -- Migrate console-only calls and add structured [OEM][Model][Operation] prefixes in FFU.Drivers.psm1
+- [ ] 33-02-PLAN.md -- Retrofit BuildFFUVM.ps1 driver section with structured logging prefixes
+- [ ] 33-03-PLAN.md -- Pester tests for OEM driver logging, version bumps, and changelog
 
 ## Progress
 
