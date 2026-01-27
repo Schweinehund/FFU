@@ -8,6 +8,19 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.9.7] - 2026-01-27
+
+### Phase 33: OEM Driver Logging (v1.9.7)
+- All OEM driver selection, download, extraction, and error operations now log to FFUDevelopment.log via WriteLog
+- Structured [OEM][Model][Operation] prefix format enables grep/filtering of driver log entries
+- Dual output pattern preserves Write-Host console visibility for interactive builds
+- All error paths include actionable remediation with exception details, build impact, and log file reference
+- Phase 31/32 WARNING messages retrofitted with structured prefixes
+- Pester tests verify WriteLog usage across all OEM driver code paths (LOG-01 through LOG-06)
+- FFU.Drivers module version bumped to 1.4.0
+
+---
+
 ## [1.9.2] - 2026-01-25
 
 ### Bug Fixes

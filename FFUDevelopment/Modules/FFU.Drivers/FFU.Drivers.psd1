@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.0'
+    ModuleVersion = '1.4.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -106,6 +106,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.4.0: Phase 33 OEM Driver Logging (LOG-01 through LOG-06)
+- All OEM driver operations now log to FFUDevelopment.log via WriteLog with structured [OEM][Model][Operation] prefixes
+- Dual output preserves Write-Host/Write-Verbose console visibility for interactive builds
+- All error paths include actionable remediation messages with exception details, build impact, and log file reference
+- Removed $function:WriteLog guard pattern (direct WriteLog calls throughout)
+- Pester tests verify WriteLog usage across all OEM driver code paths (41 tests)
+
 v1.3.0: DELL-01 Graceful CatalogPC.xml Failure Handling (Phase 32)
 - Dell catalog download/extraction/parse failures no longer abort the build
 - Added explicit check for CatalogPC.XML existence after cab extraction
