@@ -9,10 +9,10 @@ Requirements for v1.9.3 release. Each maps to roadmap phases.
 
 ### HP Driver Fix (HP)
 
-- [ ] **HP-01**: HP driver extraction handles exit code 1168 without failing the build
-- [ ] **HP-02**: HP driver extraction logs the specific exit code and remediation steps when extraction fails
-- [ ] **HP-03**: Pester tests verify HP driver extraction exit code 1168 handling
-- [ ] **HP-04**: Pester tests verify HP extraction produces actionable error messages
+- [x] **HP-01**: HP driver extraction handles exit code 1168 without failing the build
+- [x] **HP-02**: HP driver extraction logs the specific exit code and remediation steps when extraction fails
+- [x] **HP-03**: Pester tests verify HP driver extraction exit code 1168 handling
+- [x] **HP-04**: Pester tests verify HP extraction produces actionable error messages
 
 ### Dell Driver Fix (DELL)
 
@@ -56,10 +56,10 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HP-01 | Phase 31 | Pending |
-| HP-02 | Phase 31 | Pending |
-| HP-03 | Phase 31 | Pending |
-| HP-04 | Phase 31 | Pending |
+| HP-01 | Phase 31 | Complete |
+| HP-02 | Phase 31 | Complete |
+| HP-03 | Phase 31 | Complete |
+| HP-04 | Phase 31 | Complete |
 | DELL-01 | Phase 32 | Pending |
 | DELL-02 | Phase 32 | Pending |
 | DELL-03 | Phase 32 | Pending |
@@ -78,4 +78,4 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-25 after roadmap creation*
+*Last updated: 2026-01-26 — HP-01..04 complete (Phase 31)*
