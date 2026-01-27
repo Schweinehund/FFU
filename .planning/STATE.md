@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 32 — Dell Driver Fix
+**Current focus:** Phase 33 — OEM Driver Logging
 
 ## Current Position
 
 **Milestone:** v1.9.3 OEM Driver Bug Fixes
-**Phase:** 32 of 33 (Dell Driver Fix)
-**Plan:** 1 of 1 complete
-**Status:** Phase complete
-**Last activity:** 2026-01-27 — Completed 32-01-PLAN.md (Dell catalog failure handling)
+**Phase:** 33 of 33 (OEM Driver Logging)
+**Plan:** 2 of 3 complete
+**Status:** In progress
+**Last activity:** 2026-01-27 — Completed 33-02-PLAN.md (BuildFFUVM.ps1 driver logging)
 
-Progress: ██████░░░░ 67% (2 of 3 phases complete)
+Progress: ████████░░ 78% (2.67 of 3 phases complete)
 
 ## Shipped Milestones
 
@@ -36,7 +36,7 @@ Progress: ██████░░░░ 67% (2 of 3 phases complete)
 |-------|------|-------------|--------|
 | 31: HP Driver Fix | Exit code 1168 handling | HP-01..04 | Complete |
 | 32: Dell Driver Fix | Missing CatalogPC.xml | DELL-01..04 | Complete |
-| 33: OEM Driver Logging | WriteLog audit | LOG-01..06 | Not started |
+| 33: OEM Driver Logging | WriteLog audit | LOG-01..06 | In progress (2/3 plans) |
 
 ## Decisions Log
 
@@ -49,6 +49,8 @@ Progress: ██████░░░░ 67% (2 of 3 phases complete)
 | 32 | 01 | Added Test-Path check for CatalogPC.XML | Core bug - cab extraction can succeed but produce no XML | Detects specific missing file scenario |
 | 32 | 01 | WARNING level for catalog failures | Non-build-blocking failures should use WARNING not ERROR | Clearer log semantics |
 | 32 | 01 | Minor version bump to 1.3.0 | New graceful degradation capability | Follows SemVer for behavioral enhancement |
+| 33 | 02 | Hardcoded OEM names in per-OEM blocks | Explicit log filtering by OEM name | Consistent structured prefix format |
+| 33 | 02 | Timing outside Invoke-BuildPhase | Captures total elapsed including overhead | Accurate phase duration reporting |
 
 ## Blockers
 
@@ -57,9 +59,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-27
-**Stopped at:** Completed Phase 32 Plan 01 (Dell catalog failure handling)
+**Stopped at:** Completed 33-02-PLAN.md (BuildFFUVM.ps1 driver logging)
 **Resume file:** None
-**Next action:** `/gsd:plan-phase 33` to plan OEM Driver Logging audit
+**Next action:** Execute 33-03-PLAN.md (remaining logging audit)
 
 ---
-*State updated: 2026-01-27 after completing Phase 32*
+*State updated: 2026-01-27 after completing 33-02*
