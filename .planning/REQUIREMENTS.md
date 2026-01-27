@@ -16,10 +16,10 @@ Requirements for v1.9.3 release. Each maps to roadmap phases.
 
 ### Dell Driver Fix (DELL)
 
-- [ ] **DELL-01**: Dell driver download handles missing CatalogPC.xml without failing the build
-- [ ] **DELL-02**: Dell catalog lookup logs the failure reason and fallback action taken
-- [ ] **DELL-03**: Pester tests verify Dell CatalogPC.xml missing scenario handling
-- [ ] **DELL-04**: Pester tests verify Dell catalog fallback behavior
+- [x] **DELL-01**: Dell driver download handles missing CatalogPC.xml without failing the build
+- [x] **DELL-02**: Dell catalog lookup logs the failure reason and fallback action taken
+- [x] **DELL-03**: Pester tests verify Dell CatalogPC.xml missing scenario handling
+- [x] **DELL-04**: Pester tests verify Dell catalog fallback behavior
 
 ### OEM Driver Logging (LOG)
 
@@ -60,10 +60,10 @@ Which phases cover which requirements. Updated by create-roadmap.
 | HP-02 | Phase 31 | Complete |
 | HP-03 | Phase 31 | Complete |
 | HP-04 | Phase 31 | Complete |
-| DELL-01 | Phase 32 | Pending |
-| DELL-02 | Phase 32 | Pending |
-| DELL-03 | Phase 32 | Pending |
-| DELL-04 | Phase 32 | Pending |
+| DELL-01 | Phase 32 | Complete |
+| DELL-02 | Phase 32 | Complete |
+| DELL-03 | Phase 32 | Complete |
+| DELL-04 | Phase 32 | Complete |
 | LOG-01 | Phase 33 | Pending |
 | LOG-02 | Phase 33 | Pending |
 | LOG-03 | Phase 33 | Pending |
@@ -78,4 +78,4 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-26 — HP-01..04 complete (Phase 31)*
+*Last updated: 2026-01-27 — DELL-01..04 complete (Phase 32)*
