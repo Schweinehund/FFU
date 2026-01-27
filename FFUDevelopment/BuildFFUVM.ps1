@@ -2563,42 +2563,45 @@ elseif (($Make -and $Model) -and ($InstallDrivers -or $CopyDrivers)) {
     Set-Progress -Percentage 4 -Message "Downloading OEM drivers..."
 
     # === NON-CRITICAL PHASE: Driver Download (INT-BUILD-01, INT-BUILD-02) ===
+    $driverStartTime = [DateTime]::Now
     $driverDownloadResult = Invoke-BuildPhase -PhaseName 'Driver Download' -Critical $false -Action {
         if ($Make -eq 'HP') {
-            WriteLog 'Getting HP drivers'
+            WriteLog "[HP][$Model][Download] Starting HP driver download"
             Get-HPDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
                           -WindowsVersion $WindowsVersion -DriversFolder $DriversFolder `
                           -FFUDevelopmentPath $FFUDevelopmentPath
-            WriteLog 'Getting HP drivers completed successfully'
+            WriteLog "[HP][$Model][Download] HP driver download completed successfully"
         }
         if ($Make -eq 'Microsoft') {
-            WriteLog 'Getting Microsoft drivers'
+            WriteLog "[Microsoft][$Model][Download] Starting Microsoft driver download"
             Get-MicrosoftDrivers -Make $Make -Model $Model -WindowsRelease $WindowsRelease `
                                 -Headers $Headers -UserAgent $UserAgent -DriversFolder $DriversFolder `
                                 -FFUDevelopmentPath $FFUDevelopmentPath
-            WriteLog 'Getting Microsoft drivers completed successfully'
+            WriteLog "[Microsoft][$Model][Download] Microsoft driver download completed successfully"
         }
         if ($Make -eq 'Lenovo') {
-            WriteLog 'Getting Lenovo drivers'
+            WriteLog "[Lenovo][$Model][Download] Starting Lenovo driver download"
             Get-LenovoDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
                               -Headers $Headers -UserAgent $UserAgent -DriversFolder $DriversFolder `
                               -FFUDevelopmentPath $FFUDevelopmentPath
-            WriteLog 'Getting Lenovo drivers completed successfully'
+            WriteLog "[Lenovo][$Model][Download] Lenovo driver download completed successfully"
         }
         if ($Make -eq 'Dell') {
-            WriteLog 'Getting Dell drivers'
+            WriteLog "[Dell][$Model][Download] Starting Dell driver download"
             #Dell mixes Win10 and 11 drivers, hence no WindowsRelease parameter
             Get-DellDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
                             -DriversFolder $DriversFolder -FFUDevelopmentPath $FFUDevelopmentPath `
                             -isServer $isServer
-            WriteLog 'Getting Dell drivers completed successfully'
+            WriteLog "[Dell][$Model][Download] Dell driver download completed successfully"
         }
     }
+    $driverElapsed = ([DateTime]::Now - $driverStartTime).TotalSeconds
+    WriteLog "[$Make][$Model][Download] Driver download phase completed in $($driverElapsed.ToString('F1'))s"
 
     if (-not $driverDownloadResult.Success) {
-        WriteLog "WARNING: Driver download failed but build will continue."
-        WriteLog "  Error: $($driverDownloadResult.Error.Message)"
-        WriteLog "  Note: Build will proceed without OEM drivers. You can add drivers manually to the Drivers folder."
+        WriteLog "WARNING: [$Make][$Model][Download] Driver download failed but build will continue"
+        WriteLog "WARNING: [$Make][$Model][Download] Error: $($driverDownloadResult.Error.Message)"
+        WriteLog "WARNING: [$Make][$Model][Download] Remediation: Build will proceed without OEM drivers. You can add drivers manually to the FFUDevelopment\Drivers folder. See FFUDevelopment.log for full error details."
     }
 }
             
