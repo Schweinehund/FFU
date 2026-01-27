@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.0'
+    ModuleVersion = '1.2.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -106,6 +106,11 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.2.0: HP-01 Exit Code 1168 Handling (Phase 31)
+- Added explicit handling for HP softpaq exit code 1168 (ERROR_NOT_FOUND)
+- Classified as Success (driver files typically extracted despite error)
+- Actionable remediation message with verification steps
+
 v1.1.0: REL-DRV-* Reliability Hardening (Phase 21)
 - REL-DRV-01: Added Invoke-DriverDownloadWithRetry with exponential backoff + jitter
   - Retry logic: 3 attempts with delays of 5s, 10s, 20s (plus 0-3s random jitter)

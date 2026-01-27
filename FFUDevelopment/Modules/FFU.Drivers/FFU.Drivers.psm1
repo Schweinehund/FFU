@@ -229,6 +229,14 @@ function Get-DriverExtractionResult {
                     $result.Success = $true
                     $result.Message = "HP ${DriverName} extracted (reboot required - expected)"
                 }
+                1168    {
+                    $result.Success = $true
+                    $result.Message = "HP ${DriverName} extraction returned exit code 1168 (ERROR_NOT_FOUND). " +
+                        "This typically indicates the softpaq could not locate expected registry entries or embedded files, " +
+                        "but driver files were likely extracted successfully. " +
+                        "Remediation: Verify extracted files exist in the destination folder. " +
+                        "If empty, re-download the softpaq from HP Support or try a different driver version."
+                }
                 default {
                     $result.Message = "HP ${DriverName} unknown exit code ${ExitCode} (continuing)"
                     $result.Action = 'Warn'
