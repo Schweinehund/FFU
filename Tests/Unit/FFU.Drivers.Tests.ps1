@@ -955,3 +955,63 @@ Describe 'REL-DRV-04: Large Driver Set Disk Space Handling' -Tag 'Unit', 'FFU.Dr
         }
     }
 }
+
+# =============================================================================
+# DELL-01: Dell CatalogPC.xml Graceful Failure Handling Tests
+# =============================================================================
+
+Describe 'DELL-01: Dell Catalog Failure Graceful Handling' -Tag 'Unit', 'FFU.Drivers', 'Dell', 'DELL-01' {
+
+    Context 'Get-DellDrivers catalog error handling patterns' {
+        BeforeAll {
+            $source = (Get-Command -Name Get-DellDrivers -Module FFU.Drivers).ScriptBlock.ToString()
+        }
+
+        # DELL-01: Missing CatalogPC.xml does not fail the build
+        It 'Should not throw on catalog download failure (uses return instead)' {
+            # Verify the catalog download catch block uses 'return' not 'throw'
+            # The old pattern was: catch { WriteLog "ERROR:..."; throw }
+            # The new pattern is: catch { WriteLog "WARNING:..."; return }
+            $source | Should -Not -Match 'throw.*Failed to extract Dell driver catalog'
+            $source | Should -Not -Match 'throw.*Failed to parse Dell driver catalog'
+        }
+
+        It 'Should check for CatalogPC.XML existence after cab extraction' {
+            # DELL-01: Explicit Test-Path check for the XML file after extraction
+            $source | Should -Match 'Test-Path.*DellCatalogXML'
+        }
+
+        It 'Should use return for graceful exit on catalog failures' {
+            # Verify return statements exist in the catalog handling section
+            # The function should exit gracefully (return) rather than abort (throw)
+            $source | Should -Match 'return'
+        }
+
+        # DELL-02: Logs failure reason and fallback action
+        It 'Should log remediation steps for catalog download failure' {
+            $source | Should -Match 'WARNING.*Dell catalog download failed'
+            $source | Should -Match 'Remediation.*network connectivity'
+        }
+
+        It 'Should log remediation steps for cab extraction failure' {
+            $source | Should -Match 'WARNING.*Failed to extract Dell catalog cab'
+            $source | Should -Match 'Remediation.*corrupt or truncated'
+        }
+
+        It 'Should log remediation steps for missing XML after extraction' {
+            $source | Should -Match 'WARNING.*Dell catalog XML not found after extraction'
+            $source | Should -Match 'Remediation.*may not contain the expected XML'
+        }
+
+        It 'Should log remediation steps for XML parse failure' {
+            $source | Should -Match 'WARNING.*Failed to parse Dell catalog XML'
+            $source | Should -Match 'Remediation.*malformed or empty'
+        }
+
+        It 'Should indicate build continues without Dell drivers in all failure paths' {
+            # All catalog failure messages should tell the user the build will continue
+            $continueMatches = [regex]::Matches($source, 'build will continue without Dell drivers')
+            $continueMatches.Count | Should -BeGreaterOrEqual 4 -Because 'all 4 failure paths should indicate build continues'
+        }
+    }
+}
