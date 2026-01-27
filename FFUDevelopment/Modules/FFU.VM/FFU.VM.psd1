@@ -4,7 +4,7 @@
 
 @{
     RootModule = 'FFU.VM.psm1'
-    ModuleVersion = '1.0.11'
+    ModuleVersion = '1.0.13'
     GUID = 'c8f3a942-7e6d-4c1a-9b85-1f4e8d2c5a76'
     Author = 'FFU Builder Team'
     CompanyName = 'Community'
@@ -46,6 +46,21 @@
             LicenseUri = 'https://github.com/Schweinehund/FFU/blob/feature/improvements-and-fixes/LICENSE'
             ProjectUri = 'https://github.com/Schweinehund/FFU'
             ReleaseNotes = @'
+v1.0.13: Checkpoint-aware selective cleanup
+- Get-FFUEnvironment: Added -ResumeCheckpoint parameter for checkpoint-aware cleanup
+- When resuming from checkpoint, preserves VM, VHDX, VM folder, drivers folder, and .session
+- Protected paths built from checkpoint data; only existing artifacts are guarded
+- All transient state (mounts, registry, mountpoints, ISOs) still cleaned during resume
+- Fresh builds unaffected: ResumeCheckpoint defaults to $null, all guards evaluate false
+
+v1.0.12: DISM-HEALTH-01 Guard DISM operations with WIMMount check
+- Get-FFUEnvironment: Added Test-DismReady gate before Get-WindowsImage -Mounted and Clear-WindowsCorruptMountPoint
+- Remove-FFUVM: Added Test-DismReady gate before orphaned mounted image cleanup
+- Remove-FFUBuildArtifacts: Added Test-DismReady gate before mounted image cleanup
+- When WIMMount is not loaded, uses Clear-OrphanedMountPointsWithoutDism fallback (registry-based)
+- Prevents 10-minute hangs per DISM call when WIMMount filter driver is broken
+- Total time saved on broken DISM: 20-30 minutes (2-3 DISM calls x 10 min timeout each)
+
 v1.0.11: REL-VM-04 Checkpoint Disk Space Validation
 - Added Test-CheckpointDiskSpace function for pre-validation of checkpoint operations
 - Validates available disk space against VHDX size with configurable margin (default 100%)

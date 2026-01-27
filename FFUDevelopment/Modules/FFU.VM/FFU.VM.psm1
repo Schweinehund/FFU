@@ -959,27 +959,48 @@ function Remove-FFUVM {
     }
 
     #Remove orphaned mounted images
-    try {
-        $mountedImages = Get-WindowsImage -Mounted -ErrorAction Stop
-        if ($mountedImages) {
-            foreach ($image in $mountedImages) {
-                $mountPath = $image.Path
-                WriteLog "Dismounting image at $mountPath"
-                try {
-                    Dismount-WindowsImage -Path $mountPath -Discard -ErrorAction Stop
-                    WriteLog "Successfully dismounted image at $mountPath"
-                }
-                catch [System.Runtime.InteropServices.COMException] {
-                    WriteLog "WARNING: COM error dismounting image at $mountPath (may already be dismounted): $($_.Exception.Message)"
-                }
-                catch {
-                    WriteLog "WARNING: Failed to dismount image at $mountPath : $($_.Exception.Message)"
+    # v1.0.3: Guard DISM operations with Test-DismReady to prevent 10-minute hangs
+    $dismReadyForRemove = $false
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+        $dismReadyForRemove = Test-DismReady -AttemptRepair $true
+    }
+    else {
+        try {
+            $fltmcOut = & fltmc.exe filters 2>&1
+            $dismReadyForRemove = [bool]($fltmcOut -match 'WimMount')
+        }
+        catch { $dismReadyForRemove = $false }
+    }
+
+    if ($dismReadyForRemove) {
+        try {
+            $mountedImages = Get-WindowsImage -Mounted -ErrorAction Stop
+            if ($mountedImages) {
+                foreach ($image in $mountedImages) {
+                    $mountPath = $image.Path
+                    WriteLog "Dismounting image at $mountPath"
+                    try {
+                        Dismount-WindowsImage -Path $mountPath -Discard -ErrorAction Stop
+                        WriteLog "Successfully dismounted image at $mountPath"
+                    }
+                    catch [System.Runtime.InteropServices.COMException] {
+                        WriteLog "WARNING: COM error dismounting image at $mountPath (may already be dismounted): $($_.Exception.Message)"
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to dismount image at $mountPath : $($_.Exception.Message)"
+                    }
                 }
             }
         }
+        catch {
+            WriteLog "WARNING: Error retrieving mounted images: $($_.Exception.Message)"
+        }
     }
-    catch {
-        WriteLog "WARNING: Error retrieving mounted images: $($_.Exception.Message)"
+    else {
+        WriteLog "WARNING: WIMMount not loaded - using non-DISM fallback for mount cleanup in Remove-FFUVM"
+        if ($ExecutionContext.InvokeCommand.GetCommand('Clear-OrphanedMountPointsWithoutDism', 'Function')) {
+            Clear-OrphanedMountPointsWithoutDism
+        }
     }
 
     #Remove Mount folder if it exists
@@ -1015,6 +1036,11 @@ function Get-FFUEnvironment {
     stale downloads, user accounts, and temporary files. Called when dirty.txt is detected
     or when explicit cleanup is requested.
 
+    When ResumeCheckpoint is provided, artifacts referenced by the checkpoint (VM, VHDX,
+    VM folder, drivers folder, .session) are preserved so the resumed build can continue
+    from where it left off. All other transient state (mounts, registry, mountpoints) is
+    still cleaned.
+
     .PARAMETER FFUDevelopmentPath
     Root FFUDevelopment path
 
@@ -1042,11 +1068,23 @@ function Get-FFUEnvironment {
     .PARAMETER AppsISO
     Path to Apps ISO file
 
+    .PARAMETER ResumeCheckpoint
+    Optional hashtable from checkpoint resume. When provided, artifacts referenced by the
+    checkpoint (VM, VHDX, VM folder, drivers folder, .session) are preserved. Structure
+    expected: @{ paths = @{ VHDXPath; VMPath; DriversFolder }; configuration = @{ VMName } }
+
     .EXAMPLE
     Get-FFUEnvironment -FFUDevelopmentPath "C:\FFU" -CleanupCurrentRunDownloads $true `
                        -VMLocation "C:\FFU\VM" -UserName "ffu_user" -RemoveApps $false `
                        -AppsPath "C:\FFU\Apps" -RemoveUpdates $false -KBPath "C:\FFU\KB" `
                        -AppsISO "C:\FFU\Apps\Apps.iso"
+
+    .EXAMPLE
+    # Resume-aware cleanup preserving checkpoint artifacts
+    Get-FFUEnvironment -FFUDevelopmentPath "C:\FFU" -CleanupCurrentRunDownloads $false `
+                       -VMLocation "C:\FFU\VM" -UserName "ffu_user" -RemoveApps $false `
+                       -AppsPath "C:\FFU\Apps" -RemoveUpdates $false -KBPath "C:\FFU\KB" `
+                       -AppsISO "C:\FFU\Apps\Apps.iso" -ResumeCheckpoint $checkpoint
     #>
     [CmdletBinding()]
     param(
@@ -1078,8 +1116,50 @@ function Get-FFUEnvironment {
         [string]$AppsISO,
 
         [Parameter(Mandatory = $false)]
-        $HypervisorProvider = $null
+        $HypervisorProvider = $null,
+
+        [Parameter(Mandatory = $false)]
+        [hashtable]$ResumeCheckpoint = $null
     )
+
+    # Build protected paths set from checkpoint when resuming
+    $protectedVMName = $null
+    $protectedPaths = @{}
+    if ($null -ne $ResumeCheckpoint) {
+        WriteLog "RESUME CLEANUP: Checkpoint provided - building protected artifact set"
+        $cpPaths = $ResumeCheckpoint.paths
+        $cpConfig = $ResumeCheckpoint.configuration
+
+        if ($cpConfig -and $cpConfig.VMName) {
+            $protectedVMName = $cpConfig.VMName
+            WriteLog "RESUME CLEANUP: Protected VM name: $protectedVMName"
+        }
+
+        if ($cpPaths) {
+            if ($cpPaths.VHDXPath -and (Test-Path -Path $cpPaths.VHDXPath)) {
+                $protectedPaths[$cpPaths.VHDXPath] = 'VHDXFile'
+                $vhdxParent = Split-Path -Parent $cpPaths.VHDXPath
+                if ($vhdxParent) {
+                    $protectedPaths[$vhdxParent] = 'VHDXParentFolder'
+                }
+                WriteLog "RESUME CLEANUP: Protected VHDX: $($cpPaths.VHDXPath)"
+            }
+
+            if ($cpPaths.VMPath -and (Test-Path -Path $cpPaths.VMPath)) {
+                $protectedPaths[$cpPaths.VMPath] = 'VMFolder'
+                WriteLog "RESUME CLEANUP: Protected VM folder: $($cpPaths.VMPath)"
+            }
+
+            if ($cpPaths.DriversFolder -and (Test-Path -Path $cpPaths.DriversFolder)) {
+                $protectedPaths[$cpPaths.DriversFolder] = 'DriversFolder'
+                WriteLog "RESUME CLEANUP: Protected drivers folder: $($cpPaths.DriversFolder)"
+            }
+        }
+
+        $protectedCount = $protectedPaths.Count
+        if ($protectedVMName) { $protectedCount++ }
+        WriteLog "RESUME CLEANUP: Total protected artifacts: $protectedCount"
+    }
 
     WriteLog 'Dirty.txt file detected. Last run did not complete succesfully. Will clean environment'
     try {
@@ -1128,6 +1208,11 @@ function Get-FFUEnvironment {
 
         foreach ($vm in $vms) {
             if ($vm.Name.StartsWith("_FFU-")) {
+                # Guard: skip VMs protected by checkpoint
+                if ($protectedVMName -and $vm.Name -eq $protectedVMName) {
+                    WriteLog "RESUME CLEANUP: Skipping protected VM: $($vm.Name)"
+                    continue
+                }
                 WriteLog "Found FFU VM: $($vm.Name) (State: $($vm.State))"
                 # Use Test-VMStateRunning factory function since [VMState] enum isn't accessible from FFU.VM module
                 if (Test-VMStateRunning -State $vm.State) {
@@ -1181,6 +1266,11 @@ function Get-FFUEnvironment {
         # Loop through each VM
         foreach ($vm in $vms) {
             if ($vm.Name.StartsWith("_FFU-")) {
+                # Guard: skip VMs protected by checkpoint
+                if ($protectedVMName -and $vm.Name -eq $protectedVMName) {
+                    WriteLog "RESUME CLEANUP: Skipping protected VM: $($vm.Name)"
+                    continue
+                }
                 if ($vm.State -eq 'Running') {
                     try {
                         WriteLog "Stopping running VM: $($vm.Name)"
@@ -1221,6 +1311,11 @@ function Get-FFUEnvironment {
         $diskNumber = $disk.Number
         $vhdLocation = $disk.Location
         if ($vhdLocation -like "*FFUDevelopment*") {
+            # Guard: skip disks protected by checkpoint
+            if ($protectedPaths.Count -gt 0 -and $protectedPaths.ContainsKey($vhdLocation)) {
+                WriteLog "RESUME CLEANUP: Skipping protected virtual disk $diskNumber at $vhdLocation"
+                continue
+            }
             WriteLog "Dismounting Virtual Disk $diskNumber with Location $vhdLocation"
             try {
                 Dismount-ScratchVhdx -VhdxPath $vhdLocation -ErrorAction Stop
@@ -1229,8 +1324,12 @@ function Get-FFUEnvironment {
                 WriteLog "WARNING: Failed to dismount virtual disk $diskNumber : $($_.Exception.Message)"
             }
             $parentFolder = Split-Path -Parent $vhdLocation
-            WriteLog "Removing folder $parentFolder"
-            if (-not [string]::IsNullOrWhiteSpace($parentFolder)) {
+            # Guard: skip parent folder removal if protected by checkpoint
+            if ($protectedPaths.Count -gt 0 -and $protectedPaths.ContainsKey($parentFolder)) {
+                WriteLog "RESUME CLEANUP: Skipping protected folder $parentFolder"
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($parentFolder)) {
+                WriteLog "Removing folder $parentFolder"
                 try {
                     Remove-Item -Path $parentFolder -Recurse -Force -ErrorAction Stop
                 }
@@ -1287,6 +1386,11 @@ function Get-FFUEnvironment {
             $folders = Get-ChildItem -Path $VMLocation -Directory -ErrorAction Stop
             foreach ($folder in $folders) {
                 if ($folder.Name -like '_FFU-*') {
+                    # Guard: skip folders protected by checkpoint
+                    if ($protectedPaths.Count -gt 0 -and $protectedPaths.ContainsKey($folder.FullName)) {
+                        WriteLog "RESUME CLEANUP: Skipping protected VM folder: $($folder.FullName)"
+                        continue
+                    }
                     WriteLog "Removing folder $($folder.FullName)"
                     try {
                         Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction Stop
@@ -1310,27 +1414,50 @@ function Get-FFUEnvironment {
     }
 
     # Remove orphaned mounted images
-    try {
-        $mountedImages = Get-WindowsImage -Mounted -ErrorAction Stop
-        if ($mountedImages) {
-            foreach ($image in $mountedImages) {
-                $mountPath = $image.Path
-                WriteLog "Dismounting image at $mountPath"
-                try {
-                    Dismount-WindowsImage -Path $mountPath -Discard -ErrorAction Stop | Out-Null
-                    WriteLog "Successfully dismounted image at $mountPath"
-                }
-                catch [System.Runtime.InteropServices.COMException] {
-                    WriteLog "WARNING: COM error dismounting image (may already be dismounted): $($_.Exception.Message)"
-                }
-                catch {
-                    WriteLog "WARNING: Failed to dismount image at $mountPath : $($_.Exception.Message)"
+    # v1.0.3: Guard DISM operations with Test-DismReady to prevent 10-minute hangs
+    # when WIMMount filter driver is not loaded (DismInitialize 0x80004005)
+    $dismReady = $false
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+        $dismReady = Test-DismReady -AttemptRepair $true
+    }
+    else {
+        # Fallback: quick fltmc check if Test-DismReady not available
+        try {
+            $fltmcOutput = & fltmc.exe filters 2>&1
+            $dismReady = [bool]($fltmcOutput -match 'WimMount')
+        }
+        catch { $dismReady = $false }
+    }
+
+    if ($dismReady) {
+        try {
+            $mountedImages = Get-WindowsImage -Mounted -ErrorAction Stop
+            if ($mountedImages) {
+                foreach ($image in $mountedImages) {
+                    $mountPath = $image.Path
+                    WriteLog "Dismounting image at $mountPath"
+                    try {
+                        Dismount-WindowsImage -Path $mountPath -Discard -ErrorAction Stop | Out-Null
+                        WriteLog "Successfully dismounted image at $mountPath"
+                    }
+                    catch [System.Runtime.InteropServices.COMException] {
+                        WriteLog "WARNING: COM error dismounting image (may already be dismounted): $($_.Exception.Message)"
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to dismount image at $mountPath : $($_.Exception.Message)"
+                    }
                 }
             }
         }
+        catch {
+            WriteLog "WARNING: Error retrieving mounted images: $($_.Exception.Message)"
+        }
     }
-    catch {
-        WriteLog "WARNING: Error retrieving mounted images: $($_.Exception.Message)"
+    else {
+        WriteLog "WARNING: WIMMount not loaded - using non-DISM fallback for mount point cleanup"
+        if ($ExecutionContext.InvokeCommand.GetCommand('Clear-OrphanedMountPointsWithoutDism', 'Function')) {
+            Clear-OrphanedMountPointsWithoutDism
+        }
     }
 
     # Remove Mount folder if it exists
@@ -1346,13 +1473,19 @@ function Get-FFUEnvironment {
     }
 
     #Clear any corrupt Windows mount points
-    WriteLog 'Clearing any corrupt Windows mount points'
-    try {
-        Clear-WindowsCorruptMountPoint -ErrorAction Stop | Out-Null
-        WriteLog 'Corrupt mount point cleanup complete'
+    # v1.0.3: Only use DISM-based cleanup if WIMMount is functional
+    if ($dismReady) {
+        WriteLog 'Clearing any corrupt Windows mount points'
+        try {
+            Clear-WindowsCorruptMountPoint -ErrorAction Stop | Out-Null
+            WriteLog 'Corrupt mount point cleanup complete'
+        }
+        catch {
+            WriteLog "WARNING: Failed to clear corrupt mount points: $($_.Exception.Message)"
+        }
     }
-    catch {
-        WriteLog "WARNING: Failed to clear corrupt mount points: $($_.Exception.Message)"
+    else {
+        WriteLog "WARNING: Skipping Clear-WindowsCorruptMountPoint (WIMMount not loaded - would hang for 10 minutes)"
     }
 
     #Clean up registry
@@ -1433,8 +1566,12 @@ function Get-FFUEnvironment {
     }
 
     # Remove per-run session folder if present (Cancel/-Cleanup scenario)
+    # Guard: preserve .session when resuming from checkpoint (contains checkpoint data)
     $sessionDir = Join-Path $FFUDevelopmentPath '.session'
-    if (Test-Path -Path $sessionDir) {
+    if ($null -ne $ResumeCheckpoint) {
+        WriteLog "RESUME CLEANUP: Preserving .session folder for checkpoint resume"
+    }
+    elseif (Test-Path -Path $sessionDir) {
         WriteLog 'Removing .session folder'
         try {
             Remove-Item -Path $sessionDir -Recurse -Force -ErrorAction Stop
@@ -2320,28 +2457,49 @@ function Remove-FFUBuildArtifacts {
     }
 
     # Remove orphaned mounted images
+    # v1.0.3: Guard DISM operations with Test-DismReady to prevent 10-minute hangs
     if ($CleanupMountedImages) {
-        try {
-            $mountedImages = Get-WindowsImage -Mounted -ErrorAction Stop
-            if ($mountedImages) {
-                foreach ($image in $mountedImages) {
-                    $mountPath = $image.Path
-                    WriteLog "Dismounting image at $mountPath"
-                    try {
-                        Dismount-WindowsImage -Path $mountPath -Discard -ErrorAction Stop
-                        WriteLog "Successfully dismounted image at $mountPath"
-                    }
-                    catch [System.Runtime.InteropServices.COMException] {
-                        WriteLog "WARNING: COM error dismounting image at $mountPath (may already be dismounted): $($_.Exception.Message)"
-                    }
-                    catch {
-                        WriteLog "WARNING: Failed to dismount image at $mountPath : $($_.Exception.Message)"
+        $dismReadyForArtifacts = $false
+        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+            $dismReadyForArtifacts = Test-DismReady -AttemptRepair $true
+        }
+        else {
+            try {
+                $fltmcArt = & fltmc.exe filters 2>&1
+                $dismReadyForArtifacts = [bool]($fltmcArt -match 'WimMount')
+            }
+            catch { $dismReadyForArtifacts = $false }
+        }
+
+        if ($dismReadyForArtifacts) {
+            try {
+                $mountedImages = Get-WindowsImage -Mounted -ErrorAction Stop
+                if ($mountedImages) {
+                    foreach ($image in $mountedImages) {
+                        $mountPath = $image.Path
+                        WriteLog "Dismounting image at $mountPath"
+                        try {
+                            Dismount-WindowsImage -Path $mountPath -Discard -ErrorAction Stop
+                            WriteLog "Successfully dismounted image at $mountPath"
+                        }
+                        catch [System.Runtime.InteropServices.COMException] {
+                            WriteLog "WARNING: COM error dismounting image at $mountPath (may already be dismounted): $($_.Exception.Message)"
+                        }
+                        catch {
+                            WriteLog "WARNING: Failed to dismount image at $mountPath : $($_.Exception.Message)"
+                        }
                     }
                 }
             }
+            catch {
+                WriteLog "WARNING: Error retrieving mounted images: $($_.Exception.Message)"
+            }
         }
-        catch {
-            WriteLog "WARNING: Error retrieving mounted images: $($_.Exception.Message)"
+        else {
+            WriteLog "WARNING: WIMMount not loaded - using non-DISM fallback for artifact cleanup"
+            if ($ExecutionContext.InvokeCommand.GetCommand('Clear-OrphanedMountPointsWithoutDism', 'Function')) {
+                Clear-OrphanedMountPointsWithoutDism
+            }
         }
     }
 

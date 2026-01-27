@@ -1684,6 +1684,26 @@ $skipPreflightValidation = $false
 if ($script:IsResuming -and (Test-PhaseAlreadyComplete -PhaseName 'PreflightValidation' -Checkpoint $script:ResumeCheckpoint)) {
     WriteLog "RESUME: Skipping Pre-flight Validation phase - already completed"
     $skipPreflightValidation = $true
+
+    # v1.9.8 (DISM-HEALTH-01): MANDATORY WIMMount re-validation on resume.
+    # Pre-flight may have passed in a previous session, but WIMMount state can degrade
+    # between sessions (e.g., a previous failed build corrupted DISM state, system reboot
+    # changed filter driver state, or another process interfered).
+    # This is NOT skippable - DISM operations are critical for the build.
+    WriteLog "RESUME: Running mandatory WIMMount re-validation (not skippable on resume)..."
+    $wimResumeCheck = Test-FFUWimMount -AttemptRemediation
+    if ($wimResumeCheck.Status -eq 'Passed') {
+        WriteLog "RESUME: WIMMount validation passed: $($wimResumeCheck.Message)"
+        $script:DismIsReady = $true
+    }
+    else {
+        WriteLog "WARNING: WIMMount validation failed on resume: $($wimResumeCheck.Message)"
+        WriteLog "WARNING: DISM operations (image apply, mount, cleanup) may fail."
+        WriteLog "REMEDIATION: Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
+        # Don't abort here - the early Test-DismReady already set the flag, and
+        # the build will fail at the VHDX creation gate with a clear error message.
+        $script:DismIsReady = $false
+    }
 }
 
 if (-not $Cleanup -and -not $skipPreflightValidation) {
@@ -2286,15 +2306,43 @@ if ($ISOPath -eq '') {
 #Get script variable values
 Write-VariableValues -version $version
 
+# =============================================================================
+# DISM HEALTH CHECK (v1.9.8 - DISM-HEALTH-01)
+# Validate WIMMount filter driver before any DISM-dependent operations.
+# This check is MANDATORY and runs regardless of checkpoint/resume state.
+# Without WIMMount, all DISM operations (cleanup, image apply, mount/dismount)
+# will hang for ~10 minutes each before failing with DismInitialize 0x80004005.
+# =============================================================================
+WriteLog "Validating DISM/WIMMount readiness..."
+$script:DismIsReady = Test-DismReady -AttemptRepair $true
+if ($script:DismIsReady) {
+    WriteLog "DISM readiness check passed - WIMMount filter is loaded"
+}
+else {
+    WriteLog "WARNING: WIMMount filter driver could not be loaded. DISM operations will use fallback methods where available."
+    WriteLog "WARNING: Build phases requiring DISM (image apply, WIM mount) will fail if WIMMount cannot be repaired."
+    WriteLog "REMEDIATION: Run 'Repair-WimMountService.ps1 -Force' or reboot the computer, then retry the build."
+}
+
 #Check if environment is dirty
 If (Test-Path -Path "$FFUDevelopmentPath\dirty.txt") {
-    Get-FFUEnvironment -FFUDevelopmentPath $FFUDevelopmentPath `
-                       -CleanupCurrentRunDownloads $CleanupCurrentRunDownloads `
-                       -VMLocation $VMLocation -UserName $UserName `
-                       -RemoveApps $RemoveApps -AppsPath $AppsPath `
-                       -RemoveUpdates $RemoveUpdates -KBPath $KBPath `
-                       -AppsISO $AppsISO `
-                       -HypervisorProvider $script:HypervisorProvider
+    $cleanupParams = @{
+        FFUDevelopmentPath         = $FFUDevelopmentPath
+        CleanupCurrentRunDownloads = $CleanupCurrentRunDownloads
+        VMLocation                 = $VMLocation
+        UserName                   = $UserName
+        RemoveApps                 = $RemoveApps
+        AppsPath                   = $AppsPath
+        RemoveUpdates              = $RemoveUpdates
+        KBPath                     = $KBPath
+        AppsISO                    = $AppsISO
+        HypervisorProvider         = $script:HypervisorProvider
+    }
+    if ($script:IsResuming -and $null -ne $script:ResumeCheckpoint) {
+        $cleanupParams['ResumeCheckpoint'] = $script:ResumeCheckpoint
+        WriteLog "RESUME: Passing checkpoint to cleanup for selective artifact preservation"
+    }
+    Get-FFUEnvironment @cleanupParams
 }
 WriteLog 'Creating dirty.txt file'
 New-Item -Path .\ -Name "dirty.txt" -ItemType "file" | Out-Null
@@ -3659,6 +3707,39 @@ try {
     }
 
     if (-Not $cachedVHDXFileFound) {
+        # === DISM READINESS GATE (v1.9.8 - DISM-HEALTH-01) ===
+        # Final check before VHDX creation which requires Expand-WindowsImage (DISM).
+        # This prevents a 10-minute hang if WIMMount is broken.
+        # Re-check even if earlier check passed, as state can change during long builds.
+        WriteLog "DISM readiness gate: Verifying WIMMount before VHDX creation..."
+        if (-not (Test-DismReady -AttemptRepair $true)) {
+            $dismErrorMsg = @"
+DISM READINESS CHECK FAILED - Cannot create VHDX.
+
+The WIMMount filter driver is not loaded. All DISM operations (Expand-WindowsImage,
+Mount-WindowsImage, Get-WindowsImage) require WIMMount and will fail with:
+  "DismInitialize failed. Error code = 0x80004005"
+
+This typically occurs when:
+  1. A previous failed build left DISM in a corrupted state
+  2. Security software is blocking the wimmount.sys driver
+  3. The WIMMount service registry entries are corrupted
+  4. A Windows Update changed the driver state
+
+REMEDIATION:
+  1. Run: .\Repair-WimMountService.ps1 -Force
+  2. If that fails, reboot the computer and retry
+  3. If issue persists after reboot, reinstall Windows ADK:
+     Run the build with -UpdateADK `$true
+  4. Check for security software blocking wimmount.sys
+
+DIAGNOSTIC: Run 'fltmc filters | Select-String WimMount' to verify WIMMount status.
+"@
+            WriteLog $dismErrorMsg
+            throw "DISM readiness check failed: WIMMount filter driver is not loaded. See log for remediation steps."
+        }
+        WriteLog "DISM readiness gate passed - proceeding with VHDX creation"
+
         Set-Progress -Percentage 15 -Message "Creating VHDX and applying base Windows image..."
         if ($ISOPath) {
             $wimPath = Get-WimFromISO -isoPath $ISOPath
@@ -4122,113 +4203,11 @@ if ($InstallApps) {
                 $fileStream.Dispose()
             }
 
-            # Force volume flush for the specific file
-            # IMPORTANT: fsutil volume flush can cause Windows to release the drive letter
-            # on file-backed virtual disks (VHD/VHDX). We must re-acquire after flush.
-            # CRITICAL: The CIM disk instance ($disk) becomes STALE after fsutil flush.
-            # We must store the disk number BEFORE flush and get a FRESH disk object AFTER.
-            WriteLog "  Flushing volume for unattend file..."
-            WriteLog "  DEBUG: Pre-flush drive letter: '$osPartitionDriveLetter'"
-            WriteLog "  DEBUG: Pre-flush partition state:"
-
-            # Store disk number BEFORE flush - the $disk CIM instance will become stale after flush
-            $diskNumber = $disk.Number
-            WriteLog "  DEBUG: Storing disk number for post-flush recovery: $diskNumber"
-
-            $disk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' } | ForEach-Object {
-                WriteLog "    Partition $($_.PartitionNumber): DriveLetter='$($_.DriveLetter)', AccessPaths=$($_.AccessPaths -join '; ')"
-            }
-
-            $null = & fsutil file seteof $unattendDest $sourceContent.Length 2>&1
-            $null = & fsutil volume flush "$osPartitionDriveLetter`:" 2>&1
-
-            # Wait for flush to complete and Windows to settle
-            Start-Sleep -Milliseconds 500
-
-            # POST-FLUSH: The original $disk CIM instance is now STALE and cannot be used.
-            # We must get a FRESH disk object using the stored disk number.
-            WriteLog "  DEBUG: Post-flush - refreshing disk object (original CIM instance is stale)..."
-            $freshDisk = Get-Disk -Number $diskNumber -ErrorAction SilentlyContinue
-
-            if (-not $freshDisk) {
-                WriteLog "  WARNING: Could not get fresh disk object for disk $diskNumber"
-                WriteLog "  Attempting to find disk by path: $VHDXPath"
-                $freshDisk = Get-Disk | Where-Object {
-                    $_.Location -eq $VHDXPath -or
-                    ($_.BusType -eq 'File Backed Virtual' -and $_.Number -eq $diskNumber)
-                } | Select-Object -First 1
-            }
-
-            if (-not $freshDisk) {
-                throw "Cannot verify unattend file: Disk $diskNumber not found after fsutil flush"
-            }
-
-            WriteLog "  DEBUG: Fresh disk object acquired: Disk $($freshDisk.Number)"
-
-            # Update $disk to use the fresh object for any subsequent operations
-            $disk = $freshDisk
-
-            # Now get partition from the FRESH disk object
-            WriteLog "  DEBUG: Post-flush partition state check..."
-            $osPartitionRefresh = $freshDisk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
-            $postFlushDriveLetter = $osPartitionRefresh.DriveLetter
-            WriteLog "  DEBUG: Post-flush drive letter from partition: '$postFlushDriveLetter'"
-
-            # If drive letter was released by fsutil flush, re-acquire it
-            if ([string]::IsNullOrWhiteSpace($postFlushDriveLetter)) {
-                WriteLog "  WARNING: Drive letter was released by fsutil flush (VHD destabilization)"
-                WriteLog "  Attempting to re-acquire drive letter using Set-OSPartitionDriveLetter..."
-
-                try {
-                    # Use the centralized utility to re-establish drive letter
-                    # Use the FRESH disk object, not the stale $disk
-                    # Use the original preferred letter (W) if current variable is empty
-                    $preferredLetter = if ([string]::IsNullOrWhiteSpace($osPartitionDriveLetter)) { 'W' } else { [char]$osPartitionDriveLetter }
-                    $reacquiredLetter = Set-OSPartitionDriveLetter -Disk $freshDisk -PreferredLetter $preferredLetter -RetryCount 5
-                    WriteLog "  SUCCESS: Re-acquired drive letter: $reacquiredLetter"
-
-                    # Update the variables with the new drive letter
-                    $osPartitionDriveLetter = $reacquiredLetter
-                    $unattendDest = "$($reacquiredLetter):\Windows\Panther\Unattend\Unattend.xml"
-                    WriteLog "  Updated unattendDest path: '$unattendDest'"
-                }
-                catch {
-                    WriteLog "  ERROR: Failed to re-acquire drive letter: $($_.Exception.Message)"
-                    WriteLog "  Attempting direct partition assignment recovery..."
-
-                    # Emergency fallback: get fresh partition from fresh disk and assign directly
-                    $freshOsPartition = $freshDisk | Get-Partition | Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
-
-                    if (-not $freshOsPartition) {
-                        throw "Cannot recover: No OS partition found on disk $diskNumber after refresh"
-                    }
-
-                    $usedLetters = (Get-Volume).DriveLetter
-                    $availableLetter = [char[]](90..68) | Where-Object { $_ -notin $usedLetters } | Select-Object -First 1
-
-                    if ($availableLetter) {
-                        WriteLog "  Assigning emergency drive letter $availableLetter via Set-Partition..."
-                        $freshOsPartition | Set-Partition -NewDriveLetter $availableLetter -ErrorAction Stop
-                        Start-Sleep -Milliseconds 500
-
-                        $osPartitionDriveLetter = $availableLetter
-                        $unattendDest = "$($availableLetter):\Windows\Panther\Unattend\Unattend.xml"
-                        WriteLog "  Emergency recovery successful: '$unattendDest'"
-                    }
-                    else {
-                        throw "Cannot verify unattend file: Drive letter lost and no available letters for recovery"
-                    }
-                }
-            }
-            else {
-                WriteLog "  Drive letter stable after flush: $postFlushDriveLetter"
-                # Update variables in case drive letter changed (e.g., Windows reassigned a different letter)
-                if ($postFlushDriveLetter -ne $osPartitionDriveLetter) {
-                    WriteLog "  NOTE: Drive letter changed from '$osPartitionDriveLetter' to '$postFlushDriveLetter'"
-                    $osPartitionDriveLetter = $postFlushDriveLetter
-                    $unattendDest = "$($postFlushDriveLetter):\Windows\Panther\Unattend\Unattend.xml"
-                }
-            }
+            # Data persistence is guaranteed by WriteThrough + Flush($true) above.
+            # The dismount at Invoke-DismountScratchDisk provides an additional
+            # volume-level flush via Invoke-VerifiedVolumeFlush as a safety net.
+            # No fsutil calls needed - they destabilize VHD mount state on
+            # file-backed virtual disks, causing drive letter and disk path loss.
 
             # CRITICAL: Verify by re-reading from disk (not from cache)
             WriteLog "  Verifying file persisted to disk (cache bypass read)..."
