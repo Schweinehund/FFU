@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Milestone:** v1.9.3 OEM Driver Bug Fixes
 **Phase:** 33 of 33 (OEM Driver Logging)
-**Plan:** 2 of 3 complete
+**Plan:** 2 of 3 complete (01, 02)
 **Status:** In progress
-**Last activity:** 2026-01-27 — Completed 33-02-PLAN.md (BuildFFUVM.ps1 driver logging)
+**Last activity:** 2026-01-27 — Completed 33-01-PLAN.md (FFU.Drivers dual logging with structured prefixes)
 
 Progress: ████████░░ 78% (2.67 of 3 phases complete)
 
@@ -36,7 +36,7 @@ Progress: ████████░░ 78% (2.67 of 3 phases complete)
 |-------|------|-------------|--------|
 | 31: HP Driver Fix | Exit code 1168 handling | HP-01..04 | Complete |
 | 32: Dell Driver Fix | Missing CatalogPC.xml | DELL-01..04 | Complete |
-| 33: OEM Driver Logging | WriteLog audit | LOG-01..06 | In progress (2/3 plans) |
+| 33: OEM Driver Logging | WriteLog audit | LOG-01..06 | In progress (2/3 plans: 01, 02 complete) |
 
 ## Decisions Log
 
@@ -49,6 +49,9 @@ Progress: ████████░░ 78% (2.67 of 3 phases complete)
 | 32 | 01 | Added Test-Path check for CatalogPC.XML | Core bug - cab extraction can succeed but produce no XML | Detects specific missing file scenario |
 | 32 | 01 | WARNING level for catalog failures | Non-build-blocking failures should use WARNING not ERROR | Clearer log semantics |
 | 32 | 01 | Minor version bump to 1.3.0 | New graceful degradation capability | Follows SemVer for behavioral enhancement |
+| 33 | 01 | Direct WriteLog calls instead of guard pattern | FFU.Drivers always runs with WriteLog available | Cleaner code, no conditional logging |
+| 33 | 01 | [OEM][Download] generic prefix for shared retry function | Invoke-DriverDownloadWithRetry serves all vendors | Consistent prefix without vendor awareness |
+| 33 | 01 | Log file pointer in all remediation messages | Users need to know where detailed logs are | Better troubleshooting guidance |
 | 33 | 02 | Hardcoded OEM names in per-OEM blocks | Explicit log filtering by OEM name | Consistent structured prefix format |
 | 33 | 02 | Timing outside Invoke-BuildPhase | Captures total elapsed including overhead | Accurate phase duration reporting |
 
@@ -59,9 +62,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-27
-**Stopped at:** Completed 33-02-PLAN.md (BuildFFUVM.ps1 driver logging)
+**Stopped at:** Completed 33-01-PLAN.md (FFU.Drivers dual logging with structured prefixes)
 **Resume file:** None
-**Next action:** Execute 33-03-PLAN.md (remaining logging audit)
+**Next action:** Execute 33-03-PLAN.md (Pester tests for logging)
 
 ---
-*State updated: 2026-01-27 after completing 33-02*
+*State updated: 2026-01-27 after completing 33-01*
