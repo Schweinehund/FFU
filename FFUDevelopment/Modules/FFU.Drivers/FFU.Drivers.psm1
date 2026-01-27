@@ -93,39 +93,27 @@ function Invoke-DriverDownloadWithRetry {
             Start-BitsTransferWithRetry -Source $Source -Destination $Destination -ErrorAction Stop
 
             # Log success
-            $successMsg = "$OperationName completed successfully"
-            if ($function:WriteLog) {
-                WriteLog $successMsg
-            }
-            else {
-                Write-Verbose $successMsg
-            }
+            $successMsg = "[OEM][Download] $OperationName completed successfully"
+            WriteLog $successMsg
+            Write-Verbose $successMsg
             return
         }
         catch {
             $lastError = $_
 
-            # Safe logging pattern for ThreadJob compatibility
-            $warningMsg = "$OperationName failed (attempt $attempt of $MaxRetries): $($_.Exception.Message) [Source: $Source]"
-            if ($function:WriteLog) {
-                WriteLog "WARNING: $warningMsg"
-            }
-            else {
-                Write-Verbose "WARNING: $warningMsg"
-            }
+            # Dual output: WriteLog for file + Write-Verbose for console
+            $warningMsg = "[OEM][Download] $OperationName failed (attempt $attempt of $MaxRetries): $($_.Exception.Message) [Source: $Source]"
+            WriteLog "WARNING: $warningMsg"
+            Write-Verbose "WARNING: $warningMsg"
 
             if ($attempt -lt $MaxRetries) {
                 # Exponential backoff with jitter (prevents thundering herd)
                 $jitter = Get-Random -Minimum 0 -Maximum 3
                 $delay = ($BaseDelaySeconds * [math]::Pow(2, $attempt - 1)) + $jitter
 
-                $retryMsg = "Retrying $OperationName in $delay seconds..."
-                if ($function:WriteLog) {
-                    WriteLog $retryMsg
-                }
-                else {
-                    Write-Verbose $retryMsg
-                }
+                $retryMsg = "[OEM][Download] Retrying $OperationName in $delay seconds..."
+                WriteLog $retryMsg
+                Write-Verbose $retryMsg
 
                 Start-Sleep -Seconds $delay
             }
@@ -133,13 +121,9 @@ function Invoke-DriverDownloadWithRetry {
     }
 
     # All retries exhausted
-    $errorMsg = "$OperationName failed after $MaxRetries attempts [Source: $Source]"
-    if ($function:WriteLog) {
-        WriteLog "ERROR: $errorMsg"
-    }
-    else {
-        Write-Verbose "ERROR: $errorMsg"
-    }
+    $errorMsg = "[OEM][Download] $OperationName failed after $MaxRetries attempts [Source: $Source]"
+    WriteLog "ERROR: $errorMsg"
+    Write-Verbose "ERROR: $errorMsg"
 
     throw $lastError
 }
@@ -231,11 +215,12 @@ function Get-DriverExtractionResult {
                 }
                 1168    {
                     $result.Success = $true
-                    $result.Message = "HP ${DriverName} extraction returned exit code 1168 (ERROR_NOT_FOUND). " +
+                    $result.Message = "[HP][${DriverName}][Extract] Exit code 1168 (ERROR_NOT_FOUND). " +
                         "This typically indicates the softpaq could not locate expected registry entries or embedded files, " +
                         "but driver files were likely extracted successfully. " +
                         "Remediation: Verify extracted files exist in the destination folder. " +
-                        "If empty, re-download the softpaq from HP Support or try a different driver version."
+                        "If empty, re-download the softpaq from HP Support or try a different driver version. " +
+                        "See FFUDevelopment.log for full error details."
                 }
                 default {
                     $result.Message = "HP ${DriverName} unknown exit code ${ExitCode} (continuing)"
@@ -433,7 +418,7 @@ function Get-CachedOEMCatalog {
     }
     catch {
         $primaryError = $_.Exception.Message
-        WriteLog "WARNING: Primary $catalogName download failed: $primaryError"
+        WriteLog "WARNING: [$Vendor][Catalog][Download] Primary $catalogName download failed: $primaryError"
 
         # Try backup URL if available
         if ($BackupUrl) {
@@ -451,7 +436,7 @@ function Get-CachedOEMCatalog {
         # Check if we have a stale cache we can use
         if (Test-Path $CachePath) {
             $cacheAge = ([DateTime]::Now - (Get-Item $CachePath).LastWriteTime).TotalHours
-            WriteLog "WARNING: Using stale cached $catalogName (age: $([math]::Round($cacheAge, 1)) hours) - network download failed"
+            WriteLog "WARNING: [$Vendor][Catalog][Download] Using stale cached $catalogName (age: $([math]::Round($cacheAge, 1)) hours) - network download failed"
             return $CachePath
         }
 
@@ -710,14 +695,14 @@ function Get-MicrosoftDrivers {
             Write-Host "The model '$Model' was not found in the list of available models."
             Write-Host "Please run the script with the -Verbose switch to see the list of available models."
         }
-        WriteLog "The model '$Model' was not found in the list of available models."
-        WriteLog "Please select a model from the list below by number:"
+        WriteLog "[HP][$Model][Selection] Model not found in available models"
+        WriteLog "[HP][$Model][Selection] Prompting user to select from available models"
 
         for ($i = 0; $i -lt $models.Count; $i++) {
             if ($VerbosePreference -ne 'Continue') {
                 Write-Host "$($i + 1). $($models[$i].Model)"
             }
-            WriteLog "$($i + 1). $($models[$i].Model)"
+            WriteLog "[HP][$Model][Selection] $($i + 1). $($models[$i].Model)"
         }
 
         do {
@@ -731,7 +716,7 @@ function Get-MicrosoftDrivers {
                 if ($VerbosePreference -ne 'Continue') {
                     Write-Host "Invalid selection. Please try again."
                 }
-                WriteLog "Invalid selection. Please try again."
+                WriteLog "[HP][$Model][Selection] Invalid user selection, prompting again"
             }
         } while ($null -eq $selectedModel)
     }
@@ -850,7 +835,7 @@ function Get-MicrosoftDrivers {
                 }
             }
             else {
-                WriteLog "WARNING: Unsupported file type: $fileExtension"
+                WriteLog "WARNING: [Microsoft][$Model][Extract] Unsupported file type: $fileExtension"
             }
             # Remove the downloaded file
             WriteLog "Removing $filePath"
@@ -859,7 +844,7 @@ function Get-MicrosoftDrivers {
                 WriteLog "Driver installer file removed"
             }
             catch {
-                WriteLog "WARNING: Failed to remove driver installer file: $($_.Exception.Message)"
+                WriteLog "WARNING: [Microsoft][$Model][Cleanup] Failed to remove driver installer file: $($_.Exception.Message)"
             }
         }
         else {
@@ -948,8 +933,8 @@ function Get-HPDrivers {
     # HP driver sets are typically smaller (1-2GB) but validate anyway
     $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'HP' -EstimatedCompressedSizeMB 1500
     if (-not $spaceCheck.HasSpace) {
-        WriteLog "WARNING: $($spaceCheck.Message)"
-        WriteLog "WARNING: $($spaceCheck.Recommendation)"
+        WriteLog "WARNING: [HP][$Model][DiskSpace] $($spaceCheck.Message)"
+        WriteLog "WARNING: [HP][$Model][DiskSpace] $($spaceCheck.Recommendation)"
     }
     else {
         WriteLog $spaceCheck.Message
@@ -1001,12 +986,12 @@ function Get-HPDrivers {
 
     if ($ProductNames.Count -gt 1) {
         Write-Output "More than one model found matching '$Model':"
-        WriteLog "More than one model found matching '$Model':"
+        WriteLog "[HP][$Model][Selection] More than one model found matching '$Model':"
         $ProductNames | ForEach-Object -Begin { $i = 1 } -Process {
             if ($VerbosePreference -ne 'Continue') {
                 Write-Output "$i. $($_.ProductName)"
             }
-            WriteLog "$i. $($_.ProductName)"
+            WriteLog "[HP][$Model][Selection] $i. $($_.ProductName)"
             $i++
         }
         $selection = Read-Host "Please select the number corresponding to the correct model"
@@ -1023,7 +1008,7 @@ function Get-HPDrivers {
             WriteLog "IsWindows11 supported: $IsWindows11"
         }
         else {
-            WriteLog "Invalid selection. Exiting."
+            WriteLog "[HP][$Model][Selection] Invalid selection. Exiting."
             if ($VerbosePreference -ne 'Continue') {
                 Write-Host "Invalid selection. Exiting."
             }
@@ -1042,7 +1027,7 @@ function Get-HPDrivers {
         WriteLog "IsWindows11: $IsWindows11"
     }
     else {
-        WriteLog "No models found matching '$Model'. Exiting."
+        WriteLog "[HP][$Model][Selection] No models found matching '$Model'. Exiting."
         if ($VerbosePreference -ne 'Continue') {
             Write-Host "No models found matching '$Model'. Exiting."
         }
@@ -1050,7 +1035,7 @@ function Get-HPDrivers {
     }
 
     if (-not $SystemID) {
-        WriteLog "SystemID not found for model: $Model Exiting."
+        WriteLog "[HP][$Model][Selection] SystemID not found for model: $Model. Exiting."
         if ($VerbosePreference -ne 'Continue') {
             Write-Host "SystemID not found for model: $Model Exiting."
         }
@@ -1081,7 +1066,7 @@ function Get-HPDrivers {
             WriteLog "Selected OSReleaseID: $WindowsVersion"
         }
         else {
-            WriteLog "Invalid selection. Exiting."
+            WriteLog "[HP][$Model][Selection] Invalid OSReleaseID selection. Exiting."
             exit
         }
     }
@@ -1098,7 +1083,7 @@ function Get-HPDrivers {
     $DriverXmlFile = "$DriversFolder\$ModelRelease.xml"
 
     if (-not (Test-Url -Url $DriverCabUrl)) {
-        WriteLog "HP Driver cab URL is not accessible: $DriverCabUrl Exiting"
+        WriteLog "[HP][$ProductName][Download] Driver cab URL is not accessible: $DriverCabUrl. Exiting."
         if ($VerbosePreference -ne 'Continue') {
             Write-Host "HP Driver cab URL is not accessible: $DriverCabUrl Exiting"
         }
@@ -1174,7 +1159,7 @@ function Get-HPDrivers {
         }
         catch {
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $DriverFilePath
-            WriteLog "WARNING: Failed to download HP driver '$Name' after all retries: $($_.Exception.Message)"
+            WriteLog "WARNING: [HP][$ProductName][Download] Failed to download driver '$Name' after all retries: $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
             continue
         }
 
@@ -1186,13 +1171,13 @@ function Get-HPDrivers {
             WriteLog 'Extraction folder created'
         }
         catch {
-            WriteLog "WARNING: Failed to create extraction folder: $($_.Exception.Message)"
+            WriteLog "WARNING: [HP][$ProductName][Extract] Failed to create extraction folder: $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
             continue
         }
 
         # Extract the driver with exit code classification (REL-DRV-02)
         $arguments = "/s /e /f `"$extractFolder`""
-        WriteLog "Extracting driver"
+        WriteLog "[HP][$ProductName][Extract] Extracting driver: $Name"
         try {
             $extractProcess = Start-Process -FilePath $DriverFilePath -ArgumentList $arguments -PassThru -Wait -NoNewWindow
             $extractionResult = Get-DriverExtractionResult -Vendor 'HP' -ExitCode $extractProcess.ExitCode -DriverName $Name
@@ -1209,7 +1194,7 @@ function Get-HPDrivers {
             }
         }
         catch {
-            WriteLog "WARNING: Failed to extract HP driver '$Name': $($_.Exception.Message)"
+            WriteLog "WARNING: [HP][$ProductName][Extract] Failed to extract driver '$Name': $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
         }
 
         # Delete the .exe driver file after extraction
@@ -1219,7 +1204,7 @@ function Get-HPDrivers {
                 WriteLog "Driver installation file deleted: $DriverFilePath"
             }
             catch {
-                WriteLog "WARNING: Failed to delete driver installer: $($_.Exception.Message)"
+                WriteLog "WARNING: [HP][$ProductName][Cleanup] Failed to delete driver installer: $($_.Exception.Message)"
             }
         }
     }
@@ -1377,8 +1362,8 @@ function Get-LenovoDrivers {
     # Parse the Lenovo PSREF page for the model
     $machineTypes = Get-LenovoPSREF -ModelName $Model
     if ($machineTypes.ProductName.Count -eq 0) {
-        WriteLog "No machine types found for model: $Model"
-        WriteLog "Enter a valid model or machine type in the -model parameter"
+        WriteLog "[Lenovo][$Model][Selection] No machine types found for model: $Model"
+        WriteLog "[Lenovo][$Model][Selection] Enter a valid model or machine type in the -model parameter"
         exit
     }
     elseif ($machineTypes.ProductName.Count -eq 1) {
@@ -1411,7 +1396,7 @@ function Get-LenovoDrivers {
 
     if (-not (Test-Url -Url $catalogUrl)) {
         Write-Error "Lenovo Driver catalog URL is not accessible: $catalogUrl"
-        WriteLog "Lenovo Driver catalog URL is not accessible: $catalogUrl"
+        WriteLog "[Lenovo][$model][Download] Driver catalog URL is not accessible: $catalogUrl. Exiting."
         exit
     }
 
@@ -1426,8 +1411,8 @@ function Get-LenovoDrivers {
     # Disk space validation (REL-DRV-04)
     $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Lenovo' -EstimatedCompressedSizeMB 1500
     if (-not $spaceCheck.HasSpace) {
-        WriteLog "WARNING: $($spaceCheck.Message)"
-        WriteLog "WARNING: $($spaceCheck.Recommendation)"
+        WriteLog "WARNING: [Lenovo][$Model][DiskSpace] $($spaceCheck.Message)"
+        WriteLog "WARNING: [Lenovo][$Model][DiskSpace] $($spaceCheck.Recommendation)"
     }
     else {
         WriteLog $spaceCheck.Message
@@ -1539,7 +1524,7 @@ function Get-LenovoDrivers {
         }
         catch {
             Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-            WriteLog "WARNING: Failed to download Lenovo driver '$packageTitle' after all retries: $($_.Exception.Message)"
+            WriteLog "WARNING: [Lenovo][$model][Download] Failed to download driver '$packageTitle' after all retries: $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
             Remove-Item -Path $packageXMLPath -Force -ErrorAction SilentlyContinue
             continue
         }
@@ -1552,7 +1537,7 @@ function Get-LenovoDrivers {
             WriteLog "Extract folder created"
         }
         catch {
-            WriteLog "WARNING: Failed to create extract folder: $($_.Exception.Message)"
+            WriteLog "WARNING: [Lenovo][$model][Extract] Failed to create extract folder: $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
             Remove-Item -Path $packageXMLPath -Force -ErrorAction SilentlyContinue
             continue
         }
@@ -1579,7 +1564,7 @@ function Get-LenovoDrivers {
             }
         }
         catch {
-            WriteLog "WARNING: Failed to extract Lenovo driver '$packageTitle': $($_.Exception.Message)"
+            WriteLog "WARNING: [Lenovo][$model][Extract] Failed to extract driver '$packageTitle': $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
         }
 
         # Delete the .exe driver file after extraction
@@ -1589,7 +1574,7 @@ function Get-LenovoDrivers {
             WriteLog "Driver installation file deleted: $driverFilePath"
         }
         catch {
-            WriteLog "WARNING: Failed to delete driver installer: $($_.Exception.Message)"
+            WriteLog "WARNING: [Lenovo][$model][Cleanup] Failed to delete driver installer: $($_.Exception.Message)"
         }
 
         # Delete the package XML file after extraction
@@ -1599,7 +1584,7 @@ function Get-LenovoDrivers {
             WriteLog "Package XML file deleted"
         }
         catch {
-            WriteLog "WARNING: Failed to delete package XML: $($_.Exception.Message)"
+            WriteLog "WARNING: [Lenovo][$model][Cleanup] Failed to delete package XML: $($_.Exception.Message)"
         }
     }
 
@@ -1685,8 +1670,8 @@ function Get-DellDrivers {
     # Dell driver sets can be large (2-4GB compressed, 8-12GB extracted)
     $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Dell' -EstimatedCompressedSizeMB 2500
     if (-not $spaceCheck.HasSpace) {
-        WriteLog "WARNING: $($spaceCheck.Message)"
-        WriteLog "WARNING: $($spaceCheck.Recommendation)"
+        WriteLog "WARNING: [Dell][$Model][DiskSpace] $($spaceCheck.Message)"
+        WriteLog "WARNING: [Dell][$Model][DiskSpace] $($spaceCheck.Recommendation)"
         # Continue anyway - user was warned, drivers may partially download
     }
     else {
@@ -1713,8 +1698,8 @@ function Get-DellDrivers {
             -PrimaryUrl $primaryUrl -CachePath $DellCabFile
     }
     catch {
-        WriteLog "WARNING: Dell catalog download failed: $($_.Exception.Message)"
-        WriteLog "WARNING: Remediation: Check network connectivity to downloads.dell.com. Verify proxy settings if behind a corporate firewall. The build will continue without Dell drivers."
+        WriteLog "WARNING: [Dell][$Model][Download] Catalog download failed: $($_.Exception.Message)"
+        WriteLog "WARNING: [Dell][$Model][Download] Remediation: Check network connectivity to downloads.dell.com. Verify proxy settings if behind a corporate firewall. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
         return
     }
 
@@ -1724,15 +1709,15 @@ function Get-DellDrivers {
         WriteLog "Dell Catalog cab file extracted"
     }
     catch {
-        WriteLog "WARNING: Failed to extract Dell catalog cab file: $($_.Exception.Message)"
-        WriteLog "WARNING: Remediation: The downloaded CatalogPC.cab may be corrupt or truncated. Delete '$DellCabFile' and retry the build to force a fresh download. The build will continue without Dell drivers."
+        WriteLog "WARNING: [Dell][$Model][Download] Failed to extract catalog cab file: $($_.Exception.Message)"
+        WriteLog "WARNING: [Dell][$Model][Download] Remediation: The downloaded CatalogPC.cab may be corrupt or truncated. Delete '$DellCabFile' and retry the build to force a fresh download. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
         return
     }
 
     # Verify XML file exists after extraction
     if (-not (Test-Path -Path $DellCatalogXML)) {
-        WriteLog "WARNING: Dell catalog XML not found after extraction: $DellCatalogXML"
-        WriteLog "WARNING: Remediation: The CatalogPC.cab may not contain the expected XML file. Delete '$DellCabFile' and retry the build. The build will continue without Dell drivers."
+        WriteLog "WARNING: [Dell][$Model][Download] Catalog XML not found after extraction: $DellCatalogXML"
+        WriteLog "WARNING: [Dell][$Model][Download] Remediation: The CatalogPC.cab may not contain the expected XML file. Delete '$DellCabFile' and retry the build. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
         return
     }
 
@@ -1740,8 +1725,8 @@ function Get-DellDrivers {
         $xmlContent = [xml](Get-Content -Path $DellCatalogXML -ErrorAction Stop)
     }
     catch {
-        WriteLog "WARNING: Failed to parse Dell catalog XML: $($_.Exception.Message)"
-        WriteLog "WARNING: Remediation: The CatalogPC.XML file may be malformed or empty. Delete both '$DellCabFile' and '$DellCatalogXML', then retry the build. The build will continue without Dell drivers."
+        WriteLog "WARNING: [Dell][$Model][Download] Failed to parse catalog XML: $($_.Exception.Message)"
+        WriteLog "WARNING: [Dell][$Model][Download] Remediation: The CatalogPC.XML file may be malformed or empty. Delete both '$DellCabFile' and '$DellCatalogXML', then retry the build. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
         return
     }
     $baseLocation = "https://" + $xmlContent.manifest.baseLocation + "/"
@@ -1847,7 +1832,7 @@ function Get-DellDrivers {
             }
             catch {
                 Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverFilePath
-                WriteLog "WARNING: Failed to download Dell driver '$($driver.Name)' after all retries: $($_.Exception.Message)"
+                WriteLog "WARNING: [Dell][$Model][Download] Failed to download driver '$($driver.Name)' after all retries: $($_.Exception.Message). Build will continue without this driver. See FFUDevelopment.log for full error details."
                 continue
             }
 
@@ -1871,7 +1856,7 @@ function Get-DellDrivers {
                     $completed = $process.WaitForExit($timeoutSeconds * 1000)
 
                     if (-not $completed) {
-                        WriteLog "WARNING: Chipset driver extraction timed out after ${timeoutSeconds}s - killing process tree"
+                        WriteLog "WARNING: [Dell][$Model][Extract] Chipset driver extraction timed out after ${timeoutSeconds}s - killing process tree"
 
                         # Kill child processes first (Intel GUI windows)
                         $childProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($process.Id)" -ErrorAction SilentlyContinue
@@ -1909,7 +1894,7 @@ function Get-DellDrivers {
                     $completed = $process.WaitForExit($timeoutSeconds * 1000)
 
                     if (-not $completed) {
-                        WriteLog "WARNING: Network driver extraction timed out after ${timeoutSeconds}s - killing process tree"
+                        WriteLog "WARNING: [Dell][$Model][Extract] Network driver extraction timed out after ${timeoutSeconds}s - killing process tree"
 
                         # Kill child processes first (Intel GUI windows)
                         $childProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($process.Id)" -ErrorAction SilentlyContinue
