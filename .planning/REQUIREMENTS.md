@@ -23,12 +23,12 @@ Requirements for v1.9.3 release. Each maps to roadmap phases.
 
 ### OEM Driver Logging (LOG)
 
-- [ ] **LOG-01**: OEM driver selection decisions logged to FFUDevelopment.log (not just console)
-- [ ] **LOG-02**: OEM driver download progress and outcomes logged to FFUDevelopment.log
-- [ ] **LOG-03**: OEM driver extraction/decompression steps logged to FFUDevelopment.log
-- [ ] **LOG-04**: OEM driver injection results logged to FFUDevelopment.log
-- [ ] **LOG-05**: All OEM driver error paths log actionable remediation messages
-- [ ] **LOG-06**: Pester tests verify driver logging goes to WriteLog (not Write-Host/Console)
+- [x] **LOG-01**: OEM driver selection decisions logged to FFUDevelopment.log (not just console)
+- [x] **LOG-02**: OEM driver download progress and outcomes logged to FFUDevelopment.log
+- [x] **LOG-03**: OEM driver extraction/decompression steps logged to FFUDevelopment.log
+- [x] **LOG-04**: OEM driver injection results logged to FFUDevelopment.log
+- [x] **LOG-05**: All OEM driver error paths log actionable remediation messages
+- [x] **LOG-06**: Pester tests verify driver logging goes to WriteLog (not Write-Host/Console)
 
 ## v2 Requirements
 
@@ -64,12 +64,12 @@ Which phases cover which requirements. Updated by create-roadmap.
 | DELL-02 | Phase 32 | Complete |
 | DELL-03 | Phase 32 | Complete |
 | DELL-04 | Phase 32 | Complete |
-| LOG-01 | Phase 33 | Pending |
-| LOG-02 | Phase 33 | Pending |
-| LOG-03 | Phase 33 | Pending |
-| LOG-04 | Phase 33 | Pending |
-| LOG-05 | Phase 33 | Pending |
-| LOG-06 | Phase 33 | Pending |
+| LOG-01 | Phase 33 | Complete |
+| LOG-02 | Phase 33 | Complete |
+| LOG-03 | Phase 33 | Complete |
+| LOG-04 | Phase 33 | Complete |
+| LOG-05 | Phase 33 | Complete |
+| LOG-06 | Phase 33 | Complete |
 
 **Coverage:**
 - v1 requirements: 14 total
@@ -78,4 +78,4 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-27 — DELL-01..04 complete (Phase 32)*
+*Last updated: 2026-01-27 — LOG-01..06 complete (Phase 33), all v1 requirements complete*
