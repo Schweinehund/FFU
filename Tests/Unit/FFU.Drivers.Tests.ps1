@@ -627,6 +627,38 @@ Describe 'Get-DriverExtractionResult' -Tag 'Unit', 'FFU.Drivers', 'Extraction', 
             })
             $result.Action | Should -Be 'Warn'
         }
+
+        # HP-01: Exit code 1168 handling
+        It 'Should classify HP exit code 1168 as Success (ERROR_NOT_FOUND)' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 1168 -DriverName 'TestDriver'
+            })
+            $result.Success | Should -BeTrue
+            $result.Critical | Should -BeFalse
+            $result.Action | Should -Be 'Continue'
+        }
+
+        It 'Should include ERROR_NOT_FOUND in 1168 message' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 1168 -DriverName 'TestDriver'
+            })
+            $result.Message | Should -Match 'ERROR_NOT_FOUND'
+        }
+
+        It 'Should include remediation steps in 1168 message' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 1168 -DriverName 'TestDriver'
+            })
+            $result.Message | Should -Match 'Remediation'
+            $result.Message | Should -Match 'Verify extracted files'
+        }
+
+        It 'Should include driver name in 1168 message' {
+            $result = $module.Invoke({
+                Get-DriverExtractionResult -Vendor 'HP' -ExitCode 1168 -DriverName 'sp99999'
+            })
+            $result.Message | Should -Match 'sp99999'
+        }
     }
 
     Context 'Lenovo Exit Code Classification' {
