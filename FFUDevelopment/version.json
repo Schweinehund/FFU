@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.9.5",
-    "buildDate": "2026-01-25",
+    "version": "1.9.6",
+    "buildDate": "2026-01-27",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -49,9 +49,9 @@
             "description": "Smart Apps.iso staleness detection (Test-AppsISOStaleness) - Three-tier detection: ISO existence, config comparison, file hash comparison"
         },
         "FFU.Drivers": {
-            "version": "1.2.0",
+            "version": "1.3.0",
             "path": "Modules/FFU.Drivers/FFU.Drivers.psd1",
-            "description": "HP-01: Exit code 1168 graceful handling - classified as success with actionable remediation message"
+            "description": "DELL-01: Graceful CatalogPC.xml failure handling - catalog failures warn and skip Dell drivers instead of aborting build"
         },
         "FFU.Imaging": {
             "version": "1.3.0",

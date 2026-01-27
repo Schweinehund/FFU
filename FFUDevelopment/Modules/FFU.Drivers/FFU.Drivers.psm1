@@ -1707,13 +1707,15 @@ function Get-DellDrivers {
         $DellCatalogXML = "$DriversFolder\Catalog.xml"
     }
 
+    # DELL-01: Graceful catalog failure handling - warn and return instead of throwing
     try {
         $DellCabFile = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType $catalogType `
             -PrimaryUrl $primaryUrl -CachePath $DellCabFile
     }
     catch {
-        WriteLog "ERROR: $($_.Exception.Message)"
-        throw
+        WriteLog "WARNING: Dell catalog download failed: $($_.Exception.Message)"
+        WriteLog "WARNING: Remediation: Check network connectivity to downloads.dell.com. Verify proxy settings if behind a corporate firewall. The build will continue without Dell drivers."
+        return
     }
 
     WriteLog "Extracting Dell Catalog cab file to $DellCatalogXML"
@@ -1722,16 +1724,25 @@ function Get-DellDrivers {
         WriteLog "Dell Catalog cab file extracted"
     }
     catch {
-        WriteLog "ERROR: Failed to extract Dell catalog cab file: $($_.Exception.Message)"
-        throw "Failed to extract Dell driver catalog: $($_.Exception.Message)"
+        WriteLog "WARNING: Failed to extract Dell catalog cab file: $($_.Exception.Message)"
+        WriteLog "WARNING: Remediation: The downloaded CatalogPC.cab may be corrupt or truncated. Delete '$DellCabFile' and retry the build to force a fresh download. The build will continue without Dell drivers."
+        return
+    }
+
+    # Verify XML file exists after extraction
+    if (-not (Test-Path -Path $DellCatalogXML)) {
+        WriteLog "WARNING: Dell catalog XML not found after extraction: $DellCatalogXML"
+        WriteLog "WARNING: Remediation: The CatalogPC.cab may not contain the expected XML file. Delete '$DellCabFile' and retry the build. The build will continue without Dell drivers."
+        return
     }
 
     try {
         $xmlContent = [xml](Get-Content -Path $DellCatalogXML -ErrorAction Stop)
     }
     catch {
-        WriteLog "ERROR: Failed to parse Dell catalog XML: $($_.Exception.Message)"
-        throw "Failed to parse Dell driver catalog: $($_.Exception.Message)"
+        WriteLog "WARNING: Failed to parse Dell catalog XML: $($_.Exception.Message)"
+        WriteLog "WARNING: Remediation: The CatalogPC.XML file may be malformed or empty. Delete both '$DellCabFile' and '$DellCatalogXML', then retry the build. The build will continue without Dell drivers."
+        return
     }
     $baseLocation = "https://" + $xmlContent.manifest.baseLocation + "/"
     $latestDrivers = @{}

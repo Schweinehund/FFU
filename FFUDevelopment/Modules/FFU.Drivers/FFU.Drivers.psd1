@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.0'
+    ModuleVersion = '1.3.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -106,6 +106,12 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.0: DELL-01 Graceful CatalogPC.xml Failure Handling (Phase 32)
+- Dell catalog download/extraction/parse failures no longer abort the build
+- Added explicit check for CatalogPC.XML existence after cab extraction
+- Each failure path logs specific remediation steps (network, corrupt cab, malformed XML)
+- Build continues without Dell drivers on catalog failure (graceful degradation)
+
 v1.2.0: HP-01 Exit Code 1168 Handling (Phase 31)
 - Added explicit handling for HP softpaq exit code 1168 (ERROR_NOT_FOUND)
 - Classified as Success (driver files typically extracted despite error)
