@@ -1730,7 +1730,8 @@ if (-not $Cleanup -and -not $skipPreflightValidation) {
         -WindowsArch $WindowsArch `
         -ConfigFile $ConfigFile `
         -HypervisorType $HypervisorType `
-        -VMHostIPAddress $VMHostIPAddress
+        -VMHostIPAddress $VMHostIPAddress `
+        -FFUCaptureLocation $FFUCaptureLocation
 
     # Check for blocking errors
     if (-not $preflightResult.IsValid) {

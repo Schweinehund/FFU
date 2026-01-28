@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.9.9",
+    "version": "1.9.10",
     "buildDate": "2026-01-27",
 
     "versioningPolicy": {
@@ -54,9 +54,9 @@
             "description": "Phase 33: OEM driver logging - structured [OEM][Model][Operation] WriteLog prefixes, dual output, remediation messages, Pester test coverage"
         },
         "FFU.Imaging": {
-            "version": "1.3.1",
+            "version": "1.3.2",
             "path": "Modules/FFU.Imaging/FFU.Imaging.psd1",
-            "description": "DISM-HEALTH-01 WIMMount readiness checks in Initialize-DISMService and Invoke-ExpandWindowsImageWithRetry"
+            "description": "Capture status JSON communication channel - New-FFU reads capture_status.json from capture location after VM shutdown, reports actual failure reason"
         },
         "FFU.Media": {
             "version": "1.8.0",
@@ -79,9 +79,9 @@
             "description": "Thread-safe messaging for UI/background job communication"
         },
         "FFU.Preflight": {
-            "version": "1.5.0",
+            "version": "1.6.0",
             "path": "Modules/FFU.Preflight/FFU.Preflight.psd1",
-            "description": "VM Host IP pre-flight integration (NET-02) - Test-FFUHostIPAddress called in Tier 2 when VMware + IP configured, warning-only for IP not found"
+            "description": "Capture disk space pre-flight (CAP-DISK-01) - Test-FFUCaptureDiskSpace validates FFU capture location has sufficient free space before VM launch"
         },
         "FFU.Hypervisor": {
             "version": "1.3.8",

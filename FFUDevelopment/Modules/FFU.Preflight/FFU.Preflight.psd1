@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.5.0'
+    ModuleVersion = '1.6.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -67,7 +67,9 @@
         'Get-FFURequirements',
         # Phase 29: Apps.iso Disk Estimation
         'Get-AppsISODiskEstimate',
-        'Test-FFUAppsISODiskSpace'
+        'Test-FFUAppsISODiskSpace',
+        # Capture location disk space
+        'Test-FFUCaptureDiskSpace'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -93,7 +95,21 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.5.0
+# Release Notes - FFU.Preflight v1.6.0
+
+## v1.6.0 (2026-01-27)
+### Capture Location Disk Space Pre-flight Check
+- **NEW**: Test-FFUCaptureDiskSpace - Validates FFU capture location has sufficient free space
+  - Checks capture output drive for minimum 20GB free (configurable MinimumFreeGB)
+  - Returns Passed (>30GB), Warning (20-30GB), or Failed (<20GB)
+  - Prevents 30+ minute build from failing at the very end due to insufficient space
+  - Provides actionable remediation with cleanup commands
+- **ENHANCED**: Invoke-FFUPreflight now accepts FFUCaptureLocation parameter
+  - Defaults to $FFUDevelopmentPath\FFU when not specified
+  - Integrated into Tier 2 validation (blocking on failure)
+- Part of capture error reporting improvements
+
+---
 
 ## v1.5.0 (2026-01-25)
 ### Phase 30: VM Host IP Pre-flight Integration

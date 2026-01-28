@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.0'
+    ModuleVersion = '1.3.2'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -93,6 +93,19 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.2 - Capture status JSON communication channel
+- New-FFU: Reads capture_status.json from capture location after VM shutdown
+- Reports actual capture failure reason (disk space, DISM error, etc.) instead of generic error
+- Logs all capture milestones reached (connected, validation, capture start/complete)
+- Fixes bug: throw $_ outside catch block replaced with specific error message
+- Cleans up capture_status.json on success
+
+v1.3.1 - DISM-HEALTH-01: WIMMount readiness checks before DISM operations
+- Initialize-DISMService: Added Test-DismReady gate to fast-fail instead of 10-minute hang
+- Invoke-ExpandWindowsImageWithRetry: Added Test-DismReady gate before Expand-WindowsImage
+- Prevents DismInitialize 0x80004005 hangs by detecting broken WIMMount upfront
+- Clear error messages with remediation steps when WIMMount is not loaded
+
 v1.3.0 - REL-IMG-05: Add comprehensive pre-validation for large FFU operations
 - Added Get-FFUOperationTimeEstimate for operation time estimates by storage type
 - Added Test-FFUOperationReadiness for comprehensive pre-validation

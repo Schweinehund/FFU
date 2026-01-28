@@ -980,6 +980,91 @@ See: https://github.com/rbalsleyMSFT/FFU/issues/122
     return $false
 }
 
+function Write-CaptureStatus {
+    <#
+    .SYNOPSIS
+    Writes structured capture status JSON to the network share for host-side reading.
+
+    .DESCRIPTION
+    Maintains a capture_status.json file on W:\ that the host reads after VM shutdown
+    to determine the actual capture outcome instead of guessing from .ffu file presence.
+
+    .PARAMETER Phase
+    Current capture phase (e.g., 'connected', 'validation_passed', 'capture_started',
+    'capture_complete', 'error')
+
+    .PARAMETER Message
+    Human-readable status message
+
+    .PARAMETER ErrorType
+    Optional error classification (e.g., 'InsufficientDiskSpace', 'DISMFailure')
+
+    .PARAMETER ErrorDetails
+    Optional detailed error information
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Phase,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+
+        [Parameter()]
+        [string]$ErrorType,
+
+        [Parameter()]
+        [string]$ErrorDetails
+    )
+
+    try {
+        $statusPath = "W:\capture_status.json"
+
+        # Read existing status to preserve milestone history
+        $milestones = @()
+        if (Test-Path -Path $statusPath) {
+            try {
+                $existing = Get-Content -Path $statusPath -Raw | ConvertFrom-Json
+                if ($existing.milestones) {
+                    $milestones = @($existing.milestones)
+                }
+            }
+            catch {
+                # Corrupt file — start fresh
+            }
+        }
+
+        # Append current phase as milestone
+        $milestones += @{
+            phase     = $Phase
+            timestamp = (Get-Date -Format 'o')
+            message   = $Message
+        }
+
+        $status = [ordered]@{
+            status     = $Phase
+            timestamp  = (Get-Date -Format 'o')
+            message    = $Message
+            milestones = $milestones
+        }
+
+        if ($ErrorType) {
+            $status['error'] = [ordered]@{
+                type    = $ErrorType
+                message = $Message
+            }
+            if ($ErrorDetails) {
+                $status['error']['details'] = $ErrorDetails
+            }
+        }
+
+        $status | ConvertTo-Json -Depth 4 | Set-Content -Path $statusPath -Force -Encoding UTF8
+    }
+    catch {
+        # Status file write failure must never break the capture flow
+        Write-Host "[WARNING] Failed to write capture status: $_" -ForegroundColor Yellow
+    }
+}
+
 # Main execution with Solution C
 try {
     Write-Host "`n"
@@ -1063,6 +1148,9 @@ try {
     Write-Host "Network share connection successful! Proceeding with FFU capture..." -ForegroundColor Green
     Write-Host ""
 
+    # Write initial capture status to share (VM-to-host communication channel)
+    Write-CaptureStatus -Phase 'connected' -Message 'Network share connected successfully'
+
     # ============================================================================
     # Log Preservation (REL-WINPE-03)
     # Start transcript to preserve all console output for post-mortem debugging
@@ -1084,86 +1172,114 @@ try {
     Write-Error "CaptureFFU.ps1 network connection error: $_"
     Write-Host ""
     Write-Host "Please review the troubleshooting guide above and try again." -ForegroundColor Yellow
+    # Attempt to write status (fails silently if W: not mounted)
+    Write-CaptureStatus -Phase 'error' -Message "$_" -ErrorType 'NetworkConnectionFailed'
     Write-Host "Press any key to continue (script will exit)..." -ForegroundColor Yellow
     pause
     throw
 }
 
-# Validate target disk before proceeding with capture
-Write-Host "`n========== Target Disk Validation ==========" -ForegroundColor Yellow
-$diskValidation = Test-CaptureTargetDisk -DiskNumber 0
-
-if (-not $diskValidation.Valid) {
-    Write-Host "[CRITICAL] Disk validation FAILED" -ForegroundColor Red
-    Write-Host "  Error: $($diskValidation.Error)" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "SAFETY: FFU capture aborted to prevent accidental data loss." -ForegroundColor Yellow
-    Write-Host "This check ensures only virtual disks (Hyper-V/VMware) are captured." -ForegroundColor Yellow
-    Write-Host ""
-    throw "Target disk validation failed: $($diskValidation.Error)"
-}
-
-Write-Host "[OK] Target disk validated successfully" -ForegroundColor Green
-Write-Host "  Model: $($diskValidation.DiskInfo.Model)" -ForegroundColor Cyan
-Write-Host "  Size: $([math]::Round($diskValidation.DiskInfo.Size / 1GB, 2)) GB" -ForegroundColor Cyan
-Write-Host "=========================================`n"
-
 # ============================================================================
-# Resource Validation (REL-WINPE-04)
-# Check memory and disk space before proceeding with capture
+# Pre-Capture Validation (target disk, memory, share disk space)
+# Wrapped in its own try/catch for clear error reporting on the VM console
 # ============================================================================
-Write-Host "`n========== Resource Validation ==========" -ForegroundColor Yellow
+try {
+    # Validate target disk before proceeding with capture
+    Write-Host "`n========== Target Disk Validation ==========" -ForegroundColor Yellow
+    $diskValidation = Test-CaptureTargetDisk -DiskNumber 0
 
-# Check WinPE memory
-$memoryCheck = Test-WinPEResources -MinimumMemoryMB 256
-$memoryColor = switch ($memoryCheck.Status) {
-    'Critical' { 'Red' }
-    'Warning' { 'Yellow' }
-    'OK' { 'Green' }
-    default { 'Gray' }
-}
-Write-Host "Memory: $($memoryCheck.Message)" -ForegroundColor $memoryColor
+    if (-not $diskValidation.Valid) {
+        Write-Host "[CRITICAL] Disk validation FAILED" -ForegroundColor Red
+        Write-Host "  Error: $($diskValidation.Error)" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "SAFETY: FFU capture aborted to prevent accidental data loss." -ForegroundColor Yellow
+        Write-Host "This check ensures only virtual disks (Hyper-V/VMware) are captured." -ForegroundColor Yellow
+        Write-Host ""
+        throw "Target disk validation failed: $($diskValidation.Error)"
+    }
 
-if ($memoryCheck.Status -eq 'Critical') {
-    Write-Host ""
-    Write-Host "REMEDIATION:" -ForegroundColor Yellow
-    Write-Host "  1. Increase VM memory allocation (recommend 4GB+)" -ForegroundColor Gray
-    Write-Host "  2. Close any unnecessary processes" -ForegroundColor Gray
-    Write-Host "  3. Consider rebuilding WinPE with fewer packages" -ForegroundColor Gray
-    Write-Host ""
-    # Continue anyway - let DISM fail if it must, user has been warned
-}
+    Write-Host "[OK] Target disk validated successfully" -ForegroundColor Green
+    Write-Host "  Model: $($diskValidation.DiskInfo.Model)" -ForegroundColor Cyan
+    Write-Host "  Size: $([math]::Round($diskValidation.DiskInfo.Size / 1GB, 2)) GB" -ForegroundColor Cyan
+    Write-Host "=========================================`n"
 
-# Check network share disk space
-$diskCheck = Test-ShareDiskSpace -DriveLetter "W:" -MinimumSpaceGB 60
-$diskColor = switch ($diskCheck.Status) {
-    'Critical' { 'Red' }
-    'Warning' { 'Yellow' }
-    'OK' { 'Green' }
-    default { 'Gray' }
-}
-Write-Host "Network Share: $($diskCheck.Message)" -ForegroundColor $diskColor
+    # ============================================================================
+    # Resource Validation (REL-WINPE-04)
+    # Check memory and disk space before proceeding with capture
+    # ============================================================================
+    Write-Host "`n========== Resource Validation ==========" -ForegroundColor Yellow
 
-if ($diskCheck.Status -eq 'Critical') {
-    Write-Host ""
-    Write-Host "CRITICAL: Insufficient disk space on network share!" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "REMEDIATION:" -ForegroundColor Yellow
-    Write-Host "  1. Free up space in FFUDevelopment folder on host" -ForegroundColor Gray
-    Write-Host "  2. Delete old FFU files: Get-ChildItem *.ffu | Sort-Object LastWriteTime | Select-Object -SkipLast 2 | Remove-Item" -ForegroundColor Gray
-    Write-Host "  3. Check for large temp files in FFUDevelopment folder" -ForegroundColor Gray
-    Write-Host ""
-    throw "Insufficient disk space on network share: $($diskCheck.FreeSpaceGB)GB free, need at least 20GB"
-}
-elseif ($diskCheck.Status -eq 'Warning') {
-    Write-Host ""
-    Write-Host "NOTE: Low disk space may cause capture to fail if FFU is large." -ForegroundColor Yellow
-    Write-Host "      Consider freeing up space before proceeding." -ForegroundColor Yellow
-    Write-Host ""
-    # Continue with warning
-}
+    # Check WinPE memory
+    $memoryCheck = Test-WinPEResources -MinimumMemoryMB 256
+    $memoryColor = switch ($memoryCheck.Status) {
+        'Critical' { 'Red' }
+        'Warning' { 'Yellow' }
+        'OK' { 'Green' }
+        default { 'Gray' }
+    }
+    Write-Host "Memory: $($memoryCheck.Message)" -ForegroundColor $memoryColor
 
-Write-Host "==========================================`n" -ForegroundColor Yellow
+    if ($memoryCheck.Status -eq 'Critical') {
+        Write-Host ""
+        Write-Host "REMEDIATION:" -ForegroundColor Yellow
+        Write-Host "  1. Increase VM memory allocation (recommend 4GB+)" -ForegroundColor Gray
+        Write-Host "  2. Close any unnecessary processes" -ForegroundColor Gray
+        Write-Host "  3. Consider rebuilding WinPE with fewer packages" -ForegroundColor Gray
+        Write-Host ""
+        # Continue anyway - let DISM fail if it must, user has been warned
+    }
+
+    # Check network share disk space
+    $diskCheck = Test-ShareDiskSpace -DriveLetter "W:" -MinimumSpaceGB 60
+    $diskColor = switch ($diskCheck.Status) {
+        'Critical' { 'Red' }
+        'Warning' { 'Yellow' }
+        'OK' { 'Green' }
+        default { 'Gray' }
+    }
+    Write-Host "Network Share: $($diskCheck.Message)" -ForegroundColor $diskColor
+
+    if ($diskCheck.Status -eq 'Critical') {
+        Write-Host ""
+        Write-Host "CRITICAL: Insufficient disk space on network share!" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "REMEDIATION:" -ForegroundColor Yellow
+        Write-Host "  1. Free up space in FFUDevelopment folder on host" -ForegroundColor Gray
+        Write-Host "  2. Delete old FFU files: Get-ChildItem *.ffu | Sort-Object LastWriteTime | Select-Object -SkipLast 2 | Remove-Item" -ForegroundColor Gray
+        Write-Host "  3. Check for large temp files in FFUDevelopment folder" -ForegroundColor Gray
+        Write-Host ""
+        throw "Insufficient disk space on network share: $($diskCheck.FreeSpaceGB)GB free, need at least 20GB"
+    }
+    elseif ($diskCheck.Status -eq 'Warning') {
+        Write-Host ""
+        Write-Host "NOTE: Low disk space may cause capture to fail if FFU is large." -ForegroundColor Yellow
+        Write-Host "      Consider freeing up space before proceeding." -ForegroundColor Yellow
+        Write-Host ""
+        # Continue with warning
+    }
+
+    Write-Host "==========================================`n" -ForegroundColor Yellow
+
+    Write-CaptureStatus -Phase 'validation_passed' -Message 'Pre-capture validation passed (disk, memory, target disk)'
+}
+catch {
+    Write-Host "`n=====================================================" -ForegroundColor Red
+    Write-Host "       PRE-CAPTURE VALIDATION FAILED                  " -ForegroundColor Red
+    Write-Host "=====================================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Error: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "The capture cannot proceed due to a validation failure." -ForegroundColor Yellow
+    Write-Host "This is NOT a network connection issue." -ForegroundColor Yellow
+    Write-Host "Review the error above and the remediation steps." -ForegroundColor Yellow
+    Write-Host ""
+    Write-CaptureStatus -Phase 'error' -Message "$_" -ErrorType 'PreCaptureValidationFailed'
+    # Ensure transcript is preserved
+    try { Stop-Transcript -ErrorAction SilentlyContinue } catch { }
+    Write-Host "Press any key to continue (VM will shut down)..." -ForegroundColor Yellow
+    pause
+    wpeutil Shutdown
+}
 
 $AssignDriveLetter = 'x:\AssignDriveLetter.txt'
 try {
@@ -1321,22 +1437,35 @@ $SKU = switch ($SKU) {
     Write-Host "Sleeping for 60 seconds to allow registry to unload prior to capture"
     Start-sleep 60
 
+    Write-CaptureStatus -Phase 'capture_started' -Message "Starting DISM FFU capture: $ffuFilePath"
+
     try {
         Write-Host "Starting DISM FFU capture..."
         $dismProcess = Start-Process -FilePath dism.exe -ArgumentList $dismArgs -Wait -PassThru -ErrorAction Stop
         if ($dismProcess.ExitCode -ne 0) {
+            Write-CaptureStatus -Phase 'error' -Message "DISM capture failed with exit code $($dismProcess.ExitCode)" `
+                -ErrorType 'DISMCaptureFailure' -ErrorDetails "Exit code: $($dismProcess.ExitCode)"
             throw "DISM capture failed with exit code $($dismProcess.ExitCode)"
         }
         Write-Host "DISM FFU capture completed successfully."
+        Write-CaptureStatus -Phase 'capture_complete' -Message "FFU captured successfully: $ffuFilePath"
     }
     catch {
+        Write-CaptureStatus -Phase 'error' -Message "$_" -ErrorType 'DISMCaptureFailure'
         Write-Error "FFU capture failed: $_"
         
     }
 
     try {
         Write-Host "Copying DISM log to network share..."
-        xcopy X:\Windows\logs\dism\dism.log W:\ /Y | Out-Null
+        $dismLogSource = "X:\Windows\logs\dism\dism.log"
+        if (Test-Path $dismLogSource) {
+            Copy-Item -Path $dismLogSource -Destination "W:\dism.log" -Force -ErrorAction Stop
+            Write-Host "  DISM log copied successfully" -ForegroundColor Green
+        }
+        else {
+            Write-Host "  DISM log not found at $dismLogSource" -ForegroundColor Yellow
+        }
     }
     catch {
         Write-Warning "Failed to copy DISM log: $_"
@@ -1357,9 +1486,13 @@ $SKU = switch ($SKU) {
     # Also copy any additional logs
     try {
         Write-Host "Preserving additional logs to network share..." -ForegroundColor Cyan
-        if (Test-Path "X:\Windows\logs\dism\dism.log") {
-            xcopy "X:\Windows\logs\dism\dism.log" "W:\dism_capture.log" /Y | Out-Null
+        $dismLogPath = "X:\Windows\logs\dism\dism.log"
+        if (Test-Path $dismLogPath) {
+            Copy-Item -Path $dismLogPath -Destination "W:\dism_capture.log" -Force -ErrorAction Stop
             Write-Host "  DISM log preserved" -ForegroundColor Green
+        }
+        else {
+            Write-Host "  DISM log not found at $dismLogPath" -ForegroundColor Yellow
         }
     }
     catch {
@@ -1371,7 +1504,17 @@ $SKU = switch ($SKU) {
 
 }
 catch {
-    Write-Error "An unexpected error occurred: $_"
+    Write-Host "`n=====================================================" -ForegroundColor Red
+    Write-Host "              FFU CAPTURE FAILED                       " -ForegroundColor Red
+    Write-Host "=====================================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Error: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "The FFU capture process encountered an error." -ForegroundColor Yellow
+    Write-Host "Check the transcript log on the network share for details." -ForegroundColor Yellow
+    Write-Host ""
+    # Write error status for host-side reading
+    Write-CaptureStatus -Phase 'error' -Message "$_" -ErrorType 'CaptureError'
     # Ensure transcript is preserved even on error
     try { Stop-Transcript -ErrorAction SilentlyContinue } catch { }
 }

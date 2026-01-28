@@ -597,6 +597,121 @@ function Test-FFUAppsISODiskSpace {
     }
 }
 
+function Test-FFUCaptureDiskSpace {
+    <#
+    .SYNOPSIS
+    Validates sufficient disk space in the FFU capture location for FFU file output.
+
+    .DESCRIPTION
+    Checks that the FFUCaptureLocation drive has enough free space to hold the captured
+    FFU file. This prevents a 30+ minute build from failing at the very end because the
+    capture share ran out of space.
+
+    .PARAMETER FFUCaptureLocation
+    Path to the FFU capture output folder (e.g., "C:\FFUDevelopment\FFU")
+
+    .PARAMETER MinimumFreeGB
+    Minimum free space in GB required for capture (default: 20)
+
+    .EXAMPLE
+    $result = Test-FFUCaptureDiskSpace -FFUCaptureLocation "C:\FFUDevelopment\FFU"
+
+    .OUTPUTS
+    FFUCheckResult with Status (Passed/Warning/Failed), Message, Details, and Remediation
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FFUCaptureLocation,
+
+        [Parameter()]
+        [int]$MinimumFreeGB = 20
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        # Resolve drive letter from capture location
+        if (Test-Path -Path $FFUCaptureLocation) {
+            $driveLetter = (Resolve-Path -Path $FFUCaptureLocation).Drive.Name
+        }
+        else {
+            $parentPath = Split-Path -Path $FFUCaptureLocation -Parent
+            if ($parentPath -and (Test-Path -Path $parentPath)) {
+                $driveLetter = (Resolve-Path -Path $parentPath).Drive.Name
+            }
+            else {
+                $driveLetter = $FFUCaptureLocation.Substring(0, 1)
+            }
+        }
+
+        $drive = Get-PSDrive -Name $driveLetter -ErrorAction Stop
+        $availableGB = [Math]::Round($drive.Free / 1GB, 2)
+        $warningThresholdGB = [Math]::Ceiling($MinimumFreeGB * 1.5)
+
+        $stopwatch.Stop()
+
+        $details = [ordered]@{
+            FFUCaptureLocation = $FFUCaptureLocation
+            DriveLetter        = $driveLetter
+            AvailableFreeGB    = $availableGB
+            MinimumRequiredGB  = $MinimumFreeGB
+            WarningThresholdGB = $warningThresholdGB
+        }
+
+        if ($availableGB -ge $warningThresholdGB) {
+            $surplusGB = [Math]::Round($availableGB - $MinimumFreeGB, 2)
+            return New-FFUCheckResult -CheckName 'CaptureDiskSpace' -Status 'Passed' `
+                -Message "Capture location has sufficient space: ${availableGB}GB free, ${MinimumFreeGB}GB minimum (${surplusGB}GB surplus)" `
+                -Details $details `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+        elseif ($availableGB -ge $MinimumFreeGB) {
+            $marginGB = [Math]::Round($availableGB - $MinimumFreeGB, 2)
+            return New-FFUCheckResult -CheckName 'CaptureDiskSpace' -Status 'Warning' `
+                -Severity 'Warning' `
+                -Message "Capture location has low space: ${availableGB}GB free, ${MinimumFreeGB}GB minimum (only ${marginGB}GB margin)" `
+                -Details $details `
+                -Remediation "Consider freeing space on ${driveLetter}: drive. Large FFU files can exceed ${MinimumFreeGB}GB." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+        else {
+            $shortfallGB = [Math]::Round($MinimumFreeGB - $availableGB, 2)
+            $remediation = New-FFURemediationBlock -Issue "Insufficient disk space for FFU capture" `
+                -Impact "FFU capture will fail after 30+ minutes of build time" `
+                -ManualSteps @(
+                    "Free up at least ${shortfallGB}GB on drive ${driveLetter}:"
+                    "Delete old FFU files: Get-ChildItem '$FFUCaptureLocation\*.ffu' | Sort-Object LastWriteTime | Select-Object -SkipLast 1 | Remove-Item"
+                    "Check for large temp files in the FFUDevelopment folder"
+                    "Move FFUCaptureLocation to a drive with more space"
+                ) `
+                -VerifyCommand "Get-PSDrive $driveLetter | Select-Object @{N='FreeGB';E={[Math]::Round(`$_.Free/1GB,2)}}"
+
+            return New-FFUCheckResult -CheckName 'CaptureDiskSpace' -Status 'Failed' `
+                -Severity 'Critical' `
+                -Message "Insufficient capture space: ${availableGB}GB free, ${MinimumFreeGB}GB required (${shortfallGB}GB short)" `
+                -Details $details `
+                -Remediation $remediation `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        return New-FFUCheckResult -CheckName 'CaptureDiskSpace' -Status 'Failed' `
+            -Severity 'Critical' `
+            -Message "Failed to check capture disk space: $($_.Exception.Message)" `
+            -Details @{
+                FFUCaptureLocation = $FFUCaptureLocation
+                Error              = $_.Exception.Message
+            } `
+            -Remediation (New-FFURemediationBlock -Issue "Failed to check capture location disk space" `
+                -Impact "Cannot determine if sufficient space exists for FFU capture" `
+                -ManualSteps @("Ensure path '$FFUCaptureLocation' or its parent is accessible", "Ensure drive is mounted")) `
+            -DurationMs $stopwatch.ElapsedMilliseconds
+    }
+}
+
 #endregion Helper Functions
 
 #region Tier 1: Critical Validations
@@ -3426,7 +3541,10 @@ function Invoke-FFUPreflight {
         [string]$HypervisorType = 'HyperV',
 
         [Parameter()]
-        [string]$VMHostIPAddress
+        [string]$VMHostIPAddress,
+
+        [Parameter()]
+        [string]$FFUCaptureLocation
     )
 
     $overallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -3747,6 +3865,25 @@ function Invoke-FFUPreflight {
         Write-Information "  Apps.iso disk space check... SKIPPED (InstallApps not enabled)"
         $result.Tier2Results['AppsISODiskSpace'] = New-FFUCheckResult -CheckName 'AppsISODiskSpace' -Status 'Skipped' `
             -Message 'Apps.iso disk space check skipped (InstallApps not enabled)'
+    }
+
+    # Capture location disk space check - fail fast before a 30+ min build wastes time
+    $captureLocation = if ($FFUCaptureLocation) { $FFUCaptureLocation } else { Join-Path $FFUDevelopmentPath 'FFU' }
+    $captureSpaceResult = Test-FFUCaptureDiskSpace -FFUCaptureLocation $captureLocation
+    $result.Tier2Results['CaptureDiskSpace'] = $captureSpaceResult
+    if ($captureSpaceResult.Status -eq 'Passed') {
+        Write-Information "  Checking capture location disk space... PASSED ($($captureSpaceResult.Details.AvailableFreeGB)GB free)"
+    }
+    elseif ($captureSpaceResult.Status -eq 'Warning') {
+        Write-Warning "  Checking capture location disk space... WARNING"
+        $result.HasWarnings = $true
+        $result.Warnings.Add("CaptureDiskSpace: $($captureSpaceResult.Message)")
+    }
+    else {
+        Write-Information "  Checking capture location disk space... FAILED"
+        $result.IsValid = $false
+        $result.Errors.Add("CaptureDiskSpace: $($captureSpaceResult.Message)")
+        $result.RemediationSteps.Add($captureSpaceResult.Remediation)
     }
 
     # Scratch space check - REL-PRE-01

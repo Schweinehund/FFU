@@ -46,6 +46,17 @@ function Initialize-DISMService {
 
     WriteLog "Initializing DISM service for mounted image..."
 
+    # v1.0.1 (DISM-HEALTH-01): Check WIMMount before attempting DISM initialization.
+    # This prevents a 10-minute hang when WIMMount is broken.
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+        if (-not (Test-DismReady -AttemptRepair $true)) {
+            WriteLog "ERROR: WIMMount filter is not loaded. DISM initialization will fail."
+            WriteLog "Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
+            $false
+            return
+        }
+    }
+
     try {
         # Perform a lightweight DISM operation to ensure service is ready
         # Use Get-WindowsEdition which works with mounted image paths
@@ -269,6 +280,16 @@ function Invoke-ExpandWindowsImageWithRetry {
         [Parameter(Mandatory = $false)]
         [int]$MaxRetries = 2
     )
+
+    # v1.0.1 (DISM-HEALTH-01): Validate WIMMount before attempting Expand-WindowsImage.
+    # This prevents a 10-minute hang when WIMMount is broken. Fast-fail with clear error.
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+        if (-not (Test-DismReady -AttemptRepair $true)) {
+            throw "Expand-WindowsImage cannot proceed: WIMMount filter driver is not loaded. " +
+                  "DISM operations will fail with 'DismInitialize failed. Error code = 0x80004005'. " +
+                  "Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
+        }
+    }
 
     $attempt = 0
     $lastError = $null
@@ -2462,10 +2483,57 @@ function New-FFU {
             WriteLog 'Getting the most recent FFU file'
             $FFUFile = ($FFUFiles | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1).FullName
             WriteLog "Most recent .ffu file: $FFUFile"
+
+            # Clean up capture status file on success
+            $captureStatusCleanup = Join-Path $FFUCaptureLocation 'capture_status.json'
+            if (Test-Path -Path $captureStatusCleanup) {
+                Remove-Item -Path $captureStatusCleanup -Force -ErrorAction SilentlyContinue
+            }
         }
         else {
             WriteLog "No .ffu files found in $FFUCaptureLocation"
-            throw $_
+
+            # Read capture_status.json for actual failure reason (VM-to-host communication)
+            $captureStatusPath = Join-Path $FFUCaptureLocation 'capture_status.json'
+            $captureErrorMsg = "FFU capture failed: No .ffu files found in $FFUCaptureLocation"
+            if (Test-Path -Path $captureStatusPath) {
+                try {
+                    $captureStatus = Get-Content -Path $captureStatusPath -Raw | ConvertFrom-Json
+                    WriteLog "Capture status file found: status=$($captureStatus.status)"
+
+                    if ($captureStatus.milestones) {
+                        WriteLog "Capture milestones reached:"
+                        foreach ($milestone in $captureStatus.milestones) {
+                            WriteLog "  - $($milestone.phase): $($milestone.message) ($($milestone.timestamp))"
+                        }
+                    }
+
+                    if ($captureStatus.status -eq 'error' -and $captureStatus.error) {
+                        $errorType = $captureStatus.error.type
+                        $errorMsg = $captureStatus.error.message
+                        WriteLog "CAPTURE ERROR TYPE: $errorType"
+                        WriteLog "CAPTURE ERROR: $errorMsg"
+                        $captureErrorMsg = "FFU capture failed [$errorType]: $errorMsg"
+                    }
+                    elseif ($captureStatus.status -ne 'capture_complete') {
+                        $lastPhase = $captureStatus.status
+                        $lastMsg = $captureStatus.message
+                        WriteLog "Capture stopped at phase '$lastPhase': $lastMsg"
+                        $captureErrorMsg = "FFU capture incomplete: stopped at phase '$lastPhase' - $lastMsg"
+                    }
+
+                    # Clean up status file
+                    Remove-Item -Path $captureStatusPath -Force -ErrorAction SilentlyContinue
+                }
+                catch {
+                    WriteLog "WARNING: Failed to read capture status file: $($_.Exception.Message)"
+                }
+            }
+            else {
+                WriteLog "No capture_status.json found - VM may have failed before writing status"
+            }
+
+            throw $captureErrorMsg
         }
     }
     elseif (-not $InstallApps -and (-not $AllowVHDXCaching)) {
