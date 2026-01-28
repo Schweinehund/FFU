@@ -452,39 +452,51 @@ function Get-Apps {
         if ($overrideMap.Count -gt 0) {
             $winGetWin32Path = Join-Path -Path $OrchestrationPath -ChildPath 'WinGetWin32Apps.json'
             if (Test-Path -Path $winGetWin32Path) {
-                [array]$appsDataUpdated = Get-Content -Path $winGetWin32Path -Raw | ConvertFrom-Json
-                $changed = $false
-                foreach ($entry in $appsDataUpdated) {
-                    if ($overrideMap.ContainsKey($entry.Name)) {
-                        $ov = $overrideMap[$entry.Name]
-                        if ($ov.CommandLine) {
-                            WriteLog "Override (AppList.json) CommandLine for $($entry.Name)"
-                            $entry.CommandLine = $ov.CommandLine
-                            $changed = $true
-                        }
-                        if ($ov.Arguments) {
-                            WriteLog "Override (AppList.json) Arguments for $($entry.Name)"
-                            $entry.Arguments = $ov.Arguments
-                            $changed = $true
-                        }
-                        if ($ov.ContainsKey('AdditionalExitCodes') -and $null -ne $ov.AdditionalExitCodes) {
-                            WriteLog "Override (AppList.json) AdditionalExitCodes for $($entry.Name)"
-                            $entry | Add-Member -NotePropertyName AdditionalExitCodes -NotePropertyValue $ov.AdditionalExitCodes -Force
-                            $changed = $true
-                        }
-                        if ($ov.ContainsKey('IgnoreNonZeroExitCodes') -and $null -ne $ov.IgnoreNonZeroExitCodes) {
-                            WriteLog "Override (AppList.json) IgnoreNonZeroExitCodes for $($entry.Name)"
-                            $entry | Add-Member -NotePropertyName IgnoreNonZeroExitCodes -NotePropertyValue ([bool]$ov.IgnoreNonZeroExitCodes) -Force
-                            $changed = $true
+                # Use a lock to prevent race conditions when writing to the same file
+                $lockName = "WinGetWin32AppsJsonLock"
+                $lock = New-Object System.Threading.Mutex($false, $lockName)
+                try {
+                    [void]$lock.WaitOne()
+
+                    # Re-read content inside lock to ensure latest version
+                    [array]$appsDataUpdated = Get-Content -Path $winGetWin32Path -Raw | ConvertFrom-Json
+                    $changed = $false
+                    foreach ($entry in $appsDataUpdated) {
+                        if ($overrideMap.ContainsKey($entry.Name)) {
+                            $ov = $overrideMap[$entry.Name]
+                            if ($ov.CommandLine) {
+                                WriteLog "Override (AppList.json) CommandLine for $($entry.Name)"
+                                $entry.CommandLine = $ov.CommandLine
+                                $changed = $true
+                            }
+                            if ($ov.Arguments) {
+                                WriteLog "Override (AppList.json) Arguments for $($entry.Name)"
+                                $entry.Arguments = $ov.Arguments
+                                $changed = $true
+                            }
+                            if ($ov.ContainsKey('AdditionalExitCodes') -and $null -ne $ov.AdditionalExitCodes) {
+                                WriteLog "Override (AppList.json) AdditionalExitCodes for $($entry.Name)"
+                                $entry | Add-Member -NotePropertyName AdditionalExitCodes -NotePropertyValue $ov.AdditionalExitCodes -Force
+                                $changed = $true
+                            }
+                            if ($ov.ContainsKey('IgnoreNonZeroExitCodes') -and $null -ne $ov.IgnoreNonZeroExitCodes) {
+                                WriteLog "Override (AppList.json) IgnoreNonZeroExitCodes for $($entry.Name)"
+                                $entry | Add-Member -NotePropertyName IgnoreNonZeroExitCodes -NotePropertyValue ([bool]$ov.IgnoreNonZeroExitCodes) -Force
+                                $changed = $true
+                            }
                         }
                     }
+                    if ($changed) {
+                        $appsDataUpdated | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetWin32Path
+                        WriteLog "Applied AppList.json command overrides to WinGetWin32Apps.json"
+                    }
+                    else {
+                        WriteLog "No matching apps required command overrides."
+                    }
                 }
-                if ($changed) {
-                    $appsDataUpdated | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetWin32Path
-                    WriteLog "Applied AppList.json command overrides to WinGetWin32Apps.json"
-                }
-                else {
-                    WriteLog "No matching apps required command overrides."
+                finally {
+                    $lock.ReleaseMutex()
+                    $lock.Dispose()
                 }
             }
             else {
