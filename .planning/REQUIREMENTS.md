@@ -1,34 +1,52 @@
-# Requirements: v1.9.3 OEM Driver Bug Fixes
+# Requirements: v1.10.0 Upstream Cherry-Pick
 
-**Defined:** 2026-01-25
+**Defined:** 2026-01-28
 **Core Value:** Enable rapid, reliable Windows deployment through pre-configured FFU images with minimal manual intervention.
 
 ## v1 Requirements
 
-Requirements for v1.9.3 release. Each maps to roadmap phases.
+Requirements for v1.10.0 release. Each maps to roadmap phases.
 
-### HP Driver Fix (HP)
+### Critical Bug Fixes (BUGFIX)
 
-- [x] **HP-01**: HP driver extraction handles exit code 1168 without failing the build
-- [x] **HP-02**: HP driver extraction logs the specific exit code and remediation steps when extraction fails
-- [x] **HP-03**: Pester tests verify HP driver extraction exit code 1168 handling
-- [x] **HP-04**: Pester tests verify HP extraction produces actionable error messages
+- [ ] **BUGFIX-01**: Parallel Winget app updates complete without JSON corruption (file locking/mutex on WinGetWin32Apps.json)
+- [ ] **BUGFIX-02**: PPKG files with spaces in filenames copy successfully during deployment and USB creation (xcopy quoting)
+- [ ] **BUGFIX-03**: MSI installers with spaces in paths execute without "file not found" errors (path quoting)
+- [ ] **BUGFIX-04**: Build skips CU download when ESD image version already matches or exceeds available CU version
 
-### Dell Driver Fix (DELL)
+### Winget Improvements (WINGET)
 
-- [x] **DELL-01**: Dell driver download handles missing CatalogPC.xml without failing the build
-- [x] **DELL-02**: Dell catalog lookup logs the failure reason and fallback action taken
-- [x] **DELL-03**: Pester tests verify Dell CatalogPC.xml missing scenario handling
-- [x] **DELL-04**: Pester tests verify Dell catalog fallback behavior
+- [ ] **WINGET-01**: Apps install in exact order specified in AppList.json (not hash/alphabetical order)
+- [ ] **WINGET-02**: Win32 app dependencies automatically resolved and deduplicated before installation
 
-### OEM Driver Logging (LOG)
+### Download Improvements (DL)
 
-- [x] **LOG-01**: OEM driver selection decisions logged to FFUDevelopment.log (not just console)
-- [x] **LOG-02**: OEM driver download progress and outcomes logged to FFUDevelopment.log
-- [x] **LOG-03**: OEM driver extraction/decompression steps logged to FFUDevelopment.log
-- [x] **LOG-04**: OEM driver injection results logged to FFUDevelopment.log
-- [x] **LOG-05**: All OEM driver error paths log actionable remediation messages
-- [x] **LOG-06**: Pester tests verify driver logging goes to WriteLog (not Write-Host/Console)
+- [ ] **DL-01**: ESD downloads use BITS transfer for reliability (Start-BitsTransferWithRetry)
+
+### Path Reliability (PATH)
+
+- [ ] **PATH-01**: SUBST virtual drive mapped during driver operations to prevent long path (>260 char) failures
+
+### Deployment Improvements (DEPLOY)
+
+- [ ] **DEPLOY-01**: Multiple physical disks present an interactive selection menu instead of defaulting to disk 0
+- [ ] **DEPLOY-02**: 30-second delay in audit mode allows Windows Security Platform to initialize before app installations
+- [ ] **DEPLOY-03**: Empty driver folders automatically skipped during deployment with log message
+
+### Driver Improvements (DRV)
+
+- [ ] **DRV-01**: Dell driver download uses CatalogIndexPC for efficient driver package selection
+- [ ] **DRV-02**: Model names normalized to remove duplicate brand prefixes (e.g., "Dell Dell Latitude" → "Dell Latitude")
+- [ ] **DRV-03**: SystemID extraction from BIOS/WMI works correctly across HP, Dell, and Lenovo
+- [ ] **DRV-04**: 8 new OEM manufacturers supported (Panasonic, Fujitsu, Getac, Dynabook, Samsung, Acer, ASUS, MSI)
+- [ ] **DRV-05**: Generic/family-level driver fallback attempted when no exact model match found
+- [ ] **DRV-06**: PE driver copy operations retry on transient failures with logging
+- [ ] **DRV-07**: Driver source selection UI clearly indicates which source is used and why
+
+### Nice-to-Have (NICE)
+
+- [ ] **NICE-01**: USB drive identification uses UniqueId instead of SerialNumber for reliability
+- [ ] **NICE-02**: Deployment supports "skip driver installation" option for driver-free scenarios
 
 ## v2 Requirements
 
@@ -46,9 +64,10 @@ Explicitly excluded. Documented to prevent scope creep.
 | Feature | Reason |
 |---------|--------|
 | expand.exe large MSU fix | Fallback works — explicitly deferred per PROJECT.md |
-| New OEM vendor support | Current vendors sufficient per PROJECT.md |
-| Driver caching/reuse across builds | Optimization — not a bug fix milestone |
-| Major architectural rewrites | Focus on incremental improvements per PROJECT.md |
+| Threads parameter (upstream) | We deprecated this; skip |
+| Refactored cleanup into shared module | We already have FFU.Common.Cleanup.psm1 |
+| Refactored app download for UI/CLI reuse | We already share via FFU.Common.Winget.psm1 |
+| Major architectural rewrites | Focus on selective cherry-pick per upstream evaluation |
 
 ## Traceability
 
@@ -56,26 +75,31 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HP-01 | Phase 31 | Complete |
-| HP-02 | Phase 31 | Complete |
-| HP-03 | Phase 31 | Complete |
-| HP-04 | Phase 31 | Complete |
-| DELL-01 | Phase 32 | Complete |
-| DELL-02 | Phase 32 | Complete |
-| DELL-03 | Phase 32 | Complete |
-| DELL-04 | Phase 32 | Complete |
-| LOG-01 | Phase 33 | Complete |
-| LOG-02 | Phase 33 | Complete |
-| LOG-03 | Phase 33 | Complete |
-| LOG-04 | Phase 33 | Complete |
-| LOG-05 | Phase 33 | Complete |
-| LOG-06 | Phase 33 | Complete |
+| BUGFIX-01 | Phase 34 | Pending |
+| BUGFIX-02 | Phase 35 | Pending |
+| BUGFIX-03 | Phase 34 | Pending |
+| BUGFIX-04 | Phase 36 | Pending |
+| WINGET-01 | Phase 37 | Pending |
+| WINGET-02 | Phase 37 | Pending |
+| DL-01 | Phase 36 | Pending |
+| PATH-01 | Phase 38 | Pending |
+| DEPLOY-01 | Phase 43 | Pending |
+| DEPLOY-02 | Phase 43 | Pending |
+| DEPLOY-03 | Phase 43 | Pending |
+| DRV-01 | Phase 40 | Pending |
+| DRV-02 | Phase 39 | Pending |
+| DRV-03 | Phase 39 | Pending |
+| DRV-04 | Phase 42 | Pending |
+| DRV-05 | Phase 41 | Pending |
+| DRV-06 | Phase 41 | Pending |
+| DRV-07 | Phase 41 | Pending |
+| NICE-01 | Phase 43 | Pending |
+| NICE-02 | Phase 43 | Pending |
 
 **Coverage:**
-- v1 requirements: 14 total
-- Mapped to phases: 14
+- v1 requirements: 20 total
+- Mapped to phases: 20
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-01-25*
-*Last updated: 2026-01-27 — LOG-01..06 complete (Phase 33), all v1 requirements complete*
+*Requirements defined: 2026-01-28*
