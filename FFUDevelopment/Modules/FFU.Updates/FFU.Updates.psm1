@@ -274,6 +274,173 @@ function Get-ProductsCab {
     return $OutFile
 }
 
+function Get-WindowsESDMetadata {
+    <#
+    .SYNOPSIS
+    Resolves Windows ESD (Electronic Software Distribution) metadata without downloading the ESD file
+
+    .DESCRIPTION
+    Downloads and parses products.cab to extract ESD metadata including the version
+    embedded in the ESD filename. This enables version comparison against cumulative
+    updates to skip unnecessary CU downloads when the ESD already includes the update.
+
+    For Windows 11, downloads products.cab (using cache if available) and parses the XML
+    to find the matching ESD entry. Extracts the 4-part version (e.g., 10.0.26100.1742)
+    from the ESD filename.
+
+    Does NOT download the actual ESD file - only resolves metadata.
+
+    .PARAMETER WindowsRelease
+    Windows release version (10 or 11)
+
+    .PARAMETER WindowsArch
+    Windows architecture (x86, x64, or ARM64)
+
+    .PARAMETER WindowsLang
+    Windows language code (e.g., en-us)
+
+    .PARAMETER MediaType
+    Media type: consumer or business
+
+    .PARAMETER WindowsVersion
+    Windows version (e.g., 22H2, 23H2, 24H2) for Windows 11
+
+    .EXAMPLE
+    $metadata = Get-WindowsESDMetadata -WindowsRelease 11 -WindowsArch 'x64' `
+                    -WindowsLang 'en-us' -MediaType 'consumer' -WindowsVersion '24H2'
+
+    .EXAMPLE
+    # Check if ESD version is current enough to skip CU download
+    $metadata = Get-WindowsESDMetadata -WindowsRelease 11 -WindowsArch 'x64' `
+                    -WindowsLang 'en-us' -MediaType 'consumer' -WindowsVersion '24H2'
+    if ($metadata -and $metadata.Version) {
+        WriteLog "ESD version: $($metadata.Version)"
+    }
+
+    .OUTPUTS
+    PSCustomObject - Object with FileUrl, FileName, LocalPath, and Version properties. Returns $null on failure.
+
+    .NOTES
+    Version is parsed from the ESD filename using 4-part pattern (major.minor.build.revision).
+    Returns $null if metadata resolution fails (does not throw).
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet(10, 11)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('x86', 'x64', 'ARM64')]
+        [string]$WindowsArch,
+
+        [Parameter(Mandatory = $false)]
+        [string]$WindowsLang,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('consumer', 'business')]
+        [string]$MediaType,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WindowsVersion
+    )
+
+    try {
+        WriteLog "Resolving Windows $WindowsRelease ESD metadata"
+
+        # Build version mapping (same as Get-WindowsESD)
+        $buildVersionMap = @{
+            '22H2' = '22621.0.0.0'
+            '23H2' = '22631.0.0.0'
+            '24H2' = '26100.0.0.0'
+            '25H2' = '26100.0.0.0'
+        }
+        $normalizedVersion = $WindowsVersion.ToUpper()
+        if ($buildVersionMap.ContainsKey($normalizedVersion)) {
+            $buildVersion = $buildVersionMap[$normalizedVersion]
+        }
+        else {
+            WriteLog "No explicit build mapping found for Windows $WindowsRelease version '$WindowsVersion'. Defaulting to 26100.0.0.0."
+            $buildVersion = '26100.0.0.0'
+        }
+
+        $cabArchitecture = if ($WindowsArch -eq 'ARM64') { 'arm64' } else { 'x64' }
+        $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+
+        # Use a temp directory for cab/xml processing
+        $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "FFU_ESD_Metadata_$([Guid]::NewGuid().ToString('N').Substring(0, 8))"
+        if (-not (Test-Path $tempDir)) {
+            New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
+        }
+
+        try {
+            $cabFilePath = Join-Path $tempDir "products_metadata.cab"
+
+            # Download products.cab
+            WriteLog "Downloading products.cab for ESD metadata resolution"
+            Get-ProductsCab -OutFile $cabFilePath -Architecture $cabArchitecture -BuildVersion $buildVersion -UserAgent $userAgent | Out-Null
+
+            # Extract XML from cab file
+            $xmlFilePath = Join-Path $tempDir "products.xml"
+            $expandExe = Join-Path $env:SystemRoot 'System32\expand.exe'
+            Invoke-Process $expandExe "-F:*.xml $cabFilePath $xmlFilePath" -ErrorAction Stop | Out-Null
+
+            # Load XML content
+            [xml]$xmlContent = Get-Content -Path $xmlFilePath -ErrorAction Stop
+
+            # Define the client type to look for in the FilePath
+            $clientType = if ($MediaType -eq 'consumer') { 'CLIENTCONSUMER' } else { 'CLIENTBUSINESS' }
+
+            # Find matching ESD entry and extract metadata
+            foreach ($file in $xmlContent.MCT.Catalogs.Catalog.PublishedMedia.Files.File) {
+                if ($file.Architecture -eq $WindowsArch -and $file.LanguageCode -eq $WindowsLang -and $file.FilePath -like "*$clientType*") {
+                    $fileName = Split-Path $file.FilePath -Leaf
+                    $esdVersion = $null
+
+                    # Parse 4-part version from FileName property (e.g., "10.0.26100.1742_amd64_en-us_consumer.esd")
+                    if ($file.FileName -match '^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)') {
+                        $esdVersion = $matches[1]
+                    }
+                    # Fallback: try parsing from FilePath leaf
+                    elseif ($fileName -match '(\d+\.\d+\.\d+\.\d+)') {
+                        $esdVersion = $matches[1]
+                    }
+
+                    if ($esdVersion) {
+                        WriteLog "ESD version identified as $esdVersion"
+                    }
+                    else {
+                        WriteLog "Could not determine ESD version from filename: $fileName"
+                    }
+
+                    $esdMetadata = [PSCustomObject]@{
+                        FileUrl   = $file.FilePath
+                        FileName  = $fileName
+                        LocalPath = Join-Path ([System.IO.Path]::GetTempPath()) $fileName
+                        Version   = $esdVersion
+                    }
+
+                    return $esdMetadata
+                }
+            }
+
+            WriteLog "WARNING: No matching ESD entry found for Windows $WindowsRelease $WindowsArch $WindowsLang $MediaType"
+            return $null
+        }
+        finally {
+            # Cleanup temp directory
+            if (Test-Path $tempDir) {
+                Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Failed to resolve Windows ESD metadata: $($_.Exception.Message)"
+        return $null
+    }
+}
+
 function Get-WindowsESD {
     <#
     .SYNOPSIS
@@ -515,8 +682,9 @@ function Get-KBLink {
             if ($attempt -eq $maxRetries) {
                 WriteLog "ERROR: Failed to search Update Catalog after $maxRetries attempts: $($_.Exception.Message)"
                 return [PSCustomObject]@{
-                    KBArticleID = $null
-                    Links = @()
+                    KBArticleID      = $null
+                    KBWindowsVersion = $null
+                    Links            = @()
                 }
             }
             WriteLog "WARNING: Update Catalog search failed (attempt $attempt of $maxRetries): $($_.Exception.Message)"
@@ -529,13 +697,22 @@ function Get-KBLink {
 
     $VerbosePreference = $OriginalVerbosePreference
 
-    # Extract the first KB article ID from the HTML content
+    # Extract the first KB article ID and Windows version from the HTML content
     # Edge and Defender do not have KB article IDs
     $kbArticleID = $null
+    $global:LastKBWindowsVersion = $null
     if ($Name -notmatch 'Defender|Edge') {
-        if ($results.Content -match '>\s*([^\(<]+)\(KB(\d+)\)(?:\s*\([^)]+\))*\s*<') {
+        # Try enhanced regex to capture both KB ID and 4-part version: "(KB5046613) (10.0.26100.2454)"
+        if ($results.Content -match '\(KB(\d+)\)[^(<]*\(([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\)\s*<') {
+            $kbArticleID = "KB$($matches[1])"
+            $global:LastKBWindowsVersion = $matches[2]
+            WriteLog "Found KB article ID: $kbArticleID with Windows version $($matches[2])"
+        }
+        # Fallback: existing regex for KB ID only (no version)
+        elseif ($results.Content -match '>\s*([^\(<]+)\(KB(\d+)\)(?:\s*\([^)]+\))*\s*<') {
             $kbArticleID = "KB$($matches[2])"
-            WriteLog "Found KB article ID: $kbArticleID"
+            $global:LastKBWindowsVersion = $null
+            WriteLog "Found KB article ID: $kbArticleID (no Windows version found)"
         }
         else {
             WriteLog "No KB article ID found in search results."
@@ -557,8 +734,9 @@ function Get-KBLink {
         }
         # Return empty result with KB article ID if available
         return [PSCustomObject]@{
-            KBArticleID = $kbArticleID
-            Links = @()
+            KBArticleID      = $kbArticleID
+            KBWindowsVersion = $global:LastKBWindowsVersion
+            Links            = @()
         }
     }
 
@@ -591,8 +769,9 @@ function Get-KBLink {
         }
         # Return empty result with KB article ID if available
         return [PSCustomObject]@{
-            KBArticleID = $kbArticleID
-            Links = @()
+            KBArticleID      = $kbArticleID
+            KBWindowsVersion = $global:LastKBWindowsVersion
+            Links            = @()
         }
     }
 
@@ -631,10 +810,11 @@ function Get-KBLink {
         }
     }
 
-    # Return structured object with KB article ID and links
+    # Return structured object with KB article ID, Windows version, and links
     return [PSCustomObject]@{
-        KBArticleID = $kbArticleID
-        Links = $downloadLinks
+        KBArticleID      = $kbArticleID
+        KBWindowsVersion = $global:LastKBWindowsVersion
+        Links            = $downloadLinks
     }
 }
 

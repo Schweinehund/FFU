@@ -40,6 +40,7 @@
         'Get-ProductsCab',
         'Get-CachedProductsCab',
         'Get-WindowsESD',
+        'Get-WindowsESDMetadata',
         'Get-KBLink',
         'Get-UpdateFileInfo',
         'Save-KB',

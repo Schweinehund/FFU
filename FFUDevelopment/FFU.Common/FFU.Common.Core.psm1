@@ -14,6 +14,11 @@ $script:CommonCoreLogFilePath = $null
 # Script-scoped variable for FFU.Messaging context (for real-time UI updates)
 # When set, WriteLog will also write messages to the messaging queue
 $script:CommonCoreMessagingContext = $null
+# BITS transfer priority configuration (Phase 36: upstream commit 8229aa7)
+$script:BitsTransferPriority = 'Normal'
+if (-not [string]::IsNullOrWhiteSpace($env:FFU_BITS_PRIORITY)) {
+    $script:BitsTransferPriority = $env:FFU_BITS_PRIORITY
+}
 # Mutex for log file access
 $script:commonCoreLogMutexName = "Global\FFUCommonCoreLogMutex" # Unique name
 $script:commonCoreLogMutex = New-Object System.Threading.Mutex($false, $script:commonCoreLogMutexName)
@@ -350,6 +355,49 @@ function Invoke-Process {
     $cmd
 }
 
+function Set-BitsTransferPriority {
+    <#
+    .SYNOPSIS
+        Sets the BITS transfer priority for all subsequent download operations.
+
+    .DESCRIPTION
+        Configures the BITS transfer priority used by Start-BitsTransferWithRetry
+        and the resilient download system. Sets both the script-level variable and
+        the FFU_BITS_PRIORITY environment variable for ThreadJob propagation.
+
+        Priority cascade in Start-BitsTransferWithRetry:
+        1. Explicit -Priority parameter (highest precedence)
+        2. FFU_BITS_PRIORITY environment variable
+        3. Script-level $BitsTransferPriority variable
+        4. Default: Normal
+
+    .PARAMETER Priority
+        BITS transfer priority level:
+        - Foreground: Highest priority, fastest download (recommended for builds)
+        - High: High priority
+        - Normal: Default system priority
+        - Low: Background priority, minimal system impact
+
+    .EXAMPLE
+        Set-BitsTransferPriority -Priority 'Foreground'
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Foreground', 'High', 'Normal', 'Low')]
+        [string]$Priority
+    )
+
+    $script:BitsTransferPriority = $Priority
+    try {
+        Set-Item -Path Env:FFU_BITS_PRIORITY -Value $Priority -ErrorAction Stop
+    }
+    catch {
+        WriteLog "WARNING: Failed to set FFU_BITS_PRIORITY environment variable: $($_.Exception.Message)"
+    }
+    WriteLog "BITS transfer priority set to $Priority"
+}
+
 # Function to download a file using BITS with automatic fallback to other methods
 function Start-BitsTransferWithRetry {
     <#
@@ -386,6 +434,14 @@ function Start-BitsTransferWithRetry {
         Use multi-method fallback system (default: $true)
         Set to $false to use BITS-only behavior (legacy)
 
+    .PARAMETER Priority
+        BITS transfer priority level. If not specified, resolves via cascade:
+        1. FFU_BITS_PRIORITY environment variable
+        2. Script-level $BitsTransferPriority (set via Set-BitsTransferPriority)
+        3. Default: Normal
+
+        Valid values: Foreground, High, Normal, Low
+
     .PARAMETER ProxyConfig
         Optional FFUNetworkConfiguration object for proxy support
         If not provided, proxy settings will be auto-detected
@@ -406,7 +462,10 @@ function Start-BitsTransferWithRetry {
 
         [bool]$UseResilientDownload = $true,
 
-        [object]$ProxyConfig = $null
+        [object]$ProxyConfig = $null,
+
+        [ValidateSet('Foreground', 'High', 'Normal', 'Low')]
+        [string]$Priority
     )
 
     # Auto-detect proxy configuration if not provided
@@ -420,6 +479,20 @@ function Start-BitsTransferWithRetry {
             WriteLog "Could not auto-detect proxy settings: $($_.Exception.Message)"
         }
     }
+
+    # BITS priority resolution cascade: parameter > env var > script var > default
+    if ([string]::IsNullOrWhiteSpace($Priority)) {
+        if (-not [string]::IsNullOrWhiteSpace($env:FFU_BITS_PRIORITY)) {
+            $Priority = $env:FFU_BITS_PRIORITY
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($script:BitsTransferPriority)) {
+            $Priority = $script:BitsTransferPriority
+        }
+        else {
+            $Priority = 'Normal'
+        }
+    }
+    WriteLog "BITS transfer priority: $Priority"
 
     # If resilient download is enabled, use the multi-method fallback system
     if ($UseResilientDownload) {
@@ -442,6 +515,10 @@ function Start-BitsTransferWithRetry {
 
                 if ($ProxyConfig) {
                     $downloadParams['ProxyConfig'] = $ProxyConfig
+                }
+
+                if ($Priority) {
+                    $downloadParams['Priority'] = $Priority
                 }
 
                 Start-ResilientDownload @downloadParams
@@ -473,8 +550,11 @@ function Start-BitsTransferWithRetry {
             $bitsParams = @{
                 Source      = $Source
                 Destination = $Destination
-                Priority    = 'Normal'
                 ErrorAction = 'Stop'
+            }
+
+            if ($Priority) {
+                $bitsParams['Priority'] = $Priority
             }
 
             # Add credential parameters if provided
