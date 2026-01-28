@@ -24,7 +24,7 @@
 
 - [x] **Phase 34: Winget Bug Fixes and JSON Safety** - JSON corruption fix + MSI path quoting
 - [x] **Phase 35: PPKG and xcopy Path Quoting** - Space handling in PPKG filenames
-- [ ] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
+- [x] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
 - [ ] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
 - [ ] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
 - [ ] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
@@ -112,9 +112,10 @@ Plans:
 **Research**: Complete (36-RESEARCH.md — upstream CU skip logic, BITS priority, version comparison, VHDX cache)
 **Plans**: 3 plans
 Plans:
-- [ ] 36-01-PLAN.md — CU skip version comparison logic (Get-WindowsESDMetadata + Get-KBLink version + BuildFFUVM skip logic)
-- [ ] 36-02-PLAN.md — BITS priority configuration (Set-BitsTransferPriority + UI + config + env var propagation)
-- [ ] 36-03-PLAN.md — Pester tests for CU skip and BITS priority
+- [x] 36-01-PLAN.md — CU skip version comparison logic (Get-WindowsESDMetadata + Get-KBLink version + BuildFFUVM skip logic)
+- [x] 36-02-PLAN.md — BITS priority configuration (Set-BitsTransferPriority + UI + config + env var propagation)
+- [x] 36-03-PLAN.md — Pester tests for CU skip and BITS priority
+**Completed:** 2026-01-28 — Verified (4/4 must-haves)
 
 ### Phase 37: Winget App Ordering and Dependencies
 **Goal**: Enforce AppList.json installation order and resolve Win32 app dependencies with deduplication
@@ -212,7 +213,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (106 complete + 24 planned)
+**Total:** 43 phases, 130 plans (109 complete + 21 planned)
 
 ---
-*Last updated: 2026-01-28 - Phase 35 complete*
+*Last updated: 2026-01-28 - Phase 36 complete*

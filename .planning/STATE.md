@@ -12,10 +12,10 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 36 of 43 (CU Skip + ESD BITS) - COMPLETE
 **Plan:** 3 of 3 complete (36-01, 36-02, 36-03)
-**Status:** Phase complete
-**Last activity:** 2026-01-28 — Completed 36-03-PLAN.md
+**Status:** Phase complete — verified 4/4 must-haves
+**Last activity:** 2026-01-28 — Phase 36 verified and complete
 
-Progress: ███░░░░░░░ 29% (8 of 28 plans complete across 10 phases)
+Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -37,7 +37,7 @@ Progress: ███░░░░░░░ 29% (8 of 28 plans complete across 10 p
 |-------|------|-------------|--------|
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Verified (3/3 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
-| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | Complete (3/3 plans) |
+| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
@@ -78,9 +78,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-28
-**Stopped at:** Completed 36-03-PLAN.md (Phase 36 complete)
+**Stopped at:** Phase 36 verified and complete
 **Resume file:** None
-**Next action:** Execute Phase 37 (Winget Ordering)
+**Next action:** /gsd:discuss-phase 37 (Winget App Ordering — depends on Phase 34)
 
 ---
-*State updated: 2026-01-28 after 36-03 complete*
+*State updated: 2026-01-28 after Phase 36 verified*

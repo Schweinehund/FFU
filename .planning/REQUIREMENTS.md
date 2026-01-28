@@ -12,7 +12,7 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 - [x] **BUGFIX-01**: Parallel Winget app updates complete without JSON corruption (file locking/mutex on WinGetWin32Apps.json)
 - [x] **BUGFIX-02**: PPKG files with spaces in filenames copy successfully during deployment and USB creation (xcopy quoting)
 - [x] **BUGFIX-03**: MSI installers with spaces in paths execute without "file not found" errors (path quoting)
-- [ ] **BUGFIX-04**: Build skips CU download when ESD image version already matches or exceeds available CU version
+- [x] **BUGFIX-04**: Build skips CU download when ESD image version already matches or exceeds available CU version
 
 ### Winget Improvements (WINGET)
 
@@ -21,7 +21,7 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 
 ### Download Improvements (DL)
 
-- [ ] **DL-01**: ESD downloads use BITS transfer for reliability (Start-BitsTransferWithRetry)
+- [x] **DL-01**: ESD downloads use BITS transfer for reliability (Start-BitsTransferWithRetry)
 
 ### Path Reliability (PATH)
 
@@ -78,10 +78,10 @@ Which phases cover which requirements. Updated by create-roadmap.
 | BUGFIX-01 | Phase 34 | Complete |
 | BUGFIX-02 | Phase 35 | Complete |
 | BUGFIX-03 | Phase 34 | Complete |
-| BUGFIX-04 | Phase 36 | Pending |
+| BUGFIX-04 | Phase 36 | Complete |
 | WINGET-01 | Phase 37 | Pending |
 | WINGET-02 | Phase 37 | Pending |
-| DL-01 | Phase 36 | Pending |
+| DL-01 | Phase 36 | Complete |
 | PATH-01 | Phase 38 | Pending |
 | DEPLOY-01 | Phase 43 | Pending |
 | DEPLOY-02 | Phase 43 | Pending |
