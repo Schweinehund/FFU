@@ -461,6 +461,11 @@ param(
     [bool]$UpdateLatestCU,
     [bool]$UpdatePreviewCU,
     [bool]$IncludePreviewUpdates,
+    # BitsPriority: Controls the BITS download priority for update and ESD downloads
+    # Foreground provides fastest speeds; Normal is the default (Phase 36)
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Foreground', 'High', 'Normal', 'Low')]
+    [string]$BitsPriority = 'Normal',
     [bool]$UpdateLatestMicrocode,
     [bool]$UpdateLatestNet,
     [bool]$UpdateLatestDefender,
@@ -859,6 +864,14 @@ if ($ConfigFile -and (Test-Path -Path $ConfigFile)) {
     }
 
     # Note: VMware REST API credentials removed in v1.7.0 - vmrun/vmxtoolkit used instead
+}
+
+# Set BITS transfer priority from parameter or environment (Phase 36)
+if ($BitsPriority -and $BitsPriority -ne 'Normal') {
+    Set-BitsTransferPriority -Priority $BitsPriority
+}
+elseif (-not [string]::IsNullOrWhiteSpace($env:FFU_BITS_PRIORITY)) {
+    Set-BitsTransferPriority -Priority $env:FFU_BITS_PRIORITY
 }
 
 # Initialize $Filter for Microsoft Update Catalog searches
@@ -3310,6 +3323,24 @@ try {
     $netFeatureUpdateInfos = [System.Collections.Generic.List[pscustomobject]]::new()
     $microcodeUpdateInfos = [System.Collections.Generic.List[pscustomobject]]::new()
 
+    # === CU Skip Logic: Resolve ESD metadata for version comparison (Windows 11 ESD builds only) ===
+    $esdMetadata = $null
+    $esdVersion = $null
+    $cachedIncludedUpdateNames = [System.Collections.Generic.List[string]]::new()
+
+    if ($WindowsRelease -eq 11 -and -not $ISOPath) {
+        try {
+            $esdMetadata = Get-WindowsESDMetadata -WindowsRelease $WindowsRelease -WindowsArch $WindowsArch -WindowsLang $WindowsLang -MediaType $mediaType -WindowsVersion $WindowsVersion
+            if ($esdMetadata -and $esdMetadata.Version) {
+                $esdVersion = $esdMetadata.Version
+                WriteLog "ESD version identified as $esdVersion"
+            }
+        }
+        catch {
+            WriteLog "WARNING: Failed to resolve Windows ESD metadata for CU skip check: $($_.Exception.Message)"
+        }
+    }
+
     if ($UpdateLatestCU -or $UpdatePreviewCU -or $UpdateLatestNet -or $UpdateLatestMicrocode) {
         # Determine required updates without downloading them yet
         $cuKbArticleId = $null
@@ -3344,6 +3375,7 @@ try {
             WriteLog "Searching for $Name from Microsoft Update Catalog"
             (Get-UpdateFileInfo -Name $Name -WindowsArch $WindowsArch -Headers $Headers -UserAgent $UserAgent -Filter $Filter) | ForEach-Object { $cuUpdateInfos.Add($_) }
             $cuKbArticleId = if ($cuUpdateInfos.Count -gt 0) { $cuUpdateInfos[0].KBArticleID } else { $null }
+            $cuKbWindowsVersion = $global:LastKBWindowsVersion
         }
 
         if ($UpdatePreviewCU -and $installationType -eq 'Client' -and $WindowsSKU -notlike "*LTSC") {
@@ -3352,6 +3384,7 @@ try {
             WriteLog "Searching for $Name from Microsoft Update Catalog"
             (Get-UpdateFileInfo -Name $Name -WindowsArch $WindowsArch -Headers $Headers -UserAgent $UserAgent -Filter $Filter) | ForEach-Object { $cupUpdateInfos.Add($_) }
             $cupKbArticleId = if ($cupUpdateInfos.Count -gt 0) { $cupUpdateInfos[0].KBArticleID } else { $null }
+            $cupKbWindowsVersion = $global:LastKBWindowsVersion
         }
 
         if ($UpdateLatestNet) {

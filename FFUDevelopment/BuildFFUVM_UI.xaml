@@ -314,6 +314,18 @@
                                   Margin="5"
                                   VerticalAlignment="Center"
                                   ToolTip="When checked, allows preview/optional updates to appear in update searches. When unchecked (default), only GA (Generally Available) releases are found. This affects Cumulative Updates and .NET Framework updates."/>
+                        <!-- BITS Transfer Priority (Phase 36) -->
+                        <StackPanel Orientation="Horizontal" Margin="5,10,5,5">
+                            <TextBlock Text="BITS Download Priority:" VerticalAlignment="Center" Width="180"
+                                       ToolTip="Controls the BITS download priority for update and ESD downloads. Foreground provides fastest speeds. Normal is the default."/>
+                            <ComboBox x:Name="cmbBitsPriority" Width="150" VerticalAlignment="Center" Margin="5,0,0,0"
+                                      ToolTip="Controls the BITS download priority for update and ESD downloads. Foreground provides fastest speeds. Normal is the default.">
+                                <sys:String>Foreground</sys:String>
+                                <sys:String>High</sys:String>
+                                <sys:String>Normal</sys:String>
+                                <sys:String>Low</sys:String>
+                            </ComboBox>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

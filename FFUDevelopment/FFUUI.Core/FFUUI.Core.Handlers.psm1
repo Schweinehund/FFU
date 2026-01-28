@@ -391,7 +391,23 @@ function Register-EventHandlers {
     $State.Controls.chkUpdateOneDrive.Add_Unchecked($updateCheckboxHandler)
     $State.Controls.chkUpdateLatestMSRT.Add_Checked($updateCheckboxHandler)
     $State.Controls.chkUpdateLatestMSRT.Add_Unchecked($updateCheckboxHandler)
-    
+
+    # BITS Priority change handler (Phase 36)
+    $State.Controls.cmbBitsPriority.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        $selectedPriority = $localState.Controls.cmbBitsPriority.SelectedItem
+        if (-not [string]::IsNullOrWhiteSpace($selectedPriority)) {
+            try {
+                Set-BitsTransferPriority -Priority $selectedPriority
+            }
+            catch {
+                WriteLog "WARNING: Failed to set BITS priority: $($_.Exception.Message)"
+            }
+        }
+    })
+
     # Also attach the handler to the Office checkbox
     $State.Controls.chkInstallOffice.Add_Checked($updateCheckboxHandler)
     $State.Controls.chkInstallOffice.Add_Unchecked($updateCheckboxHandler)

@@ -171,6 +171,7 @@ function Initialize-UIControls {
     $State.Controls.chkUpdateLatestMSRT = $window.FindName('chkUpdateLatestMSRT')
     $State.Controls.chkUpdatePreviewCU = $window.FindName('chkUpdatePreviewCU')
     $State.Controls.chkIncludePreviewUpdates = $window.FindName('chkIncludePreviewUpdates')
+    $State.Controls.cmbBitsPriority = $window.FindName('cmbBitsPriority')
     $State.Controls.txtApplicationPath = $window.FindName('txtApplicationPath')
     $State.Controls.txtAppListJsonPath = $window.FindName('txtAppListJsonPath')
     $State.Controls.chkInstallDrivers = $window.FindName('chkInstallDrivers')
@@ -377,6 +378,13 @@ function Initialize-UIDefaults {
     $State.Controls.chkUpdateLatestMicrocode.IsChecked = $State.Defaults.generalDefaults.UpdateLatestMicrocode
     $State.Controls.chkUpdatePreviewCU.IsChecked = $State.Defaults.generalDefaults.UpdatePreviewCU
     $State.Controls.chkIncludePreviewUpdates.IsChecked = $State.Defaults.generalDefaults.IncludePreviewUpdates
+    # BITS Priority default (Phase 36)
+    if ($State.Defaults.generalDefaults.BitsPriority) {
+        $State.Controls.cmbBitsPriority.SelectedItem = $State.Defaults.generalDefaults.BitsPriority
+    }
+    else {
+        $State.Controls.cmbBitsPriority.SelectedItem = 'Normal'
+    }
     # Set initial state for CU checkbox interplay
     $State.Controls.chkPreviewCU.IsEnabled = -not $State.Controls.chkLatestCU.IsChecked
     $State.Controls.chkLatestCU.IsEnabled = -not $State.Controls.chkPreviewCU.IsChecked
