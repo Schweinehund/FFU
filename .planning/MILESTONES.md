@@ -1,5 +1,28 @@
 # Project Milestones: FFU Builder
 
+## v1.9.3 OEM Driver Bug Fixes (Shipped: 2026-01-27)
+
+**Delivered:** Fix HP and Dell OEM driver bugs and ensure all OEM driver operations use proper file logging.
+
+**Phases completed:** 31-33 (5 plans total)
+
+**Key accomplishments:**
+
+- HP driver extraction exit code 1168 handling (graceful success, not build failure)
+- Dell CatalogPC.xml missing scenario with fallback behavior and logging
+- Structured OEM driver logging with [OEM][Model][Operation] prefixes across all driver functions
+- All driver operations migrated from console-only output to WriteLog file logging
+- Static analysis Pester tests verify logging patterns
+
+**Stats:**
+
+- 3 phases, 5 plans, 14 requirements
+- 2 days (2026-01-26 → 2026-01-27)
+
+**What's next:** Upstream cherry-pick evaluation and selective port (v1.10.0)
+
+---
+
 ## v1.9.2 Smart Configuration & Bug Fixes (Shipped: 2026-01-25)
 
 **Delivered:** Improve UI intelligence for network configuration and optimize build efficiency with smart Apps.iso handling.
