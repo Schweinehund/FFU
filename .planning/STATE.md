@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 35 of 43 (PPKG and xcopy Path Quoting)
-**Plan:** 1 of 1 complete
-**Status:** Phase complete — verified 4/4 must-haves
-**Last activity:** 2026-01-28 — Phase 35 verified and complete
+**Phase:** 36 of 43 (CU Skip + ESD BITS)
+**Plan:** 2 of 3 complete
+**Status:** In progress
+**Last activity:** 2026-01-28 — Completed 36-02-PLAN.md
 
-Progress: █░░░░░░░░░ 14% (4 of 28 plans complete across 10 phases)
+Progress: ██░░░░░░░░ 21% (6 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -37,7 +37,7 @@ Progress: █░░░░░░░░░ 14% (4 of 28 plans complete across 10 p
 |-------|------|-------------|--------|
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | ✓ Verified (3/3 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | ✓ Verified (1/1 plan) |
-| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | Pending |
+| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | In progress (2/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
@@ -62,6 +62,8 @@ Progress: █░░░░░░░░░ 14% (4 of 28 plans complete across 10 p
 | 35-01 | Copy-Item as fallback for xcopy failures | Copy-Item handles spaces natively without quoting | Resilient file copy when xcopy fails for any reason |
 | 35-01 | PPKG copy failure is non-blocking | PPKG is optional and should not halt deployment | Deployment continues with WARNING when PPKG copy fails |
 | 35-01 | WARNING includes source, destination, and error | Field diagnosis without access to full logs | Users can troubleshoot PPKG failures from console output |
+| 36-02 | Use env var FFU_BITS_PRIORITY for ThreadJob propagation | ThreadJobs inherit parent process env; simpler than explicit parameter passing | Priority set in UI automatically available in background build job |
+| 36-02 | Priority cascade: param > env > script > default | Standard precedence pattern; allows external override via env var | Backward compatible - no Priority param = Normal default |
 
 ## Blockers
 
@@ -70,9 +72,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-28
-**Stopped at:** Completed 35-01-PLAN.md (Phase 35 complete)
+**Stopped at:** Completed 36-02-PLAN.md
 **Resume file:** None
-**Next action:** /gsd:execute-phase 36 (CU Skip + ESD BITS — Wave 1 independent)
+**Next action:** Execute 36-03-PLAN.md (remaining plan in Phase 36)
 
 ---
-*State updated: 2026-01-28 after Phase 35 complete*
+*State updated: 2026-01-28 after 36-02 complete*
