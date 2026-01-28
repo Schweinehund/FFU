@@ -109,8 +109,12 @@ Plans:
   2. Build log shows explicit message explaining CU skip with version comparison result
   3. ESD downloads use BITS transfer with progress logging
   4. Pester tests verify CU skip version comparison logic and BITS transfer integration
-**Research**: Likely (study upstream ESD version detection and comparison mechanism)
+**Research**: Complete (36-RESEARCH.md — upstream CU skip logic, BITS priority, version comparison, VHDX cache)
 **Plans**: 3 plans
+Plans:
+- [ ] 36-01-PLAN.md — CU skip version comparison logic (Get-WindowsESDMetadata + Get-KBLink version + BuildFFUVM skip logic)
+- [ ] 36-02-PLAN.md — BITS priority configuration (Set-BitsTransferPriority + UI + config + env var propagation)
+- [ ] 36-03-PLAN.md — Pester tests for CU skip and BITS priority
 
 ### Phase 37: Winget App Ordering and Dependencies
 **Goal**: Enforce AppList.json installation order and resolve Win32 app dependencies with deduplication
