@@ -3428,6 +3428,73 @@ try {
             (Get-UpdateFileInfo -Name $name -WindowsArch $WindowsArch -Headers $Headers -UserAgent $UserAgent -Filter $Filter) | ForEach-Object { $microcodeUpdateInfos.Add($_) }
         }
         
+        # === CU Version Comparison: Skip CU if ESD already includes it ===
+        if ($esdVersion -and ($cuKbWindowsVersion -or $cupKbWindowsVersion)) {
+            $esdVerObj = $null
+            try { $esdVerObj = [version]$esdVersion } catch {
+                WriteLog "WARNING: Could not parse ESD version '$esdVersion' for comparison - will download CU as safety measure"
+            }
+
+            # Check CU version
+            if ($esdVerObj -and $cuKbWindowsVersion) {
+                $cuVerObj = $null
+                try { $cuVerObj = [version]$cuKbWindowsVersion } catch {
+                    WriteLog "WARNING: Could not parse CU version '$cuKbWindowsVersion' for comparison - will download CU as safety measure"
+                }
+
+                if ($esdVerObj -and $cuVerObj) {
+                    if ($esdVerObj -ge $cuVerObj) {
+                        $skipReason = if ($esdVerObj -eq $cuVerObj) { 'matches' } else { 'is newer than' }
+                        WriteLog "ESD version $esdVersion $skipReason CU $cuKbArticleId version $cuKbWindowsVersion - skipping CU download"
+
+                        # Track skipped update names for VHDX cache matching
+                        if ($AllowVHDXCaching -and $cuUpdateInfos -and $cuUpdateInfos.Count -gt 0) {
+                            foreach ($cuUpdateInfo in $cuUpdateInfos) {
+                                if (-not [string]::IsNullOrWhiteSpace($cuUpdateInfo.Name) -and -not $cachedIncludedUpdateNames.Contains($cuUpdateInfo.Name)) {
+                                    $cachedIncludedUpdateNames.Add($cuUpdateInfo.Name)
+                                }
+                            }
+                        }
+
+                        $cuUpdateInfos.Clear()
+                        $UpdateLatestCU = $false
+                        $CUPath = $null
+                    } else {
+                        WriteLog "CU $cuKbArticleId version $cuKbWindowsVersion is newer than ESD version $esdVersion - downloading CU"
+                    }
+                }
+            }
+
+            # Check Preview CU version
+            if ($esdVerObj -and $cupKbWindowsVersion) {
+                $cupVerObj = $null
+                try { $cupVerObj = [version]$cupKbWindowsVersion } catch {
+                    WriteLog "WARNING: Could not parse Preview CU version '$cupKbWindowsVersion' for comparison"
+                }
+
+                if ($esdVerObj -and $cupVerObj) {
+                    if ($esdVerObj -ge $cupVerObj) {
+                        $skipReason = if ($esdVerObj -eq $cupVerObj) { 'matches' } else { 'is newer than' }
+                        WriteLog "ESD version $esdVersion $skipReason Preview CU version $cupKbWindowsVersion - skipping Preview CU download"
+
+                        if ($AllowVHDXCaching -and $cupUpdateInfos -and $cupUpdateInfos.Count -gt 0) {
+                            foreach ($cupUpdateInfo in $cupUpdateInfos) {
+                                if (-not [string]::IsNullOrWhiteSpace($cupUpdateInfo.Name) -and -not $cachedIncludedUpdateNames.Contains($cupUpdateInfo.Name)) {
+                                    $cachedIncludedUpdateNames.Add($cupUpdateInfo.Name)
+                                }
+                            }
+                        }
+
+                        $cupUpdateInfos.Clear()
+                        $UpdatePreviewCU = $false
+                        $CUPPath = $null
+                    } else {
+                        WriteLog "Preview CU version $cupKbWindowsVersion is newer than ESD version $esdVersion - downloading Preview CU"
+                    }
+                }
+            }
+        }
+
         $requiredUpdates.AddRange($ssuUpdateInfos)
         $requiredUpdates.AddRange($cuUpdateInfos)
         $requiredUpdates.AddRange($cupUpdateInfos)
@@ -3466,6 +3533,10 @@ try {
             $requiredUpdateFileNames = @()
             if ($requiredUpdates.Count -gt 0) {
                 $requiredUpdateFileNames = @(($requiredUpdates.Url | ForEach-Object { ($_ -split '/')[-1] }) | Sort-Object)
+            }
+            # Include names of updates that were skipped due to CU version comparison
+            if ($cachedIncludedUpdateNames.Count -gt 0) {
+                $requiredUpdateFileNames = @(($requiredUpdateFileNames + $cachedIncludedUpdateNames.ToArray()) | Sort-Object)
             }
 
             foreach ($vhdxJson in $vhdxJsons) {
