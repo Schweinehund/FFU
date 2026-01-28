@@ -78,8 +78,12 @@ See `.planning/milestones/` for archived milestone details.
   1. Parallel Winget app updates complete without JSON corruption when multiple apps write to WinGetWin32Apps.json simultaneously
   2. MSI installers with spaces in their paths execute successfully without "file not found" errors
   3. Pester tests verify mutex/file-lock protection on JSON writes and path quoting for MSI commands
-**Research**: Likely (study upstream mutex/file-locking implementation)
+**Research**: Complete (34-RESEARCH.md — mutex patterns, MSI quoting, concurrency pitfalls)
 **Plans**: 3 plans
+Plans:
+- [ ] 34-01-PLAN.md — Mutex-protected JSON writes for WinGetWin32Apps.json (BUGFIX-01)
+- [ ] 34-02-PLAN.md — EXE and MSI path quoting for spaces (BUGFIX-03)
+- [ ] 34-03-PLAN.md — Pester tests for mutex safety and path quoting
 
 ### Phase 35: PPKG and xcopy Path Quoting
 **Goal**: Fix provisioning package filename handling so PPKG files with spaces copy correctly during deployment and USB creation
