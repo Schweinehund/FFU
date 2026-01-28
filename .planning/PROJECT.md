@@ -78,17 +78,26 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Component-based disk space estimation with pre-flight validation
   - Test-FFUHostIPAddress integration into Invoke-FFUPreflight pipeline
   - 75+ new Pester tests for network, Apps.iso, and disk estimation
+- **OEM Driver Bug Fixes** — v1.9.3
+  - HP driver extraction exit code 1168 handling (graceful success)
+  - Dell CatalogPC.xml missing with fallback behavior
+  - Structured OEM driver logging with [OEM][Model][Operation] prefixes
+  - All driver operations use WriteLog (not console-only output)
 
 ### Active
 
-**Current Milestone:** v1.9.3 OEM Driver Bug Fixes
+**Current Milestone:** v1.10.0 Upstream Cherry-Pick
 
 **Target features:**
-- Fix HP driver extraction exit code 1168 (affects all HP models)
-- Fix Dell CatalogPC.xml missing (catalog lookup failures)
+- Port critical bug fixes from upstream (JSON corruption, path quoting, CU skip logic)
+- Add Winget app ordering and dependency handling
+- Implement SUBST drive mapping for long path reliability
+- Refactor Dell driver download with CatalogIndexPC logic
+- Add 8 new OEM manufacturers (Panasonic, Fujitsu, Getac, Dynabook, Samsung, Acer, ASUS, MSI)
+- Improve deployment experience (multi-disk selection, empty driver skip, Security Platform delay)
 
 **Deferred bugs (carry forward):**
-- expand.exe fails on large MSU files (fallback works — explicitly out of scope for v1.9.3)
+- expand.exe fails on large MSU files (fallback works — explicitly out of scope)
 
 ### Out of Scope
 
@@ -138,4 +147,4 @@ Key files:
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
 
 ---
-*Last updated: 2026-01-25 after v1.9.3 milestone started*
+*Last updated: 2026-01-28 after v1.10.0 milestone started*
