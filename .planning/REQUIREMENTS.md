@@ -10,7 +10,7 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 ### Critical Bug Fixes (BUGFIX)
 
 - [x] **BUGFIX-01**: Parallel Winget app updates complete without JSON corruption (file locking/mutex on WinGetWin32Apps.json)
-- [ ] **BUGFIX-02**: PPKG files with spaces in filenames copy successfully during deployment and USB creation (xcopy quoting)
+- [x] **BUGFIX-02**: PPKG files with spaces in filenames copy successfully during deployment and USB creation (xcopy quoting)
 - [x] **BUGFIX-03**: MSI installers with spaces in paths execute without "file not found" errors (path quoting)
 - [ ] **BUGFIX-04**: Build skips CU download when ESD image version already matches or exceeds available CU version
 
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated by create-roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BUGFIX-01 | Phase 34 | Complete |
-| BUGFIX-02 | Phase 35 | Pending |
+| BUGFIX-02 | Phase 35 | Complete |
 | BUGFIX-03 | Phase 34 | Complete |
 | BUGFIX-04 | Phase 36 | Pending |
 | WINGET-01 | Phase 37 | Pending |

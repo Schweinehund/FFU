@@ -23,7 +23,7 @@
 - Strategy: Selective cherry-pick — keep our modular architecture
 
 - [x] **Phase 34: Winget Bug Fixes and JSON Safety** - JSON corruption fix + MSI path quoting
-- [ ] **Phase 35: PPKG and xcopy Path Quoting** - Space handling in PPKG filenames
+- [x] **Phase 35: PPKG and xcopy Path Quoting** - Space handling in PPKG filenames
 - [ ] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
 - [ ] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
 - [ ] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
@@ -87,17 +87,18 @@ Plans:
 **Completed:** 2026-01-28 — Verified (6/6 must-haves)
 
 ### Phase 35: PPKG and xcopy Path Quoting
-**Goal**: Fix provisioning package filename handling so PPKG files with spaces copy correctly during deployment and USB creation
+**Goal**: Fix provisioning package filename handling so PPKG files with spaces copy correctly during deployment
 **Depends on**: Nothing (independent)
 **Requirements**: BUGFIX-02
 **Success Criteria** (what must be TRUE):
   1. PPKG files with spaces in filenames copy successfully via ApplyFFU.ps1
-  2. USBImagingToolCreator.ps1 copies PPKG files with spaces without xcopy failures
-  3. Pester tests verify quoting behavior for paths containing spaces
+  2. Pester tests verify quoting behavior for paths containing spaces
+**Note**: USBImagingToolCreator.ps1 was evaluated during research and has no PPKG copy operations — no changes needed
 **Research**: Complete (35-RESEARCH.md — xcopy quoting, Invoke-Process, Copy-Item fallback)
 **Plans**: 1 plan
 Plans:
-- [ ] 35-01-PLAN.md — Fix PPKG xcopy quoting with Copy-Item fallback and Pester tests
+- [x] 35-01-PLAN.md — Fix PPKG xcopy quoting with Copy-Item fallback and Pester tests
+**Completed:** 2026-01-28 — Verified (4/4 must-haves)
 
 ### Phase 36: CU Skip Logic and ESD BITS Downloads
 **Goal**: Skip CU downloads when ESD version already matches/exceeds CU version, and switch ESD downloads to BITS transfer
@@ -207,7 +208,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (105 complete + 25 planned)
+**Total:** 43 phases, 130 plans (106 complete + 24 planned)
 
 ---
-*Last updated: 2026-01-28 - Phase 34 complete*
+*Last updated: 2026-01-28 - Phase 35 complete*

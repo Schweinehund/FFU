@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 35 of 43 (PPKG and xcopy Path Quoting)
 **Plan:** 1 of 1 complete
-**Status:** Phase complete — 4/4 must-haves verified
-**Last activity:** 2026-01-28 — Completed 35-01-PLAN.md
+**Status:** Phase complete — verified 4/4 must-haves
+**Last activity:** 2026-01-28 — Phase 35 verified and complete
 
 Progress: █░░░░░░░░░ 14% (4 of 28 plans complete across 10 phases)
 
@@ -36,7 +36,7 @@ Progress: █░░░░░░░░░ 14% (4 of 28 plans complete across 10 p
 | Phase | Goal | Requirements | Status |
 |-------|------|-------------|--------|
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | ✓ Verified (3/3 plans) |
-| 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | ✓ Complete (1/1 plan) |
+| 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | ✓ Verified (1/1 plan) |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | Pending |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
