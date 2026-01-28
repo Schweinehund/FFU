@@ -725,15 +725,15 @@ function Add-Win32SilentInstallCommand {
 
     # Build final command/arguments
     if ($installerExt -ieq ".exe") {
-        $silentInstallCommand = "$basePath\$resolvedRelativePath"
+        $silentInstallCommand = "`"$basePath\$resolvedRelativePath`""
     }
     elseif ($installerExt -ieq ".msi") {
         $silentInstallCommand = "msiexec"
-        $silentInstallSwitch = "/i `"$basePath\$resolvedRelativePath`" $silentInstallSwitch"
+        $silentInstallSwitch = "/i `"$basePath\$resolvedRelativePath`" $silentInstallSwitch".Trim()
     }
     else {
         # Default path usage if extension could not be inferred
-        $silentInstallCommand = "$basePath\$resolvedRelativePath"
+        $silentInstallCommand = "`"$basePath\$resolvedRelativePath`""
     }
 
     # Path to the JSON file
