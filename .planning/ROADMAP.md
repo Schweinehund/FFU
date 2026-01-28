@@ -22,7 +22,7 @@
 - Upstream HEAD: `upstream/UI` (commit `9d39ec8`, Jan 13, 2026) = v2601.1preview
 - Strategy: Selective cherry-pick — keep our modular architecture
 
-- [ ] **Phase 34: Winget Bug Fixes and JSON Safety** - JSON corruption fix + MSI path quoting
+- [x] **Phase 34: Winget Bug Fixes and JSON Safety** - JSON corruption fix + MSI path quoting
 - [ ] **Phase 35: PPKG and xcopy Path Quoting** - Space handling in PPKG filenames
 - [ ] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
 - [ ] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
@@ -81,9 +81,10 @@ See `.planning/milestones/` for archived milestone details.
 **Research**: Complete (34-RESEARCH.md — mutex patterns, MSI quoting, concurrency pitfalls)
 **Plans**: 3 plans
 Plans:
-- [ ] 34-01-PLAN.md — Mutex-protected JSON writes for WinGetWin32Apps.json (BUGFIX-01)
-- [ ] 34-02-PLAN.md — EXE and MSI path quoting for spaces (BUGFIX-03)
-- [ ] 34-03-PLAN.md — Pester tests for mutex safety and path quoting
+- [x] 34-01-PLAN.md — Mutex-protected JSON writes for WinGetWin32Apps.json (BUGFIX-01)
+- [x] 34-02-PLAN.md — EXE and MSI path quoting for spaces (BUGFIX-03)
+- [x] 34-03-PLAN.md — Pester tests for mutex safety and path quoting
+**Completed:** 2026-01-28 — Verified (6/6 must-haves)
 
 ### Phase 35: PPKG and xcopy Path Quoting
 **Goal**: Fix provisioning package filename handling so PPKG files with spaces copy correctly during deployment and USB creation
@@ -204,7 +205,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (102 complete + 28 planned)
+**Total:** 43 phases, 130 plans (105 complete + 25 planned)
 
 ---
-*Last updated: 2026-01-28 - Milestone v1.10.0 initialized*
+*Last updated: 2026-01-28 - Phase 34 complete*
