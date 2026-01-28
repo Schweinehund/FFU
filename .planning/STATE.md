@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 34 of 43 (Winget Bug Fixes and JSON Safety)
-**Plan:** 1 of 2 complete
-**Status:** In progress
-**Last activity:** 2026-01-28 — Completed 34-01-PLAN.md
+**Plan:** 2 of 2 complete
+**Status:** Phase complete
+**Last activity:** 2026-01-28 — Completed 34-02-PLAN.md
 
-Progress: ░░░░░░░░░░ 1% (1 of 28 plans complete across 10 phases)
+Progress: ░░░░░░░░░░ 2% (2 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -35,7 +35,7 @@ Progress: ░░░░░░░░░░ 1% (1 of 28 plans complete across 10 ph
 
 | Phase | Goal | Requirements | Status |
 |-------|------|-------------|--------|
-| 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | In progress (1/2 plans) |
+| 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Complete (2/2 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Pending |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | Pending |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
@@ -53,6 +53,8 @@ Progress: ░░░░░░░░░░ 1% (1 of 28 plans complete across 10 ph
 | 34-01 | Use same named mutex (WinGetWin32AppsJsonLock) across Add-Win32SilentInstallCommand and Get-Apps | Both functions write to WinGetWin32Apps.json requiring cross-function synchronization | Prevents race conditions between parallel downloads and AppList.json overrides |
 | 34-01 | Add duplicate detection inside Add-Win32SilentInstallCommand lock | Multiple parallel downloads might try to add same app simultaneously | Prevents duplicate entries without caller-level deduplication |
 | 34-01 | Re-read JSON inside Get-Apps lock | File content may change between Test-Path and write | Prevents lost updates when multiple operations modify JSON |
+| 34-02 | Use backtick-escaped quotes for all installer paths (EXE, MSI, default) | ProcessStartInfo.FileName requires quoted paths when they contain spaces | Eliminates "file not found" errors for apps in folders with spaces |
+| 34-02 | Add .Trim() to MSI Arguments string concatenation | Empty $silentInstallSwitch would result in trailing whitespace | Produces clean Arguments strings for all MSI scenarios |
 
 ## Blockers
 
@@ -61,9 +63,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-28
-**Stopped at:** Completed 34-01-PLAN.md
+**Stopped at:** Completed 34-02-PLAN.md (Phase 34 complete)
 **Resume file:** None
-**Next action:** Continue Phase 34 with Plan 02 (MSI path quoting)
+**Next action:** Begin Phase 35 (PPKG Path Quoting)
 
 ---
-*State updated: 2026-01-28 after 34-01 completion*
+*State updated: 2026-01-28 after 34-02 completion*
