@@ -94,8 +94,10 @@ Plans:
   1. PPKG files with spaces in filenames copy successfully via ApplyFFU.ps1
   2. USBImagingToolCreator.ps1 copies PPKG files with spaces without xcopy failures
   3. Pester tests verify quoting behavior for paths containing spaces
-**Research**: Unlikely (straightforward path quoting fix)
+**Research**: Complete (35-RESEARCH.md — xcopy quoting, Invoke-Process, Copy-Item fallback)
 **Plans**: 1 plan
+Plans:
+- [ ] 35-01-PLAN.md — Fix PPKG xcopy quoting with Copy-Item fallback and Pester tests
 
 ### Phase 36: CU Skip Logic and ESD BITS Downloads
 **Goal**: Skip CU downloads when ESD version already matches/exceeds CU version, and switch ESD downloads to BITS transfer
