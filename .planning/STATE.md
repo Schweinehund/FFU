@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 36 of 43 (CU Skip + ESD BITS)
-**Plan:** 2 of 3 complete (36-01, 36-02)
-**Status:** In progress
-**Last activity:** 2026-01-28 — Completed 36-01-PLAN.md
+**Phase:** 36 of 43 (CU Skip + ESD BITS) - COMPLETE
+**Plan:** 3 of 3 complete (36-01, 36-02, 36-03)
+**Status:** Phase complete
+**Last activity:** 2026-01-28 — Completed 36-03-PLAN.md
 
-Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 phases)
+Progress: ███░░░░░░░ 29% (8 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -35,9 +35,9 @@ Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 p
 
 | Phase | Goal | Requirements | Status |
 |-------|------|-------------|--------|
-| 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | ✓ Verified (3/3 plans) |
-| 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | ✓ Verified (1/1 plan) |
-| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | In progress (2/3 plans: 36-01, 36-02) |
+| 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Verified (3/3 plans) |
+| 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
+| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | Complete (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
@@ -68,6 +68,8 @@ Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 p
 | 36-01 | Track skipped update names in cachedIncludedUpdateNames | VHDX cache matching must account for updates implicitly included in ESD | Cache consistency when CU is skipped due to version match |
 | 36-02 | Use env var FFU_BITS_PRIORITY for ThreadJob propagation | ThreadJobs inherit parent process env; simpler than explicit parameter passing | Priority set in UI automatically available in background build job |
 | 36-02 | Priority cascade: param > env > script > default | Standard precedence pattern; allows external override via env var | Backward compatible - no Priority param = Normal default |
+| 36-03 | Module scope invocation for Get-WindowsESDMetadata tests | PS 7.5 export issue prevents direct Get-Command; function exists in module internal scope | Tests verify function through module scope and AST analysis |
+| 36-03 | AST verification for function structure | When direct mocking is impractical, verify code structure via AST parsing | Validates regex patterns, return types, error handling without invoking |
 
 ## Blockers
 
@@ -76,9 +78,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-28
-**Stopped at:** Completed 36-01-PLAN.md
+**Stopped at:** Completed 36-03-PLAN.md (Phase 36 complete)
 **Resume file:** None
-**Next action:** Execute 36-03-PLAN.md (remaining plan in Phase 36)
+**Next action:** Execute Phase 37 (Winget Ordering)
 
 ---
-*State updated: 2026-01-28 after 36-01 complete*
+*State updated: 2026-01-28 after 36-03 complete*
