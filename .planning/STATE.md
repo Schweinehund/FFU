@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 36 of 43 (CU Skip + ESD BITS)
-**Plan:** 2 of 3 complete
+**Plan:** 2 of 3 complete (36-01, 36-02)
 **Status:** In progress
-**Last activity:** 2026-01-28 — Completed 36-02-PLAN.md
+**Last activity:** 2026-01-28 — Completed 36-01-PLAN.md
 
-Progress: ██░░░░░░░░ 21% (6 of 28 plans complete across 10 phases)
+Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -37,7 +37,7 @@ Progress: ██░░░░░░░░ 21% (6 of 28 plans complete across 10 p
 |-------|------|-------------|--------|
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | ✓ Verified (3/3 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | ✓ Verified (1/1 plan) |
-| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | In progress (2/3 plans) |
+| 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | In progress (2/3 plans: 36-01, 36-02) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
@@ -62,6 +62,10 @@ Progress: ██░░░░░░░░ 21% (6 of 28 plans complete across 10 p
 | 35-01 | Copy-Item as fallback for xcopy failures | Copy-Item handles spaces natively without quoting | Resilient file copy when xcopy fails for any reason |
 | 35-01 | PPKG copy failure is non-blocking | PPKG is optional and should not halt deployment | Deployment continues with WARNING when PPKG copy fails |
 | 35-01 | WARNING includes source, destination, and error | Field diagnosis without access to full logs | Users can troubleshoot PPKG failures from console output |
+| 36-01 | Use 4-part version regex for ESD filename parsing | Full version (10.0.26100.1742) enables accurate comparison vs CU versions | Correct skip/download decisions based on precise version matching |
+| 36-01 | Fall back to downloading CU on version parse failure | Safe default ensures builds never miss needed updates due to parsing errors | Robustness - parse failures degrade gracefully |
+| 36-01 | Guard CU skip with WindowsRelease == 11 and no ISOPath | ESD metadata only applies to Windows 11 MCT downloads, not ISO or Win10 | Prevents incorrect skip attempts on unsupported build types |
+| 36-01 | Track skipped update names in cachedIncludedUpdateNames | VHDX cache matching must account for updates implicitly included in ESD | Cache consistency when CU is skipped due to version match |
 | 36-02 | Use env var FFU_BITS_PRIORITY for ThreadJob propagation | ThreadJobs inherit parent process env; simpler than explicit parameter passing | Priority set in UI automatically available in background build job |
 | 36-02 | Priority cascade: param > env > script > default | Standard precedence pattern; allows external override via env var | Backward compatible - no Priority param = Normal default |
 
@@ -72,9 +76,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-28
-**Stopped at:** Completed 36-02-PLAN.md
+**Stopped at:** Completed 36-01-PLAN.md
 **Resume file:** None
 **Next action:** Execute 36-03-PLAN.md (remaining plan in Phase 36)
 
 ---
-*State updated: 2026-01-28 after 36-02 complete*
+*State updated: 2026-01-28 after 36-01 complete*
