@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** Not started (defining roadmap)
-**Plan:** —
-**Status:** Defining roadmap
-**Last activity:** 2026-01-28 — Milestone v1.10.0 started
+**Phase:** 34 of 43 (Winget Bug Fixes and JSON Safety)
+**Plan:** 1 of 2 complete
+**Status:** In progress
+**Last activity:** 2026-01-28 — Completed 34-01-PLAN.md
 
-Progress: ░░░░░░░░░░ 0% (0 of 10 phases complete)
+Progress: ░░░░░░░░░░ 1% (1 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -35,7 +35,7 @@ Progress: ░░░░░░░░░░ 0% (0 of 10 phases complete)
 
 | Phase | Goal | Requirements | Status |
 |-------|------|-------------|--------|
-| 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Pending |
+| 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | In progress (1/2 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Pending |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | Pending |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
@@ -48,7 +48,11 @@ Progress: ░░░░░░░░░░ 0% (0 of 10 phases complete)
 
 ## Decisions Log
 
-(empty — new milestone)
+| Phase | Decision | Rationale | Impact |
+|-------|----------|-----------|--------|
+| 34-01 | Use same named mutex (WinGetWin32AppsJsonLock) across Add-Win32SilentInstallCommand and Get-Apps | Both functions write to WinGetWin32Apps.json requiring cross-function synchronization | Prevents race conditions between parallel downloads and AppList.json overrides |
+| 34-01 | Add duplicate detection inside Add-Win32SilentInstallCommand lock | Multiple parallel downloads might try to add same app simultaneously | Prevents duplicate entries without caller-level deduplication |
+| 34-01 | Re-read JSON inside Get-Apps lock | File content may change between Test-Path and write | Prevents lost updates when multiple operations modify JSON |
 
 ## Blockers
 
@@ -57,9 +61,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-28
-**Stopped at:** Milestone v1.10.0 initialized — ready for roadmap commit
+**Stopped at:** Completed 34-01-PLAN.md
 **Resume file:** None
-**Next action:** /gsd:plan-phase 34
+**Next action:** Continue Phase 34 with Plan 02 (MSI path quoting)
 
 ---
-*State updated: 2026-01-28 after v1.10.0 milestone started*
+*State updated: 2026-01-28 after 34-01 completion*
