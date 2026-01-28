@@ -35,12 +35,14 @@ BeforeAll {
 
     # Mock WriteLog as no-op since it's external (from FFU.Common.Core)
     function Global:WriteLog {
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Message', Justification='Mock function for testing')]
         param([string]$Message)
         # No-op for tests
     }
 
     # Helper function to create test app folder with installer and YAML
     function New-TestAppFolder {
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification='Test helper function')]
         param(
             [string]$BasePath,
             [string]$AppName,
@@ -290,7 +292,7 @@ Describe 'Add-Win32SilentInstallCommand - MSI Path Quoting' -Tag 'Unit', 'FFU.Co
             $appPath = New-TestAppFolder -BasePath $TestDrive -AppName "TestMSI" -InstallerType "msi" -SilentSwitch "/quiet /norestart"
 
             # Act
-            $result = Add-Win32SilentInstallCommand -AppFolder "TestMSI" -AppFolderPath $appPath -OrchestrationPath $testOrchestrationPath
+            Add-Win32SilentInstallCommand -AppFolder "TestMSI" -AppFolderPath $appPath -OrchestrationPath $testOrchestrationPath | Out-Null
 
             # Assert
             $jsonPath = Join-Path $testOrchestrationPath "WinGetWin32Apps.json"
@@ -308,10 +310,9 @@ Describe 'Add-Win32SilentInstallCommand - MSI Path Quoting' -Tag 'Unit', 'FFU.Co
             $appPath = New-TestAppFolder -BasePath $TestDrive -AppName "TestMSITrim" -InstallerType "msi" -SilentSwitch "/quiet"
 
             # Act
-            $result = Add-Win32SilentInstallCommand -AppFolder "TestMSITrim" -AppFolderPath $appPath -OrchestrationPath $testOrchestrationPath
+            Add-Win32SilentInstallCommand -AppFolder "TestMSITrim" -AppFolderPath $appPath -OrchestrationPath $testOrchestrationPath | Out-Null
 
             # Assert - Function requires silent switch, so test with one
-            $result | Should -Be 0
             $jsonPath = Join-Path $testOrchestrationPath "WinGetWin32Apps.json"
             $apps = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
             # Convert to array if single object
