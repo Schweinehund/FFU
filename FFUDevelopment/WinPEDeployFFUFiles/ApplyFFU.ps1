@@ -840,15 +840,28 @@ If ($PPKGFileToInstall) {
         }
         WriteLog "Copying $PPKGFileToInstall to $USBDrive"
         Write-Host "Copying $PPKGFileToInstall to $USBDrive"
-        Invoke-process xcopy.exe "$PPKGFileToInstall $USBDrive"
-        WriteLog "Copying $PPKGFileToInstall to $USBDrive succeeded"
-        Write-Host "Copying $PPKGFileToInstall to $USBDrive succeeded"
-    }
 
+        # Primary method: xcopy with properly quoted paths for space handling (BUGFIX-02)
+        try {
+            Invoke-process xcopy.exe "`"$PPKGFileToInstall`" `"$USBDrive`" /Y"
+            WriteLog "Copying $PPKGFileToInstall to $USBDrive succeeded"
+            Write-Host "Copying $PPKGFileToInstall to $USBDrive succeeded"
+        }
+        catch {
+            # Fallback: Copy-Item handles spaces natively without quoting
+            WriteLog "xcopy failed for PPKG, attempting Copy-Item fallback: $_"
+            Write-Host "xcopy failed for PPKG, attempting Copy-Item fallback"
+            Copy-Item -Path $PPKGFileToInstall -Destination $USBDrive -Force -ErrorAction Stop
+            WriteLog "Copy-Item fallback succeeded for $PPKGFileToInstall to $USBDrive"
+            Write-Host "Copy-Item fallback succeeded for $PPKGFileToInstall to $USBDrive"
+        }
+    }
     catch {
-        Writelog "Copying $PPKGFileToInstall to $USBDrive failed with error: $_"
-        Write-Host "Copying $PPKGFileToInstall to $USBDrive failed with error: $_"
-        throw $_
+        # PPKG copy is non-blocking — warn and continue deployment (BUGFIX-02)
+        $errorMsg = "PPKG copy failed - Source: $PPKGFileToInstall, Destination: $USBDrive, Error: $_"
+        WriteLog "WARNING: $errorMsg"
+        Write-Host "WARNING: $errorMsg"
+        # DO NOT throw — PPKG is optional and should not halt deployment
     }
 }
 #Set DeviceName
