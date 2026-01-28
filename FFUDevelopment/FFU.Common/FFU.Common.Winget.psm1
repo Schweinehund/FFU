@@ -727,32 +727,50 @@ function Add-Win32SilentInstallCommand {
     # Path to the JSON file
     $wingetWin32AppsJson = "$OrchestrationPath\WinGetWin32Apps.json"
 
-    # Initialize or load existing JSON data
-    if (Test-Path -Path $wingetWin32AppsJson) {
-        [array]$appsData = Get-Content -Path $wingetWin32AppsJson -Raw | ConvertFrom-Json
+    # Use a lock to prevent race conditions when writing to the same file
+    $lockName = "WinGetWin32AppsJsonLock"
+    $lock = New-Object System.Threading.Mutex($false, $lockName)
+    try {
+        [void]$lock.WaitOne()
 
-        # Get highest priority value
-        if ($appsData.Count -gt 0) {
-            $highestPriority = $appsData.Count + 1
+        # Initialize or load existing JSON data
+        if (Test-Path -Path $wingetWin32AppsJson) {
+            [array]$appsData = Get-Content -Path $wingetWin32AppsJson -Raw | ConvertFrom-Json
+
+            # Check for duplicate entry inside the lock
+            $appNameToCheck = if (-not [string]::IsNullOrEmpty($SubFolder)) { "$appName ($SubFolder)" } else { $appName }
+            if ($appsData | Where-Object { $_.Name -eq $appNameToCheck }) {
+                WriteLog "App '$appNameToCheck' already in WinGetWin32Apps.json (checked inside lock)"
+                return 0
+            }
+
+            # Get highest priority value
+            if ($appsData.Count -gt 0) {
+                $highestPriority = $appsData.Count + 1
+            }
         }
-    }
-    else {
-        $appsData = @()
-        $highestPriority = 1
-    }
+        else {
+            $appsData = @()
+            $highestPriority = 1
+        }
 
-    # Create new app entry
-    $newApp = [PSCustomObject]@{
-        Priority    = $highestPriority
-        Name        = if (-not [string]::IsNullOrEmpty($SubFolder)) { "$appName ($SubFolder)" } else { $appName }
-        CommandLine = $silentInstallCommand
-        Arguments   = $silentInstallSwitch
+        # Create new app entry
+        $newApp = [PSCustomObject]@{
+            Priority    = $highestPriority
+            Name        = if (-not [string]::IsNullOrEmpty($SubFolder)) { "$appName ($SubFolder)" } else { $appName }
+            CommandLine = $silentInstallCommand
+            Arguments   = $silentInstallSwitch
+        }
+
+        $appsData += $newApp
+        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $wingetWin32AppsJson
+
+        WriteLog "Added $($newApp.Name) to WinGetWin32Apps.json with priority $highestPriority"
     }
-
-    $appsData += $newApp
-    $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $wingetWin32AppsJson
-
-    WriteLog "Added $($newApp.Name) to WinGetWin32Apps.json with priority $highestPriority"
+    finally {
+        $lock.ReleaseMutex()
+        $lock.Dispose()
+    }
 
     # Return 0 for success
     return 0
