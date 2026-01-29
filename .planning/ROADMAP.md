@@ -192,6 +192,10 @@ Plans:
   4. Pester tests verify fallback, retry, and UI state
 **Research**: Unlikely (follows existing codebase patterns)
 **Plans**: 3 plans
+Plans:
+- [ ] 41-01-PLAN.md — Family-level driver fallback tier in ApplyFFU.ps1 (DRV-05)
+- [ ] 41-02-PLAN.md — PE driver injection retry with summary logging (DRV-06)
+- [ ] 41-03-PLAN.md — Driver source UI status label + Pester tests (DRV-07)
 
 ### Phase 42: New OEM Manufacturers
 **Goal**: Add driver support for 8 new OEM manufacturers
