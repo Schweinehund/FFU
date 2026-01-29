@@ -190,6 +190,7 @@ function Initialize-UIControls {
     $State.Controls.btnClearAppsScriptVariables = $window.FindName('btnClearAppsScriptVariables')
     $State.Controls.txtDriversJsonPath = $window.FindName('txtDriversJsonPath')
     $State.Controls.btnBrowseDriversJsonPath = $window.FindName('btnBrowseDriversJsonPath')
+    $State.Controls.txtDriverSourceStatus = $window.FindName('txtDriverSourceStatus')
     $State.Controls.chkUpdateADK = $window.FindName('chkUpdateADK')
     $State.Controls.btnLoadConfig = $window.FindName('btnLoadConfig')
     $State.Controls.btnRestoreDefaults = $window.FindName('btnRestoreDefaults')

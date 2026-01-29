@@ -444,6 +444,7 @@ function Import-DriversJson {
             # Update the UI and apply any existing filter
             $State.Controls.lstDriverModels.ItemsSource = $State.Data.allDriverModels
             Search-DriverModels -filterText $State.Controls.txtModelFilter.Text -State $State
+            Update-DriverSourceStatus -State $State
 
             $message = "Driver import complete.`nNew models added: $newModelsAdded`nExisting models updated: $existingModelsUpdated"
             [System.Windows.MessageBox]::Show($message, "Import Successful", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
@@ -515,6 +516,8 @@ function Invoke-GetModels {
         # Update the UI ItemsSource to point to the new list and clear the filter
         $State.Controls.lstDriverModels.ItemsSource = $State.Data.allDriverModels
         $State.Controls.txtModelFilter.Text = ""
+
+        Update-DriverSourceStatus -State $State
 
         if ($State.Data.allDriverModels.Count -gt 0) {
             $State.Controls.spModelFilterSection.Visibility = 'Visible'

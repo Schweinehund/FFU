@@ -560,6 +560,8 @@ function Update-DriverCheckboxStates {
         $useDriversAsPeChk.IsChecked = $false
         $useDriversAsPeChk.Visibility = 'Collapsed'
     }
+
+    Update-DriverSourceStatus -State $State
 }
 
 # Function to manage the visibility of Office UI panels
@@ -583,6 +585,67 @@ function Update-OfficePanelVisibility {
     }
 }
 
+# Function to update the driver source status indicator
+function Update-DriverSourceStatus {
+    param([PSCustomObject]$State)
+
+    $statusText = "No driver source configured"
+
+    # Check if Download Drivers is enabled with a Make selected
+    if ($State.Controls.chkDownloadDrivers.IsChecked) {
+        $selectedMake = $State.Controls.cmbMake.SelectedItem
+        if ($null -ne $selectedMake -and $selectedMake -ne '') {
+            # Count selected models in the ListView
+            $selectedCount = 0
+            if ($null -ne $State.Controls.lstDriverModels.ItemsSource) {
+                $selectedCount = @($State.Controls.lstDriverModels.ItemsSource |
+                    Where-Object { $_.IsSelected -eq $true }).Count
+            }
+            if ($selectedCount -gt 0) {
+                # Determine catalog type based on Make
+                $catalogType = switch ($selectedMake) {
+                    'Dell'      { 'CatalogIndexPC' }
+                    'HP'        { 'Softpaq catalog' }
+                    'Lenovo'    { 'PSREF catalog' }
+                    'Microsoft' { 'Microsoft catalog' }
+                    default     { 'OEM catalog' }
+                }
+                $statusText = "$selectedMake $($catalogType): $selectedCount model(s) selected"
+            }
+            else {
+                $statusText = "$selectedMake selected -- use Get Models to load models"
+            }
+        }
+        else {
+            $statusText = "Download Drivers enabled -- select a Make"
+        }
+    }
+    # Check if a local drivers folder has content
+    elseif (-not [string]::IsNullOrWhiteSpace($State.Controls.txtDriversFolder.Text)) {
+        $driversPath = $State.Controls.txtDriversFolder.Text
+        if (Test-Path -Path $driversPath -ErrorAction SilentlyContinue) {
+            $driverPackages = @(Get-ChildItem -Path $driversPath -Directory -ErrorAction SilentlyContinue)
+            $packageCount = $driverPackages.Count
+            if ($packageCount -gt 0) {
+                $statusText = "Local folder: $packageCount driver package(s) found"
+            }
+            else {
+                $statusText = "Local folder: empty"
+            }
+        }
+        else {
+            $statusText = "Local folder: path not found"
+        }
+    }
+    # Check if Drivers.json is configured
+    elseif (-not [string]::IsNullOrWhiteSpace($State.Controls.txtDriversJsonPath.Text) -and
+            (Test-Path -Path $State.Controls.txtDriversJsonPath.Text -ErrorAction SilentlyContinue)) {
+        $statusText = "Drivers.json configured"
+    }
+
+    $State.Controls.txtDriverSourceStatus.Text = $statusText
+}
+
 # Function to manage the visibility of the driver download UI panels
 function Update-DriverDownloadPanelVisibility {
     param([PSCustomObject]$State)
@@ -602,6 +665,8 @@ function Update-DriverDownloadPanelVisibility {
         $State.Data.allDriverModels.Clear()
         $State.Controls.txtModelFilter.Text = ""
     }
+
+    Update-DriverSourceStatus -State $State
 }
 
 # --------------------------------------------------------------------------
