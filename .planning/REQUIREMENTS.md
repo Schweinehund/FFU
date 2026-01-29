@@ -25,7 +25,7 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 
 ### Path Reliability (PATH)
 
-- [ ] **PATH-01**: SUBST virtual drive mapped during driver operations to prevent long path (>260 char) failures
+- [x] **PATH-01**: SUBST virtual drive mapped during driver operations to prevent long path (>260 char) failures
 
 ### Deployment Improvements (DEPLOY)
 
@@ -82,7 +82,7 @@ Which phases cover which requirements. Updated by create-roadmap.
 | WINGET-01 | Phase 37 | Complete |
 | WINGET-02 | Phase 37 | Complete |
 | DL-01 | Phase 36 | Complete |
-| PATH-01 | Phase 38 | Pending |
+| PATH-01 | Phase 38 | Complete |
 | DEPLOY-01 | Phase 43 | Pending |
 | DEPLOY-02 | Phase 43 | Pending |
 | DEPLOY-03 | Phase 43 | Pending |

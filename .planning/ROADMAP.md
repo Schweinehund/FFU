@@ -26,7 +26,7 @@
 - [x] **Phase 35: PPKG and xcopy Path Quoting** - Space handling in PPKG filenames
 - [x] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
 - [x] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
-- [ ] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
+- [x] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
 - [ ] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
 - [ ] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
 - [ ] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
@@ -145,8 +145,9 @@ Plans:
 **Research**: Complete (38-RESEARCH.md — SUBST patterns, INF parsing, long-path prefix, upstream commits)
 **Plans**: 2 plans
 Plans:
-- [ ] 38-01-PLAN.md — SUBST helper functions + INF parsing improvements (Get-AvailableDriveLetter, New/Remove-DriverSubstMapping, auto-growing buffer, GUID normalization, -LiteralPath)
-- [ ] 38-02-PLAN.md — SUBST loop integration (Invoke-DismDriverInjectionWithSubstLoop, FFU.Imaging New-FFU, ApplyFFU.ps1 folder/WIM injection)
+- [x] 38-01-PLAN.md — SUBST helper functions + INF parsing improvements (Get-AvailableDriveLetter, New/Remove-DriverSubstMapping, auto-growing buffer, GUID normalization, -LiteralPath)
+- [x] 38-02-PLAN.md — SUBST loop integration (Invoke-DismDriverInjectionWithSubstLoop, FFU.Imaging New-FFU, ApplyFFU.ps1 folder/WIM injection)
+**Completed:** 2026-01-29 — Verified (12/12 must-haves)
 
 ### Phase 39: Model Name Normalization and SystemID Improvements
 **Goal**: Prevent duplicate brand prefixes in model names and improve SystemID extraction for driver matching
@@ -221,7 +222,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (112 complete + 18 planned)
+**Total:** 43 phases, 130 plans (114 complete + 16 planned)
 
 ---
-*Last updated: 2026-01-28 - Phase 37 complete*
+*Last updated: 2026-01-29 - Phase 38 complete*
