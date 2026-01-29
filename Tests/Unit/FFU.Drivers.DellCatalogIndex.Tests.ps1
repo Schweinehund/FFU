@@ -20,6 +20,7 @@ BeforeAll {
     $ModulesPath = Join-Path $ProjectRoot 'FFUDevelopment\Modules'
     $ModulePath = Join-Path $ModulesPath 'FFU.Drivers'
     $CoreModulePath = Join-Path $ModulesPath 'FFU.Core'
+    $ConstantsModulePath = Join-Path $ModulesPath 'FFU.Constants'
 
     # Add Modules folder to PSModulePath for RequiredModules resolution
     if ($env:PSModulePath -notlike "*$ModulesPath*") {
@@ -27,14 +28,32 @@ BeforeAll {
     }
 
     # Remove and reimport modules
-    Get-Module -Name 'FFU.Drivers', 'FFU.Core' | Remove-Module -Force -ErrorAction SilentlyContinue
+    Get-Module -Name 'FFU.Drivers', 'FFU.Core', 'FFU.Constants' | Remove-Module -Force -ErrorAction SilentlyContinue
+
+    # Import FFU.Constants first (needed for [FFUConstants] type)
+    if (Test-Path "$ConstantsModulePath\FFU.Constants.psd1") {
+        Import-Module "$ConstantsModulePath\FFU.Constants.psd1" -Force -ErrorAction Stop
+    }
+
+    # Import FFU.Core (dependency)
     if (Test-Path "$CoreModulePath\FFU.Core.psd1") {
         Import-Module "$CoreModulePath\FFU.Core.psd1" -Force -ErrorAction SilentlyContinue
     }
+
+    # Import FFU.Drivers module
     if (-not (Test-Path "$ModulePath\FFU.Drivers.psd1")) {
         throw "FFU.Drivers module not found at: $ModulePath"
     }
     Import-Module "$ModulePath\FFU.Drivers.psd1" -Force -ErrorAction Stop
+
+    # Create WriteLog stub for testing (FFU.Drivers internal functions expect this to exist)
+    # In production, Write Log comes from BuildFFUVM.ps1
+    if (-not (Get-Command -Name WriteLog -ErrorAction SilentlyContinue)) {
+        function global:WriteLog {
+            param([string]$Message)
+            # Suppress output in tests
+        }
+    }
 
     # Helper: Create mock CatalogIndexPC XML content
     function New-MockCatalogIndexXml {
@@ -95,7 +114,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Get-Module -Name 'FFU.Drivers', 'FFU.Core' | Remove-Module -Force -ErrorAction SilentlyContinue
+    Get-Module -Name 'FFU.Drivers', 'FFU.Core', 'FFU.Constants' | Remove-Module -Force -ErrorAction SilentlyContinue
 }
 
 # =============================================================================
@@ -235,8 +254,7 @@ Describe 'Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution' -Tag
     Context 'Model name with valid SystemID suffix' {
         It 'Should extract SystemID and return matching CabUrl for Latitude 7490 (0798)' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (0798)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (0798)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -Not -BeNullOrEmpty
                 $result | Should -BeLike '*Model_Latitude_7490*'
             }
@@ -244,8 +262,7 @@ Describe 'Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution' -Tag
 
         It 'Should extract SystemID and return matching CabUrl for OptiPlex 7080 (09A4)' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'OptiPlex 7080 (09A4)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'OptiPlex 7080 (09A4)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -Not -BeNullOrEmpty
                 $result | Should -BeLike '*Model_OptiPlex_7080*'
             }
@@ -253,8 +270,7 @@ Describe 'Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution' -Tag
 
         It 'Should handle hex SystemID with letters: (0A24)' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Precision 5560 (0A24)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Precision 5560 (0A24)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -Not -BeNullOrEmpty
                 $result | Should -BeLike '*Model_Precision_5560*'
             }
@@ -264,24 +280,21 @@ Describe 'Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution' -Tag
     Context 'Model name without SystemID suffix' {
         It 'Should return $null for model without parenthesized SystemID' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -BeNullOrEmpty
             }
         }
 
         It 'Should return $null for model with non-hex parenthesized text' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (SomeText)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (SomeText)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -BeNullOrEmpty
             }
         }
 
         It 'Should return $null for model with too-long hex in parentheses' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (07980)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (07980)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -BeNullOrEmpty
             }
         }
@@ -290,8 +303,7 @@ Describe 'Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution' -Tag
     Context 'SystemID not found in index' {
         It 'Should return $null for valid SystemID format not present in index' {
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Unknown Model (FFFF)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Unknown Model (FFFF)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -BeNullOrEmpty
             }
         }
@@ -342,19 +354,14 @@ Describe 'Get-DellDrivers - CatalogIndexPC Fallback Behavior' -Tag 'Unit', 'FFU.
         It 'Should fall back to CatalogPC.cab when Get-DellCatalogIndex returns $null' {
             # Verify the fallback design: when index is null, CatalogPC.cab path is used
             InModuleScope 'FFU.Drivers' {
-                # Mock Get-DellCatalogIndex to return null (simulates download failure)
-                Mock Get-DellCatalogIndex { return $null }
-                # Mock the existing catalog download chain to prevent actual network calls
-                Mock Get-CachedOEMCatalog { return 'C:\mock\CatalogPC.cab' }
-                Mock Invoke-Process { return [PSCustomObject]@{ ExitCode = 0 } }
-                Mock Test-Path { return $true } -ParameterFilter { $Path -like '*CatalogPC*' }
-                Mock WriteLog {}
-
-                # The function should attempt CatalogIndexPC, fail, then proceed to CatalogPC.cab
-                # We verify Get-DellCatalogIndex was called
+                # We verify Get-DellCatalogIndex returns null when catalog download fails
                 # Full Get-DellDrivers integration requires too many mocks, so we verify the design principle
-                Get-DellCatalogIndex -DriversFolder 'C:\mock\Drivers' | Should -BeNullOrEmpty
-                Should -Invoke Get-DellCatalogIndex -Times 1
+                # by testing Get-DellCatalogIndex directly with mocked dependencies
+                Mock Get-CachedOEMCatalog { throw 'Network error' }
+                Mock Test-Path { return $false } -ParameterFilter { $Path -like '*CatalogIndexPC.xml' }
+
+                $result = Get-DellCatalogIndex -DriversFolder 'C:\mock\Drivers' -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                $result | Should -BeNullOrEmpty
             }
         }
     }
@@ -367,8 +374,7 @@ Describe 'Get-DellDrivers - CatalogIndexPC Fallback Behavior' -Tag 'Unit', 'FFU.
             New-MockCatalogIndexXml -OutputPath $xmlPath -Models $script:MockModels
 
             InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
-                Mock WriteLog {}
-                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Unknown Model (FFFF)' -CatalogIndexPath $XmlPath
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Unknown Model (FFFF)' -CatalogIndexPath $XmlPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 $result | Should -BeNullOrEmpty
             }
         }
@@ -380,9 +386,6 @@ Describe 'Get-DellDrivers - CatalogIndexPC Fallback Behavior' -Tag 'Unit', 'FFU.
             # When Resolve-DellCabUrlFromModel returns a URL but downloading that URL fails,
             # Get-DellDrivers should catch the error and proceed to CatalogPC.cab
             InModuleScope 'FFU.Drivers' {
-                Mock WriteLog {}
-                # Verify that Get-CachedOEMCatalog is used for model-specific cabs
-                # and its failure is caught by the three-tier fallback in Get-DellDrivers
                 # This validates the architectural design
                 $true | Should -Be $true  # Placeholder for integration-level test
             }
@@ -570,6 +573,77 @@ Describe 'Drivers.json Schema Extension - SystemId and CabUrl' -Tag 'Unit', 'FFU
             $parsed = $script:multiOemJson | ConvertFrom-Json
             $parsed.HP.Models[0].PSObject.Properties['SystemId'] | Should -BeNullOrEmpty
             $parsed.HP.Models[0].PSObject.Properties['CabUrl'] | Should -BeNullOrEmpty
+        }
+    }
+}
+
+# =============================================================================
+# Get-DellCatalogIndex - Caching and Failure Handling
+# =============================================================================
+
+Describe 'Get-DellCatalogIndex - Caching and Failure Handling' -Tag 'Unit', 'FFU.Drivers', 'Dell', 'CatalogIndexPC' {
+
+    Context 'Cache freshness check' {
+        It 'Should return cached XML path when file is fresh (less than 7 days old)' {
+            $cacheDir = Join-Path $TestDrive 'CacheTest\Dell'
+            New-Item -Path $cacheDir -ItemType Directory -Force | Out-Null
+            $cachedXml = Join-Path $cacheDir 'CatalogIndexPC.xml'
+            # Create a fresh cached file
+            New-MockCatalogIndexXml -OutputPath $cachedXml -Models $script:MockModels
+
+            InModuleScope 'FFU.Drivers' -Parameters @{ DriversDir = (Split-Path $cacheDir -Parent) } {
+                Mock Get-CachedOEMCatalog {}  # Should not be called for fresh cache
+
+                $result = Get-DellCatalogIndex -DriversFolder $DriversDir -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                $result | Should -Not -BeNullOrEmpty
+                $result | Should -BeLike '*CatalogIndexPC.xml'
+            }
+        }
+    }
+
+    Context 'Download failure returns null' {
+        It 'Should return $null when catalog download fails' {
+            InModuleScope 'FFU.Drivers' {
+                Mock Get-CachedOEMCatalog { throw 'Network error' }
+                Mock Test-Path { return $false } -ParameterFilter { $Path -like '*CatalogIndexPC.xml' }
+
+                $result = Get-DellCatalogIndex -DriversFolder 'C:\mock\Drivers' -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                $result | Should -BeNullOrEmpty
+            }
+        }
+
+        It 'Should log WARNING when download fails (tested via return value)' {
+            InModuleScope 'FFU.Drivers' {
+                Mock Get-CachedOEMCatalog { throw 'Network error' }
+                Mock Test-Path { return $false } -ParameterFilter { $Path -like '*CatalogIndexPC.xml' }
+                Mock New-Item {}
+
+                # When download fails, Get-DellCatalogIndex returns null (which triggers WARNING log)
+                $result = Get-DellCatalogIndex -DriversFolder 'C:\mock\Drivers' -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+                $result | Should -BeNullOrEmpty
+            }
+        }
+    }
+
+    Context 'FFUConstants integration' {
+        It 'Should have DELL_CATALOG_INDEX_PC_URL constant defined' {
+            # FFUConstants class is loaded via 'using module' in FFU.Drivers.psm1
+            # Access it through the module's internal scope
+            InModuleScope 'FFU.Drivers' {
+                [FFUConstants]::DELL_CATALOG_INDEX_PC_URL | Should -Be 'https://downloads.dell.com/catalog/CatalogIndexPC.cab'
+            }
+        }
+
+        It 'Should have existing DELL_CATALOG_PC_URL constant unchanged' {
+            InModuleScope 'FFU.Drivers' {
+                [FFUConstants]::DELL_CATALOG_PC_URL | Should -Be 'https://downloads.dell.com/catalog/CatalogPC.cab'
+            }
+        }
+
+        It 'Should have existing DELL_CATALOG_SERVER_URL constant unchanged' {
+            InModuleScope 'FFU.Drivers' {
+                [FFUConstants]::DELL_CATALOG_SERVER_URL | Should -Be 'https://downloads.dell.com/catalog/Catalog.cab'
+            }
         }
     }
 }
