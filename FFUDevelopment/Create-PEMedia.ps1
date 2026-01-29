@@ -173,14 +173,55 @@ function New-PEMedia {
         WriteLog 'Copy complete'
         #If $CopyPEDrivers = $true, add drivers to WinPE media using dism
         if ($CopyPEDrivers) {
-            WriteLog "Adding drivers to WinPE media"
-            try {
-                Add-WindowsDriver -Path "$WinPEFFUPath\Mount" -Driver "$FFUDevelopmentPath\PEDrivers" -Recurse -ErrorAction SilentlyContinue | Out-null
+            $peSourcePath = "$FFUDevelopmentPath\PEDrivers"
+            $peInfFiles = @(Get-ChildItem -Path $peSourcePath -Filter '*.inf' -Recurse -ErrorAction SilentlyContinue)
+            $peInfCount = $peInfFiles.Count
+            WriteLog "[PE] Driver source: $peSourcePath ($peInfCount INF files)"
+
+            if ($peInfCount -eq 0) {
+                WriteLog "[PE] No INF files found in $peSourcePath -- skipping injection"
             }
-            catch {
-                WriteLog 'Some drivers failed to be added to the FFU. This can be expected. Continuing.'
+            else {
+                WriteLog "[PE] Adding drivers to WinPE media"
+                $peInjected = 0
+                $peFailed = 0
+                $maxRetries = 2
+                $retryDelayMs = 1000
+
+                foreach ($infFile in $peInfFiles) {
+                    $success = $false
+                    for ($attempt = 0; $attempt -le $maxRetries; $attempt++) {
+                        try {
+                            Add-WindowsDriver -Path "$WinPEFFUPath\Mount" -Driver $infFile.FullName -ErrorAction Stop | Out-Null
+                            $success = $true
+                            break
+                        }
+                        catch {
+                            $errMsg = $_.Exception.Message
+                            $isTransient = $errMsg -match 'access.*(denied|violation)|sharing|lock|0x80070020|0x80070005|0x80070021'
+                            if ($isTransient -and $attempt -lt $maxRetries) {
+                                WriteLog "[PE] Transient error injecting $($infFile.Name) (attempt $($attempt + 1)/$($maxRetries + 1)): $errMsg"
+                                Start-Sleep -Milliseconds $retryDelayMs
+                            }
+                            else {
+                                if ($attempt -gt 0) {
+                                    WriteLog "[PE] Failed to inject $($infFile.Name) after $($attempt + 1) attempts: $errMsg"
+                                }
+                                break
+                            }
+                        }
+                    }
+                    if ($success) { $peInjected++ } else { $peFailed++ }
+                }
+
+                if ($peFailed -eq 0) {
+                    WriteLog "[PE] Injection result: $peInjected/$peInfCount succeeded"
+                }
+                else {
+                    WriteLog "WARNING: PE driver injection: $peInjected/$peInfCount drivers injected, $peFailed failed"
+                }
+                WriteLog "[PE] Adding drivers complete"
             }
-            WriteLog "Adding drivers complete"
         }
         # $WinPEISOName = 'WinPE_FFU_Deploy.iso'
         $WinPEISOFile = $DeployISO
