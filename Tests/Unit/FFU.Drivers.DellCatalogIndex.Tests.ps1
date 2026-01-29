@@ -97,3 +97,124 @@ BeforeAll {
 AfterAll {
     Get-Module -Name 'FFU.Drivers', 'FFU.Core' | Remove-Module -Force -ErrorAction SilentlyContinue
 }
+
+# =============================================================================
+# Get-DellClientModels - CatalogIndexPC XML Parsing
+# =============================================================================
+
+Describe 'Get-DellClientModels - CatalogIndexPC XML Parsing' -Tag 'Unit', 'FFU.Drivers', 'Dell', 'CatalogIndexPC' {
+
+    BeforeAll {
+        $script:tempDir = Join-Path $TestDrive 'CatalogIndexTests'
+        New-Item -Path $script:tempDir -ItemType Directory -Force | Out-Null
+    }
+
+    Context 'Valid CatalogIndexPC XML with multiple models' {
+        BeforeAll {
+            $xmlPath = Join-Path $script:tempDir 'CatalogIndexPC_valid.xml'
+            New-MockCatalogIndexXml -OutputPath $xmlPath -Models $script:MockModels
+        }
+
+        It 'Should return correct number of models' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $result.Count | Should -Be 3
+            }
+        }
+
+        It 'Should parse Model display name correctly' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $result[0].Model | Should -Not -BeNullOrEmpty
+                $result | Where-Object { $_.Model -like '*Latitude 7490*' } | Should -Not -BeNullOrEmpty
+            }
+        }
+
+        It 'Should parse SystemId correctly' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $lat7490 = $result | Where-Object { $_.SystemId -eq '0798' }
+                $lat7490 | Should -Not -BeNullOrEmpty
+                $lat7490.SystemId | Should -Be '0798'
+            }
+        }
+
+        It 'Should parse CabUrl correctly' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $lat7490 = $result | Where-Object { $_.SystemId -eq '0798' }
+                $lat7490.CabUrl | Should -BeLike '*Model_Latitude_7490*'
+            }
+        }
+
+        It 'Should include Make property' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $result[0].Make | Should -Be 'Dell'
+            }
+        }
+
+        It 'Should return sorted results' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $xmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $names = $result | ForEach-Object { $_.Model }
+                $sortedNames = $names | Sort-Object
+                $names | Should -Be $sortedNames
+            }
+        }
+    }
+
+    Context 'Empty CatalogIndexPC XML' {
+        BeforeAll {
+            $emptyXmlPath = Join-Path $script:tempDir 'CatalogIndexPC_empty.xml'
+            Set-Content -Path $emptyXmlPath -Value '<?xml version="1.0"?><ManifestIndex></ManifestIndex>' -Encoding UTF8
+        }
+
+        It 'Should return empty list for XML with no SystemConfiguration entries' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $emptyXmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $result.Count | Should -Be 0
+            }
+        }
+    }
+
+    Context 'Missing XML file' {
+        It 'Should throw when CatalogIndexPath does not exist' {
+            InModuleScope 'FFU.Drivers' {
+                { Get-DellClientModels -CatalogIndexPath 'C:\nonexistent\CatalogIndexPC.xml' } | Should -Throw
+            }
+        }
+    }
+
+    Context 'Incomplete SystemConfiguration entries' {
+        BeforeAll {
+            $incompleteXmlPath = Join-Path $script:tempDir 'CatalogIndexPC_incomplete.xml'
+            # Entry missing systemID
+            $content = @"
+<?xml version="1.0"?>
+<ManifestIndex>
+  <SystemConfiguration>
+    <Model>Latitude 7490 (0798)</Model>
+    <Brand>Dell</Brand>
+    <dellSystemCabUrl>https://downloads.dell.com/catalog/Model_Latitude_7490.cab</dellSystemCabUrl>
+  </SystemConfiguration>
+  <SystemConfiguration>
+    <Model>OptiPlex 7080 (09A4)</Model>
+    <Brand>Dell</Brand>
+    <systemID>09A4</systemID>
+    <dellSystemCabUrl>https://downloads.dell.com/catalog/Model_OptiPlex_7080.cab</dellSystemCabUrl>
+  </SystemConfiguration>
+</ManifestIndex>
+"@
+            Set-Content -Path $incompleteXmlPath -Value $content -Encoding UTF8
+        }
+
+        It 'Should skip entries missing systemID and return only complete entries' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $incompleteXmlPath } {
+                $result = Get-DellClientModels -CatalogIndexPath $XmlPath
+                $result.Count | Should -Be 1
+                $result[0].SystemId | Should -Be '09A4'
+            }
+        }
+    }
+}
