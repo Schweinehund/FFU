@@ -262,6 +262,45 @@ function Get-NormalizedManufacturer {
     return $m
 }
 
+function Get-ModelFamily {
+    <#
+    .SYNOPSIS
+        Extracts the product family from a model name for driver matching fallback.
+    .DESCRIPTION
+        Extracts the product family (first word after manufacturer name) from a model string.
+        Used for family-level driver matching when SystemID and ModelName matches fail.
+        Examples:
+        - "Dell Latitude 7490" -> "Latitude"
+        - "HP EliteBook 850 G5" -> "EliteBook"
+        - "Lenovo ThinkPad X1 Carbon" -> "ThinkPad"
+    .PARAMETER ModelName
+        The model name to extract family from.
+    .PARAMETER Manufacturer
+        The normalized manufacturer name (used to strip manufacturer prefix).
+    .OUTPUTS
+        [string] The product family, or empty string if extraction fails.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [string]$ModelName,
+        [string]$Manufacturer
+    )
+    # Extract family: first word after the normalized brand name
+    # e.g., "Dell Latitude 7490" -> "Latitude", "HP EliteBook 850 G5" -> "EliteBook"
+    if ([string]::IsNullOrWhiteSpace($ModelName)) { return '' }
+    $text = $ModelName.Trim()
+    # Strip leading manufacturer name if present (case-insensitive)
+    if (-not [string]::IsNullOrWhiteSpace($Manufacturer)) {
+        $text = $text -replace "(?i)^$([regex]::Escape($Manufacturer))\s*", ''
+    }
+    # First word is the family
+    if ($text -match '^\s*(\S+)') {
+        return $matches[1]
+    }
+    return ''
+}
+
 function Get-SystemIdentityMetadata {
     <#
     .SYNOPSIS
@@ -766,6 +805,7 @@ if (Test-Path -Path $driverMappingPath -PathType Leaf) {
         $matchingRules = @()
         # Normalize system model once outside the loop
         $systemModelNorm = ConvertTo-ComparableModelName -Text $systemModel
+        $systemFamily = Get-ModelFamily -ModelName $systemModel -Manufacturer $systemIdentity.ManufacturerNormalized
         foreach ($rule in $driverMappings) {
             # Manufacturer must match (normalized comparison)
             $ruleManufacturerNorm = Get-NormalizedManufacturer -RawManufacturer $rule.Manufacturer
@@ -802,15 +842,36 @@ if (Test-Path -Path $driverMappingPath -PathType Leaf) {
                 }
             }
 
-            if ($identifierMatch -or $modelMatch) {
-                $matchType = if ($identifierMatch) { 'SystemID' } else { 'ModelName' }
+            # Family-level fallback (tier 3): match by product family
+            $familyMatch = $false
+            if (-not $identifierMatch -and -not $modelMatch -and -not [string]::IsNullOrWhiteSpace($systemFamily)) {
+                $ruleFamily = Get-ModelFamily -ModelName $rule.Model -Manufacturer $ruleManufacturerNorm
+                if (-not [string]::IsNullOrWhiteSpace($ruleFamily) -and
+                    $systemFamily -ieq $ruleFamily) {
+                    $familyMatch = $true
+                }
+            }
+
+            if ($identifierMatch -or $modelMatch -or $familyMatch) {
+                $matchType = if ($identifierMatch) { 'SystemID' }
+                             elseif ($modelMatch) { 'ModelName' }
+                             else { 'Family' }
                 WriteLog "Match found ($matchType): Manufacturer='$($rule.Manufacturer)', Model='$($rule.Model)'"
                 $matchingRules += [PSCustomObject]@{
                     Rule           = $rule
                     MatchType      = $matchType
-                    MatchPrecision = if ($identifierMatch) { 2 } else { 1 }
+                    MatchPrecision = if ($identifierMatch) { 2 } elseif ($modelMatch) { 1 } else { 0.5 }
                 }
             }
+        }
+
+        # Log decision trail for driver matching
+        if ($matchingRules.Count -eq 0) {
+            WriteLog "Driver match decision trail: SystemID '$($systemIdentity.IdentifierValue)' -> no match, ModelName '$systemModel' -> no match, Family '$systemFamily' -> no match"
+        }
+        else {
+            $tiers = ($matchingRules | ForEach-Object { $_.MatchType } | Select-Object -Unique) -join ', '
+            WriteLog "Driver match decision trail: matched via $tiers ($($matchingRules.Count) rule(s))"
         }
 
         # Select the best match: prefer SystemID matches, then most specific model name
@@ -831,13 +892,18 @@ if (Test-Path -Path $driverMappingPath -PathType Leaf) {
             } | Select-Object -First 1
             $matchedRule = $bestMatch.Rule
             WriteLog "Best match ($($bestMatch.MatchType)): Manufacturer='$($matchedRule.Manufacturer)', Model='$($matchedRule.Model)'"
+
+            # Family fallback-specific log message
+            if ($bestMatch.MatchType -eq 'Family') {
+                WriteLog "[OEM] Family fallback: $systemFamily -> matched $($matchedRule.Model)"
+            }
         }
 
         if ($null -ne $matchedRule) {
             WriteLog "Automatic match found: Manufacturer='$($matchedRule.Manufacturer)', Model='$($matchedRule.Model)'"
             Write-Host "Automatic match found: Manufacturer='$($matchedRule.Manufacturer)', Model='$($matchedRule.Model)'"
             $potentialDriverPath = Join-Path -Path $DriversPath -ChildPath $matchedRule.DriverPath
-            
+
             if (Test-Path -Path $potentialDriverPath) {
                 $DriverSourcePath = $potentialDriverPath
                 # Determine if it's a WIM or a Folder
@@ -849,15 +915,18 @@ if (Test-Path -Path $driverMappingPath -PathType Leaf) {
                 }
                 WriteLog "Automatically selected driver source. Type: $DriverSourceType, Path: $DriverSourcePath"
                 Write-Host "Automatically selected driver source. Type: $DriverSourceType, Path: $DriverSourcePath"
+                WriteLog "Driver match result: $($matchedRule.DriverPath) (Tier: $($bestMatch.MatchType))"
             }
             else {
                 WriteLog "Matched driver path '$potentialDriverPath' not found. Falling back to manual selection."
                 Write-Host "Matched driver path '$potentialDriverPath' not found. Falling back to manual selection."
+                WriteLog "Driver match result: Manual selection (matched path not found)"
             }
         }
         else {
             WriteLog "No matching driver rule found in DriverMapping.json for this system. Falling back to manual selection."
             Write-Host "No matching driver rule found in DriverMapping.json for this system. Falling back to manual selection."
+            WriteLog "Driver match result: Manual selection (no automatic match)"
         }
     }
     catch {
