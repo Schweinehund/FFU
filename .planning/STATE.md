@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 36 of 43 (CU Skip + ESD BITS) - COMPLETE
-**Plan:** 3 of 3 complete (36-01, 36-02, 36-03)
-**Status:** Phase complete — verified 4/4 must-haves
-**Last activity:** 2026-01-28 — Phase 36 verified and complete
+**Phase:** 37 of 43 (Winget App Ordering and Dependencies) - In Progress
+**Plan:** 1 of 3 complete (37-01)
+**Status:** In progress — Plan 37-01 complete, Plans 37-02 and 37-03 pending
+**Last activity:** 2026-01-29 — Completed 37-01-PLAN.md (helper functions + Add-Win32SilentInstallCommand upgrade)
 
-Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 phases)
+Progress: ██░░░░░░░░ 29% (8 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -38,7 +38,7 @@ Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 p
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Verified (3/3 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
-| 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Pending |
+| 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | In Progress (1/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
@@ -70,6 +70,11 @@ Progress: ██░░░░░░░░ 25% (7 of 28 plans complete across 10 p
 | 36-02 | Priority cascade: param > env > script > default | Standard precedence pattern; allows external override via env var | Backward compatible - no Priority param = Normal default |
 | 36-03 | Module scope invocation for Get-WindowsESDMetadata tests | PS 7.5 export issue prevents direct Get-Command; function exists in module internal scope | Tests verify function through module scope and AST analysis |
 | 36-03 | AST verification for function structure | When direct mocking is impractical, verify code structure via AST parsing | Validates regex patterns, return types, error handling without invoking |
+| 37-01 | Replace all raw mutex with Invoke-WithNamedMutex wrapper | Cleaner pattern with timeout, best-effort release, automatic dispose | Consistent mutex handling across Add-Win32SilentInstallCommand and Get-Apps |
+| 37-01 | Use SHA256-based mutex name per JSON file path | Different JSON files get different mutexes; replaces hardcoded lock name | Correct cross-process synchronization for multiple JSON files |
+| 37-01 | Three-tier deduplication: PackageIdentifier, Name, CommandLine+Args | Names vary with architecture suffixes; PackageIdentifier is canonical | Correct dedup for dependencies with architecture variants |
+| 37-01 | Capture scriptblock return to handle duplicate detection | return inside scriptblock exits scriptblock, not outer function | Prevents function continuing after duplicate-skip return |
+| 37-01 | Pre-add Add-Win32DependencySilentInstallCommands to Export-ModuleMember | PowerShell silently ignores export of non-existent functions | Prevents Plan 02 from needing to touch same Export-ModuleMember line |
 
 ## Blockers
 
@@ -77,10 +82,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-01-28
-**Stopped at:** Phase 36 verified and complete
+**Last session:** 2026-01-29
+**Stopped at:** Completed 37-01-PLAN.md (helper functions + Add-Win32SilentInstallCommand upgrade)
 **Resume file:** None
-**Next action:** /gsd:discuss-phase 37 (Winget App Ordering — depends on Phase 34)
+**Next action:** Execute 37-02-PLAN.md (dependency resolution + ordering)
 
 ---
-*State updated: 2026-01-28 after Phase 36 verified*
+*State updated: 2026-01-29 after 37-01 plan complete*
