@@ -84,46 +84,108 @@ function Get-DellDriversModelList {
             throw "Dell Catalog XML file '$dellCatalogXML' not found after download/check attempt."
         }
         
-        # Use XmlReader for streaming from the XML file
+        # Use XmlReader for streaming with ReadSubtree() per SoftwareComponent
+        # This approach extracts GroupManifest/Display CDATA (preferred) with Brand+Model dedup fallback
+        # to prevent duplicate brand prefixes like "Dell Dell Latitude" (upstream commit 667edf3)
         $settings = New-Object System.Xml.XmlReaderSettings
         $settings.IgnoreWhitespace = $true
         $settings.IgnoreComments = $true
-        # $settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore # Optional
 
         $reader = [System.Xml.XmlReader]::Create($dellCatalogXML, $settings)
         WriteLog "Starting XML stream parsing for Dell models from '$dellCatalogXML'..."
 
-        $isDriverComponent = $false
-        $isModelElement = $false
-        $modelDepth = -1 # Track depth to handle nested elements if needed
+        $normalizedCount = 0
 
-        # Read through the XML stream node by node
         while ($reader.Read()) {
-            switch ($reader.NodeType) {
-                ([System.Xml.XmlNodeType]::Element) {
-                    switch ($reader.Name) {
-                        'SoftwareComponent' { $isDriverComponent = $false } # Reset flag
-                        'ComponentType' { if ($reader.GetAttribute('value') -eq 'DRVR') { $isDriverComponent = $true } }
-                        'Model' { if ($isDriverComponent) { $isModelElement = $true; $modelDepth = $reader.Depth } }
-                    }
+            if ($reader.NodeType -ne [System.Xml.XmlNodeType]::Element -or $reader.Name -ne 'SoftwareComponent') {
+                continue
+            }
+
+            # Read entire SoftwareComponent as DOM subtree for reliable child access
+            $subtreeReader = $reader.ReadSubtree()
+            $componentDoc = New-Object System.Xml.XmlDocument
+            $componentDoc.Load($subtreeReader)
+            $subtreeReader.Dispose()
+
+            # Check if this is a driver component
+            $componentTypeNode = $componentDoc.SelectSingleNode("//ComponentType[@value='DRVR']")
+            if ($null -eq $componentTypeNode) {
+                continue
+            }
+
+            # Process each Brand within SupportedSystems
+            $brandNodes = $componentDoc.SelectNodes("//SupportedSystems/Brand")
+            if ($null -eq $brandNodes) {
+                continue
+            }
+
+            foreach ($brandNode in $brandNodes) {
+                # Extract brand display name (e.g., "Dell")
+                $brandDisplayNode = $brandNode.SelectSingleNode("Display")
+                $brandName = if ($null -ne $brandDisplayNode) {
+                    $brandDisplayNode.InnerText.Trim()
                 }
-                ([System.Xml.XmlNodeType]::CDATA) {
-                    if ($isModelElement -and $isDriverComponent) {
-                        $modelName = $reader.Value.Trim()
-                        if (-not [string]::IsNullOrWhiteSpace($modelName)) { $uniqueModelNames.Add($modelName) | Out-Null }
-                        $isModelElement = $false # Reset after reading CDATA
-                    }
+                else {
+                    ''
                 }
-                ([System.Xml.XmlNodeType]::EndElement) {
-                    switch ($reader.Name) {
-                        'SoftwareComponent' { $isDriverComponent = $false; $isModelElement = $false; $modelDepth = -1 }
-                        'Model' { if ($reader.Depth -eq $modelDepth) { $isModelElement = $false; $modelDepth = -1 } }
+
+                # Process each Model within this Brand
+                $modelNodes = $brandNode.SelectNodes("Model")
+                if ($null -eq $modelNodes) {
+                    continue
+                }
+
+                foreach ($modelNode in $modelNodes) {
+                    # Get raw Model/Display text
+                    $modelDisplayNode = $modelNode.SelectSingleNode("Display")
+                    $rawModelDisplay = if ($null -ne $modelDisplayNode) {
+                        $modelDisplayNode.InnerText.Trim()
+                    }
+                    else {
+                        ''
+                    }
+
+                    # Check for GroupManifest/Display (preferred source, upstream commit 667edf3)
+                    $groupManifestDisplayNode = $modelNode.SelectSingleNode("GroupManifest/Display")
+                    $finalModelName = $null
+
+                    if ($null -ne $groupManifestDisplayNode) {
+                        $gmText = $groupManifestDisplayNode.InnerText.Trim()
+                        if (-not [string]::IsNullOrWhiteSpace($gmText)) {
+                            # Strip "PDK Catalog for " prefix (case-insensitive)
+                            $finalModelName = $gmText -replace '(?i)^PDK Catalog for\s+', ''
+                            $finalModelName = $finalModelName.Trim()
+                            if ($finalModelName -ne $rawModelDisplay -and
+                                -not [string]::IsNullOrWhiteSpace($rawModelDisplay)) {
+                                WriteLog "Dell model normalized: '$rawModelDisplay' -> '$finalModelName' (via GroupManifest Display)"
+                                $normalizedCount++
+                            }
+                        }
+                    }
+
+                    # Fallback: construct from Brand + Model with StartsWith dedup
+                    if ([string]::IsNullOrWhiteSpace($finalModelName)) {
+                        if ([string]::IsNullOrWhiteSpace($rawModelDisplay)) {
+                            continue
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($brandName) -and
+                            -not $rawModelDisplay.StartsWith($brandName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                            # Prepend brand name only if model doesn't already start with it
+                            $finalModelName = "$brandName $rawModelDisplay"
+                        }
+                        else {
+                            $finalModelName = $rawModelDisplay
+                        }
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($finalModelName)) {
+                        $uniqueModelNames.Add($finalModelName) | Out-Null
                     }
                 }
             }
         } # End while ($reader.Read())
 
-        WriteLog "Finished XML stream parsing. Found $($uniqueModelNames.Count) unique Dell models."
+        WriteLog "Finished XML stream parsing. Found $($uniqueModelNames.Count) unique Dell models ($normalizedCount normalized via GroupManifest)."
 
     }
     catch {
@@ -288,16 +350,57 @@ function Save-DellDriversTask {
                         continue
                     }
                     
-                    # Check if component supports the model
-                    $modelNodes = $component.SelectNodes("//SupportedSystems/Brand/Model")
+                    # Check if component supports the model (checks both Model/Display and
+                    # GroupManifest/Display with "PDK Catalog for" prefix stripped, per upstream 667edf3)
                     $modelMatch = $false
-                    
-                    foreach ($modelNode in $modelNodes) {
-                        $displayNode = $modelNode.SelectSingleNode("Display")
-                        if ($null -ne $displayNode -and $displayNode.InnerText.Trim() -eq $modelName) {
-                            $modelMatch = $true
-                            break
+                    $brandNodes = $component.SelectNodes("//SupportedSystems/Brand")
+
+                    foreach ($brandNode in $brandNodes) {
+                        $brandDisplayNode = $brandNode.SelectSingleNode("Display")
+                        $brandName = if ($null -ne $brandDisplayNode) {
+                            $brandDisplayNode.InnerText.Trim()
                         }
+                        else { '' }
+
+                        $modelNodes = $brandNode.SelectNodes("Model")
+                        if ($null -eq $modelNodes) { continue }
+
+                        foreach ($modelNode in $modelNodes) {
+                            # Check Model/Display text
+                            $displayNode = $modelNode.SelectSingleNode("Display")
+                            if ($null -ne $displayNode -and $displayNode.InnerText.Trim() -eq $modelName) {
+                                $modelMatch = $true
+                                break
+                            }
+
+                            # Check GroupManifest/Display text (stripped of "PDK Catalog for" prefix)
+                            $gmDisplayNode = $modelNode.SelectSingleNode("GroupManifest/Display")
+                            if ($null -ne $gmDisplayNode) {
+                                $gmText = $gmDisplayNode.InnerText.Trim()
+                                $gmNormalized = $gmText -replace '(?i)^PDK Catalog for\s+', ''
+                                $gmNormalized = $gmNormalized.Trim()
+                                if ($gmNormalized -eq $modelName) {
+                                    $modelMatch = $true
+                                    break
+                                }
+                            }
+
+                            # Check Brand+Model assembly with StartsWith dedup
+                            if (-not [string]::IsNullOrWhiteSpace($brandName) -and $null -ne $displayNode) {
+                                $rawModel = $displayNode.InnerText.Trim()
+                                $assembledName = if ($rawModel.StartsWith($brandName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                    $rawModel
+                                }
+                                else {
+                                    "$brandName $rawModel"
+                                }
+                                if ($assembledName -eq $modelName) {
+                                    $modelMatch = $true
+                                    break
+                                }
+                            }
+                        }
+                        if ($modelMatch) { break }
                     }
                     
                     if ($modelMatch) {
