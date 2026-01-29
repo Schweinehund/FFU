@@ -200,6 +200,13 @@ function Save-DriversJson {
                     $modelObject = @{
                         Name = $driverItem.Model
                     }
+                    # Include CatalogIndexPC fields when available (Phase 40)
+                    if ($driverItem.PSObject.Properties['SystemId'] -and -not [string]::IsNullOrWhiteSpace($driverItem.SystemId)) {
+                        $modelObject['SystemId'] = $driverItem.SystemId
+                    }
+                    if ($driverItem.PSObject.Properties['CabUrl'] -and -not [string]::IsNullOrWhiteSpace($driverItem.CabUrl)) {
+                        $modelObject['CabUrl'] = $driverItem.CabUrl
+                    }
                 }
                 'HP' {
                     $modelObject = @{
@@ -729,6 +736,13 @@ function Invoke-DownloadSelectedDrivers {
                         'Dell' {
                             $modelObject = @{
                                 Name = $driverItem.Model # Model is the display name
+                            }
+                            # Include CatalogIndexPC fields when available (Phase 40)
+                            if ($driverItem.PSObject.Properties['SystemId'] -and -not [string]::IsNullOrWhiteSpace($driverItem.SystemId)) {
+                                $modelObject['SystemId'] = $driverItem.SystemId
+                            }
+                            if ($driverItem.PSObject.Properties['CabUrl'] -and -not [string]::IsNullOrWhiteSpace($driverItem.CabUrl)) {
+                                $modelObject['CabUrl'] = $driverItem.CabUrl
                             }
                         }
                         'HP' {
