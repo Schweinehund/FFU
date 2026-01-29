@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.4.0'
+    ModuleVersion = '1.5.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -68,7 +68,11 @@
         'Get-LenovoDrivers',
         'Get-DellDrivers',
         'Copy-Drivers',
-        'Get-IntelEthernetDrivers'
+        'Get-IntelEthernetDrivers',
+        'Get-AvailableDriveLetter',
+        'New-DriverSubstMapping',
+        'Remove-DriverSubstMapping',
+        'Invoke-DismDriverInjectionWithSubstLoop'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -106,6 +110,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.5.0: Phase 38 SUBST Drive Mapping for Long Paths (PATH-01)
+- Added Get-AvailableDriveLetter: Scans Z->A for first unused drive letter
+- Added New-DriverSubstMapping: Creates SUBST virtual drive mapping with defensive pre-removal
+- Added Remove-DriverSubstMapping: Removes SUBST mapping with non-blocking error handling
+- Added Invoke-DismDriverInjectionWithSubstLoop: Sequential SUBST-based DISM driver injection
+- Copy-Drivers: GUID normalization strips trailing INF comments, -LiteralPath for all Copy-Item calls
+
 v1.4.0: Phase 33 OEM Driver Logging (LOG-01 through LOG-06)
 - All OEM driver operations now log to FFUDevelopment.log via WriteLog with structured [OEM][Model][Operation] prefixes
 - Dual output preserves Write-Host/Write-Verbose console visibility for interactive builds

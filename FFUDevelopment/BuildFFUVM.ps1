@@ -1547,7 +1547,7 @@ class VhdxCacheItem {
 
 #Support for ini reading
 $definition = @'
-[DllImport("kernel32.dll")]
+[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 public static extern uint GetPrivateProfileString(
     string lpAppName,
     string lpKeyName,
@@ -1556,7 +1556,7 @@ public static extern uint GetPrivateProfileString(
     uint nSize,
     string lpFileName);
 
-[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 public static extern uint GetPrivateProfileSection(
     string lpAppName,
     byte[] lpReturnedString,

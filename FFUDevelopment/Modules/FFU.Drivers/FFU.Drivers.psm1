@@ -541,6 +541,207 @@ Large $Vendor driver set detected. Options:
     return $result
 }
 
+# --------------------------------------------------------------------------
+# SECTION: SUBST Drive Mapping Helpers (Phase 38 - Long Path Reliability)
+# --------------------------------------------------------------------------
+
+function Get-AvailableDriveLetter {
+    <#
+    .SYNOPSIS
+    Finds the first available drive letter for SUBST mapping
+
+    .DESCRIPTION
+    Scans drive letters from Z to A (reverse alphabetical) to find the first
+    unused drive letter available for SUBST virtual drive mapping. Returns
+    $null if all 26 letters are in use.
+
+    .OUTPUTS
+    [char] The first available drive letter, or $null if none available
+
+    .EXAMPLE
+    $letter = Get-AvailableDriveLetter
+    if ($letter) {
+        Write-Host "Available drive letter: $letter"
+    }
+
+    .NOTES
+    Phase 38 PATH-01: SUBST Drive Mapping for Long Paths
+    Scans in reverse order (Z->A) to avoid conflicts with common drive letters
+    #>
+    [CmdletBinding()]
+    [OutputType([char])]
+    param()
+
+    # Get all currently used drive letters (filesystem only)
+    $usedDriveLetters = (Get-PSDrive -PSProvider FileSystem).Name | ForEach-Object { $_.ToUpperInvariant() }
+
+    # Scan from Z (ASCII 90) down to A (ASCII 65)
+    for ($asciiCode = 90; $asciiCode -ge 65; $asciiCode--) {
+        $letter = [char]$asciiCode
+        if ($letter -notin $usedDriveLetters) {
+            return $letter
+        }
+    }
+
+    # All 26 letters are in use
+    return $null
+}
+
+function New-DriverSubstMapping {
+    <#
+    .SYNOPSIS
+    Creates a SUBST virtual drive mapping for a driver folder
+
+    .DESCRIPTION
+    Maps a long driver folder path to a virtual drive letter using Windows SUBST
+    command. This enables reliable driver injection from paths exceeding 260
+    characters by creating a short virtual path (e.g., Z:\).
+
+    Performs defensive pre-removal of any existing mapping on the selected drive
+    letter before creating the new mapping. Returns mapping details or $null on
+    failure (with WARNING logged).
+
+    .PARAMETER SourcePath
+    Full path to the driver folder to map
+
+    .OUTPUTS
+    [PSCustomObject] Object with DriveLetter, DriveName, DrivePath properties
+    Returns $null on failure (no available drive letters or SUBST command fails)
+
+    .EXAMPLE
+    $mapping = New-DriverSubstMapping -SourcePath "C:\Very\Long\Path\To\Drivers"
+    if ($mapping) {
+        Write-Host "Mapped to $($mapping.DrivePath)"
+    }
+
+    .NOTES
+    Phase 38 PATH-01: SUBST Drive Mapping for Long Paths
+    Non-throwing: Returns $null with WARNING on failure (no drive letters or SUBST error)
+    Calls cmd.exe for SUBST commands (PowerShell has no native SUBST cmdlet)
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourcePath
+    )
+
+    try {
+        # Resolve the source path to full path
+        $resolvedPath = (Resolve-Path -Path $SourcePath -ErrorAction Stop).Path
+
+        # Get an available drive letter
+        $driveLetter = Get-AvailableDriveLetter
+        if ($null -eq $driveLetter) {
+            $warningMsg = "No available drive letters for SUBST mapping of '$resolvedPath'"
+            if ($function:WriteLog) {
+                WriteLog "WARNING: $warningMsg"
+            }
+            else {
+                Write-Verbose "WARNING: $warningMsg"
+            }
+            return $null
+        }
+
+        # Build drive name (e.g., "Z:")
+        $driveName = "$driveLetter`:"
+
+        # Defensively remove any existing mapping first (ignore errors)
+        cmd.exe /c subst $driveName /d 2>&1 | Out-Null
+
+        # Log the mapping operation
+        WriteLog "[SUBST] Mapping driver folder '$resolvedPath' to $driveName"
+
+        # Escape path for cmd.exe (double quotes inside quoted string)
+        $escapedPath = $resolvedPath -replace '"', '""'
+
+        # Create the SUBST mapping
+        $result = cmd.exe /c subst $driveName "`"$escapedPath`"" 2>&1
+
+        # Check for success
+        if ($LASTEXITCODE -ne 0) {
+            $warningMsg = "SUBST command failed with exit code $LASTEXITCODE for '$resolvedPath': $result"
+            if ($function:WriteLog) {
+                WriteLog "WARNING: $warningMsg"
+            }
+            else {
+                Write-Verbose "WARNING: $warningMsg"
+            }
+            return $null
+        }
+
+        # Return mapping details
+        return [PSCustomObject]@{
+            DriveLetter = $driveLetter
+            DriveName   = $driveName
+            DrivePath   = "$driveLetter`:\"
+        }
+    }
+    catch {
+        $warningMsg = "Failed to create SUBST mapping for '$SourcePath': $($_.Exception.Message)"
+        if ($function:WriteLog) {
+            WriteLog "WARNING: $warningMsg"
+        }
+        else {
+            Write-Verbose "WARNING: $warningMsg"
+        }
+        return $null
+    }
+}
+
+function Remove-DriverSubstMapping {
+    <#
+    .SYNOPSIS
+    Removes a SUBST virtual drive mapping
+
+    .DESCRIPTION
+    Unmaps a virtual drive letter created by New-DriverSubstMapping. This cleanup
+    operation is non-blocking and logs warnings on failure without throwing
+    exceptions.
+
+    .PARAMETER DriveLetter
+    Drive letter to remove (single character, e.g., 'Z')
+
+    .EXAMPLE
+    Remove-DriverSubstMapping -DriveLetter 'Z'
+
+    .NOTES
+    Phase 38 PATH-01: SUBST Drive Mapping for Long Paths
+    Non-blocking: Logs WARNING on failure but never throws
+    Safe to call even if mapping doesn't exist
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DriveLetter
+    )
+
+    try {
+        # Build drive name (e.g., "Z:")
+        $driveName = "$DriveLetter`:"
+
+        # Log the removal operation
+        WriteLog "[SUBST] Removing drive mapping $driveName"
+
+        # Remove the SUBST mapping
+        cmd.exe /c subst $driveName /d 2>&1 | Out-Null
+
+        # Note: We don't check LASTEXITCODE here because it's non-blocking cleanup
+        # If the mapping doesn't exist, SUBST returns error but we don't care
+    }
+    catch {
+        $warningMsg = "Failed to remove SUBST mapping for drive '$DriveLetter': $($_.Exception.Message)"
+        if ($function:WriteLog) {
+            WriteLog "WARNING: $warningMsg"
+        }
+        else {
+            Write-Verbose "WARNING: $warningMsg"
+        }
+        # Non-blocking: continue execution
+    }
+}
+
 function Get-MicrosoftDrivers {
     <#
     .SYNOPSIS
@@ -2275,5 +2476,10 @@ Export-ModuleMember -Function @(
     'Get-LenovoDrivers',
     'Get-DellDrivers',
     'Copy-Drivers',
+    'Get-IntelEthernetDrivers',
+    'Get-AvailableDriveLetter',
+    'New-DriverSubstMapping',
+    'Remove-DriverSubstMapping',
+    'Invoke-DismDriverInjectionWithSubstLoop'
     'Get-IntelEthernetDrivers'
 )
