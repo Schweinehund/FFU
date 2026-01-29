@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 37 of 43 (Winget App Ordering and Dependencies) - In Progress
-**Plan:** 2 of 3 complete (37-01, 37-02)
-**Status:** In progress — Plans 37-01 and 37-02 complete, Plan 37-03 pending
-**Last activity:** 2026-01-29 — Completed 37-02-PLAN.md (dependency resolution + post-download reorder)
+**Phase:** 37 of 43 (Winget App Ordering and Dependencies) - Complete
+**Plan:** 3 of 3 complete (37-01, 37-02, 37-03)
+**Status:** Phase complete — All 3 plans verified
+**Last activity:** 2026-01-29 — Completed 37-03-PLAN.md (Pester tests for ordering and dependencies)
 
-Progress: ███░░░░░░░ 32% (9 of 28 plans complete across 10 phases)
+Progress: ████░░░░░░ 36% (10 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -38,7 +38,7 @@ Progress: ███░░░░░░░ 32% (9 of 28 plans complete across 10 p
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Verified (3/3 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
-| 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | In Progress (2/3 plans) |
+| 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
@@ -79,6 +79,9 @@ Progress: ███░░░░░░░ 32% (9 of 28 plans complete across 10 p
 | 37-02 | Dependencies slot before parent via IsDependency=0 in stable sort | DependencyFor marker enables grouping deps with their parent | Correct install order: deps before dependent apps |
 | 37-02 | Dependency failure is WARNING only | Build should not fail due to optional dependency processing | Robustness - main app installs regardless of dep processing failure |
 | 37-02 | Architecture suffix normalization via regex | App names include (x64) etc but AppList.json uses plain names | Correct matching between WinGetWin32Apps.json entries and AppList.json |
+| 37-03 | Module scope invocation for testing non-exported functions | Helper functions are internal (not exported) but need test coverage | Enables comprehensive testing without exposing implementation details |
+| 37-03 | Background runspace for mutex contention testing | Raw Threads lack PowerShell runspace; need cross-thread mutex test | Correct mutex timeout verification without crashes |
+| 37-03 | Inline reorder algorithm simulation in tests | Get-Apps has too many external dependencies (WinGet, network) for unit tests | Tests verify ordering logic directly without integration dependencies |
 
 ## Blockers
 
@@ -87,9 +90,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 37-02-PLAN.md (dependency resolution + post-download reorder)
+**Stopped at:** Completed 37-03-PLAN.md (Pester tests for Phase 37 features)
 **Resume file:** None
-**Next action:** Execute 37-03-PLAN.md (Pester tests for ordering and dependencies)
+**Next action:** Execute Phase 38 (SUBST Drive Mapping)
 
 ---
-*State updated: 2026-01-29 after 37-02 plan complete*
+*State updated: 2026-01-29 after 37-03 plan complete (Phase 37 complete)*
