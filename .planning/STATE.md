@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 40 of 43 (Dell Refactoring) - IN PROGRESS
-**Plan:** 1 of 3 complete (40-01)
-**Status:** Phase 40 in progress — CatalogIndexPC infrastructure complete
-**Last activity:** 2026-01-29 — Completed 40-01-PLAN.md
+**Plan:** 2 of 3 complete (40-02)
+**Status:** Phase 40 in progress — UI-layer CatalogIndexPC complete
+**Last activity:** 2026-01-29 — Completed 40-02-PLAN.md
 
-Progress: █████░░░░░ 54% (15 of 28 plans complete across 10 phases)
+Progress: █████░░░░░ 57% (16 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -41,7 +41,7 @@ Progress: █████░░░░░ 54% (15 of 28 plans complete across 10 
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
-| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | In Progress (1/3 plans) |
+| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | In Progress (2/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
@@ -103,6 +103,9 @@ Progress: █████░░░░░ 54% (15 of 28 plans complete across 10 
 | 40-01 | Use CatalogIndexPC as primary catalog source for Windows client Dell drivers | Reduces download size from 160MB (CatalogPC.cab) to 5-10MB (index) + 1-5MB (model cab) = 10-30x bandwidth reduction | Bandwidth savings significant for corporate environments with hundreds of builds |
 | 40-01 | Three-tier fallback: CatalogIndexPC → CatalogPC.cab → graceful failure | Ensures builds never break due to Dell URL changes or schema differences | Defense-in-depth for production reliability |
 | 40-01 | Delete model-specific cab files after extraction to XML | Saves disk space (1-5MB per model) - cache is managed at index level | Disk space more valuable than re-extraction time (rarely needed) |
+| 40-02 | Duplicate CatalogIndexPC helper functions in UI layer | Matches existing pattern where UI and build layers have independent implementations | UI cannot import FFU.Drivers.psm1 due to build-layer dependencies |
+| 40-02 | SystemId and CabUrl are optional in Drivers.json | Models from CatalogPC.cab fallback lack these fields | Enables silent upgrade path for old Drivers.json files without breaking changes |
+| 40-02 | Use PSObject.Properties check before accessing SystemId/CabUrl | Handles models without these properties gracefully (no errors, defaults to $null) | Cleaner than try/catch, preserves other error visibility |
 
 ## Blockers
 
@@ -111,9 +114,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 40-01-PLAN.md
+**Stopped at:** Completed 40-02-PLAN.md
 **Resume file:** None
-**Next action:** Continue Phase 40 Plan 02 (Dell Refactoring)
+**Next action:** Continue Phase 40 Plan 03 (Dell Refactoring - Save-DellDriversTask integration)
 
 ---
-*State updated: 2026-01-29 after Plan 40-01 complete (CatalogIndexPC infrastructure)*
+*State updated: 2026-01-29 after Plan 40-02 complete (UI-layer CatalogIndexPC support)*
