@@ -674,11 +674,17 @@ function Confirm-WinGetInstallation {
 }
 function Add-Win32SilentInstallCommand {
     param (
+        [Parameter(Mandatory = $true)]
         [string]$AppFolder,
         [string]$AppFolderPath,
         [Parameter(Mandatory = $true)]
         [string]$OrchestrationPath,
-        [string]$SubFolder
+        [string]$SubFolder,
+        [string]$YamlFilePath,
+        [string]$BasePathOverride,
+        [string]$PackageIdentifier,
+        [string]$DependencyFor,
+        [switch]$SkipRemoveOnFailure
     )
     $appName = $AppFolder
 
@@ -686,14 +692,21 @@ function Add-Win32SilentInstallCommand {
     $installerCandidates = Get-ChildItem -Path "$appFolderPath\*" -Include "*.exe", "*.msi" -File -ErrorAction SilentlyContinue
     if (-not $installerCandidates) {
         WriteLog "No win32 app installers were found. Skipping the inclusion of $AppFolder"
-        if (-not [string]::IsNullOrWhiteSpace($AppFolderPath)) {
-            Remove-Item -Path $AppFolderPath -Recurse -Force -ErrorAction SilentlyContinue
+        if (-not $SkipRemoveOnFailure) {
+            if (-not [string]::IsNullOrWhiteSpace($AppFolderPath)) {
+                Remove-Item -Path $AppFolderPath -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
         return 1
     }
 
     # Read the exported WinGet YAML
-    $yamlFile = Get-ChildItem -Path "$appFolderPath\*" -Include "*.yaml" -File -ErrorAction Stop
+    if (-not [string]::IsNullOrWhiteSpace($YamlFilePath)) {
+        $yamlFile = Get-Item -Path $YamlFilePath -ErrorAction Stop
+    }
+    else {
+        $yamlFile = Get-ChildItem -Path "$appFolderPath\*" -Include "*.yaml" -File -ErrorAction Stop
+    }
     $yamlText = Get-Content -Path $yamlFile -Raw
 
     # Attempt to resolve the correct installer from YAML NestedInstallerFiles within the matching Architecture block
@@ -752,8 +765,10 @@ function Add-Win32SilentInstallCommand {
     }
     if (-not $silentInstallSwitch) {
         WriteLog "Silent install switch for $appName could not be found. Skipping the inclusion of $appName."
-        if (-not [string]::IsNullOrWhiteSpace($appFolderPath)) {
-            Remove-Item -Path $appFolderPath -Recurse -Force -ErrorAction SilentlyContinue
+        if (-not $SkipRemoveOnFailure) {
+            if (-not [string]::IsNullOrWhiteSpace($appFolderPath)) {
+                Remove-Item -Path $appFolderPath -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
         return 2
     }
@@ -798,16 +813,38 @@ function Add-Win32SilentInstallCommand {
                     WriteLog "Multiple installers found. YAML not used. Falling back to single EXE: $resolvedRelativePath"
                 }
                 else {
-                    $first = $installerCandidates | Select-Object -First 1
-                    $resolvedRelativePath = $first.Name
-                    $installerExt = $first.Extension
-                    WriteLog "Multiple installers found and ambiguous. Selecting the first candidate: $resolvedRelativePath"
+                    # Multi-installer disambiguation by YAML basename match
+                    $yamlBaseMatch = $null
+                    if (-not [string]::IsNullOrWhiteSpace($YamlFilePath)) {
+                        $yamlBaseName = [System.IO.Path]::GetFileNameWithoutExtension($YamlFilePath)
+                        $yamlBaseMatch = $installerCandidates | Where-Object {
+                            $_.BaseName -ieq $yamlBaseName
+                        } | Select-Object -First 1
+                        if ($yamlBaseMatch) {
+                            WriteLog "Multiple installers found. Disambiguated by YAML basename '$yamlBaseName': $($yamlBaseMatch.Name)"
+                        }
+                    }
+                    if ($yamlBaseMatch) {
+                        $resolvedRelativePath = $yamlBaseMatch.Name
+                        $installerExt = $yamlBaseMatch.Extension
+                    }
+                    else {
+                        $first = $installerCandidates | Select-Object -First 1
+                        $resolvedRelativePath = $first.Name
+                        $installerExt = $first.Extension
+                        WriteLog "Multiple installers found and ambiguous. Selecting the first candidate: $resolvedRelativePath"
+                    }
                 }
             }
         }
     }
 
-    $basePath = "D:\win32\$AppFolder"
+    $basePath = if (-not [string]::IsNullOrWhiteSpace($BasePathOverride)) {
+        $BasePathOverride
+    }
+    else {
+        "D:\win32\$AppFolder"
+    }
     if (-not [string]::IsNullOrEmpty($SubFolder)) {
         $basePath = "$basePath\$SubFolder"
     }
@@ -827,50 +864,90 @@ function Add-Win32SilentInstallCommand {
 
     # Path to the JSON file
     $wingetWin32AppsJson = "$OrchestrationPath\WinGetWin32Apps.json"
+    $appNameToCheck = if (-not [string]::IsNullOrEmpty($SubFolder)) { "$appName ($SubFolder)" } else { $appName }
 
-    # Use a lock to prevent race conditions when writing to the same file
-    $lockName = "WinGetWin32AppsJsonLock"
-    $lock = New-Object System.Threading.Mutex($false, $lockName)
-    try {
-        [void]$lock.WaitOne()
-
+    # Use named mutex wrapper for thread-safe JSON read/write
+    $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $wingetWin32AppsJson
+    $outcome = Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
         # Initialize or load existing JSON data
         if (Test-Path -Path $wingetWin32AppsJson) {
             [array]$appsData = Get-Content -Path $wingetWin32AppsJson -Raw | ConvertFrom-Json
-
-            # Check for duplicate entry inside the lock
-            $appNameToCheck = if (-not [string]::IsNullOrEmpty($SubFolder)) { "$appName ($SubFolder)" } else { $appName }
-            if ($appsData | Where-Object { $_.Name -eq $appNameToCheck }) {
-                WriteLog "App '$appNameToCheck' already in WinGetWin32Apps.json (checked inside lock)"
-                return 0
-            }
-
-            # Get highest priority value
-            if ($appsData.Count -gt 0) {
-                $highestPriority = $appsData.Count + 1
-            }
+            if ($null -eq $appsData) { $appsData = @() }
         }
         else {
             $appsData = @()
+        }
+
+        # De-dupe by PackageIdentifier first, then by name, then by command+args
+        $isDuplicate = $false
+        if (-not [string]::IsNullOrWhiteSpace($PackageIdentifier)) {
+            $existingById = $appsData | Where-Object {
+                $_.PSObject.Properties['PackageIdentifier'] -and
+                $_.PackageIdentifier -eq $PackageIdentifier
+            } | Select-Object -First 1
+            if ($existingById) {
+                $isDuplicate = $true
+                WriteLog "Skipping duplicate Win32 install entry: Name='$appNameToCheck' PackageIdentifier='$PackageIdentifier'"
+            }
+        }
+        if (-not $isDuplicate) {
+            # Fall back to existing name-based check
+            if ($appsData | Where-Object { $_.Name -eq $appNameToCheck }) {
+                $isDuplicate = $true
+                WriteLog "App '$appNameToCheck' already in WinGetWin32Apps.json (checked inside lock)"
+            }
+        }
+        if (-not $isDuplicate) {
+            # Also check by CommandLine + Arguments
+            $existingByCommand = $appsData | Where-Object {
+                $_.PSObject.Properties['CommandLine'] -and
+                $_.PSObject.Properties['Arguments'] -and
+                $_.CommandLine -eq $silentInstallCommand -and
+                $_.Arguments -eq $silentInstallSwitch
+            } | Select-Object -First 1
+            if ($existingByCommand) {
+                $isDuplicate = $true
+                WriteLog "Skipping duplicate Win32 install entry by command match: Name='$appNameToCheck'"
+            }
+        }
+        if ($isDuplicate) {
+            return @{ Added = $false; Reason = 'Duplicate' }
+        }
+
+        # Get highest priority value
+        if ($appsData.Count -gt 0) {
+            $highestPriority = $appsData.Count + 1
+        }
+        else {
             $highestPriority = 1
         }
 
         # Create new app entry
         $newApp = [PSCustomObject]@{
             Priority    = $highestPriority
-            Name        = if (-not [string]::IsNullOrEmpty($SubFolder)) { "$appName ($SubFolder)" } else { $appName }
+            Name        = $appNameToCheck
             CommandLine = $silentInstallCommand
             Arguments   = $silentInstallSwitch
         }
+        # Add optional metadata properties
+        if (-not [string]::IsNullOrWhiteSpace($PackageIdentifier)) {
+            $newApp | Add-Member -NotePropertyName PackageIdentifier -NotePropertyValue $PackageIdentifier
+        }
+        if (-not [string]::IsNullOrWhiteSpace($DependencyFor)) {
+            $newApp | Add-Member -NotePropertyName DependencyFor -NotePropertyValue $DependencyFor
+        }
 
         $appsData += $newApp
-        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $wingetWin32AppsJson
+        $jsonText = $appsData | ConvertTo-Json -Depth 10
+        Set-FileContentAtomic -Path $wingetWin32AppsJson -Content $jsonText
 
         WriteLog "Added $($newApp.Name) to WinGetWin32Apps.json with priority $highestPriority"
+        return @{ Added = $true }
     }
-    finally {
-        $lock.ReleaseMutex()
-        $lock.Dispose()
+
+    # Handle scriptblock result (return inside scriptblock only exits scriptblock)
+    if ($outcome -is [hashtable] -and $outcome.Added -eq $false) {
+        return 0  # Duplicate, but success
     }
 
     # Return 0 for success
