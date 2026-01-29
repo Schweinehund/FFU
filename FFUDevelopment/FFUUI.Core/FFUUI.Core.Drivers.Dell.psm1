@@ -5,6 +5,180 @@
     This module contains the logic specific to handling Dell drivers for the FFU Builder UI. It includes functions to parse Dell's large XML driver catalog to retrieve a list of supported models (Get-DellDriversModelList). It also provides a parallel-capable task function (Save-DellDriversTask) that finds, downloads, extracts, and optionally compresses all the latest driver packages for a specified Dell model and operating system.
 #>
 
+# Internal helper function to download and extract CatalogIndexPC
+function Get-DellCatalogIndex {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder
+    )
+
+    $dellDriversFolder = Join-Path -Path $DriversFolder -ChildPath "Dell"
+    $catalogIndexPath = Join-Path -Path $dellDriversFolder -ChildPath "CatalogIndexPC.xml"
+    $catalogIndexCab = Join-Path -Path $dellDriversFolder -ChildPath "CatalogIndexPC.cab"
+    $catalogIndexUrl = "https://downloads.dell.com/catalog/CatalogIndexPC.cab"
+
+    try {
+        # Check if cached CatalogIndexPC.xml exists and is less than 7 days old
+        if (Test-Path -Path $catalogIndexPath -PathType Leaf) {
+            $fileAge = (Get-Date) - (Get-Item -Path $catalogIndexPath).CreationTime
+            if ($fileAge.TotalDays -lt 7) {
+                WriteLog "Using cached CatalogIndexPC.xml (age: $([Math]::Round($fileAge.TotalDays, 1)) days)"
+                return $catalogIndexPath
+            }
+            WriteLog "Cached CatalogIndexPC.xml is $([Math]::Round($fileAge.TotalDays, 1)) days old (> 7 days). Re-downloading."
+        }
+
+        # Ensure Dell drivers folder exists
+        if (-not (Test-Path -Path $dellDriversFolder -PathType Container)) {
+            WriteLog "Creating Dell drivers folder: $dellDriversFolder"
+            New-Item -Path $dellDriversFolder -ItemType Directory -Force | Out-Null
+        }
+
+        # Remove old files
+        if (Test-Path -Path $catalogIndexCab) { Remove-Item -Path $catalogIndexCab -Force -ErrorAction SilentlyContinue }
+        if (Test-Path -Path $catalogIndexPath) { Remove-Item -Path $catalogIndexPath -Force -ErrorAction SilentlyContinue }
+
+        # Download CatalogIndexPC.cab
+        WriteLog "Downloading CatalogIndexPC.cab from $catalogIndexUrl"
+        Start-BitsTransferWithRetry -Source $catalogIndexUrl -Destination $catalogIndexCab
+        WriteLog "CatalogIndexPC.cab downloaded successfully"
+
+        # Extract cab file using Expand.exe
+        WriteLog "Extracting CatalogIndexPC.cab to $catalogIndexPath"
+        Invoke-Process -FilePath "Expand.exe" -ArgumentList """$catalogIndexCab"" ""$catalogIndexPath""" | Out-Null
+        WriteLog "CatalogIndexPC.cab extracted successfully"
+
+        # Delete the CAB file after extraction
+        if (Test-Path -Path $catalogIndexCab) {
+            Remove-Item -Path $catalogIndexCab -Force -ErrorAction SilentlyContinue
+            WriteLog "Deleted CatalogIndexPC.cab after extraction"
+        }
+
+        # Verify extraction succeeded
+        if (Test-Path -Path $catalogIndexPath -PathType Leaf) {
+            return $catalogIndexPath
+        }
+        else {
+            WriteLog "WARNING: CatalogIndexPC.xml not found after extraction"
+            return $null
+        }
+    }
+    catch {
+        WriteLog "WARNING: Failed to download/extract CatalogIndexPC: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+# Internal helper function to parse CatalogIndexPC.xml and extract client models
+function Get-DellClientModels {
+    [CmdletBinding()]
+    [OutputType([System.Collections.Generic.List[PSCustomObject]])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CatalogIndexPath
+    )
+
+    $models = [System.Collections.Generic.List[PSCustomObject]]::new()
+
+    if (-not (Test-Path -Path $CatalogIndexPath -PathType Leaf)) {
+        WriteLog "WARNING: CatalogIndexPC.xml not found at $CatalogIndexPath"
+        return $models
+    }
+
+    try {
+        WriteLog "Parsing CatalogIndexPC.xml for client models"
+        $settings = New-Object System.Xml.XmlReaderSettings
+        $settings.IgnoreWhitespace = $true
+        $settings.IgnoreComments = $true
+
+        $reader = [System.Xml.XmlReader]::Create($CatalogIndexPath, $settings)
+        try {
+            while ($reader.Read()) {
+                if ($reader.NodeType -eq [System.Xml.XmlNodeType]::Element -and $reader.Name -eq 'SystemConfiguration') {
+                    # Use ReadSubtree for safe DOM parsing
+                    $subtreeReader = $reader.ReadSubtree()
+                    $sysConfigDoc = New-Object System.Xml.XmlDocument
+                    $sysConfigDoc.Load($subtreeReader)
+                    $subtreeReader.Dispose()
+
+                    # Extract model information
+                    $makeNode = $sysConfigDoc.SelectSingleNode("//Make")
+                    $modelNode = $sysConfigDoc.SelectSingleNode("//Model")
+                    $systemIdNode = $sysConfigDoc.SelectSingleNode("//SystemID")
+                    $catalogFileNode = $sysConfigDoc.SelectSingleNode("//CatalogFile")
+
+                    if ($null -ne $makeNode -and $null -ne $modelNode -and $null -ne $systemIdNode -and $null -ne $catalogFileNode) {
+                        $make = $makeNode.InnerText.Trim()
+                        $modelName = $modelNode.InnerText.Trim()
+                        $systemId = $systemIdNode.InnerText.Trim()
+                        $cabRelativePath = $catalogFileNode.InnerText.Trim()
+
+                        # Only include Dell client models
+                        if ($make -eq "Dell" -and -not [string]::IsNullOrWhiteSpace($modelName) -and -not [string]::IsNullOrWhiteSpace($systemId)) {
+                            # Construct full cab URL
+                            $cabUrl = "https://downloads.dell.com/$cabRelativePath"
+
+                            $models.Add([PSCustomObject]@{
+                                    Make     = $make
+                                    Model    = $modelName
+                                    SystemId = $systemId
+                                    CabUrl   = $cabUrl
+                                })
+                        }
+                    }
+                }
+            }
+        }
+        finally {
+            if ($null -ne $reader) {
+                $reader.Dispose()
+            }
+        }
+
+        WriteLog "Parsed $($models.Count) Dell client models from CatalogIndexPC.xml"
+    }
+    catch {
+        WriteLog "WARNING: Error parsing CatalogIndexPC.xml: $($_.Exception.Message)"
+    }
+
+    return $models
+}
+
+# Internal helper function to resolve a Dell model's cab URL from CatalogIndexPC
+function Resolve-DellCabUrlFromModel {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ModelDisplayName,
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.List[PSCustomObject]]$IndexModels
+    )
+
+    # Extract SystemID from model display name (format: "Model Name (XXXX)")
+    if ($ModelDisplayName -match '\(([0-9A-Fa-f]{4})\)\s*$') {
+        $systemId = $matches[1]
+        WriteLog "Extracted SystemID '$systemId' from model display name '$ModelDisplayName'"
+
+        # Find matching model in index
+        $matchingModel = $IndexModels | Where-Object { $_.SystemId -eq $systemId } | Select-Object -First 1
+        if ($null -ne $matchingModel) {
+            WriteLog "Resolved cab URL for SystemID '$systemId': $($matchingModel.CabUrl)"
+            return $matchingModel.CabUrl
+        }
+        else {
+            WriteLog "WARNING: No matching model found in CatalogIndexPC for SystemID '$systemId'"
+        }
+    }
+    else {
+        WriteLog "WARNING: Could not extract SystemID from model display name '$ModelDisplayName'"
+    }
+
+    return $null
+}
+
 # Function to get the list of Dell models from the catalog using XML streaming
 function Get-DellDriversModelList {
     [CmdletBinding()]
@@ -25,9 +199,23 @@ function Get-DellDriversModelList {
     $catalogUrl = if ($WindowsRelease -le 11) { "http://downloads.dell.com/catalog/CatalogPC.cab" } else { "https://downloads.dell.com/catalog/Catalog.cab" }
 
     $uniqueModelNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    $reader = $null 
+    $reader = $null
 
     try {
+        # For WindowsRelease <= 11 (client OS), try CatalogIndexPC first
+        if ($WindowsRelease -le 11) {
+            WriteLog "Attempting to use CatalogIndexPC for Dell model list (WindowsRelease: $WindowsRelease)"
+            $indexXml = Get-DellCatalogIndex -DriversFolder $DriversFolder
+            if ($null -ne $indexXml) {
+                $indexModels = Get-DellClientModels -CatalogIndexPath $indexXml
+                if ($indexModels.Count -gt 0) {
+                    WriteLog "Using CatalogIndexPC: found $($indexModels.Count) Dell models"
+                    return $indexModels
+                }
+            }
+            WriteLog "WARNING: CatalogIndexPC approach failed. Falling back to CatalogPC.cab for model list."
+        }
+
         # Check if the Dell catalog XML exists and is recent
         $downloadCatalog = $true
         if (Test-Path -Path $dellCatalogXML -PathType Leaf) {
