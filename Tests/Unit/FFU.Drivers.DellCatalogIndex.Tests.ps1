@@ -218,3 +218,116 @@ Describe 'Get-DellClientModels - CatalogIndexPC XML Parsing' -Tag 'Unit', 'FFU.D
         }
     }
 }
+
+# =============================================================================
+# Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution
+# =============================================================================
+
+Describe 'Resolve-DellCabUrlFromModel - SystemID Extraction and Resolution' -Tag 'Unit', 'FFU.Drivers', 'Dell', 'CatalogIndexPC' {
+
+    BeforeAll {
+        $script:resolveTestDir = Join-Path $TestDrive 'ResolveTests'
+        New-Item -Path $script:resolveTestDir -ItemType Directory -Force | Out-Null
+        $script:resolveXmlPath = Join-Path $script:resolveTestDir 'CatalogIndexPC.xml'
+        New-MockCatalogIndexXml -OutputPath $script:resolveXmlPath -Models $script:MockModels
+    }
+
+    Context 'Model name with valid SystemID suffix' {
+        It 'Should extract SystemID and return matching CabUrl for Latitude 7490 (0798)' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (0798)' -CatalogIndexPath $XmlPath
+                $result | Should -Not -BeNullOrEmpty
+                $result | Should -BeLike '*Model_Latitude_7490*'
+            }
+        }
+
+        It 'Should extract SystemID and return matching CabUrl for OptiPlex 7080 (09A4)' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'OptiPlex 7080 (09A4)' -CatalogIndexPath $XmlPath
+                $result | Should -Not -BeNullOrEmpty
+                $result | Should -BeLike '*Model_OptiPlex_7080*'
+            }
+        }
+
+        It 'Should handle hex SystemID with letters: (0A24)' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Precision 5560 (0A24)' -CatalogIndexPath $XmlPath
+                $result | Should -Not -BeNullOrEmpty
+                $result | Should -BeLike '*Model_Precision_5560*'
+            }
+        }
+    }
+
+    Context 'Model name without SystemID suffix' {
+        It 'Should return $null for model without parenthesized SystemID' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490' -CatalogIndexPath $XmlPath
+                $result | Should -BeNullOrEmpty
+            }
+        }
+
+        It 'Should return $null for model with non-hex parenthesized text' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (SomeText)' -CatalogIndexPath $XmlPath
+                $result | Should -BeNullOrEmpty
+            }
+        }
+
+        It 'Should return $null for model with too-long hex in parentheses' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Latitude 7490 (07980)' -CatalogIndexPath $XmlPath
+                $result | Should -BeNullOrEmpty
+            }
+        }
+    }
+
+    Context 'SystemID not found in index' {
+        It 'Should return $null for valid SystemID format not present in index' {
+            InModuleScope 'FFU.Drivers' -Parameters @{ XmlPath = $script:resolveXmlPath } {
+                Mock WriteLog {}
+                $result = Resolve-DellCabUrlFromModel -ModelDisplay 'Unknown Model (FFFF)' -CatalogIndexPath $XmlPath
+                $result | Should -BeNullOrEmpty
+            }
+        }
+    }
+
+    Context 'SystemID regex pattern validation' {
+        It 'Should match 4-digit hex SystemID at end of string' {
+            'Latitude 7490 (0798)' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $true
+            $matches[1] | Should -Be '0798'
+        }
+
+        It 'Should match hex with uppercase letters' {
+            'Precision 5560 (0A24)' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $true
+            $matches[1] | Should -Be '0A24'
+        }
+
+        It 'Should match hex with lowercase letters' {
+            'XPS 15 (0a2b)' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $true
+            $matches[1] | Should -Be '0a2b'
+        }
+
+        It 'Should NOT match 3-digit hex' {
+            'Model (078)' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $false
+        }
+
+        It 'Should NOT match 5-digit hex' {
+            'Model (07890)' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $false
+        }
+
+        It 'Should NOT match non-hex characters' {
+            'Model (GHIJ)' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $false
+        }
+
+        It 'Should match with trailing whitespace' {
+            'Latitude 7490 (0798)  ' -match '\(([0-9A-Fa-f]{4})\)\s*$' | Should -Be $true
+            $matches[1] | Should -Be '0798'
+        }
+    }
+}
