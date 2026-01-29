@@ -126,8 +126,12 @@ Plans:
   2. Win32 app dependencies automatically resolved and deduplicated before installation
   3. Build log shows installation order and dependency insertions
   4. Pester tests verify ordering preservation and dependency resolution
-**Research**: Likely (study upstream dependency DAG resolution)
+**Research**: Complete (37-RESEARCH.md — upstream ordering/dependency commits, helper functions, reorder algorithm)
 **Plans**: 3 plans
+Plans:
+- [ ] 37-01-PLAN.md — Helper functions + Add-Win32SilentInstallCommand upgrade (mutex wrapper, atomic writes, dedup, metadata)
+- [ ] 37-02-PLAN.md — Dependency resolution (Add-Win32DependencySilentInstallCommands) + post-download reorder logic
+- [ ] 37-03-PLAN.md — Pester tests for ordering, dependencies, deduplication, and fail-safe behavior
 
 ### Phase 38: SUBST Drive Mapping for Long Paths
 **Goal**: Map a SUBST virtual drive during driver operations to prevent long path failures (>260 chars)
