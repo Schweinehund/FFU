@@ -914,9 +914,29 @@ if ($null -ne $DriverSourcePath) {
             WriteLog "Injecting drivers from $TempDriverDir"
             Write-Host "Injecting drivers from $TempDriverDir"
             Write-Host "This may take a while, please be patient."
-            Invoke-Process dism.exe "/image:W:\ /Add-Driver /Driver:""$TempDriverDir"" /Recurse"
-            WriteLog "Driver injection from WIM succeeded."
-            Write-Host "Driver injection from WIM succeeded."
+
+            # Use SUBST for WIM-extracted drivers to prevent MAX_PATH failures (Phase 38 PATH-01)
+            $wimSubstMapping = $null
+            try {
+                if (Get-Command -Name 'New-DriverSubstMapping' -ErrorAction SilentlyContinue) {
+                    $wimSubstMapping = New-DriverSubstMapping -SourcePath $TempDriverDir
+                }
+                if ($null -ne $wimSubstMapping) {
+                    WriteLog "[SUBST] Injecting WIM drivers via SUBST drive $($wimSubstMapping.DriveName)"
+                    Write-Host "Injecting WIM drivers via SUBST drive $($wimSubstMapping.DriveName)"
+                    Invoke-Process dism.exe "/image:W:\ /Add-Driver /Driver:""$($wimSubstMapping.DrivePath)"" /Recurse"
+                }
+                else {
+                    Invoke-Process dism.exe "/image:W:\ /Add-Driver /Driver:""$TempDriverDir"" /Recurse"
+                }
+                WriteLog "Driver injection from WIM succeeded."
+                Write-Host "Driver injection from WIM succeeded."
+            }
+            finally {
+                if ($null -ne $wimSubstMapping) {
+                    Remove-DriverSubstMapping -DriveLetter $wimSubstMapping.DriveLetter
+                }
+            }
 
         }
         catch {
@@ -953,9 +973,39 @@ if ($null -ne $DriverSourcePath) {
         WriteLog "Injecting drivers from folder: $DriverSourcePath"
         Write-Host "Injecting drivers from folder: $DriverSourcePath"
         Write-Host "This may take a while, please be patient."
-        Invoke-Process dism.exe "/image:W:\ /Add-Driver /Driver:""$DriverSourcePath"" /Recurse"
-        WriteLog "Driver injection from folder succeeded."
-        Write-Host "Driver injection from folder succeeded."
+
+        # Use SUBST drive mapping to prevent MAX_PATH failures (Phase 38 PATH-01)
+        $useSubst = $false
+        $substMapping = $null
+        try {
+            # Check if SUBST helper functions are available (may not be in minimal WinPE)
+            if (Get-Command -Name 'New-DriverSubstMapping' -ErrorAction SilentlyContinue) {
+                $substMapping = New-DriverSubstMapping -SourcePath $DriverSourcePath
+                if ($null -ne $substMapping) {
+                    $useSubst = $true
+                    WriteLog "[SUBST] Injecting drivers via SUBST drive $($substMapping.DriveName) (mapped from '$DriverSourcePath')"
+                    Write-Host "Injecting drivers via SUBST drive $($substMapping.DriveName)"
+                    Invoke-Process dism.exe "/image:W:\ /Add-Driver /Driver:""$($substMapping.DrivePath)"" /Recurse"
+                }
+            }
+
+            if (-not $useSubst) {
+                # Fallback: SUBST not available or no drive letter, use direct path
+                if ($null -eq $substMapping -and (Get-Command -Name 'New-DriverSubstMapping' -ErrorAction SilentlyContinue)) {
+                    WriteLog "WARNING: No SUBST drive available. Using direct path for driver injection."
+                    Write-Host "WARNING: No SUBST drive available. Using direct path."
+                }
+                Invoke-Process dism.exe "/image:W:\ /Add-Driver /Driver:""$DriverSourcePath"" /Recurse"
+            }
+
+            WriteLog "Driver injection from folder succeeded."
+            Write-Host "Driver injection from folder succeeded."
+        }
+        finally {
+            if ($null -ne $substMapping) {
+                Remove-DriverSubstMapping -DriveLetter $substMapping.DriveLetter
+            }
+        }
     }
 }
 else {
