@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 38 of 43 (SUBST Drive Mapping) - IN PROGRESS
-**Plan:** 1 of 2 complete (38-01)
-**Status:** Plan 38-01 complete — SUBST helpers and INF parsing improvements
-**Last activity:** 2026-01-29 — Completed 38-01-PLAN.md
+**Phase:** 38 of 43 (SUBST Drive Mapping) - COMPLETE
+**Plan:** 2 of 2 complete (38-02)
+**Status:** Phase 38 complete — SUBST drive mapping fully integrated
+**Last activity:** 2026-01-29 — Completed 38-02-PLAN.md
 
-Progress: ████░░░░░░ 39% (11 of 28 plans complete across 10 phases)
+Progress: █████░░░░░ 43% (12 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -39,7 +39,7 @@ Progress: ████░░░░░░ 39% (11 of 28 plans complete across 10 
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
-| 38: SUBST Drive Mapping | Long path reliability | PATH-01 | In Progress (1/2 plans) |
+| 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
@@ -89,6 +89,10 @@ Progress: ████░░░░░░ 39% (11 of 28 plans complete across 10 
 | 38-01 | Replace all Copy-Item -Path with -LiteralPath | Prevents wildcard expansion on paths with brackets [, ], *, ? | Reliable file copy for drivers with special characters in paths |
 | 38-01 | SUBST functions return $null with WARNING on failure (non-throwing) | Consistent with error handling pattern, allows caller to decide severity | Caller must check for $null, failures are logged but don't halt execution |
 | 38-01 | Pre-add Invoke-DismDriverInjectionWithSubstLoop to exports | PowerShell silently ignores export of non-existent functions | Plan 02 can implement function without touching Export-ModuleMember line |
+| 38-02 | Sequential SUBST loop with single drive letter reuse | Minimize resource consumption; simpler than parallel | Drive letter Z mapped/unmapped multiple times per build |
+| 38-02 | WinPE compatibility via Get-Command checks | ApplyFFU.ps1 runs in minimal environment; FFU.Drivers may not be loaded | SUBST operations optional; script works with or without module |
+| 38-02 | INF scanning with folder deduplication | Parent folders with /Recurse cover children | Typical reduction: 50-100 folders -> 5-10 folders for SUBST operations |
+| 38-02 | Path walk-up for 240+ char paths | SUBST target path has ~240 char limit | Algorithm walks up to parent until path fits SUBST limit |
 
 ## Blockers
 
@@ -97,9 +101,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 38-01-PLAN.md
+**Stopped at:** Completed 38-02-PLAN.md (Phase 38 complete)
 **Resume file:** None
-**Next action:** Execute 38-02-PLAN.md (DISM driver injection with SUBST loop)
+**Next action:** Begin Phase 39 (Model Normalization) - Brand deduplication and SystemID matching
 
 ---
-*State updated: 2026-01-29 after Plan 38-01 complete*
+*State updated: 2026-01-29 after Phase 38 complete*

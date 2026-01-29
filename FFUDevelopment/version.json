@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.9.10",
-    "buildDate": "2026-01-27",
+    "version": "1.9.11",
+    "buildDate": "2026-01-29",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -49,14 +49,14 @@
             "description": "Smart Apps.iso staleness detection (Test-AppsISOStaleness) - Three-tier detection: ISO existence, config comparison, file hash comparison"
         },
         "FFU.Drivers": {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "path": "Modules/FFU.Drivers/FFU.Drivers.psd1",
-            "description": "Phase 33: OEM driver logging - structured [OEM][Model][Operation] WriteLog prefixes, dual output, remediation messages, Pester test coverage"
+            "description": "Phase 38 PATH-01: SUBST driver injection loop - Invoke-DismDriverInjectionWithSubstLoop with INF scanning, deduplication, path walk-up, sequential SUBST map->inject->unmap"
         },
         "FFU.Imaging": {
-            "version": "1.3.2",
+            "version": "1.3.3",
             "path": "Modules/FFU.Imaging/FFU.Imaging.psd1",
-            "description": "Capture status JSON communication channel - New-FFU reads capture_status.json from capture location after VM shutdown, reports actual failure reason"
+            "description": "Phase 38 PATH-01: SUBST integration - New-FFU uses Invoke-DismDriverInjectionWithSubstLoop for MAX_PATH safety with backward-compatible fallback"
         },
         "FFU.Media": {
             "version": "1.8.0",
