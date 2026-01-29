@@ -2297,47 +2297,135 @@ function Get-DellDrivers {
         WriteLog $spaceCheck.Message
     }
 
+    # Initialize catalog XML variable (will be set by CatalogIndexPC or CatalogPC path)
+    $DellCatalogXML = $null
+
     #CatalogPC.cab is the catalog for Windows client PCs, Catalog.cab is the catalog for Windows Server (with caching)
     if ($WindowsRelease -le 11) {
-        $catalogType = 'PC'
-        $primaryUrl = [FFUConstants]::DELL_CATALOG_PC_URL
-        $DellCabFile = "$DriversFolder\CatalogPC.cab"
-        $DellCatalogXML = "$DriversFolder\CatalogPC.XML"
+        # Windows Client path: Try CatalogIndexPC first (lightweight model-specific catalog)
+        # then fall back to full CatalogPC.cab if needed
+
+        # Step 1: Try CatalogIndexPC approach for Windows client
+        WriteLog "Attempting CatalogIndexPC approach for Windows client model '$Model'"
+        $indexXml = Get-DellCatalogIndex -DriversFolder $DriversFolder
+
+        if ($indexXml) {
+            # Index downloaded successfully, try to resolve model-specific cab URL
+            $modelCabUrl = Resolve-DellCabUrlFromModel -ModelDisplay $Model -CatalogIndexPath $indexXml
+
+            if ($modelCabUrl) {
+                # Model-specific cab URL resolved, download and extract it
+                $sanitizedModel = ($Model -replace '[\\\/\:\*\?\"\<\>\| ]', '_' -replace '[\,]', '-')
+                $modelCabFile = Join-Path $DriversFolder "Model_$($sanitizedModel).cab"
+                $modelXml = Join-Path $DriversFolder "Model_$($sanitizedModel).xml"
+
+                try {
+                    # Download model-specific cab
+                    WriteLog "Downloading model-specific catalog from: $modelCabUrl"
+                    $modelCabPath = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType "Model_$sanitizedModel" `
+                        -PrimaryUrl $modelCabUrl -CachePath $modelCabFile
+
+                    if ($modelCabPath -and (Test-Path $modelCabPath)) {
+                        # Extract model cab to XML
+                        WriteLog "Extracting model-specific catalog cab to $modelXml"
+                        Invoke-Process -FilePath Expand.exe -ArgumentList "$modelCabPath $modelXml" -ErrorAction Stop | Out-Null
+
+                        # Verify XML exists and set as catalog
+                        if (Test-Path $modelXml) {
+                            $DellCatalogXML = $modelXml
+                            WriteLog "Using CatalogIndexPC model-specific catalog for '$Model'"
+
+                            # Clean up intermediate cab file to save disk space
+                            if (Test-Path $modelCabFile) {
+                                Remove-Item -Path $modelCabFile -Force -ErrorAction SilentlyContinue
+                            }
+                        }
+                        else {
+                            WriteLog "WARNING: Model-specific catalog extraction failed - XML not found. Falling back to CatalogPC.cab"
+                        }
+                    }
+                }
+                catch {
+                    WriteLog "WARNING: Model-specific catalog download/extraction failed: $($_.Exception.Message). Falling back to CatalogPC.cab"
+                }
+            }
+            # If $modelCabUrl is null, Resolve-DellCabUrlFromModel already logged WARNING about fallback
+        }
+        # If $indexXml is null, Get-DellCatalogIndex already logged WARNING about fallback
+
+        # Step 2: Fallback to CatalogPC.cab if CatalogIndexPC approach didn't succeed
+        if (-not $DellCatalogXML) {
+            WriteLog "Falling back to full CatalogPC.cab for Windows client model '$Model'"
+            $catalogType = 'PC'
+            $primaryUrl = [FFUConstants]::DELL_CATALOG_PC_URL
+            $DellCabFile = "$DriversFolder\CatalogPC.cab"
+            $DellCatalogXML = "$DriversFolder\CatalogPC.XML"
+
+            # DELL-01: Graceful catalog failure handling - warn and return instead of throwing
+            try {
+                $DellCabFile = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType $catalogType `
+                    -PrimaryUrl $primaryUrl -CachePath $DellCabFile
+            }
+            catch {
+                WriteLog "WARNING: [Dell][$Model][Download] Catalog download failed: $($_.Exception.Message)"
+                WriteLog "WARNING: [Dell][$Model][Download] Remediation: Check network connectivity to downloads.dell.com. Verify proxy settings if behind a corporate firewall. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
+                return
+            }
+
+            WriteLog "Extracting Dell Catalog cab file to $DellCatalogXML"
+            try {
+                Invoke-Process -FilePath Expand.exe -ArgumentList "$DellCabFile $DellCatalogXML" -ErrorAction Stop | Out-Null
+                WriteLog "Dell Catalog cab file extracted"
+            }
+            catch {
+                WriteLog "WARNING: [Dell][$Model][Download] Failed to extract catalog cab file: $($_.Exception.Message)"
+                WriteLog "WARNING: [Dell][$Model][Download] Remediation: The downloaded CatalogPC.cab may be corrupt or truncated. Delete '$DellCabFile' and retry the build to force a fresh download. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
+                return
+            }
+
+            # Verify XML file exists after extraction
+            if (-not (Test-Path -Path $DellCatalogXML)) {
+                WriteLog "WARNING: [Dell][$Model][Download] Catalog XML not found after extraction: $DellCatalogXML"
+                WriteLog "WARNING: [Dell][$Model][Download] Remediation: The CatalogPC.cab may not contain the expected XML file. Delete '$DellCabFile' and retry the build. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
+                return
+            }
+        }
     }
     else {
+        # Windows Server path: Use Catalog.cab (unchanged from original implementation)
         $catalogType = 'Server'
         $primaryUrl = [FFUConstants]::DELL_CATALOG_SERVER_URL
         $DellCabFile = "$DriversFolder\Catalog.cab"
         $DellCatalogXML = "$DriversFolder\Catalog.xml"
-    }
 
-    # DELL-01: Graceful catalog failure handling - warn and return instead of throwing
-    try {
-        $DellCabFile = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType $catalogType `
-            -PrimaryUrl $primaryUrl -CachePath $DellCabFile
-    }
-    catch {
-        WriteLog "WARNING: [Dell][$Model][Download] Catalog download failed: $($_.Exception.Message)"
-        WriteLog "WARNING: [Dell][$Model][Download] Remediation: Check network connectivity to downloads.dell.com. Verify proxy settings if behind a corporate firewall. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
-        return
-    }
+        # DELL-01: Graceful catalog failure handling - warn and return instead of throwing
+        try {
+            $DellCabFile = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType $catalogType `
+                -PrimaryUrl $primaryUrl -CachePath $DellCabFile
+        }
+        catch {
+            WriteLog "WARNING: [Dell][$Model][Download] Catalog download failed: $($_.Exception.Message)"
+            WriteLog "WARNING: [Dell][$Model][Download] Remediation: Check network connectivity to downloads.dell.com. Verify proxy settings if behind a corporate firewall. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
+            return
+        }
 
-    WriteLog "Extracting Dell Catalog cab file to $DellCatalogXML"
-    try {
-        Invoke-Process -FilePath Expand.exe -ArgumentList "$DellCabFile $DellCatalogXML" -ErrorAction Stop | Out-Null
-        WriteLog "Dell Catalog cab file extracted"
-    }
-    catch {
-        WriteLog "WARNING: [Dell][$Model][Download] Failed to extract catalog cab file: $($_.Exception.Message)"
-        WriteLog "WARNING: [Dell][$Model][Download] Remediation: The downloaded CatalogPC.cab may be corrupt or truncated. Delete '$DellCabFile' and retry the build to force a fresh download. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
-        return
-    }
+        WriteLog "Extracting Dell Catalog cab file to $DellCatalogXML"
+        try {
+            Invoke-Process -FilePath Expand.exe -ArgumentList "$DellCabFile $DellCatalogXML" -ErrorAction Stop | Out-Null
+            WriteLog "Dell Catalog cab file extracted"
+        }
+        catch {
+            WriteLog "WARNING: [Dell][$Model][Download] Failed to extract catalog cab file: $($_.Exception.Message)"
+            WriteLog "WARNING: [Dell][$Model][Download] Remediation: The downloaded Catalog.cab may be corrupt or truncated. Delete '$DellCabFile' and retry the build to force a fresh download. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
+            return
+        }
 
-    # Verify XML file exists after extraction
-    if (-not (Test-Path -Path $DellCatalogXML)) {
-        WriteLog "WARNING: [Dell][$Model][Download] Catalog XML not found after extraction: $DellCatalogXML"
-        WriteLog "WARNING: [Dell][$Model][Download] Remediation: The CatalogPC.cab may not contain the expected XML file. Delete '$DellCabFile' and retry the build. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
-        return
+        # Verify XML file exists after extraction
+        if (-not (Test-Path -Path $DellCatalogXML)) {
+            WriteLog "WARNING: [Dell][$Model][Download] Catalog XML not found after extraction: $DellCatalogXML"
+            WriteLog "WARNING: [Dell][$Model][Download] Remediation: The Catalog.cab may not contain the expected XML file. Delete '$DellCabFile' and retry the build. The build will continue without Dell drivers. See FFUDevelopment.log for full error details."
+            return
+        }
     }
 
     try {
