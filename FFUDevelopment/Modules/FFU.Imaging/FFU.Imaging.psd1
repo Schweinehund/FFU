@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.2'
+    ModuleVersion = '1.3.3'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -93,6 +93,12 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.3 - Phase 38 PATH-01: SUBST Drive Mapping Integration
+- New-FFU: Driver injection now uses Invoke-DismDriverInjectionWithSubstLoop for MAX_PATH safety
+- Replaces direct Add-WindowsDriver with SUBST-based sequential loop
+- Fallback to direct Add-WindowsDriver if SUBST function not available (backward compatibility)
+- Prevents driver injection failures on paths exceeding 260 characters
+
 v1.3.2 - Capture status JSON communication channel
 - New-FFU: Reads capture_status.json from capture location after VM shutdown
 - Reports actual capture failure reason (disk space, DISM error, etc.) instead of generic error

@@ -2699,11 +2699,18 @@ function New-FFU {
             }
 
             WriteLog 'Adding drivers - This will take a few minutes, please be patient'
-            try {
-                Add-WindowsDriver -Path $mountPath -Driver "$DriversFolder" -Recurse -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
+            # Use SUBST drive mapping loop to prevent MAX_PATH failures (Phase 38 PATH-01)
+            if (Get-Command -Name 'Invoke-DismDriverInjectionWithSubstLoop' -ErrorAction SilentlyContinue) {
+                Invoke-DismDriverInjectionWithSubstLoop -ImagePath $mountPath -DriverRoot "$DriversFolder"
             }
-            catch {
-                WriteLog 'Some drivers failed to be added to the FFU. This can be expected. Continuing.'
+            else {
+                # Fallback if FFU.Drivers module not loaded (backward compatibility)
+                try {
+                    Add-WindowsDriver -Path $mountPath -Driver "$DriversFolder" -Recurse -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
+                }
+                catch {
+                    WriteLog 'Some drivers failed to be added to the FFU. This can be expected. Continuing.'
+                }
             }
             WriteLog 'Adding drivers complete'
         }

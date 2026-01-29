@@ -742,6 +742,166 @@ function Remove-DriverSubstMapping {
     }
 }
 
+function Invoke-DismDriverInjectionWithSubstLoop {
+    <#
+    .SYNOPSIS
+    Injects drivers into an offline Windows image using SUBST drive mapping to avoid MAX_PATH failures.
+
+    .DESCRIPTION
+    Scans the DriverRoot for INF files, deduplicates parent folders (so parent covers children via /Recurse),
+    walks up the directory tree for paths exceeding ~240 characters, then iterates: map folder via SUBST ->
+    inject with Add-WindowsDriver -> unmap. A single drive letter is reused sequentially.
+
+    If no drive letters are available, falls back to direct Add-WindowsDriver without SUBST mapping.
+
+    .PARAMETER ImagePath
+    Path to the offline image mount point (e.g., "C:\FFU\Mount").
+
+    .PARAMETER DriverRoot
+    Root folder containing driver packages with INF files.
+
+    .EXAMPLE
+    Invoke-DismDriverInjectionWithSubstLoop -ImagePath "C:\FFU\Mount" -DriverRoot "C:\FFU\Drivers\Dell"
+
+    .NOTES
+    Phase 38 PATH-01: SUBST Drive Mapping for Long Paths
+    Sequential SUBST loop: map -> inject -> unmap per folder
+    Deduplicates folders to avoid redundant injections
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ImagePath,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$DriverRoot
+    )
+
+    # Validate driver root exists
+    if (-not (Test-Path -Path $DriverRoot -PathType Container)) {
+        WriteLog "WARNING: Driver root folder not found: $DriverRoot - skipping SUBST injection"
+        return
+    }
+
+    # Step 1: Scan for INF files
+    WriteLog "[SUBST] Scanning for INF files in $DriverRoot"
+    $infFiles = Get-ChildItem -Path $DriverRoot -Filter '*.inf' -File -Recurse -ErrorAction SilentlyContinue
+    if ($null -eq $infFiles -or $infFiles.Count -eq 0) {
+        WriteLog "[SUBST] No INF files found in $DriverRoot - skipping injection"
+        return
+    }
+    WriteLog "[SUBST] Found $($infFiles.Count) INF file(s)"
+
+    # Step 2: Determine optimal folders to map
+    # Walk up directory tree for paths >240 chars (SUBST target path limit)
+    $substTargetMaxLength = 240
+    $candidateDirs = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($infFile in $infFiles) {
+        $candidateDir = Split-Path -Path $infFile.FullName -Parent
+
+        # Walk up if path too long for SUBST
+        while ($candidateDir.Length -gt $substTargetMaxLength) {
+            $parentDir = Split-Path -Path $candidateDir -Parent
+            if ([string]::IsNullOrWhiteSpace($parentDir) -or $parentDir -eq $candidateDir) {
+                break
+            }
+            $candidateDir = $parentDir
+        }
+
+        if (-not $candidateDirs.Contains($candidateDir)) {
+            [void]$candidateDirs.Add($candidateDir)
+        }
+    }
+
+    # Step 3: Deduplicate - remove children when parent already covers via /Recurse
+    $sortedCandidates = $candidateDirs | Sort-Object { $_.Length }
+    $selectedDirs = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($candidateDir in $sortedCandidates) {
+        $isCovered = $false
+        foreach ($selectedDir in $selectedDirs) {
+            if ($candidateDir.Equals($selectedDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $isCovered = $true
+                break
+            }
+            $prefix = $selectedDir.TrimEnd('\') + '\'
+            if ($candidateDir.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $isCovered = $true
+                break
+            }
+        }
+        if (-not $isCovered) {
+            [void]$selectedDirs.Add($candidateDir)
+        }
+    }
+
+    WriteLog "[SUBST] Will inject drivers from $($selectedDirs.Count) folder(s)"
+
+    # Step 4: Check for available drive letter
+    $driveLetter = Get-AvailableDriveLetter
+    if ($null -eq $driveLetter) {
+        WriteLog "WARNING: [SUBST] No drive letters available - falling back to direct Add-WindowsDriver"
+        try {
+            Add-WindowsDriver -Path $ImagePath -Driver "$DriverRoot" -Recurse -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
+        }
+        catch {
+            WriteLog "Some drivers failed to be added to the FFU. This can be expected. Continuing."
+        }
+        return
+    }
+
+    $driveName = "$driveLetter`:"
+    $drivePath = "$driveLetter`:\"
+
+    # Step 5: Sequential SUBST loop - map -> inject -> unmap for each folder
+    foreach ($dir in $selectedDirs) {
+        try {
+            # Defensive pre-removal (in case stale mapping exists)
+            cmd.exe /c subst $driveName /d 2>&1 | Out-Null
+
+            # Map this folder
+            $escapedDir = $dir -replace '"', '""'
+            WriteLog "[SUBST] Mapping '$dir' to $driveName"
+            $mapResult = cmd.exe /c subst $driveName `"$escapedDir`" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                WriteLog "WARNING: [SUBST] Failed to map '$dir' to $driveName (exit code $LASTEXITCODE). Falling back to direct path."
+                try {
+                    Add-WindowsDriver -Path $ImagePath -Driver "$dir" -Recurse -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
+                }
+                catch {
+                    WriteLog "Some drivers failed to be added from '$dir'. This can be expected. Continuing."
+                }
+                continue
+            }
+
+            # Inject drivers via mapped drive
+            WriteLog "[SUBST] Injecting drivers from $drivePath (mapped from '$dir')"
+            try {
+                Add-WindowsDriver -Path $ImagePath -Driver $drivePath -Recurse -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
+            }
+            catch {
+                WriteLog "Some drivers failed to be added from $drivePath. This can be expected. Continuing."
+            }
+        }
+        finally {
+            # Always unmap
+            WriteLog "[SUBST] Removing drive mapping $driveName"
+            try {
+                cmd.exe /c subst $driveName /d 2>&1 | Out-Null
+            }
+            catch {
+                WriteLog "WARNING: [SUBST] Failed to remove drive mapping $driveName - $_"
+            }
+        }
+    }
+
+    WriteLog "[SUBST] Driver injection loop complete"
+}
+
 function Get-MicrosoftDrivers {
     <#
     .SYNOPSIS
