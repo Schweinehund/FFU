@@ -400,3 +400,244 @@ Describe 'FFU.Common.Winget Module Exports' -Tag 'Unit', 'FFU.Common.Winget', 'M
         }
     }
 }
+
+# =============================================================================
+# Phase 37: Helper Functions - Invoke-WithNamedMutex
+# =============================================================================
+
+Describe 'Invoke-WithNamedMutex - Mutex Wrapper' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37' {
+
+    BeforeAll {
+        $module = Get-Module 'FFU.Common.Winget'
+    }
+
+    It 'Should execute scriptblock and return result' {
+        $result = & $module { Invoke-WithNamedMutex -MutexName 'TestMutex_Return' -ScriptBlock { 42 } }
+        $result | Should -Be 42
+    }
+
+    It 'Should handle scriptblock that returns hashtable' {
+        $result = & $module { Invoke-WithNamedMutex -MutexName 'TestMutex_Hash' -ScriptBlock { @{ Added = $true } } }
+        $result | Should -BeOfType [hashtable]
+        $result.Added | Should -BeTrue
+    }
+
+    It 'Should throw on timeout' {
+        # Hold the mutex from a background runspace so the current thread cannot acquire it
+        $mutexName = "Global\TestMutex_Timeout_$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        $readyEvent = New-Object System.Threading.ManualResetEventSlim($false)
+        $releaseEvent = New-Object System.Threading.ManualResetEventSlim($false)
+
+        # Use a PowerShell runspace (not a raw Thread) to hold the mutex
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.Open()
+        $ps = [powershell]::Create().AddScript({
+            param($name, $ready, $release)
+            $m = New-Object System.Threading.Mutex($false, $name)
+            $m.WaitOne() | Out-Null
+            $ready.Set()
+            $release.Wait([TimeSpan]::FromSeconds(15)) | Out-Null
+            try { $m.ReleaseMutex() } catch { }
+            $m.Dispose()
+        }).AddArgument($mutexName).AddArgument($readyEvent).AddArgument($releaseEvent)
+        $ps.Runspace = $rs
+        $asyncResult = $ps.BeginInvoke()
+
+        try {
+            # Wait for background runspace to acquire the mutex
+            $readyEvent.Wait([TimeSpan]::FromSeconds(5)) | Out-Null
+
+            {
+                & $module {
+                    param($name)
+                    Invoke-WithNamedMutex -MutexName $name -TimeoutSeconds 1 -ScriptBlock { 'should not reach' }
+                } $mutexName
+            } | Should -Throw -Because "mutex is held by background runspace"
+        }
+        finally {
+            $releaseEvent.Set()
+            $ps.EndInvoke($asyncResult) | Out-Null
+            $ps.Dispose()
+            $rs.Dispose()
+            $readyEvent.Dispose()
+            $releaseEvent.Dispose()
+        }
+    }
+
+    It 'Should dispose mutex after execution (no leak on repeated calls)' {
+        $mutexName = "TestMutex_NoLeak_$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        # If first call leaked the mutex, second call would deadlock/timeout
+        $result1 = & $module {
+            param($name)
+            Invoke-WithNamedMutex -MutexName $name -ScriptBlock { 'first' }
+        } $mutexName
+        $result2 = & $module {
+            param($name)
+            Invoke-WithNamedMutex -MutexName $name -ScriptBlock { 'second' }
+        } $mutexName
+        $result1 | Should -Be 'first'
+        $result2 | Should -Be 'second'
+    }
+}
+
+# =============================================================================
+# Phase 37: Helper Functions - Set-FileContentAtomic
+# =============================================================================
+
+Describe 'Set-FileContentAtomic - Atomic File Writes' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37' {
+
+    BeforeAll {
+        $module = Get-Module 'FFU.Common.Winget'
+    }
+
+    It 'Should create file with correct content' {
+        $testFile = Join-Path $TestDrive "atomic_test_create.json"
+        & $module {
+            param($path)
+            Set-FileContentAtomic -Path $path -Content '{"test": true}'
+        } $testFile
+        $testFile | Should -Exist
+        $content = Get-Content -Path $testFile -Raw
+        $content | Should -Match '"test"'
+    }
+
+    It 'Should overwrite existing file atomically' {
+        $testFile = Join-Path $TestDrive "atomic_test_overwrite.json"
+        Set-Content -Path $testFile -Value '{"old": true}' -Encoding UTF8
+        & $module {
+            param($path)
+            Set-FileContentAtomic -Path $path -Content '{"new": true}'
+        } $testFile
+        $content = Get-Content -Path $testFile -Raw
+        $content | Should -Match '"new"'
+        $content | Should -Not -Match '"old"'
+    }
+
+    It 'Should create parent directories if missing' {
+        $testFile = Join-Path $TestDrive "nonexistent\subdir\atomic_test.json"
+        & $module {
+            param($path)
+            Set-FileContentAtomic -Path $path -Content '{"nested": true}'
+        } $testFile
+        $testFile | Should -Exist
+        $content = Get-Content -Path $testFile -Raw
+        $content | Should -Match '"nested"'
+    }
+
+    It 'Should not leave temp files on success' {
+        $testDir = Join-Path $TestDrive "atomic_no_temp"
+        New-Item -Path $testDir -ItemType Directory -Force | Out-Null
+        $testFile = Join-Path $testDir "output.json"
+        & $module {
+            param($path)
+            Set-FileContentAtomic -Path $path -Content '{"clean": true}'
+        } $testFile
+        $tempFiles = Get-ChildItem -Path $testDir -Filter "*.tmp" -ErrorAction SilentlyContinue
+        $tempFiles | Should -BeNullOrEmpty -Because "atomic write should clean up temp files"
+    }
+}
+
+# =============================================================================
+# Phase 37: Helper Functions - Get-WinGetYamlScalarValue
+# =============================================================================
+
+Describe 'Get-WinGetYamlScalarValue - YAML Extraction' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37' {
+
+    BeforeAll {
+        $module = Get-Module 'FFU.Common.Winget'
+    }
+
+    It 'Should extract PackageIdentifier from YAML' {
+        $yaml = "PackageIdentifier: Microsoft.VCRedist.2015+.x64"
+        $result = & $module {
+            param($text)
+            Get-WinGetYamlScalarValue -YamlText $text -Key 'PackageIdentifier'
+        } $yaml
+        $result | Should -Be "Microsoft.VCRedist.2015+.x64"
+    }
+
+    It 'Should extract PackageVersion from YAML' {
+        $yaml = "PackageVersion: 14.36.32532.0"
+        $result = & $module {
+            param($text)
+            Get-WinGetYamlScalarValue -YamlText $text -Key 'PackageVersion'
+        } $yaml
+        $result | Should -Be "14.36.32532.0"
+    }
+
+    It 'Should return null for missing key' {
+        $yaml = "PackageIdentifier: Some.Package"
+        $result = & $module {
+            param($text)
+            Get-WinGetYamlScalarValue -YamlText $text -Key 'NonExistentKey'
+        } $yaml
+        $result | Should -BeNullOrEmpty
+    }
+
+    It 'Should strip surrounding quotes from value' {
+        $yaml = "PackageIdentifier: 'Quoted.Value'"
+        $result = & $module {
+            param($text)
+            Get-WinGetYamlScalarValue -YamlText $text -Key 'PackageIdentifier'
+        } $yaml
+        $result | Should -Be "Quoted.Value"
+    }
+
+    It 'Should handle multi-line YAML correctly' {
+        $yaml = @"
+PackageIdentifier: Multi.Line.Test
+PackageVersion: 2.0.0
+Publisher: TestPublisher
+InstallerType: exe
+"@
+        $result = & $module {
+            param($text)
+            Get-WinGetYamlScalarValue -YamlText $text -Key 'PackageVersion'
+        } $yaml
+        $result | Should -Be "2.0.0"
+    }
+}
+
+# =============================================================================
+# Phase 37: Helper Functions - Get-WinGetWin32AppsJsonMutexName
+# =============================================================================
+
+Describe 'Get-WinGetWin32AppsJsonMutexName - Path-Based Mutex' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37' {
+
+    BeforeAll {
+        $module = Get-Module 'FFU.Common.Winget'
+    }
+
+    It 'Should return consistent mutex name for same path' {
+        $path = "C:\TestOrchestration\WinGetWin32Apps.json"
+        $result1 = & $module {
+            param($p)
+            Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $p
+        } $path
+        $result2 = & $module {
+            param($p)
+            Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $p
+        } $path
+        $result1 | Should -Be $result2
+    }
+
+    It 'Should return different mutex names for different paths' {
+        $result1 = & $module {
+            param($p)
+            Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $p
+        } "C:\Path1\WinGetWin32Apps.json"
+        $result2 = & $module {
+            param($p)
+            Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $p
+        } "C:\Path2\WinGetWin32Apps.json"
+        $result1 | Should -Not -Be $result2
+    }
+
+    It 'Should start with WinGetWin32Apps_ prefix' {
+        $result = & $module {
+            param($p)
+            Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $p
+        } "C:\Any\Path.json"
+        $result | Should -Match '^WinGetWin32Apps_'
+    }
+}
