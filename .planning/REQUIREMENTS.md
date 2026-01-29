@@ -16,8 +16,8 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 
 ### Winget Improvements (WINGET)
 
-- [ ] **WINGET-01**: Apps install in exact order specified in AppList.json (not hash/alphabetical order)
-- [ ] **WINGET-02**: Win32 app dependencies automatically resolved and deduplicated before installation
+- [x] **WINGET-01**: Apps install in exact order specified in AppList.json (not hash/alphabetical order)
+- [x] **WINGET-02**: Win32 app dependencies automatically resolved and deduplicated before installation
 
 ### Download Improvements (DL)
 
@@ -79,8 +79,8 @@ Which phases cover which requirements. Updated by create-roadmap.
 | BUGFIX-02 | Phase 35 | Complete |
 | BUGFIX-03 | Phase 34 | Complete |
 | BUGFIX-04 | Phase 36 | Complete |
-| WINGET-01 | Phase 37 | Pending |
-| WINGET-02 | Phase 37 | Pending |
+| WINGET-01 | Phase 37 | Complete |
+| WINGET-02 | Phase 37 | Complete |
 | DL-01 | Phase 36 | Complete |
 | PATH-01 | Phase 38 | Pending |
 | DEPLOY-01 | Phase 43 | Pending |

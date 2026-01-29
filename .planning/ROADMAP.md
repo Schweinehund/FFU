@@ -25,7 +25,7 @@
 - [x] **Phase 34: Winget Bug Fixes and JSON Safety** - JSON corruption fix + MSI path quoting
 - [x] **Phase 35: PPKG and xcopy Path Quoting** - Space handling in PPKG filenames
 - [x] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
-- [ ] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
+- [x] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
 - [ ] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
 - [ ] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
 - [ ] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
@@ -129,9 +129,10 @@ Plans:
 **Research**: Complete (37-RESEARCH.md — upstream ordering/dependency commits, helper functions, reorder algorithm)
 **Plans**: 3 plans
 Plans:
-- [ ] 37-01-PLAN.md — Helper functions + Add-Win32SilentInstallCommand upgrade (mutex wrapper, atomic writes, dedup, metadata)
-- [ ] 37-02-PLAN.md — Dependency resolution (Add-Win32DependencySilentInstallCommands) + post-download reorder logic
-- [ ] 37-03-PLAN.md — Pester tests for ordering, dependencies, deduplication, and fail-safe behavior
+- [x] 37-01-PLAN.md — Helper functions + Add-Win32SilentInstallCommand upgrade (mutex wrapper, atomic writes, dedup, metadata)
+- [x] 37-02-PLAN.md — Dependency resolution (Add-Win32DependencySilentInstallCommands) + post-download reorder logic
+- [x] 37-03-PLAN.md — Pester tests for ordering, dependencies, deduplication, and fail-safe behavior
+**Completed:** 2026-01-28 — Verified (4/4 must-haves)
 
 ### Phase 38: SUBST Drive Mapping for Long Paths
 **Goal**: Map a SUBST virtual drive during driver operations to prevent long path failures (>260 chars)
@@ -217,7 +218,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (109 complete + 21 planned)
+**Total:** 43 phases, 130 plans (112 complete + 18 planned)
 
 ---
-*Last updated: 2026-01-28 - Phase 36 complete*
+*Last updated: 2026-01-28 - Phase 37 complete*
