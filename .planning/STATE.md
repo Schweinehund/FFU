@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 39 of 43 (Model Normalization) - IN PROGRESS
-**Plan:** 1 of 2 complete (39-01)
-**Status:** Plan 39-01 complete — Dell GroupManifest normalization + SystemID extraction
-**Last activity:** 2026-01-29 — Completed 39-01-PLAN.md
+**Phase:** 39 of 43 (Model Normalization) - COMPLETE
+**Plan:** 2 of 2 complete (39-01, 39-02)
+**Status:** Phase 39 complete — Model normalization + SystemID extraction (build + deploy)
+**Last activity:** 2026-01-29 — Completed 39-02-PLAN.md
 
-Progress: █████░░░░░ 46% (13 of 28 plans complete across 10 phases)
+Progress: █████░░░░░ 50% (14 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -40,7 +40,7 @@ Progress: █████░░░░░ 46% (13 of 28 plans complete across 10 
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
-| 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | In Progress (1/2 plans) |
+| 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
@@ -97,6 +97,9 @@ Progress: █████░░░░░ 46% (13 of 28 plans complete across 10 
 | 39-01 | HP PlatformList.xml cache built inline on first HP entry | Per-call hashtable avoids repeat XML parsing | Single parse per Update-DriverMappingJson call for all HP entries |
 | 39-01 | Extract Get-HPSystemIdFromPlatformList as named exported function | Enables direct test access and reuse | Function available for tests and future consumers outside Update-DriverMappingJson |
 | 39-01 | Save-DellDriversTask checks GroupManifest, Model/Display, and Brand+Model assembly | Models listed via GroupManifest normalization must match at download time | Prevents model mismatch between list and download phases |
+| 39-02 | MatchPrecision scoring (2=SystemID, 1=ModelName) for multi-tier match sorting | Simple numeric precedence for Sort-Object | Prefers exact SystemID matches over fuzzy model-name matches |
+| 39-02 | Extract functions from ApplyFFU.ps1 via AST for Pester testing | WinPE deploy script is not a module; AST extraction provides testable definitions | Enables unit testing of non-module script functions without executing script-level code |
+| 39-02 | Use Set-ItResult -Skipped for module-dependent tests | Pester 5.x evaluates -Skip at discovery before BeforeAll runs | Runtime skip ensures module availability is correctly detected |
 
 ## Blockers
 
@@ -105,9 +108,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 39-01-PLAN.md
+**Stopped at:** Completed 39-02-PLAN.md (Phase 39 complete)
 **Resume file:** None
-**Next action:** Continue Phase 39 with Plan 39-02
+**Next action:** Begin Phase 40 (Dell Refactoring)
 
 ---
-*State updated: 2026-01-29 after Plan 39-01 complete*
+*State updated: 2026-01-29 after Plan 39-02 complete (Phase 39 Model Normalization complete)*
