@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 39 of 43 (Model Normalization) - COMPLETE
-**Plan:** 2 of 2 complete (39-01, 39-02)
-**Status:** Phase 39 complete — Model normalization + SystemID extraction (build + deploy)
-**Last activity:** 2026-01-29 — Completed 39-02-PLAN.md
+**Phase:** 40 of 43 (Dell Refactoring) - IN PROGRESS
+**Plan:** 1 of 3 complete (40-01)
+**Status:** Phase 40 in progress — CatalogIndexPC infrastructure complete
+**Last activity:** 2026-01-29 — Completed 40-01-PLAN.md
 
-Progress: █████░░░░░ 50% (14 of 28 plans complete across 10 phases)
+Progress: █████░░░░░ 54% (15 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -40,8 +40,8 @@ Progress: █████░░░░░ 50% (14 of 28 plans complete across 10 
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
-| 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Complete (2/2 plans) |
-| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
+| 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
+| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | In Progress (1/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
@@ -100,6 +100,9 @@ Progress: █████░░░░░ 50% (14 of 28 plans complete across 10 
 | 39-02 | MatchPrecision scoring (2=SystemID, 1=ModelName) for multi-tier match sorting | Simple numeric precedence for Sort-Object | Prefers exact SystemID matches over fuzzy model-name matches |
 | 39-02 | Extract functions from ApplyFFU.ps1 via AST for Pester testing | WinPE deploy script is not a module; AST extraction provides testable definitions | Enables unit testing of non-module script functions without executing script-level code |
 | 39-02 | Use Set-ItResult -Skipped for module-dependent tests | Pester 5.x evaluates -Skip at discovery before BeforeAll runs | Runtime skip ensures module availability is correctly detected |
+| 40-01 | Use CatalogIndexPC as primary catalog source for Windows client Dell drivers | Reduces download size from 160MB (CatalogPC.cab) to 5-10MB (index) + 1-5MB (model cab) = 10-30x bandwidth reduction | Bandwidth savings significant for corporate environments with hundreds of builds |
+| 40-01 | Three-tier fallback: CatalogIndexPC → CatalogPC.cab → graceful failure | Ensures builds never break due to Dell URL changes or schema differences | Defense-in-depth for production reliability |
+| 40-01 | Delete model-specific cab files after extraction to XML | Saves disk space (1-5MB per model) - cache is managed at index level | Disk space more valuable than re-extraction time (rarely needed) |
 
 ## Blockers
 
@@ -108,9 +111,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 39-02-PLAN.md (Phase 39 complete)
+**Stopped at:** Completed 40-01-PLAN.md
 **Resume file:** None
-**Next action:** Begin Phase 40 (Dell Refactoring)
+**Next action:** Continue Phase 40 Plan 02 (Dell Refactoring)
 
 ---
-*State updated: 2026-01-29 after Plan 39-02 complete (Phase 39 Model Normalization complete)*
+*State updated: 2026-01-29 after Plan 40-01 complete (CatalogIndexPC infrastructure)*
