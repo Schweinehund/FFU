@@ -272,6 +272,7 @@ function Get-PrivateProfileString {
 
     .DESCRIPTION
     Uses Win32 API GetPrivateProfileString to read values from INI files.
+    Uses an auto-growing buffer (1KB to 64KB) to handle large INF values.
     Returns empty string if key not found.
 
     .PARAMETER FileName
@@ -287,6 +288,7 @@ function Get-PrivateProfileString {
     [string] The value from the INI file.
 
     .NOTES
+    Enhanced with auto-growing buffer (1KB-64KB) in v1.0.24 (Phase 38 PATH-01).
     Enhanced with P/Invoke exception handling in v1.0.19 (REL-CORE-01).
     #>
     [CmdletBinding()]
@@ -313,8 +315,28 @@ function Get-PrivateProfileString {
             return [string]::Empty
         }
 
-        $sbuilder = [System.Text.StringBuilder]::new(1024)
-        [void][Win32.Kernel32]::GetPrivateProfileString($SectionName, $KeyName, "", $sbuilder, $sbuilder.Capacity, $FileName)
+        # Auto-growing buffer to handle large INF values (e.g., SourceDisksFiles sections)
+        $bufferSize = 1024          # Start with 1KB
+        $maxBufferSize = 65536      # Max 64KB
+        $sbuilder = $null
+        $charsCopied = 0
+
+        while ($true) {
+            $sbuilder = [System.Text.StringBuilder]::new($bufferSize)
+            $charsCopied = [Win32.Kernel32]::GetPrivateProfileString(
+                $SectionName, $KeyName, "", $sbuilder, [uint32]$sbuilder.Capacity, $FileName)
+
+            # If buffer was large enough (chars copied < capacity - 1), we're done
+            if ([int]$charsCopied -lt ($sbuilder.Capacity - 1)) {
+                break
+            }
+
+            # Double the buffer size and retry (up to max)
+            if ($bufferSize -ge $maxBufferSize) {
+                break
+            }
+            $bufferSize = [Math]::Min(($bufferSize * 2), $maxBufferSize)
+        }
 
         $sbuilder.ToString()
     }
@@ -4389,6 +4411,284 @@ function Update-OrchestrationHashManifest {
     }
 }
 
+#region DISM Readiness Check (v1.0.23 - DISM-HEALTH-01)
+
+function Test-DismReady {
+    <#
+    .SYNOPSIS
+    Lightweight check whether DISM operations will succeed by verifying WIMMount filter driver.
+
+    .DESCRIPTION
+    Checks if the WIMMount filter driver is loaded using 'fltmc filters' (does NOT use DISM itself).
+    This avoids the chicken-and-egg problem where DISM health checks use DISM, which hangs for
+    10 minutes when WIMMount is broken.
+
+    If WIMMount is not loaded, attempts automatic repair:
+    1. Start wimmount service via sc.exe
+    2. Load filter via fltmc
+    3. If FFU.Preflight is available, delegates to Test-FFUWimMount for comprehensive repair
+
+    Returns $true if DISM is ready, $false if repair failed. Logs all actions.
+
+    .PARAMETER AttemptRepair
+    If $true (default), attempts automatic WIMMount repair when filter is not loaded.
+
+    .PARAMETER TimeoutSeconds
+    Maximum seconds to wait for repair operations. Default: 30.
+
+    .EXAMPLE
+    if (-not (Test-DismReady)) {
+        WriteLog "DISM is not functional - skipping DISM-dependent operations"
+    }
+
+    .OUTPUTS
+    System.Boolean
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter()]
+        [bool]$AttemptRepair = $true,
+
+        [Parameter()]
+        [int]$TimeoutSeconds = 30
+    )
+
+    # Use fltmc to check WIMMount - this does NOT depend on DISM service
+    try {
+        $fltmcOutput = & fltmc.exe filters 2>&1
+        $wimMountLoaded = [bool]($fltmcOutput -match 'WimMount')
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: fltmc.exe failed: $($_.Exception.Message)"
+        }
+        $wimMountLoaded = $false
+    }
+
+    if ($wimMountLoaded) {
+        return $true
+    }
+
+    # WIMMount is not loaded
+    if ($function:WriteLog) {
+        WriteLog "WARNING: WIMMount filter driver is NOT loaded. DISM operations will fail with DismInitialize 0x80004005."
+    }
+
+    if (-not $AttemptRepair) {
+        return $false
+    }
+
+    if ($function:WriteLog) {
+        WriteLog "Attempting WIMMount auto-repair..."
+    }
+
+    # Attempt 1: Try the comprehensive Test-FFUWimMount from FFU.Preflight if available
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-FFUWimMount', 'Function')) {
+        if ($function:WriteLog) {
+            WriteLog "Using Test-FFUWimMount for comprehensive WIMMount repair..."
+        }
+        try {
+            $wimResult = Test-FFUWimMount -AttemptRemediation
+            if ($wimResult.Status -eq 'Passed') {
+                if ($function:WriteLog) {
+                    WriteLog "WIMMount repair succeeded via Test-FFUWimMount: $($wimResult.Message)"
+                }
+                return $true
+            }
+            else {
+                if ($function:WriteLog) {
+                    WriteLog "WARNING: Test-FFUWimMount repair failed: $($wimResult.Message)"
+                }
+            }
+        }
+        catch {
+            if ($function:WriteLog) {
+                WriteLog "WARNING: Test-FFUWimMount threw an error: $($_.Exception.Message)"
+            }
+        }
+    }
+
+    # Attempt 2: Direct repair - start service and load filter
+    try {
+        # Try starting the wimmount service
+        $scOutput = & sc.exe start wimmount 2>&1
+        if ($function:WriteLog) {
+            WriteLog "sc start wimmount: $($scOutput -join ' ')"
+        }
+        Start-Sleep -Seconds 2
+
+        # Try loading the filter
+        $null = & fltmc.exe load WimMount 2>&1
+
+        # Verify
+        Start-Sleep -Seconds 1
+        $fltmcCheck = & fltmc.exe filters 2>&1
+        if ($fltmcCheck -match 'WimMount') {
+            if ($function:WriteLog) {
+                WriteLog "WIMMount filter loaded successfully after direct repair"
+            }
+            return $true
+        }
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Direct WIMMount repair failed: $($_.Exception.Message)"
+        }
+    }
+
+    # Attempt 3: Try rundll32 registration
+    try {
+        $null = & rundll32.exe wimmount.dll,WimMountDriver 2>&1
+        Start-Sleep -Seconds 2
+
+        $fltmcCheck = & fltmc.exe filters 2>&1
+        if ($fltmcCheck -match 'WimMount') {
+            if ($function:WriteLog) {
+                WriteLog "WIMMount filter loaded successfully after rundll32 repair"
+            }
+            return $true
+        }
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: rundll32 WIMMount repair failed: $($_.Exception.Message)"
+        }
+    }
+
+    # All repair attempts failed
+    if ($function:WriteLog) {
+        WriteLog "ERROR: All WIMMount repair attempts failed. DISM operations will NOT work."
+        WriteLog "REMEDIATION: Run 'Repair-WimMountService.ps1 -Force' or reboot the computer."
+        WriteLog "If issue persists after reboot, reinstall Windows ADK."
+    }
+
+    return $false
+}
+
+function Clear-OrphanedMountPointsWithoutDism {
+    <#
+    .SYNOPSIS
+    Cleans orphaned WIM mount points using registry operations instead of DISM.
+
+    .DESCRIPTION
+    When DISM is broken (WIMMount not loaded), the standard cleanup path
+    (Get-WindowsImage -Mounted, dism /Cleanup-Mountpoints) cannot work because
+    those commands also require WIMMount. This function provides an alternative
+    cleanup path using direct registry access to remove stale mount point entries.
+
+    This addresses the chicken-and-egg problem where cleanup needs DISM but DISM is broken.
+
+    .EXAMPLE
+    Clear-OrphanedMountPointsWithoutDism
+
+    .OUTPUTS
+    None. Logs cleanup actions.
+    #>
+    [CmdletBinding()]
+    param()
+
+    if ($function:WriteLog) {
+        WriteLog "Performing non-DISM mount point cleanup (WIMMount unavailable)..."
+    }
+
+    # Clean DISM mount registry entries directly
+    $mountRegPath = 'HKLM:\SOFTWARE\Microsoft\WIMMount\Mounted Images'
+    try {
+        if (Test-Path -Path $mountRegPath) {
+            $mountEntries = Get-ChildItem -Path $mountRegPath -ErrorAction SilentlyContinue
+            if ($mountEntries -and $mountEntries.Count -gt 0) {
+                if ($function:WriteLog) {
+                    WriteLog "Found $($mountEntries.Count) stale mount registry entries - removing..."
+                }
+                foreach ($entry in $mountEntries) {
+                    try {
+                        $mountPath = (Get-ItemProperty -Path $entry.PSPath -Name 'Mount Path' -ErrorAction SilentlyContinue).'Mount Path'
+                        Remove-Item -Path $entry.PSPath -Recurse -Force -ErrorAction Stop
+                        if ($function:WriteLog) {
+                            WriteLog "  Removed stale mount entry: $mountPath"
+                        }
+                    }
+                    catch {
+                        if ($function:WriteLog) {
+                            WriteLog "  WARNING: Failed to remove mount entry: $($_.Exception.Message)"
+                        }
+                    }
+                }
+            }
+            else {
+                if ($function:WriteLog) {
+                    WriteLog "No stale mount registry entries found"
+                }
+            }
+        }
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Failed to access mount registry: $($_.Exception.Message)"
+        }
+    }
+
+    # Clean DISM temp directories (does not need DISM)
+    $tempPaths = @(
+        "$env:TEMP\DISM*",
+        "$env:SystemRoot\Temp\DISM*",
+        "$env:LOCALAPPDATA\Temp\DISM*"
+    )
+
+    foreach ($pathPattern in $tempPaths) {
+        try {
+            $items = Get-ChildItem -Path $pathPattern -ErrorAction SilentlyContinue
+            foreach ($item in $items) {
+                try {
+                    Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction Stop
+                    if ($function:WriteLog) {
+                        WriteLog "  Removed DISM temp: $($item.FullName)"
+                    }
+                }
+                catch {
+                    if ($function:WriteLog) {
+                        WriteLog "  WARNING: Failed to remove DISM temp '$($item.FullName)': $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    # Clean up Mount folder entries (file-based cleanup)
+    $mountDirsToCheck = @(
+        "$env:SystemRoot\Temp\Mount*",
+        "$env:SystemRoot\Temp\wim*"
+    )
+
+    foreach ($pathPattern in $mountDirsToCheck) {
+        try {
+            $items = Get-ChildItem -Path $pathPattern -Directory -ErrorAction SilentlyContinue
+            foreach ($item in $items) {
+                try {
+                    Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction Stop
+                    if ($function:WriteLog) {
+                        WriteLog "  Removed stale mount directory: $($item.FullName)"
+                    }
+                }
+                catch {
+                    if ($function:WriteLog) {
+                        WriteLog "  WARNING: Failed to remove mount dir '$($item.FullName)': $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    if ($function:WriteLog) {
+        WriteLog "Non-DISM mount point cleanup complete"
+    }
+}
+
+#endregion DISM Readiness Check (v1.0.23 - DISM-HEALTH-01)
+
 # Create backward compatibility aliases for renamed functions (v1.0.11)
 # These aliases allow existing code to continue working while encouraging migration to approved verbs
 Set-Alias -Name 'LogVariableValues' -Value 'Write-VariableValues' -Scope Script
@@ -4463,6 +4763,9 @@ Export-ModuleMember -Function @(
     'Write-BuildErrorSummary'
     # Phase execution wrapper (v1.0.22 - REL-BUILD-01)
     'Invoke-BuildPhase'
+    # DISM readiness check (v1.0.23 - DISM-HEALTH-01)
+    'Test-DismReady'
+    'Clear-OrphanedMountPointsWithoutDism'
 )
 
 # Export backward compatibility aliases (deprecated - use new function names)

@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.22'
+    ModuleVersion = '1.0.24'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -102,7 +102,10 @@
         'Clear-BuildErrors',
         'Write-BuildErrorSummary',
         # Phase execution wrapper (v1.0.22 - REL-BUILD-01)
-        'Invoke-BuildPhase'
+        'Invoke-BuildPhase',
+        # DISM readiness check (v1.0.23 - DISM-HEALTH-01)
+        'Test-DismReady',
+        'Clear-OrphanedMountPointsWithoutDism'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -133,7 +136,22 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.22
+# Release Notes - FFU.Core v1.0.24
+
+## v1.0.24 - Phase 38 INF Parsing Improvements (PATH-01)
+- Get-PrivateProfileString: Auto-growing buffer (1KB to 64KB) for large INF values
+- Prevents truncation of SourceDisksFiles sections in INF files with hundreds of entries
+- Enhanced DllImport in BuildFFUVM.ps1 with CharSet.Unicode and SetLastError for improved reliability
+- 54 total functions exported (unchanged)
+
+## v1.0.23 - DISM Readiness Check (DISM-HEALTH-01)
+- Added Test-DismReady: Lightweight WIMMount filter driver validation using fltmc (does NOT use DISM)
+- Added Clear-OrphanedMountPointsWithoutDism: Registry-based mount point cleanup when DISM is broken
+- Test-DismReady prevents 10-minute hangs from DismInitialize 0x80004005 by fast-failing
+- Automatic repair via sc.exe, fltmc, rundll32, and Test-FFUWimMount (if available)
+- Non-DISM fallback cleans stale mount registry entries and DISM temp directories
+- Solves chicken-and-egg: cleanup needs DISM, but DISM is broken, so cleanup hangs
+- 54 total functions now exported
 
 ## v1.0.22 - Phase Wrapper with Graceful Degradation (REL-BUILD-01)
 - Added Invoke-BuildPhase: Wraps phase execution with consistent error handling
