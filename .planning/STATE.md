@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 38 of 43 (SUBST Drive Mapping) - COMPLETE
-**Plan:** 2 of 2 complete (38-02)
-**Status:** Phase 38 complete — SUBST drive mapping fully integrated
-**Last activity:** 2026-01-29 — Completed 38-02-PLAN.md
+**Phase:** 39 of 43 (Model Normalization) - IN PROGRESS
+**Plan:** 1 of 2 complete (39-01)
+**Status:** Plan 39-01 complete — Dell GroupManifest normalization + SystemID extraction
+**Last activity:** 2026-01-29 — Completed 39-01-PLAN.md
 
-Progress: █████░░░░░ 43% (12 of 28 plans complete across 10 phases)
+Progress: █████░░░░░ 46% (13 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -40,7 +40,7 @@ Progress: █████░░░░░ 43% (12 of 28 plans complete across 10 
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
-| 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
+| 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | In Progress (1/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
@@ -93,6 +93,10 @@ Progress: █████░░░░░ 43% (12 of 28 plans complete across 10 
 | 38-02 | WinPE compatibility via Get-Command checks | ApplyFFU.ps1 runs in minimal environment; FFU.Drivers may not be loaded | SUBST operations optional; script works with or without module |
 | 38-02 | INF scanning with folder deduplication | Parent folders with /Recurse cover children | Typical reduction: 50-100 folders -> 5-10 folders for SUBST operations |
 | 38-02 | Path walk-up for 240+ char paths | SUBST target path has ~240 char limit | Algorithm walks up to parent until path fits SUBST limit |
+| 39-01 | ReadSubtree() DOM approach for Get-DellDriversModelList | Reliable child element access for GroupManifest/Display | Matches proven Save-DellDriversTask pattern, enables GroupManifest extraction |
+| 39-01 | HP PlatformList.xml cache built inline on first HP entry | Per-call hashtable avoids repeat XML parsing | Single parse per Update-DriverMappingJson call for all HP entries |
+| 39-01 | Extract Get-HPSystemIdFromPlatformList as named exported function | Enables direct test access and reuse | Function available for tests and future consumers outside Update-DriverMappingJson |
+| 39-01 | Save-DellDriversTask checks GroupManifest, Model/Display, and Brand+Model assembly | Models listed via GroupManifest normalization must match at download time | Prevents model mismatch between list and download phases |
 
 ## Blockers
 
@@ -101,9 +105,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 38-02-PLAN.md (Phase 38 complete)
+**Stopped at:** Completed 39-01-PLAN.md
 **Resume file:** None
-**Next action:** Begin Phase 39 (Model Normalization) - Brand deduplication and SystemID matching
+**Next action:** Continue Phase 39 with Plan 39-02
 
 ---
-*State updated: 2026-01-29 after Phase 38 complete*
+*State updated: 2026-01-29 after Plan 39-01 complete*
