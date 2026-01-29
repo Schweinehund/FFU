@@ -1472,6 +1472,8 @@ function Import-ConfigSupplementalAssets {
                                     ProductName    = if ($modelEntry.PSObject.Properties['ProductName']) { $modelEntry.ProductName } else { $null }
                                     MachineType    = if ($modelEntry.PSObject.Properties['MachineType']) { $modelEntry.MachineType } else { $null }
                                     Id             = if ($modelEntry.PSObject.Properties['Id']) { $modelEntry.Id } else { $null }
+                                    SystemId       = if ($modelEntry.PSObject.Properties['SystemId']) { $modelEntry.SystemId } else { $null }
+                                    CabUrl         = if ($modelEntry.PSObject.Properties['CabUrl']) { $modelEntry.CabUrl } else { $null }
                                 }
                                 $State.Data.allDriverModels.Add($driverObj)
                             }
