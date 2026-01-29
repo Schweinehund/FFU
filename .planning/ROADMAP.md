@@ -27,7 +27,7 @@
 - [x] **Phase 36: CU Skip Logic and ESD BITS Downloads** - Version comparison + BITS transfer
 - [x] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
 - [x] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
-- [ ] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
+- [x] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
 - [ ] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
 - [ ] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
 - [ ] **Phase 42: New OEM Manufacturers** - 8 new OEMs
@@ -160,8 +160,9 @@ Plans:
 **Research**: Unlikely (straightforward regex and WMI patterns)
 **Plans**: 2 plans
 Plans:
-- [ ] 39-01-PLAN.md — Build-time model normalization (Dell GroupManifest Display CDATA) + SystemID/MachineType extraction in Update-DriverMappingJson
-- [ ] 39-02-PLAN.md — Deploy-time SystemID extraction (Get-SystemIdentityMetadata, Get-NormalizedManufacturer, enhanced matching) + Pester tests
+- [x] 39-01-PLAN.md — Build-time model normalization (Dell GroupManifest Display CDATA) + SystemID/MachineType extraction in Update-DriverMappingJson
+- [x] 39-02-PLAN.md — Deploy-time SystemID extraction (Get-SystemIdentityMetadata, Get-NormalizedManufacturer, enhanced matching) + Pester tests
+**Completed:** 2026-01-29 — Verified (11/11 must-haves)
 
 ### Phase 40: Dell Driver Refactoring (CatalogIndexPC)
 **Goal**: Refactor Dell driver download to use CatalogIndexPC.cab for more efficient driver selection
@@ -225,7 +226,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (114 complete + 16 planned)
+**Total:** 43 phases, 130 plans (116 complete + 14 planned)
 
 ---
-*Last updated: 2026-01-29 - Phase 38 complete*
+*Last updated: 2026-01-29 - Phase 39 complete*
