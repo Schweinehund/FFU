@@ -9,6 +9,95 @@
     It supports checking for and installing WinGet, downloading applications, handling different application types (Win32 and UWP), and generating silent installation commands for Win32 applications.
     This module is used by both the build script (BuildFFUVM.ps1) and the UI (BuildFFUVM_UI.ps1) to manage application downloads and configuration.
 #>
+
+# --------------------------------------------------------------------------
+# SECTION: Helper Functions (Phase 37 - Ordering and Dependencies)
+# --------------------------------------------------------------------------
+
+function Get-WinGetWin32AppsJsonMutexName {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WinGetWin32AppsJsonPath
+    )
+    $hashBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+        [System.Text.Encoding]::UTF8.GetBytes($WinGetWin32AppsJsonPath)
+    )
+    $hashHex = ($hashBytes | ForEach-Object { $_.ToString('x2') }) -join ''
+    return "WinGetWin32Apps_$($hashHex.Substring(0, 16))"
+}
+
+function Invoke-WithNamedMutex {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$MutexName,
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$ScriptBlock,
+        [int]$TimeoutSeconds = 60
+    )
+    $mutex = New-Object System.Threading.Mutex($false, $MutexName)
+    $lockTaken = $false
+    try {
+        $lockTaken = $mutex.WaitOne([TimeSpan]::FromSeconds($TimeoutSeconds))
+        if (-not $lockTaken) {
+            throw "Timed out waiting for mutex '$MutexName' after $TimeoutSeconds seconds."
+        }
+        & $ScriptBlock
+    }
+    finally {
+        if ($lockTaken) {
+            try { $mutex.ReleaseMutex() | Out-Null }
+            catch { }
+        }
+        $mutex.Dispose()
+    }
+}
+
+function Set-FileContentAtomic {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Content
+    )
+    $parentPath = Split-Path -Path $Path -Parent
+    if (-not (Test-Path -Path $parentPath -PathType Container)) {
+        New-Item -Path $parentPath -ItemType Directory -Force | Out-Null
+    }
+    $tempPath = "$Path.$([guid]::NewGuid().ToString('N')).tmp"
+    Set-Content -Path $tempPath -Value $Content -Encoding UTF8
+    try {
+        [System.IO.File]::Move($tempPath, $Path, $true)
+    }
+    catch {
+        Move-Item -Path $tempPath -Destination $Path -Force
+    }
+}
+
+function Get-WinGetYamlScalarValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$YamlText,
+        [Parameter(Mandatory = $true)]
+        [string]$Key
+    )
+    $match = [regex]::Match($YamlText, "(?m)^${Key}:\s+(.+)$")
+    if ($match.Success) {
+        $value = $match.Groups[1].Value.Trim()
+        # Strip surrounding quotes (single and double)
+        $value = $value.Trim("'").Trim('"')
+        return $value
+    }
+    return $null
+}
+
+# --------------------------------------------------------------------------
+# SECTION: Application Management Functions
+# --------------------------------------------------------------------------
+
 function Get-Application {
     [CmdletBinding()]
     param (
