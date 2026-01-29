@@ -152,11 +152,22 @@ function Get-Application {
                         foreach ($archFolder in $archFolders) {
                             WriteLog "Adding silent install command for pre-downloaded $AppName ($($archFolder.Name)) to $OrchestrationPath\WinGetWin32Apps.json"
                             Add-Win32SilentInstallCommand -AppFolder $AppName -AppFolderPath $archFolder.FullName -OrchestrationPath $OrchestrationPath -SubFolder $archFolder.Name | Out-Null
+                            # Process dependencies for pre-downloaded app (Phase 37 - WINGET-02)
+                            Add-Win32DependencySilentInstallCommands `
+                                -ParentAppName $AppName `
+                                -ParentAppFolderPath $archFolder.FullName `
+                                -OrchestrationPath $OrchestrationPath `
+                                -SubFolder $archFolder.Name | Out-Null
                         }
                     }
                     else {
                         WriteLog "Adding silent install command for pre-downloaded $AppName to $OrchestrationPath\WinGetWin32Apps.json"
                         Add-Win32SilentInstallCommand -AppFolder $AppName -AppFolderPath $win32BasePath -OrchestrationPath $OrchestrationPath | Out-Null
+                        # Process dependencies for pre-downloaded app (Phase 37 - WINGET-02)
+                        Add-Win32DependencySilentInstallCommands `
+                            -ParentAppName $AppName `
+                            -ParentAppFolderPath $win32BasePath `
+                            -OrchestrationPath $OrchestrationPath | Out-Null
                     }
                 }
             }
@@ -323,6 +334,18 @@ function Get-Application {
             if (-not $SkipWin32Json) {
                 WriteLog "$AppName is a Win32 app. Adding silent install command to $OrchestrationPath\WinGetWin32Apps.json"
                 $result = Add-Win32SilentInstallCommand -AppFolder $AppName -AppFolderPath $appFolderPath -OrchestrationPath $OrchestrationPath -SubFolder $subFolderForCommand
+
+                # Process Win32 app dependencies (Phase 37 - WINGET-02)
+                if ($result -eq 0) {
+                    $depResult = Add-Win32DependencySilentInstallCommands `
+                        -ParentAppName $AppName `
+                        -ParentAppFolderPath $appFolderPath `
+                        -OrchestrationPath $OrchestrationPath `
+                        -SubFolder $subFolderForCommand
+                    if ($depResult -ne 0) {
+                        WriteLog "WARNING: Failed to process dependencies for $AppName. Error code: $depResult. Continuing with main app."
+                    }
+                }
             }
             else {
                 WriteLog "$AppName is a Win32 app. Skipping WinGetWin32Apps.json generation (UI mode)."
@@ -945,6 +968,93 @@ function Add-Win32SilentInstallCommand {
     }
 
     # Return 0 for success
+    return 0
+}
+
+# --------------------------------------------------------------------------
+# SECTION: Win32 Dependency Resolution (Phase 37 - WINGET-02)
+# --------------------------------------------------------------------------
+
+function Add-Win32DependencySilentInstallCommands {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ParentAppName,
+        [Parameter(Mandatory = $true)]
+        [string]$ParentAppFolderPath,
+        [Parameter(Mandatory = $true)]
+        [string]$OrchestrationPath,
+        [string]$SubFolder
+    )
+
+    $dependenciesFolderPath = Join-Path -Path $ParentAppFolderPath -ChildPath 'Dependencies'
+    if (-not (Test-Path -Path $dependenciesFolderPath -PathType Container)) {
+        return 0
+    }
+
+    $dependencyYamlFiles = Get-ChildItem -Path $dependenciesFolderPath -Filter "*.yaml" -File -ErrorAction SilentlyContinue
+    if (-not $dependencyYamlFiles -or $dependencyYamlFiles.Count -eq 0) {
+        return 0
+    }
+
+    WriteLog "Found $($dependencyYamlFiles.Count) dependency manifest(s) for '$ParentAppName'."
+
+    $allFailed = $true
+    try {
+        foreach ($yamlFile in $dependencyYamlFiles) {
+            try {
+                $yamlText = Get-Content -Path $yamlFile.FullName -Raw
+                $packageIdentifier = Get-WinGetYamlScalarValue -YamlText $yamlText -Key 'PackageIdentifier'
+                $depName = [System.IO.Path]::GetFileNameWithoutExtension($yamlFile.Name)
+
+                if ([string]::IsNullOrWhiteSpace($packageIdentifier)) {
+                    WriteLog "WARNING: Could not extract PackageIdentifier from dependency manifest '$($yamlFile.Name)' for '$ParentAppName'. Skipping."
+                    continue
+                }
+
+                # Build base path for the dependency (same parent app folder on the target drive)
+                $depBasePath = "D:\win32\$ParentAppName"
+                if (-not [string]::IsNullOrEmpty($SubFolder)) {
+                    $depBasePath = "$depBasePath\$SubFolder"
+                }
+
+                $depResult = Add-Win32SilentInstallCommand `
+                    -AppFolder $ParentAppName `
+                    -AppFolderPath $ParentAppFolderPath `
+                    -OrchestrationPath $OrchestrationPath `
+                    -SubFolder $SubFolder `
+                    -YamlFilePath $yamlFile.FullName `
+                    -BasePathOverride $depBasePath `
+                    -PackageIdentifier $packageIdentifier `
+                    -DependencyFor $ParentAppName `
+                    -SkipRemoveOnFailure
+
+                WriteLog "Processed dependency '$depName' (PackageIdentifier: $packageIdentifier) for parent app '$ParentAppName'."
+
+                # If we got here without throwing and result is 0 or a hashtable with Added=$false (duplicate skip), mark success
+                if ($depResult -eq 0 -or ($depResult -is [hashtable] -and $depResult.Added -eq $false)) {
+                    $allFailed = $false
+                }
+                elseif ($depResult -ne 0) {
+                    WriteLog "WARNING: Dependency '$depName' for '$ParentAppName' returned error code $depResult. Continuing with remaining dependencies."
+                }
+                else {
+                    $allFailed = $false
+                }
+            }
+            catch {
+                WriteLog "WARNING: Failed to process dependency '$($yamlFile.Name)' for '$ParentAppName': $($_.Exception.Message)"
+            }
+        }
+    }
+    catch {
+        WriteLog "Failed to process dependencies for '$ParentAppName': $($_.Exception.Message)"
+        return 5
+    }
+
+    if ($allFailed -and $dependencyYamlFiles.Count -gt 0) {
+        return 5
+    }
     return 0
 }
 
