@@ -341,6 +341,30 @@ function Import-DriversJson {
                                 WriteLog "Import-DriversJson: Updated ProductName/MachineType/Id for existing Lenovo model '$($existingModel.Model)'."
                             }
                         }
+                        elseif ($makeName -eq 'Dell') {
+                            $updateExistingDell = $false
+                            if ($importedModelObject.PSObject.Properties['SystemId'] -and
+                                (-not $existingModel.PSObject.Properties['SystemId'] -or $existingModel.SystemId -ne $importedModelObject.SystemId)) {
+                                if (-not $existingModel.PSObject.Properties['SystemId']) {
+                                    $existingModel | Add-Member -NotePropertyName 'SystemId' -NotePropertyValue $importedModelObject.SystemId -Force
+                                } else {
+                                    $existingModel.SystemId = $importedModelObject.SystemId
+                                }
+                                $updateExistingDell = $true
+                            }
+                            if ($importedModelObject.PSObject.Properties['CabUrl'] -and
+                                (-not $existingModel.PSObject.Properties['CabUrl'] -or $existingModel.CabUrl -ne $importedModelObject.CabUrl)) {
+                                if (-not $existingModel.PSObject.Properties['CabUrl']) {
+                                    $existingModel | Add-Member -NotePropertyName 'CabUrl' -NotePropertyValue $importedModelObject.CabUrl -Force
+                                } else {
+                                    $existingModel.CabUrl = $importedModelObject.CabUrl
+                                }
+                                $updateExistingDell = $true
+                            }
+                            if ($updateExistingDell) {
+                                WriteLog "Import-DriversJson: Updated SystemId/CabUrl for existing Dell model '$($existingModel.Model)'."
+                            }
+                        }
                         $existingModelsUpdated++
                         WriteLog "Import-DriversJson: Marked existing model '$($existingModel.Make) - $($existingModel.Model)' as imported."
                     }
@@ -350,6 +374,13 @@ function Import-DriversJson {
                         $importedId = $importedModelNameFromObject # Default Id
                         $importedProductName = $null
                         $importedMachineType = $null
+                        $importedSystemId = $null
+                        $importedCabUrl = $null
+
+                        if ($makeName -eq 'Dell') {
+                            $importedSystemId = if ($importedModelObject.PSObject.Properties['SystemId']) { $importedModelObject.SystemId } else { $null }
+                            $importedCabUrl = if ($importedModelObject.PSObject.Properties['CabUrl']) { $importedModelObject.CabUrl } else { $null }
+                        }
 
                         if ($makeName -eq 'Lenovo') {
                             $importedProductName = if ($importedModelObject.PSObject.Properties['ProductName']) { $importedModelObject.ProductName } else { $null }
@@ -382,6 +413,8 @@ function Import-DriversJson {
                             Id             = $importedId
                             ProductName    = $importedProductName
                             MachineType    = $importedMachineType
+                            SystemId       = $importedSystemId    # NEW: Dell CatalogIndexPC (Phase 40)
+                            CabUrl         = $importedCabUrl      # NEW: Dell CatalogIndexPC (Phase 40)
                             Version        = ""
                             Type           = ""
                             Size           = ""
