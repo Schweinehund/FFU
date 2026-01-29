@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 41 of 43 (Driver Matching, PE Copy, and UI Clarity) - IN PROGRESS
-**Plan:** 2 of 3 complete (41-01, 41-02)
-**Status:** Plan 41-02 complete — PE driver injection retry logic with [PE]-prefixed summary logging
-**Last activity:** 2026-01-29 — Completed 41-02-PLAN.md
+**Phase:** 41 of 43 (Driver Matching, PE Copy, and UI Clarity) - COMPLETE
+**Plan:** 3 of 3 complete (41-01, 41-02, 41-03)
+**Status:** Phase 41 complete — Driver source status UI + comprehensive Pester tests for family fallback and PE retry
+**Last activity:** 2026-01-29 — Completed 41-03-PLAN.md
 
-Progress: ██████░░░░ 68% (19 of 28 plans complete across 10 phases)
+Progress: ███████░░░ 71% (20 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -42,7 +42,7 @@ Progress: ██████░░░░ 68% (19 of 28 plans complete across 10 
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
-| 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | In Progress (2/3 plans) |
+| 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Complete (3/3 plans) |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
@@ -111,6 +111,9 @@ Progress: ██████░░░░ 68% (19 of 28 plans complete across 10 
 | 41-02 | Non-blocking behavior preserved -- build continues even if all PE drivers fail | PE drivers are optional enhancement | Builds don't block on PE driver failures |
 | 41-02 | [PE] prefix for all PE driver log lines | Enables grep filtering and structured logging | PE driver operations easily identifiable in logs |
 | 41-02 | Summary count logging: 'X/Y succeeded' or 'WARNING: X/Y injected, Z failed' | Provides visibility into injection success rate | Users see partial failures without verbose per-driver logging |
+| 41-03 | Use AST analysis for testing non-runnable scripts | ApplyFFU.ps1 runs in WinPE, FFU.Media.psm1 requires ADK - AST validates structure without execution | Enables comprehensive testing without mock complexity or VM integration tests |
+| 41-03 | Search Extent.Text instead of StringConstantExpressionAst.Value | Log messages use string interpolation - patterns exist in full extent, not constant values | Reliable AST pattern matching for interpolated strings |
+| 41-03 | Register control explicitly via FindName in Initialize module | WPF controls are NOT auto-discovered - must be registered in $State.Controls | Explicit control registration prevents null reference errors at runtime |
 
 ## Blockers
 
@@ -119,9 +122,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 41-02-PLAN.md
+**Stopped at:** Completed 41-03-PLAN.md (Phase 41 COMPLETE)
 **Resume file:** None
-**Next action:** Continue Phase 41 with Plan 03 (UI Clarity)
+**Next action:** Begin Phase 42 (New OEM Manufacturers) with Plan 01
 
 ---
-*State updated: 2026-01-29 after completing 41-02 (PE driver injection retry logic)*
+*State updated: 2026-01-29 after completing Phase 41 (Driver Matching, PE Copy, and UI Clarity)*
