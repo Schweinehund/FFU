@@ -159,6 +159,9 @@ Plans:
   3. Pester tests verify normalization and SystemID extraction
 **Research**: Unlikely (straightforward regex and WMI patterns)
 **Plans**: 2 plans
+Plans:
+- [ ] 39-01-PLAN.md — Build-time model normalization (Dell GroupManifest Display CDATA) + SystemID/MachineType extraction in Update-DriverMappingJson
+- [ ] 39-02-PLAN.md — Deploy-time SystemID extraction (Get-SystemIdentityMetadata, Get-NormalizedManufacturer, enhanced matching) + Pester tests
 
 ### Phase 40: Dell Driver Refactoring (CatalogIndexPC)
 **Goal**: Refactor Dell driver download to use CatalogIndexPC.cab for more efficient driver selection
