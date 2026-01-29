@@ -445,6 +445,86 @@ function Get-CachedOEMCatalog {
     }
 }
 
+function Get-DellCatalogIndex {
+    <#
+    .SYNOPSIS
+    Downloads and extracts Dell CatalogIndexPC.cab to XML
+
+    .DESCRIPTION
+    Internal helper function that downloads the Dell CatalogIndexPC catalog
+    (lightweight model index) via Get-CachedOEMCatalog, extracts it to XML,
+    and returns the XML file path. Uses 7-day cache TTL for both cab and XML.
+
+    On any failure (download, extraction, missing XML), logs WARNING and returns $null
+    to trigger fallback to CatalogPC.cab.
+
+    .PARAMETER DriversFolder
+    Root drivers folder path (Dell subfolder will be created)
+
+    .OUTPUTS
+    String - Path to extracted CatalogIndexPC.xml, or $null on failure
+
+    .NOTES
+    This is an internal helper function, not exported from the module
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$DriversFolder
+    )
+
+    try {
+        # Compute paths
+        $indexFolder = Join-Path $DriversFolder 'Dell'
+        $indexCab = Join-Path $indexFolder 'CatalogIndexPC.cab'
+        $indexXml = Join-Path $indexFolder 'CatalogIndexPC.xml'
+
+        # Ensure folder exists
+        if (-not (Test-Path $indexFolder)) {
+            New-Item -Path $indexFolder -ItemType Directory -Force | Out-Null
+        }
+
+        # Check if XML already exists and is fresh (within 7 days)
+        if (Test-Path $indexXml) {
+            $xmlAge = ([DateTime]::Now - (Get-Item $indexXml).LastWriteTime).TotalHours
+            $maxCacheHours = [FFUConstants]::OEM_CATALOG_CACHE_HOURS
+            if ($xmlAge -lt $maxCacheHours) {
+                WriteLog "Using cached CatalogIndexPC.xml (age: $([math]::Round($xmlAge, 1)) hours)"
+                return $indexXml
+            }
+            WriteLog "Cached CatalogIndexPC.xml is stale (age: $([math]::Round($xmlAge, 1)) hours, max: $maxCacheHours)"
+        }
+
+        # Download/cache the index cab using existing infrastructure
+        $cabPath = Get-CachedOEMCatalog -Vendor 'Dell' -CatalogType 'IndexPC' `
+            -PrimaryUrl ([FFUConstants]::DELL_CATALOG_INDEX_PC_URL) `
+            -CachePath $indexCab
+
+        if (-not $cabPath -or -not (Test-Path $cabPath)) {
+            WriteLog "WARNING: CatalogIndexPC download failed. Falling back to CatalogPC.cab"
+            return $null
+        }
+
+        # Extract cab to XML
+        WriteLog "Extracting CatalogIndexPC.cab to $indexXml"
+        Invoke-Process -FilePath Expand.exe -ArgumentList "$cabPath $indexXml" -ErrorAction Stop | Out-Null
+
+        # Verify XML exists after extraction
+        if (-not (Test-Path $indexXml)) {
+            WriteLog "WARNING: CatalogIndexPC extraction failed - XML not found after expand.exe. Falling back to CatalogPC.cab"
+            return $null
+        }
+
+        WriteLog "CatalogIndexPC downloaded and extracted successfully"
+        return $indexXml
+    }
+    catch {
+        WriteLog "WARNING: CatalogIndexPC download/extraction failed: $($_.Exception.Message). Falling back to CatalogPC.cab"
+        return $null
+    }
+}
+
 function Test-DriverDiskSpace {
     <#
     .SYNOPSIS
