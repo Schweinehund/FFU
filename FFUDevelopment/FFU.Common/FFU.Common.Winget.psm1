@@ -613,6 +613,137 @@ function Get-Apps {
     catch {
         WriteLog "Failed to apply AppList.json command overrides: $($_.Exception.Message)"
     }
+
+    # --------------------------------------------------------------------------
+    # Post-download reorder: Enforce AppList.json installation order (Phase 37 - WINGET-01)
+    # --------------------------------------------------------------------------
+    try {
+        $winGetWin32Path = Join-Path -Path $OrchestrationPath -ChildPath 'WinGetWin32Apps.json'
+        if (Test-Path -Path $winGetWin32Path) {
+            # Build desired order map from AppList.json (winget entries only)
+            $desiredOrderMap = @{}
+            $orderIndex = 0
+            foreach ($app in ($apps.apps | Where-Object { $_.source -eq 'winget' })) {
+                if (-not [string]::IsNullOrWhiteSpace($app.name) -and
+                    -not $desiredOrderMap.ContainsKey($app.name)) {
+                    $desiredOrderMap[$app.name] = $orderIndex
+                    $orderIndex++
+                }
+            }
+
+            if ($desiredOrderMap.Count -gt 0) {
+                $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $winGetWin32Path
+                Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
+                    [array]$currentAppsData = Get-Content -Path $winGetWin32Path -Raw | ConvertFrom-Json
+                    if ($null -eq $currentAppsData) { $currentAppsData = @() }
+
+                    if ($currentAppsData.Count -gt 1) {
+                        $originalNames = @($currentAppsData | ForEach-Object { $_.Name })
+                        $indexed = @()
+                        for ($i = 0; $i -lt $currentAppsData.Count; $i++) {
+                            $entry = $currentAppsData[$i]
+
+                            # Check DependencyFor property
+                            $dependencyFor = $null
+                            if ($entry.PSObject.Properties['DependencyFor']) {
+                                $dependencyFor = $entry.DependencyFor
+                            }
+
+                            # Normalize name: use DependencyFor if set, strip arch suffixes
+                            $baseName = $entry.Name
+                            if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                                $baseName = $dependencyFor
+                            }
+                            if (-not [string]::IsNullOrWhiteSpace($baseName)) {
+                                $baseName = ($baseName -replace '\s+\((x86|x64|arm64)\)$', '')
+                            }
+
+                            # Unknown entries get MaxValue (pushed to end)
+                            $orderKey = [int]::MaxValue
+                            if (-not [string]::IsNullOrWhiteSpace($baseName) -and
+                                $desiredOrderMap.ContainsKey($baseName)) {
+                                $orderKey = [int]$desiredOrderMap[$baseName]
+                            }
+
+                            # Dependencies sort before parent (0 < 1)
+                            $isDependency = 1
+                            if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                                $isDependency = 0
+                            }
+
+                            $indexed += [PSCustomObject]@{
+                                OrderKey      = $orderKey
+                                IsDependency  = $isDependency
+                                OriginalIndex = $i
+                                App           = $entry
+                            }
+                        }
+
+                        $sorted = $indexed | Sort-Object -Property OrderKey, IsDependency, OriginalIndex
+                        $reorderedApps = @($sorted | ForEach-Object { $_.App })
+
+                        # Detect if reorder or priority reassignment is needed
+                        $priorityNeedsUpdate = $false
+                        for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                            if ($reorderedApps[$p].PSObject.Properties['Priority'] -and
+                                $reorderedApps[$p].Priority -eq ($p + 1)) {
+                                continue
+                            }
+                            $priorityNeedsUpdate = $true
+                            break
+                        }
+                        $sortedNames = @($reorderedApps | ForEach-Object { $_.Name })
+                        $orderNeedsUpdate = (($originalNames -join "`n") -ne ($sortedNames -join "`n"))
+
+                        if ($orderNeedsUpdate -or $priorityNeedsUpdate) {
+                            # Log old -> new priority for each app
+                            for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                                $oldPriority = if ($reorderedApps[$p].PSObject.Properties['Priority']) { $reorderedApps[$p].Priority } else { 'unset' }
+                                $newPriority = $p + 1
+                                $depMarker = ''
+                                if ($reorderedApps[$p].PSObject.Properties['DependencyFor'] -and
+                                    -not [string]::IsNullOrWhiteSpace($reorderedApps[$p].DependencyFor)) {
+                                    $depMarker = " (dep for $($reorderedApps[$p].DependencyFor))"
+                                }
+                                WriteLog "  Reorder: $($reorderedApps[$p].Name)$depMarker — Priority $oldPriority -> $newPriority"
+                                $reorderedApps[$p].Priority = $newPriority
+                            }
+                            $jsonText = $reorderedApps | ConvertTo-Json -Depth 10
+                            Set-FileContentAtomic -Path $winGetWin32Path -Content $jsonText
+                            WriteLog "Reordered and re-prioritized WinGetWin32Apps.json to match AppList.json ordering."
+                        }
+                        else {
+                            WriteLog "WinGetWin32Apps.json is already ordered to match AppList.json; no reorder needed."
+                        }
+
+                        # Log full install manifest
+                        WriteLog "--- Install Manifest (final order) ---"
+                        for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                            $depMarker = ''
+                            if ($reorderedApps[$p].PSObject.Properties['DependencyFor'] -and
+                                -not [string]::IsNullOrWhiteSpace($reorderedApps[$p].DependencyFor)) {
+                                $depMarker = " (dep for $($reorderedApps[$p].DependencyFor))"
+                            }
+                            WriteLog "  $($p + 1). $($reorderedApps[$p].Name)$depMarker"
+                        }
+                        WriteLog "--- End Install Manifest ---"
+                    }
+                    else {
+                        WriteLog "WinGetWin32Apps.json has 0-1 entries; reorder not needed."
+                    }
+                }
+            }
+            else {
+                WriteLog "No winget apps in AppList.json; skipping reorder."
+            }
+        }
+        else {
+            WriteLog "WinGetWin32Apps.json not found; skipping reorder."
+        }
+    }
+    catch {
+        WriteLog "WARNING: Failed to reorder WinGetWin32Apps.json: $($_.Exception.Message). Continuing with current order."
+    }
 }
 function Install-WinGet {
     param (
