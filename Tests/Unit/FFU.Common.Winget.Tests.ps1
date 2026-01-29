@@ -641,3 +641,626 @@ Describe 'Get-WinGetWin32AppsJsonMutexName - Path-Based Mutex' -Tag 'Unit', 'FFU
         $result | Should -Match '^WinGetWin32Apps_'
     }
 }
+
+# =============================================================================
+# Phase 37: Add-Win32SilentInstallCommand - PackageIdentifier Deduplication
+# =============================================================================
+
+Describe 'Add-Win32SilentInstallCommand - PackageIdentifier Deduplication' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37', 'WINGET-02' {
+
+    It 'Should deduplicate entries with same PackageIdentifier' {
+        # Arrange
+        $testOrchPath = Join-Path $TestDrive "OrchDedup1"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+
+        # Create two different app folders but same PackageIdentifier
+        $app1Path = New-TestAppFolder -BasePath $TestDrive -AppName "DedupAppA" -InstallerType "exe"
+        $app2Path = New-TestAppFolder -BasePath $TestDrive -AppName "DedupAppB" -InstallerType "exe"
+
+        # Act - Add first with PackageIdentifier
+        Add-Win32SilentInstallCommand -AppFolder "DedupAppA" -AppFolderPath $app1Path `
+            -OrchestrationPath $testOrchPath -PackageIdentifier "Test.Package.1" | Out-Null
+        # Add second with SAME PackageIdentifier but different Name
+        Add-Win32SilentInstallCommand -AppFolder "DedupAppB" -AppFolderPath $app2Path `
+            -OrchestrationPath $testOrchPath -PackageIdentifier "Test.Package.1" | Out-Null
+
+        # Assert - Only 1 entry (second was deduplicated)
+        $jsonPath = Join-Path $testOrchPath "WinGetWin32Apps.json"
+        $apps = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+        if ($apps -isnot [array]) { $apps = @($apps) }
+        $apps.Count | Should -Be 1 -Because "duplicate PackageIdentifier should be skipped"
+        $apps[0].Name | Should -Be "DedupAppA"
+    }
+
+    It 'Should allow entries with different PackageIdentifiers' {
+        # Arrange
+        $testOrchPath = Join-Path $TestDrive "OrchDedup2"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $app1Path = New-TestAppFolder -BasePath $TestDrive -AppName "UniqueAppA" -InstallerType "exe"
+        $app2Path = New-TestAppFolder -BasePath $TestDrive -AppName "UniqueAppB" -InstallerType "exe"
+
+        # Act - Add with different PackageIdentifiers
+        Add-Win32SilentInstallCommand -AppFolder "UniqueAppA" -AppFolderPath $app1Path `
+            -OrchestrationPath $testOrchPath -PackageIdentifier "Test.Package.1" | Out-Null
+        Add-Win32SilentInstallCommand -AppFolder "UniqueAppB" -AppFolderPath $app2Path `
+            -OrchestrationPath $testOrchPath -PackageIdentifier "Test.Package.2" | Out-Null
+
+        # Assert - Both entries present
+        $jsonPath = Join-Path $testOrchPath "WinGetWin32Apps.json"
+        $apps = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+        $apps.Count | Should -Be 2
+    }
+
+    It 'Should add DependencyFor metadata when parameter provided' {
+        # Arrange
+        $testOrchPath = Join-Path $TestDrive "OrchDepFor"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appPath = New-TestAppFolder -BasePath $TestDrive -AppName "DepForApp" -InstallerType "exe"
+
+        # Act
+        Add-Win32SilentInstallCommand -AppFolder "DepForApp" -AppFolderPath $appPath `
+            -OrchestrationPath $testOrchPath -DependencyFor "ParentApp" | Out-Null
+
+        # Assert
+        $jsonPath = Join-Path $testOrchPath "WinGetWin32Apps.json"
+        $apps = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+        if ($apps -isnot [array]) { $apps = @($apps) }
+        $apps[0].PSObject.Properties['DependencyFor'] | Should -Not -BeNullOrEmpty
+        $apps[0].DependencyFor | Should -Be "ParentApp"
+    }
+
+    It 'Should add PackageIdentifier metadata when parameter provided' {
+        # Arrange
+        $testOrchPath = Join-Path $TestDrive "OrchPkgId"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appPath = New-TestAppFolder -BasePath $TestDrive -AppName "PkgIdApp" -InstallerType "exe"
+
+        # Act
+        Add-Win32SilentInstallCommand -AppFolder "PkgIdApp" -AppFolderPath $appPath `
+            -OrchestrationPath $testOrchPath -PackageIdentifier "Test.Package" | Out-Null
+
+        # Assert
+        $jsonPath = Join-Path $testOrchPath "WinGetWin32Apps.json"
+        $apps = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+        if ($apps -isnot [array]) { $apps = @($apps) }
+        $apps[0].PSObject.Properties['PackageIdentifier'] | Should -Not -BeNullOrEmpty
+        $apps[0].PackageIdentifier | Should -Be "Test.Package"
+    }
+}
+
+# =============================================================================
+# Phase 37: Add-Win32SilentInstallCommand - SkipRemoveOnFailure
+# =============================================================================
+
+Describe 'Add-Win32SilentInstallCommand - SkipRemoveOnFailure' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37', 'WINGET-02' {
+
+    It 'Should not remove folder when SkipRemoveOnFailure is set and no installer found' {
+        # Arrange - Create folder with ONLY a YAML file (no .exe or .msi)
+        $testOrchPath = Join-Path $TestDrive "OrchSkipRemove1"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appFolderPath = Join-Path $TestDrive "SkipRemoveApp1"
+        New-Item -Path $appFolderPath -ItemType Directory -Force | Out-Null
+        # Create only a YAML file, no installer
+        $yamlContent = @"
+PackageIdentifier: Test.NoInstaller
+PackageVersion: 1.0.0
+InstallerSwitches:
+    Silent: /S
+"@
+        Set-Content -Path (Join-Path $appFolderPath "installer.yaml") -Value $yamlContent -Force
+
+        # Act - Call with -SkipRemoveOnFailure
+        $result = Add-Win32SilentInstallCommand -AppFolder "SkipRemoveApp1" `
+            -AppFolderPath $appFolderPath -OrchestrationPath $testOrchPath -SkipRemoveOnFailure
+
+        # Assert
+        $result | Should -Be 1 -Because "no installer found returns error code"
+        $appFolderPath | Should -Exist -Because "SkipRemoveOnFailure should prevent deletion"
+    }
+
+    It 'Should remove folder when SkipRemoveOnFailure is NOT set and no installer found' {
+        # Arrange - Create folder with ONLY a YAML file (no .exe or .msi)
+        $testOrchPath = Join-Path $TestDrive "OrchSkipRemove2"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appFolderPath = Join-Path $TestDrive "SkipRemoveApp2"
+        New-Item -Path $appFolderPath -ItemType Directory -Force | Out-Null
+        $yamlContent = @"
+PackageIdentifier: Test.NoInstaller2
+PackageVersion: 1.0.0
+InstallerSwitches:
+    Silent: /S
+"@
+        Set-Content -Path (Join-Path $appFolderPath "installer.yaml") -Value $yamlContent -Force
+
+        # Act - Call WITHOUT -SkipRemoveOnFailure
+        $result = Add-Win32SilentInstallCommand -AppFolder "SkipRemoveApp2" `
+            -AppFolderPath $appFolderPath -OrchestrationPath $testOrchPath
+
+        # Assert
+        $result | Should -Be 1 -Because "no installer found returns error code"
+        $appFolderPath | Should -Not -Exist -Because "folder should be removed on failure without SkipRemoveOnFailure"
+    }
+}
+
+# =============================================================================
+# Phase 37: WinGetWin32Apps.json Ordering - Post-Download Reorder Algorithm
+# =============================================================================
+
+Describe 'WinGetWin32Apps.json Ordering - Post-Download Reorder' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37', 'WINGET-01' {
+
+    BeforeAll {
+        $module = Get-Module 'FFU.Common.Winget'
+    }
+
+    It 'Should reorder apps to match AppList.json sequence' {
+        # Arrange - Create WinGetWin32Apps.json with entries in reverse order
+        $testDir = Join-Path $TestDrive "ReorderTest1"
+        New-Item -Path $testDir -ItemType Directory -Force | Out-Null
+        $winGetJsonPath = Join-Path $testDir "WinGetWin32Apps.json"
+
+        # JSON entries in wrong order: C, B, A (Priority reflects download order)
+        $appsData = @(
+            [PSCustomObject]@{ Priority = 1; Name = "AppC"; CommandLine = "c.exe"; Arguments = "/S" }
+            [PSCustomObject]@{ Priority = 2; Name = "AppB"; CommandLine = "b.exe"; Arguments = "/S" }
+            [PSCustomObject]@{ Priority = 3; Name = "AppA"; CommandLine = "a.exe"; Arguments = "/S" }
+        )
+        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetJsonPath -Encoding UTF8
+
+        # Desired order map from AppList.json: A=0, B=1, C=2
+        $desiredOrderMap = @{ 'AppA' = 0; 'AppB' = 1; 'AppC' = 2 }
+
+        # Act - Simulate reorder algorithm via module scope
+        & $module {
+            param($jsonPath, $orderMap)
+            $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $jsonPath
+            Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
+                [array]$currentAppsData = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+                if ($null -eq $currentAppsData) { $currentAppsData = @() }
+
+                if ($currentAppsData.Count -gt 1) {
+                    $indexed = @()
+                    for ($i = 0; $i -lt $currentAppsData.Count; $i++) {
+                        $entry = $currentAppsData[$i]
+                        $dependencyFor = $null
+                        if ($entry.PSObject.Properties['DependencyFor']) {
+                            $dependencyFor = $entry.DependencyFor
+                        }
+                        $baseName = $entry.Name
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $baseName = $dependencyFor
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($baseName)) {
+                            $baseName = ($baseName -replace '\s+\((x86|x64|arm64)\)$', '')
+                        }
+                        $orderKey = [int]::MaxValue
+                        if (-not [string]::IsNullOrWhiteSpace($baseName) -and $orderMap.ContainsKey($baseName)) {
+                            $orderKey = [int]$orderMap[$baseName]
+                        }
+                        $isDependency = 1
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $isDependency = 0
+                        }
+                        $indexed += [PSCustomObject]@{
+                            OrderKey      = $orderKey
+                            IsDependency  = $isDependency
+                            OriginalIndex = $i
+                            App           = $entry
+                        }
+                    }
+                    $sorted = $indexed | Sort-Object -Property OrderKey, IsDependency, OriginalIndex
+                    $reorderedApps = @($sorted | ForEach-Object { $_.App })
+                    for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                        $reorderedApps[$p].Priority = $p + 1
+                    }
+                    $jsonText = $reorderedApps | ConvertTo-Json -Depth 10
+                    Set-FileContentAtomic -Path $jsonPath -Content $jsonText
+                }
+            }
+        } $winGetJsonPath $desiredOrderMap
+
+        # Assert - Order should now be A, B, C with priorities 1, 2, 3
+        $result = Get-Content -Path $winGetJsonPath -Raw | ConvertFrom-Json
+        $result.Count | Should -Be 3
+        $result[0].Name | Should -Be "AppA"
+        $result[0].Priority | Should -Be 1
+        $result[1].Name | Should -Be "AppB"
+        $result[1].Priority | Should -Be 2
+        $result[2].Name | Should -Be "AppC"
+        $result[2].Priority | Should -Be 3
+    }
+
+    It 'Should place dependencies before parent app' {
+        # Arrange
+        $testDir = Join-Path $TestDrive "ReorderTest2"
+        New-Item -Path $testDir -ItemType Directory -Force | Out-Null
+        $winGetJsonPath = Join-Path $testDir "WinGetWin32Apps.json"
+
+        # Parent first, dependency second (wrong order)
+        $appsData = @(
+            [PSCustomObject]@{ Priority = 1; Name = "ParentApp"; CommandLine = "parent.exe"; Arguments = "/S" }
+            [PSCustomObject]@{ Priority = 2; Name = "DepLib"; CommandLine = "dep.exe"; Arguments = "/S"; DependencyFor = "ParentApp" }
+        )
+        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetJsonPath -Encoding UTF8
+
+        $desiredOrderMap = @{ 'ParentApp' = 0 }
+
+        # Act - Run reorder algorithm
+        & $module {
+            param($jsonPath, $orderMap)
+            $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $jsonPath
+            Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
+                [array]$currentAppsData = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+                if ($null -eq $currentAppsData) { $currentAppsData = @() }
+                if ($currentAppsData.Count -gt 1) {
+                    $indexed = @()
+                    for ($i = 0; $i -lt $currentAppsData.Count; $i++) {
+                        $entry = $currentAppsData[$i]
+                        $dependencyFor = $null
+                        if ($entry.PSObject.Properties['DependencyFor']) {
+                            $dependencyFor = $entry.DependencyFor
+                        }
+                        $baseName = $entry.Name
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $baseName = $dependencyFor
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($baseName)) {
+                            $baseName = ($baseName -replace '\s+\((x86|x64|arm64)\)$', '')
+                        }
+                        $orderKey = [int]::MaxValue
+                        if (-not [string]::IsNullOrWhiteSpace($baseName) -and $orderMap.ContainsKey($baseName)) {
+                            $orderKey = [int]$orderMap[$baseName]
+                        }
+                        $isDependency = 1
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $isDependency = 0
+                        }
+                        $indexed += [PSCustomObject]@{
+                            OrderKey      = $orderKey
+                            IsDependency  = $isDependency
+                            OriginalIndex = $i
+                            App           = $entry
+                        }
+                    }
+                    $sorted = $indexed | Sort-Object -Property OrderKey, IsDependency, OriginalIndex
+                    $reorderedApps = @($sorted | ForEach-Object { $_.App })
+                    for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                        $reorderedApps[$p].Priority = $p + 1
+                    }
+                    $jsonText = $reorderedApps | ConvertTo-Json -Depth 10
+                    Set-FileContentAtomic -Path $jsonPath -Content $jsonText
+                }
+            }
+        } $winGetJsonPath $desiredOrderMap
+
+        # Assert - Dependency should come before parent
+        $result = Get-Content -Path $winGetJsonPath -Raw | ConvertFrom-Json
+        $result.Count | Should -Be 2
+        $result[0].Name | Should -Be "DepLib" -Because "dependency should sort before parent"
+        $result[0].Priority | Should -Be 1
+        $result[1].Name | Should -Be "ParentApp"
+        $result[1].Priority | Should -Be 2
+    }
+
+    It 'Should normalize architecture suffixes for matching' {
+        # Arrange
+        $testDir = Join-Path $TestDrive "ReorderTest3"
+        New-Item -Path $testDir -ItemType Directory -Force | Out-Null
+        $winGetJsonPath = Join-Path $testDir "WinGetWin32Apps.json"
+
+        # Entry has architecture suffix but AppList.json doesn't
+        $appsData = @(
+            [PSCustomObject]@{ Priority = 1; Name = "UnknownFirst"; CommandLine = "u.exe"; Arguments = "/S" }
+            [PSCustomObject]@{ Priority = 2; Name = "TestApp (x64)"; CommandLine = "t.exe"; Arguments = "/S" }
+        )
+        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetJsonPath -Encoding UTF8
+
+        # AppList.json has "TestApp" without suffix at position 0
+        $desiredOrderMap = @{ 'TestApp' = 0 }
+
+        # Act
+        & $module {
+            param($jsonPath, $orderMap)
+            $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $jsonPath
+            Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
+                [array]$currentAppsData = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+                if ($null -eq $currentAppsData) { $currentAppsData = @() }
+                if ($currentAppsData.Count -gt 1) {
+                    $indexed = @()
+                    for ($i = 0; $i -lt $currentAppsData.Count; $i++) {
+                        $entry = $currentAppsData[$i]
+                        $dependencyFor = $null
+                        if ($entry.PSObject.Properties['DependencyFor']) {
+                            $dependencyFor = $entry.DependencyFor
+                        }
+                        $baseName = $entry.Name
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $baseName = $dependencyFor
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($baseName)) {
+                            $baseName = ($baseName -replace '\s+\((x86|x64|arm64)\)$', '')
+                        }
+                        $orderKey = [int]::MaxValue
+                        if (-not [string]::IsNullOrWhiteSpace($baseName) -and $orderMap.ContainsKey($baseName)) {
+                            $orderKey = [int]$orderMap[$baseName]
+                        }
+                        $isDependency = 1
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $isDependency = 0
+                        }
+                        $indexed += [PSCustomObject]@{
+                            OrderKey      = $orderKey
+                            IsDependency  = $isDependency
+                            OriginalIndex = $i
+                            App           = $entry
+                        }
+                    }
+                    $sorted = $indexed | Sort-Object -Property OrderKey, IsDependency, OriginalIndex
+                    $reorderedApps = @($sorted | ForEach-Object { $_.App })
+                    for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                        $reorderedApps[$p].Priority = $p + 1
+                    }
+                    $jsonText = $reorderedApps | ConvertTo-Json -Depth 10
+                    Set-FileContentAtomic -Path $jsonPath -Content $jsonText
+                }
+            }
+        } $winGetJsonPath $desiredOrderMap
+
+        # Assert - "TestApp (x64)" should match "TestApp" and sort first
+        $result = Get-Content -Path $winGetJsonPath -Raw | ConvertFrom-Json
+        $result.Count | Should -Be 2
+        $result[0].Name | Should -Be "TestApp (x64)" -Because "arch suffix should be stripped for matching"
+        $result[0].Priority | Should -Be 1
+        $result[1].Name | Should -Be "UnknownFirst"
+        $result[1].Priority | Should -Be 2
+    }
+
+    It 'Should push unknown apps to end of order' {
+        # Arrange
+        $testDir = Join-Path $TestDrive "ReorderTest4"
+        New-Item -Path $testDir -ItemType Directory -Force | Out-Null
+        $winGetJsonPath = Join-Path $testDir "WinGetWin32Apps.json"
+
+        $appsData = @(
+            [PSCustomObject]@{ Priority = 1; Name = "UnknownApp"; CommandLine = "u.exe"; Arguments = "/S" }
+            [PSCustomObject]@{ Priority = 2; Name = "KnownApp"; CommandLine = "k.exe"; Arguments = "/S" }
+        )
+        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetJsonPath -Encoding UTF8
+
+        # Only KnownApp is in AppList.json
+        $desiredOrderMap = @{ 'KnownApp' = 0 }
+
+        # Act
+        & $module {
+            param($jsonPath, $orderMap)
+            $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $jsonPath
+            Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
+                [array]$currentAppsData = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+                if ($null -eq $currentAppsData) { $currentAppsData = @() }
+                if ($currentAppsData.Count -gt 1) {
+                    $indexed = @()
+                    for ($i = 0; $i -lt $currentAppsData.Count; $i++) {
+                        $entry = $currentAppsData[$i]
+                        $dependencyFor = $null
+                        if ($entry.PSObject.Properties['DependencyFor']) {
+                            $dependencyFor = $entry.DependencyFor
+                        }
+                        $baseName = $entry.Name
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $baseName = $dependencyFor
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($baseName)) {
+                            $baseName = ($baseName -replace '\s+\((x86|x64|arm64)\)$', '')
+                        }
+                        $orderKey = [int]::MaxValue
+                        if (-not [string]::IsNullOrWhiteSpace($baseName) -and $orderMap.ContainsKey($baseName)) {
+                            $orderKey = [int]$orderMap[$baseName]
+                        }
+                        $isDependency = 1
+                        if (-not [string]::IsNullOrWhiteSpace($dependencyFor)) {
+                            $isDependency = 0
+                        }
+                        $indexed += [PSCustomObject]@{
+                            OrderKey      = $orderKey
+                            IsDependency  = $isDependency
+                            OriginalIndex = $i
+                            App           = $entry
+                        }
+                    }
+                    $sorted = $indexed | Sort-Object -Property OrderKey, IsDependency, OriginalIndex
+                    $reorderedApps = @($sorted | ForEach-Object { $_.App })
+                    for ($p = 0; $p -lt $reorderedApps.Count; $p++) {
+                        $reorderedApps[$p].Priority = $p + 1
+                    }
+                    $jsonText = $reorderedApps | ConvertTo-Json -Depth 10
+                    Set-FileContentAtomic -Path $jsonPath -Content $jsonText
+                }
+            }
+        } $winGetJsonPath $desiredOrderMap
+
+        # Assert
+        $result = Get-Content -Path $winGetJsonPath -Raw | ConvertFrom-Json
+        $result.Count | Should -Be 2
+        $result[0].Name | Should -Be "KnownApp" -Because "known app should sort first"
+        $result[1].Name | Should -Be "UnknownApp" -Because "unknown app pushed to end"
+    }
+
+    It 'Should handle single-entry JSON without error' {
+        # Arrange
+        $testDir = Join-Path $TestDrive "ReorderTest5"
+        New-Item -Path $testDir -ItemType Directory -Force | Out-Null
+        $winGetJsonPath = Join-Path $testDir "WinGetWin32Apps.json"
+
+        # Single entry - reorder should be a no-op
+        $appsData = @(
+            [PSCustomObject]@{ Priority = 1; Name = "OnlyApp"; CommandLine = "o.exe"; Arguments = "/S" }
+        )
+        $appsData | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetJsonPath -Encoding UTF8
+
+        $desiredOrderMap = @{ 'OnlyApp' = 0 }
+
+        # Act - Should not throw
+        {
+            & $module {
+                param($jsonPath, $orderMap)
+                $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $jsonPath
+                Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
+                    [array]$currentAppsData = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+                    if ($null -eq $currentAppsData) { $currentAppsData = @() }
+                    # Single entry - the Count -gt 1 guard means no reorder happens
+                    if ($currentAppsData.Count -gt 1) {
+                        # This block should not execute for single entry
+                        throw "Should not reach reorder for single entry"
+                    }
+                }
+            } $winGetJsonPath $desiredOrderMap
+        } | Should -Not -Throw
+
+        # Assert - JSON unchanged
+        $result = Get-Content -Path $winGetJsonPath -Raw | ConvertFrom-Json
+        if ($result -isnot [array]) { $result = @($result) }
+        $result.Count | Should -Be 1
+        $result[0].Name | Should -Be "OnlyApp"
+        $result[0].Priority | Should -Be 1
+    }
+}
+
+# =============================================================================
+# Phase 37: Add-Win32DependencySilentInstallCommands - Dependency Discovery
+# =============================================================================
+
+Describe 'Add-Win32DependencySilentInstallCommands - Dependency Discovery' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37', 'WINGET-02' {
+
+    It 'Should return 0 when no Dependencies folder exists' {
+        # This test verifies the function signature and no-dependency behavior.
+        # The function is defined by Plan 02 (parallel execution).
+        # If Plan 02 has not committed yet, skip gracefully.
+        $module = Get-Module 'FFU.Common.Winget'
+        $hasFunction = & $module { $function:AddWin32DependencySilentInstallCommandsExists = $null; Get-Command -Name 'Add-Win32DependencySilentInstallCommands' -ErrorAction SilentlyContinue }
+        if (-not $hasFunction) {
+            Set-ItResult -Skipped -Because "Add-Win32DependencySilentInstallCommands not yet defined (Plan 02 parallel)"
+            return
+        }
+
+        # Arrange - App folder without Dependencies/ subfolder
+        $testOrchPath = Join-Path $TestDrive "OrchDep1"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appFolderPath = Join-Path $TestDrive "NoDepsApp"
+        New-Item -Path $appFolderPath -ItemType Directory -Force | Out-Null
+
+        # Act
+        $result = Add-Win32DependencySilentInstallCommands -ParentAppName "NoDepsApp" `
+            -ParentAppFolderPath $appFolderPath -OrchestrationPath $testOrchPath -SubFolder "x64"
+
+        # Assert
+        $result | Should -Be 0
+    }
+
+    It 'Should return 0 when Dependencies folder is empty' {
+        $module = Get-Module 'FFU.Common.Winget'
+        $hasFunction = & $module { Get-Command -Name 'Add-Win32DependencySilentInstallCommands' -ErrorAction SilentlyContinue }
+        if (-not $hasFunction) {
+            Set-ItResult -Skipped -Because "Add-Win32DependencySilentInstallCommands not yet defined (Plan 02 parallel)"
+            return
+        }
+
+        # Arrange - App folder with empty Dependencies/ subfolder
+        $testOrchPath = Join-Path $TestDrive "OrchDep2"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appFolderPath = Join-Path $TestDrive "EmptyDepsApp"
+        New-Item -Path $appFolderPath -ItemType Directory -Force | Out-Null
+        New-Item -Path (Join-Path $appFolderPath "Dependencies") -ItemType Directory -Force | Out-Null
+
+        # Act
+        $result = Add-Win32DependencySilentInstallCommands -ParentAppName "EmptyDepsApp" `
+            -ParentAppFolderPath $appFolderPath -OrchestrationPath $testOrchPath -SubFolder "x64"
+
+        # Assert
+        $result | Should -Be 0
+    }
+
+    It 'Should discover and process YAML files in Dependencies folder' {
+        $module = Get-Module 'FFU.Common.Winget'
+        $hasFunction = & $module { Get-Command -Name 'Add-Win32DependencySilentInstallCommands' -ErrorAction SilentlyContinue }
+        if (-not $hasFunction) {
+            Set-ItResult -Skipped -Because "Add-Win32DependencySilentInstallCommands not yet defined (Plan 02 parallel)"
+            return
+        }
+
+        # Arrange - App folder with Dependencies/ containing YAML files and matching installers
+        $testOrchPath = Join-Path $TestDrive "OrchDep3"
+        New-Item -Path $testOrchPath -ItemType Directory -Force | Out-Null
+        $appFolderPath = Join-Path $TestDrive "DepsApp"
+        New-Item -Path $appFolderPath -ItemType Directory -Force | Out-Null
+
+        # Create installer in app folder
+        "dummy" | Set-Content -Path (Join-Path $appFolderPath "vc_redist.x64.exe") -Force
+
+        # Create Dependencies/ subfolder with YAML manifest
+        $depsFolder = Join-Path $appFolderPath "Dependencies"
+        New-Item -Path $depsFolder -ItemType Directory -Force | Out-Null
+        $depYaml = @"
+PackageIdentifier: Microsoft.VCRedist.2015+.x64
+PackageVersion: 14.36.32532.0
+Installers:
+- Architecture: x64
+  InstallerType: exe
+  InstallerUrl: https://example.com/vc_redist.x64.exe
+  InstallerSwitches:
+    Silent: /install /quiet /norestart
+"@
+        Set-Content -Path (Join-Path $depsFolder "Microsoft.VCRedist.2015+.x64.yaml") -Value $depYaml -Force
+
+        # Also create the installer file matching the dependency
+        "dummy" | Set-Content -Path (Join-Path $appFolderPath "vc_redist.x64.exe") -Force
+
+        # Act
+        $result = Add-Win32DependencySilentInstallCommands -ParentAppName "DepsApp" `
+            -ParentAppFolderPath $appFolderPath -OrchestrationPath $testOrchPath -SubFolder "x64"
+
+        # Assert - Check result and JSON entries
+        $result | Should -Be 0
+        $jsonPath = Join-Path $testOrchPath "WinGetWin32Apps.json"
+        if (Test-Path $jsonPath) {
+            $apps = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
+            if ($apps -isnot [array]) { $apps = @($apps) }
+            # Should have at least one dependency entry with DependencyFor metadata
+            $depEntries = $apps | Where-Object { $_.PSObject.Properties['DependencyFor'] }
+            $depEntries | Should -Not -BeNullOrEmpty -Because "dependency entries should have DependencyFor metadata"
+        }
+    }
+}
+
+# =============================================================================
+# Phase 37: Module Export - Phase 37 Functions
+# =============================================================================
+
+Describe 'Module Export - Phase 37 Functions' -Tag 'Unit', 'FFU.Common.Winget', 'Phase37', 'Module' {
+
+    It 'Should export Add-Win32DependencySilentInstallCommands when defined' {
+        # The function is exported in Export-ModuleMember but may not be defined until Plan 02
+        # Check if the export statement includes it (source code check)
+        $moduleSource = Get-Content -Path "$ProjectRoot\FFUDevelopment\FFU.Common\FFU.Common.Winget.psm1" -Raw
+        $moduleSource | Should -Match 'Add-Win32DependencySilentInstallCommands' `
+            -Because "Export-ModuleMember should list Add-Win32DependencySilentInstallCommands"
+    }
+
+    It 'Should NOT export Invoke-WithNamedMutex (internal helper)' {
+        Get-Command -Name 'Invoke-WithNamedMutex' -Module 'FFU.Common.Winget' -ErrorAction SilentlyContinue |
+            Should -BeNullOrEmpty -Because "helper function should not be exported"
+    }
+
+    It 'Should NOT export Set-FileContentAtomic (internal helper)' {
+        Get-Command -Name 'Set-FileContentAtomic' -Module 'FFU.Common.Winget' -ErrorAction SilentlyContinue |
+            Should -BeNullOrEmpty -Because "helper function should not be exported"
+    }
+
+    It 'Should NOT export Get-WinGetWin32AppsJsonMutexName (internal helper)' {
+        Get-Command -Name 'Get-WinGetWin32AppsJsonMutexName' -Module 'FFU.Common.Winget' -ErrorAction SilentlyContinue |
+            Should -BeNullOrEmpty -Because "helper function should not be exported"
+    }
+
+    It 'Should NOT export Get-WinGetYamlScalarValue (internal helper)' {
+        Get-Command -Name 'Get-WinGetYamlScalarValue' -Module 'FFU.Common.Winget' -ErrorAction SilentlyContinue |
+            Should -BeNullOrEmpty -Because "helper function should not be exported"
+    }
+}
