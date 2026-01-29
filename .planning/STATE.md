@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 40 of 43 (Dell Refactoring) - IN PROGRESS
-**Plan:** 2 of 3 complete (40-02)
-**Status:** Phase 40 in progress — UI-layer CatalogIndexPC complete
-**Last activity:** 2026-01-29 — Completed 40-02-PLAN.md
+**Phase:** 40 of 43 (Dell Refactoring) - COMPLETE
+**Plan:** 3 of 3 complete (40-01, 40-02, 40-03)
+**Status:** Phase 40 complete — CatalogIndexPC infrastructure, UI integration, and test suite shipped
+**Last activity:** 2026-01-29 — Completed 40-03-PLAN.md
 
-Progress: █████░░░░░ 57% (16 of 28 plans complete across 10 phases)
+Progress: ██████░░░░ 64% (18 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -41,7 +41,7 @@ Progress: █████░░░░░ 57% (16 of 28 plans complete across 10 
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
-| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | In Progress (2/3 plans) |
+| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Complete (3/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
