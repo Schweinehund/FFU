@@ -35,7 +35,7 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 
 ### Driver Improvements (DRV)
 
-- [ ] **DRV-01**: Dell driver download uses CatalogIndexPC for efficient driver package selection
+- [x] **DRV-01**: Dell driver download uses CatalogIndexPC for efficient driver package selection
 - [x] **DRV-02**: Model names normalized to remove duplicate brand prefixes (e.g., "Dell Dell Latitude" → "Dell Latitude")
 - [x] **DRV-03**: SystemID extraction from BIOS/WMI works correctly across HP, Dell, and Lenovo
 - [ ] **DRV-04**: 8 new OEM manufacturers supported (Panasonic, Fujitsu, Getac, Dynabook, Samsung, Acer, ASUS, MSI)
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated by create-roadmap.
 | DEPLOY-01 | Phase 43 | Pending |
 | DEPLOY-02 | Phase 43 | Pending |
 | DEPLOY-03 | Phase 43 | Pending |
-| DRV-01 | Phase 40 | Pending |
+| DRV-01 | Phase 40 | Complete |
 | DRV-02 | Phase 39 | Complete |
 | DRV-03 | Phase 39 | Complete |
 | DRV-04 | Phase 42 | Pending |

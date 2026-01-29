@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 40 of 43 (Dell Refactoring) - COMPLETE
+**Phase:** 40 of 43 (Dell Refactoring) - VERIFIED
 **Plan:** 3 of 3 complete (40-01, 40-02, 40-03)
-**Status:** Phase 40 complete — CatalogIndexPC infrastructure, UI integration, and test suite shipped
-**Last activity:** 2026-01-29 — Completed 40-03-PLAN.md
+**Status:** Phase 40 verified — CatalogIndexPC infrastructure, UI integration, and test suite (26/26 must-haves)
+**Last activity:** 2026-01-29 — Phase 40 verified
 
-Progress: ██████░░░░ 64% (18 of 28 plans complete across 10 phases)
+Progress: ██████░░░░ 61% (17 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -41,7 +41,7 @@ Progress: ██████░░░░ 64% (18 of 28 plans complete across 10 
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
-| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Complete (3/3 plans) |
+| 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
@@ -114,9 +114,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 40-02-PLAN.md
+**Stopped at:** Phase 40 verified (26/26 must-haves)
 **Resume file:** None
-**Next action:** Continue Phase 40 Plan 03 (Dell Refactoring - Save-DellDriversTask integration)
+**Next action:** Begin Phase 41 (Driver Matching, PE Copy, and UI Clarity)
 
 ---
-*State updated: 2026-01-29 after Plan 40-02 complete (UI-layer CatalogIndexPC support)*
+*State updated: 2026-01-29 after Phase 40 verified (Dell Driver Refactoring complete)*

@@ -28,7 +28,7 @@
 - [x] **Phase 37: Winget App Ordering and Dependencies** - Enforce sequence + dedup dependencies
 - [x] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
 - [x] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
-- [ ] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
+- [x] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
 - [ ] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
 - [ ] **Phase 42: New OEM Manufacturers** - 8 new OEMs
 - [ ] **Phase 43: Deployment Improvements and Nice-to-Haves** - Multi-disk, empty drivers, delay
@@ -173,8 +173,13 @@ Plans:
   2. Dell driver download time reduced by avoiding unnecessary full catalog downloads
   3. Build log shows CatalogIndexPC selection process
   4. Pester tests verify CatalogIndexPC parsing and fallback
-**Research**: Likely (study upstream CatalogIndexPC.cab XML schema)
+**Research**: Complete (40-RESEARCH.md — CatalogIndexPC XML schema, XmlReader patterns, fallback strategy)
 **Plans**: 3 plans
+Plans:
+- [x] 40-01-PLAN.md — CatalogIndexPC infrastructure (3 internal helpers + Get-DellDrivers integration + FFUConstants)
+- [x] 40-02-PLAN.md — UI-layer CatalogIndexPC + Drivers.json schema extension (SystemId/CabUrl)
+- [x] 40-03-PLAN.md — Pester tests for CatalogIndexPC parsing, fallback, schema, caching (48 tests)
+**Completed:** 2026-01-29 — Verified (26/26 must-haves)
 
 ### Phase 41: Driver Matching, PE Copy, and UI Clarity
 **Goal**: Add generic driver fallback, improve PE driver copy reliability, and clarify driver source selection in UI
@@ -226,7 +231,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (116 complete + 14 planned)
+**Total:** 43 phases, 130 plans (119 complete + 11 planned)
 
 ---
-*Last updated: 2026-01-29 - Phase 39 complete*
+*Last updated: 2026-01-29 - Phase 40 complete*
