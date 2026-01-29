@@ -541,12 +541,9 @@ function Get-Apps {
         if ($overrideMap.Count -gt 0) {
             $winGetWin32Path = Join-Path -Path $OrchestrationPath -ChildPath 'WinGetWin32Apps.json'
             if (Test-Path -Path $winGetWin32Path) {
-                # Use a lock to prevent race conditions when writing to the same file
-                $lockName = "WinGetWin32AppsJsonLock"
-                $lock = New-Object System.Threading.Mutex($false, $lockName)
-                try {
-                    [void]$lock.WaitOne()
-
+                # Use named mutex wrapper for thread-safe JSON read/write
+                $mutexName = Get-WinGetWin32AppsJsonMutexName -WinGetWin32AppsJsonPath $winGetWin32Path
+                Invoke-WithNamedMutex -MutexName $mutexName -TimeoutSeconds 60 -ScriptBlock {
                     # Re-read content inside lock to ensure latest version
                     [array]$appsDataUpdated = Get-Content -Path $winGetWin32Path -Raw | ConvertFrom-Json
                     $changed = $false
@@ -576,16 +573,13 @@ function Get-Apps {
                         }
                     }
                     if ($changed) {
-                        $appsDataUpdated | ConvertTo-Json -Depth 10 | Set-Content -Path $winGetWin32Path
+                        $jsonText = $appsDataUpdated | ConvertTo-Json -Depth 10
+                        Set-FileContentAtomic -Path $winGetWin32Path -Content $jsonText
                         WriteLog "Applied AppList.json command overrides to WinGetWin32Apps.json"
                     }
                     else {
                         WriteLog "No matching apps required command overrides."
                     }
-                }
-                finally {
-                    $lock.ReleaseMutex()
-                    $lock.Dispose()
                 }
             }
             else {
@@ -959,4 +953,4 @@ function Add-Win32SilentInstallCommand {
 # --------------------------------------------------------------------------
 
 # Export functions needed by both BuildFFUVM and the UI Core module
-Export-ModuleMember -Function Get-Application, Get-Apps, Confirm-WinGetInstallation, Add-Win32SilentInstallCommand, Install-Winget
+Export-ModuleMember -Function Get-Application, Get-Apps, Confirm-WinGetInstallation, Add-Win32SilentInstallCommand, Install-Winget, Add-Win32DependencySilentInstallCommands

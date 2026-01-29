@@ -168,12 +168,13 @@ Describe 'Add-Win32SilentInstallCommand - Mutex JSON Safety' -Tag 'Unit', 'FFU.C
     }
 
     Context 'Named Mutex Usage' {
-        It 'Should use named mutex WinGetWin32AppsJsonLock' {
+        It 'Should use named mutex via Invoke-WithNamedMutex wrapper' {
             # Arrange - Get the module source code
             $moduleSource = Get-Content -Path "$ProjectRoot\FFUDevelopment\FFU.Common\FFU.Common.Winget.psm1" -Raw
 
-            # Assert - Check for mutex lock name in source code
-            $moduleSource | Should -Match 'WinGetWin32AppsJsonLock' -Because "function must use named mutex for cross-process synchronization"
+            # Assert - Check for mutex wrapper pattern in source code (Phase 37 upgrade from raw mutex)
+            $moduleSource | Should -Match 'Invoke-WithNamedMutex' -Because "function must use Invoke-WithNamedMutex wrapper for cross-process synchronization"
+            $moduleSource | Should -Match 'Get-WinGetWin32AppsJsonMutexName' -Because "function must use path-based mutex name generation"
             $moduleSource | Should -Match 'System\.Threading\.Mutex' -Because "function must use Mutex for thread safety"
         }
     }
