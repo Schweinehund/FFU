@@ -115,10 +115,179 @@ function Compress-DriverFolderToWim {
 }
 
 # --------------------------------------------------------------------------
+# SECTION: HP PlatformList.xml SystemID Lookup
+# --------------------------------------------------------------------------
+
+function Get-HPSystemIdFromPlatformList {
+    <#
+    .SYNOPSIS
+        Resolves an HP model name to a SystemID using PlatformList.xml.
+
+    .DESCRIPTION
+        Loads HP PlatformList.xml, builds a ProductName-to-SystemID hashtable cache,
+        and performs 3-tier matching (exact, alphanumeric-stripped, contains) to find
+        the SystemID for a given HP model. If PlatformList.xml is not found locally,
+        attempts download from HP's CDN. All failures are non-throwing.
+
+    .PARAMETER ModelName
+        The HP model name to look up.
+
+    .PARAMETER DriversFolder
+        Base drivers folder (e.g., C:\FFUDevelopment\Drivers).
+
+    .PARAMETER PlatformCache
+        Optional pre-built hashtable of ProductName -> SystemID mappings.
+        If provided, skips XML parsing and uses the cache directly.
+
+    .OUTPUTS
+        [string] The SystemID in uppercase, or $null if not found.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ModelName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder,
+
+        [Parameter()]
+        [hashtable]$PlatformCache = $null
+    )
+
+    # Build cache if not provided
+    if ($null -eq $PlatformCache) {
+        $PlatformCache = @{}
+        $platformListXml = Join-Path -Path $DriversFolder -ChildPath "HP\PlatformList.xml"
+
+        # Attempt download if file doesn't exist
+        if (-not (Test-Path -Path $platformListXml -PathType Leaf)) {
+            try {
+                WriteLog "HP PlatformList.xml not found at '$platformListXml'. Attempting download..."
+                $hpDriversFolder = Join-Path -Path $DriversFolder -ChildPath "HP"
+                if (-not (Test-Path -Path $hpDriversFolder -PathType Container)) {
+                    New-Item -Path $hpDriversFolder -ItemType Directory -Force | Out-Null
+                }
+                $platformListCab = Join-Path -Path $hpDriversFolder -ChildPath "platformList.cab"
+                $platformListUrl = 'https://hpia.hpcloud.hp.com/ref/platformList.cab'
+
+                # Use .NET WebClient for download (no BITS dependency)
+                $webClient = New-Object System.Net.WebClient
+                $webClient.DownloadFile($platformListUrl, $platformListCab)
+                $webClient.Dispose()
+                WriteLog "HP PlatformList.cab downloaded to '$platformListCab'."
+
+                # Expand CAB
+                $expandArgs = @($platformListCab, $platformListXml)
+                $expandProcess = Start-Process -FilePath "expand.exe" -ArgumentList $expandArgs `
+                    -Wait -PassThru -NoNewWindow
+                if ($expandProcess.ExitCode -ne 0) {
+                    WriteLog "WARNING: expand.exe returned exit code $($expandProcess.ExitCode) for PlatformList.cab."
+                }
+
+                # Clean up CAB
+                Remove-Item -Path $platformListCab -Force -ErrorAction SilentlyContinue
+            }
+            catch {
+                WriteLog "WARNING: Could not download HP PlatformList.xml for SystemID extraction: $($_.Exception.Message)"
+                return $null
+            }
+        }
+
+        # Parse PlatformList.xml into cache
+        if (-not (Test-Path -Path $platformListXml -PathType Leaf)) {
+            WriteLog "WARNING: HP PlatformList.xml still not available after download attempt."
+            return $null
+        }
+
+        try {
+            [xml]$platformListContent = Get-Content -Path $platformListXml -Raw -Encoding UTF8 -ErrorAction Stop
+            foreach ($platform in $platformListContent.ImagePal.Platform) {
+                $productNames = @($platform.ProductName)
+                foreach ($productNameNode in $productNames) {
+                    $productName = $null
+                    if ($productNameNode -is [string]) {
+                        $productName = $productNameNode.Trim()
+                    }
+                    elseif ($null -ne $productNameNode.'#text') {
+                        $productName = $productNameNode.'#text'.Trim()
+                    }
+                    elseif ($null -ne $productNameNode.InnerText) {
+                        $productName = $productNameNode.InnerText.Trim()
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($productName) -and
+                        -not [string]::IsNullOrWhiteSpace($platform.SystemID)) {
+                        $normalizedId = $platform.SystemID.Trim().ToUpperInvariant()
+                        if (-not $PlatformCache.ContainsKey($productName)) {
+                            $PlatformCache[$productName] = $normalizedId
+                        }
+                    }
+                }
+            }
+            WriteLog "HP PlatformList.xml parsed: $($PlatformCache.Count) product-to-SystemID mappings cached."
+        }
+        catch {
+            WriteLog "WARNING: Could not parse HP PlatformList.xml: $($_.Exception.Message)"
+            return $null
+        }
+    }
+
+    if ($PlatformCache.Count -eq 0) {
+        WriteLog "HP SystemID lookup skipped: PlatformList.xml cache is empty."
+        return $null
+    }
+
+    # Tier 1: Exact case-insensitive match
+    $exactMatch = $PlatformCache.GetEnumerator() | Where-Object {
+        $_.Key -eq $ModelName
+    } | Select-Object -First 1
+
+    if ($null -ne $exactMatch) {
+        return $exactMatch.Value.Trim().ToUpperInvariant()
+    }
+
+    # Tier 2: Stripped-to-alphanumeric match
+    $strippedModel = ($ModelName -replace '[^A-Za-z0-9]', '').ToLowerInvariant()
+    $alphanumericMatch = $PlatformCache.GetEnumerator() | Where-Object {
+        ($_.Key -replace '[^A-Za-z0-9]', '').ToLowerInvariant() -eq $strippedModel
+    } | Select-Object -First 1
+
+    if ($null -ne $alphanumericMatch) {
+        return $alphanumericMatch.Value.Trim().ToUpperInvariant()
+    }
+
+    # Tier 3: Contains match (ProductName contains model name or vice versa)
+    $containsMatch = $PlatformCache.GetEnumerator() | Where-Object {
+        $_.Key.IndexOf($ModelName, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $ModelName.IndexOf($_.Key, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+    } | Select-Object -First 1
+
+    if ($null -ne $containsMatch) {
+        return $containsMatch.Value.Trim().ToUpperInvariant()
+    }
+
+    WriteLog "HP SystemID not found in PlatformList.xml for model '$ModelName'."
+    return $null
+}
+
+# --------------------------------------------------------------------------
 # SECTION: Driver Mapping Function
 # --------------------------------------------------------------------------
 
 function Update-DriverMappingJson {
+    <#
+    .SYNOPSIS
+        Updates DriverMapping.json with downloaded driver entries, including
+        SystemID (Dell/HP) and MachineType (Lenovo) extraction.
+
+    .DESCRIPTION
+        Maintains a JSON-based mapping of downloaded drivers to their respective
+        makes and models. Now includes build-time extraction of vendor-specific
+        identifiers: SystemId for Dell (regex from model name) and HP (PlatformList.xml
+        lookup), MachineType for Lenovo (regex from model name). All extraction
+        failures are non-throwing with $null fallback.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -156,6 +325,14 @@ function Update-DriverMappingJson {
     $updatedCount = 0
     $addedCount = 0
 
+    # Regex for extracting parenthesized suffix from model names (Dell SystemId, Lenovo MachineType)
+    # Example: "Dell Latitude 7490 (ABC1)" -> "ABC1", "ThinkPad T14s (21BR)" -> "21BR"
+    $parenthesizedSuffixRegex = '\(([^)]+)\)\s*$'
+
+    # Per-call HP PlatformList.xml cache (built once on first HP entry)
+    $hpPlatformCache = $null
+    $hpCacheInitialized = $false
+
     foreach ($driver in $DownloadedDrivers) {
         # Skip if any required property is missing or null
         if (-not $driver.PSObject.Properties['Make'] -or -not $driver.PSObject.Properties['Model'] -or -not $driver.PSObject.Properties['DriverPath'] -or [string]::IsNullOrWhiteSpace($driver.DriverPath)) {
@@ -163,24 +340,158 @@ function Update-DriverMappingJson {
             continue
         }
 
+        # Extract SystemId/MachineType based on manufacturer
+        $systemId = $null
+        $machineType = $null
+        $make = $driver.Make
+        $modelName = $driver.Model
+
+        switch -Wildcard ($make) {
+            'Dell' {
+                # Dell: Extract SystemId from parenthesized suffix in model name
+                if ($modelName -match $parenthesizedSuffixRegex) {
+                    $systemId = $matches[1].Trim().ToUpperInvariant()
+                    WriteLog "[Dell] Extracted SystemId '$systemId' from model '$modelName'."
+                }
+                else {
+                    WriteLog "[Dell] No parenthesized SystemId found in model '$modelName'."
+                }
+            }
+            'HP' {
+                # HP: Lookup SystemId from PlatformList.xml with 3-tier matching
+                if (-not $hpCacheInitialized) {
+                    $hpPlatformCache = @{}
+                    $platformListXml = Join-Path -Path $DriversFolder -ChildPath "HP\PlatformList.xml"
+
+                    if (Test-Path -Path $platformListXml -PathType Leaf) {
+                        try {
+                            [xml]$platformDoc = Get-Content -Path $platformListXml -Raw -Encoding UTF8 -ErrorAction Stop
+                            foreach ($platform in $platformDoc.ImagePal.Platform) {
+                                $productNames = @($platform.ProductName)
+                                foreach ($pnNode in $productNames) {
+                                    $pn = $null
+                                    if ($pnNode -is [string]) {
+                                        $pn = $pnNode.Trim()
+                                    }
+                                    elseif ($null -ne $pnNode.'#text') {
+                                        $pn = $pnNode.'#text'.Trim()
+                                    }
+                                    elseif ($null -ne $pnNode.InnerText) {
+                                        $pn = $pnNode.InnerText.Trim()
+                                    }
+                                    if (-not [string]::IsNullOrWhiteSpace($pn) -and
+                                        -not [string]::IsNullOrWhiteSpace($platform.SystemID)) {
+                                        $normalizedId = $platform.SystemID.Trim().ToUpperInvariant()
+                                        if (-not $hpPlatformCache.ContainsKey($pn)) {
+                                            $hpPlatformCache[$pn] = $normalizedId
+                                        }
+                                    }
+                                }
+                            }
+                            WriteLog "HP PlatformList.xml cache built: $($hpPlatformCache.Count) entries."
+                        }
+                        catch {
+                            WriteLog "WARNING: Could not parse HP PlatformList.xml for SystemID cache: $($_.Exception.Message)"
+                        }
+                    }
+                    else {
+                        WriteLog "HP PlatformList.xml not found at '$platformListXml'. HP SystemID extraction unavailable."
+                    }
+                    $hpCacheInitialized = $true
+                }
+
+                $systemId = Get-HPSystemIdFromPlatformList -ModelName $modelName `
+                    -DriversFolder $DriversFolder -PlatformCache $hpPlatformCache
+                if ($null -ne $systemId) {
+                    WriteLog "[HP] Extracted SystemId '$systemId' from PlatformList.xml for model '$modelName'."
+                }
+                else {
+                    WriteLog "[HP] SystemId not found for model '$modelName'."
+                }
+            }
+            'Lenovo' {
+                # Lenovo: Extract MachineType from parenthesized suffix in model name
+                if ($modelName -match $parenthesizedSuffixRegex) {
+                    $machineType = $matches[1].Trim().ToUpperInvariant()
+                    WriteLog "[Lenovo] Extracted MachineType '$machineType' from model '$modelName'."
+                }
+                else {
+                    WriteLog "[Lenovo] No parenthesized MachineType found in model '$modelName'."
+                }
+            }
+        }
+
         # Find existing entry
-        $existingEntry = $mappingList | Where-Object { $_.Manufacturer -eq $driver.Make -and $_.Model -eq $driver.Model } | Select-Object -First 1
+        $existingEntry = $mappingList | Where-Object {
+            $_.Manufacturer -eq $driver.Make -and $_.Model -eq $driver.Model
+        } | Select-Object -First 1
 
         if ($null -ne $existingEntry) {
-            # Update existing entry if the path is different
+            $entryChanged = $false
+
+            # Update driver path if different
             if ($existingEntry.DriverPath -ne $driver.DriverPath) {
                 WriteLog "Updating driver path for '$($driver.Make) - $($driver.Model)' from '$($existingEntry.DriverPath)' to '$($driver.DriverPath)'."
                 $existingEntry.DriverPath = $driver.DriverPath
+                $entryChanged = $true
+            }
+
+            # Update SystemId if changed or was previously null
+            if ($null -ne $systemId) {
+                $existingSystemId = if ($existingEntry.PSObject.Properties['SystemId']) {
+                    $existingEntry.SystemId
+                }
+                else { $null }
+                if ($existingSystemId -ne $systemId) {
+                    if (-not $existingEntry.PSObject.Properties['SystemId']) {
+                        $existingEntry | Add-Member -MemberType NoteProperty -Name 'SystemId' -Value $systemId
+                    }
+                    else {
+                        $existingEntry.SystemId = $systemId
+                    }
+                    $entryChanged = $true
+                }
+            }
+
+            # Update MachineType if changed or was previously null
+            if ($null -ne $machineType) {
+                $existingMachineType = if ($existingEntry.PSObject.Properties['MachineType']) {
+                    $existingEntry.MachineType
+                }
+                else { $null }
+                if ($existingMachineType -ne $machineType) {
+                    if (-not $existingEntry.PSObject.Properties['MachineType']) {
+                        $existingEntry | Add-Member -MemberType NoteProperty -Name 'MachineType' -Value $machineType
+                    }
+                    else {
+                        $existingEntry.MachineType = $machineType
+                    }
+                    $entryChanged = $true
+                }
+            }
+
+            if ($entryChanged) {
                 $updatedCount++
             }
         }
         else {
-            # Add new entry
+            # Add new entry with optional SystemId/MachineType
             $newEntry = [PSCustomObject]@{
                 Manufacturer = $driver.Make
                 Model        = $driver.Model
                 DriverPath   = $driver.DriverPath
             }
+
+            # Add SystemId property if available (Dell/HP)
+            if ($null -ne $systemId) {
+                $newEntry | Add-Member -MemberType NoteProperty -Name 'SystemId' -Value $systemId
+            }
+
+            # Add MachineType property if available (Lenovo)
+            if ($null -ne $machineType) {
+                $newEntry | Add-Member -MemberType NoteProperty -Name 'MachineType' -Value $machineType
+            }
+
             $mappingList.Add($newEntry)
             WriteLog "Adding new mapping for '$($driver.Make) - $($driver.Model)' with path '$($driver.DriverPath)'."
             $addedCount++
@@ -808,4 +1119,4 @@ function Clear-LenovoPSREFTokenCache {
 # SECTION: Module Export
 # --------------------------------------------------------------------------
 
-Export-ModuleMember -Function Compress-DriverFolderToWim, Update-DriverMappingJson, Test-ExistingDriver, Get-LenovoPSREFToken, Get-LenovoPSREFTokenCached, Set-LenovoPSREFTokenCache, Clear-LenovoPSREFTokenCache
+Export-ModuleMember -Function Compress-DriverFolderToWim, Update-DriverMappingJson, Test-ExistingDriver, Get-LenovoPSREFToken, Get-LenovoPSREFTokenCached, Set-LenovoPSREFTokenCache, Clear-LenovoPSREFTokenCache, Get-HPSystemIdFromPlatformList
