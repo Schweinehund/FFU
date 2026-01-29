@@ -636,6 +636,73 @@ function Get-DellClientModels {
     }
 }
 
+function Resolve-DellCabUrlFromModel {
+    <#
+    .SYNOPSIS
+    Resolves model-specific cab URL from CatalogIndexPC using SystemID extraction
+
+    .DESCRIPTION
+    Internal helper function that extracts the 4-digit hex SystemID from the model
+    display name (e.g., "Latitude 7490 (0798)" -> "0798"), then looks up the
+    corresponding cab URL in the CatalogIndexPC model list.
+
+    Uses the Phase 39 SystemID regex pattern: '\(([0-9A-Fa-f]{4})\)\s*$'
+
+    .PARAMETER ModelDisplay
+    Dell model display name with trailing SystemID in parentheses (e.g., "Latitude 7490 (0798)")
+
+    .PARAMETER CatalogIndexPath
+    Path to the extracted CatalogIndexPC.xml file
+
+    .OUTPUTS
+    String - Model-specific cab URL, or $null if SystemID not found/not matched
+
+    .NOTES
+    This is an internal helper function, not exported from the module
+    Logs both success and failure paths for build log traceability
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ModelDisplay,
+
+        [Parameter(Mandatory)]
+        [string]$CatalogIndexPath
+    )
+
+    # Extract SystemID from model display name using Phase 39 regex pattern
+    if ($ModelDisplay -match '\(([0-9A-Fa-f]{4})\)\s*$') {
+        $systemId = $matches[1]
+        WriteLog "Extracted SystemID '$systemId' from model '$ModelDisplay'"
+    }
+    else {
+        WriteLog "WARNING: No SystemID found in model name '$ModelDisplay'. Falling back to CatalogPC.cab"
+        return $null
+    }
+
+    # Load models from CatalogIndexPC
+    try {
+        $models = Get-DellClientModels -CatalogIndexPath $CatalogIndexPath
+
+        # Search for exact SystemId match (case-insensitive)
+        $match = $models | Where-Object { $_.SystemId -eq $systemId } | Select-Object -First 1
+
+        if ($match) {
+            WriteLog "Resolved model-specific cab URL from CatalogIndexPC for SystemID '$systemId': $($match.CabUrl)"
+            return $match.CabUrl
+        }
+        else {
+            WriteLog "WARNING: SystemID '$systemId' not found in CatalogIndexPC. Falling back to CatalogPC.cab"
+            return $null
+        }
+    }
+    catch {
+        WriteLog "WARNING: Failed to resolve cab URL from CatalogIndexPC: $($_.Exception.Message). Falling back to CatalogPC.cab"
+        return $null
+    }
+}
+
 function Test-DriverDiskSpace {
     <#
     .SYNOPSIS
