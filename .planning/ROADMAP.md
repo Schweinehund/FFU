@@ -29,7 +29,7 @@
 - [x] **Phase 38: SUBST Drive Mapping for Long Paths** - Virtual drive for >260 char paths
 - [x] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
 - [x] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
-- [ ] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
+- [x] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
 - [ ] **Phase 42: New OEM Manufacturers** - 8 new OEMs
 - [ ] **Phase 43: Deployment Improvements and Nice-to-Haves** - Multi-disk, empty drivers, delay
 
@@ -193,9 +193,10 @@ Plans:
 **Research**: Unlikely (follows existing codebase patterns)
 **Plans**: 3 plans
 Plans:
-- [ ] 41-01-PLAN.md — Family-level driver fallback tier in ApplyFFU.ps1 (DRV-05)
-- [ ] 41-02-PLAN.md — PE driver injection retry with summary logging (DRV-06)
-- [ ] 41-03-PLAN.md — Driver source UI status label + Pester tests (DRV-07)
+- [x] 41-01-PLAN.md — Family-level driver fallback tier in ApplyFFU.ps1 (DRV-05)
+- [x] 41-02-PLAN.md — PE driver injection retry with summary logging (DRV-06)
+- [x] 41-03-PLAN.md — Driver source UI status label + Pester tests (DRV-07)
+**Completed:** 2026-01-29 — Verified (7/7 must-haves)
 
 ### Phase 42: New OEM Manufacturers
 **Goal**: Add driver support for 8 new OEM manufacturers
@@ -235,7 +236,7 @@ Plans:
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (119 complete + 11 planned)
+**Total:** 43 phases, 130 plans (122 complete + 8 planned)
 
 ---
-*Last updated: 2026-01-29 - Phase 40 complete*
+*Last updated: 2026-01-29 - Phase 41 complete*

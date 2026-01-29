@@ -39,9 +39,9 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 - [x] **DRV-02**: Model names normalized to remove duplicate brand prefixes (e.g., "Dell Dell Latitude" → "Dell Latitude")
 - [x] **DRV-03**: SystemID extraction from BIOS/WMI works correctly across HP, Dell, and Lenovo
 - [ ] **DRV-04**: 8 new OEM manufacturers supported (Panasonic, Fujitsu, Getac, Dynabook, Samsung, Acer, ASUS, MSI)
-- [ ] **DRV-05**: Generic/family-level driver fallback attempted when no exact model match found
-- [ ] **DRV-06**: PE driver copy operations retry on transient failures with logging
-- [ ] **DRV-07**: Driver source selection UI clearly indicates which source is used and why
+- [x] **DRV-05**: Generic/family-level driver fallback attempted when no exact model match found
+- [x] **DRV-06**: PE driver copy operations retry on transient failures with logging
+- [x] **DRV-07**: Driver source selection UI clearly indicates which source is used and why
 
 ### Nice-to-Have (NICE)
 
@@ -90,9 +90,9 @@ Which phases cover which requirements. Updated by create-roadmap.
 | DRV-02 | Phase 39 | Complete |
 | DRV-03 | Phase 39 | Complete |
 | DRV-04 | Phase 42 | Pending |
-| DRV-05 | Phase 41 | Pending |
-| DRV-06 | Phase 41 | Pending |
-| DRV-07 | Phase 41 | Pending |
+| DRV-05 | Phase 41 | Complete |
+| DRV-06 | Phase 41 | Complete |
+| DRV-07 | Phase 41 | Complete |
 | NICE-01 | Phase 43 | Pending |
 | NICE-02 | Phase 43 | Pending |
 

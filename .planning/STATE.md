@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 41 of 43 (Driver Matching, PE Copy, and UI Clarity) - COMPLETE
+**Phase:** 41 of 43 (Driver Matching, PE Copy, and UI Clarity) - VERIFIED
 **Plan:** 3 of 3 complete (41-01, 41-02, 41-03)
-**Status:** Phase 41 complete — Driver source status UI + comprehensive Pester tests for family fallback and PE retry
-**Last activity:** 2026-01-29 — Completed 41-03-PLAN.md
+**Status:** Phase 41 verified — Family fallback, PE retry, driver source UI (7/7 must-haves)
+**Last activity:** 2026-01-29 — Phase 41 verified
 
 Progress: ███████░░░ 71% (20 of 28 plans complete across 10 phases)
 
@@ -42,7 +42,7 @@ Progress: ███████░░░ 71% (20 of 28 plans complete across 10 
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
-| 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Complete (3/3 plans) |
+| 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Verified (3/3 plans) |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
@@ -122,9 +122,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 41-03-PLAN.md (Phase 41 COMPLETE)
+**Stopped at:** Phase 41 verified (7/7 must-haves)
 **Resume file:** None
-**Next action:** Begin Phase 42 (New OEM Manufacturers) with Plan 01
+**Next action:** Begin Phase 42 (New OEM Manufacturers)
 
 ---
-*State updated: 2026-01-29 after completing Phase 41 (Driver Matching, PE Copy, and UI Clarity)*
+*State updated: 2026-01-29 after Phase 41 verified (Driver Matching, PE Copy, and UI Clarity complete)*
