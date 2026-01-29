@@ -232,6 +232,182 @@ function ConvertTo-ComparableModelName {
     return $normalized
 }
 
+function Get-NormalizedManufacturer {
+    <#
+    .SYNOPSIS
+        Canonicalizes raw manufacturer strings to standard OEM names.
+    .DESCRIPTION
+        Maps common manufacturer variations to standard canonical names:
+        Dell Inc., Dell Technologies -> Dell
+        HP, Hewlett-Packard, Hewlett Packard -> HP
+        LENOVO -> Lenovo
+        Microsoft Corporation, Surface -> Microsoft
+    .PARAMETER RawManufacturer
+        The raw manufacturer string from WMI or other source.
+    .OUTPUTS
+        [string] Canonical manufacturer name, or empty string for null/blank input.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [string]$RawManufacturer
+    )
+    if ([string]::IsNullOrWhiteSpace($RawManufacturer)) { return '' }
+    $m = $RawManufacturer.Trim()
+    # Canonical manufacturer mapping
+    if ($m -match '(?i)^dell') { return 'Dell' }
+    if ($m -match '(?i)^(hp\b|hewlett)') { return 'HP' }
+    if ($m -match '(?i)^lenovo') { return 'Lenovo' }
+    if ($m -match '(?i)^(microsoft|surface)') { return 'Microsoft' }
+    return $m
+}
+
+function Get-SystemIdentityMetadata {
+    <#
+    .SYNOPSIS
+        Extracts structured hardware identity metadata from WMI/BIOS for driver matching.
+    .DESCRIPTION
+        Queries WMI to build a comprehensive system identity object containing normalized
+        manufacturer, model, SKU identifiers, and machine type information. Used at deploy-time
+        in WinPE to match against DriverMapping.json SystemId/MachineType fields.
+
+        OEM-specific identifier extraction:
+        - Dell: SystemSKUNumber from Win32_ComputerSystem
+        - HP: BaseBoard Product from Win32_BaseBoard
+        - Lenovo: First 4 characters of Win32_ComputerSystem.Model (machine type)
+        - Other: No identifier extracted
+
+        All WMI calls are wrapped in try/catch. On failure, fields remain $null.
+        All non-null string values are normalized with .Trim().ToUpperInvariant().
+    .OUTPUTS
+        [PSCustomObject] with properties: ManufacturerNormalized, ModelNormalized,
+        SystemSkuNormalized, FallbackSkuNormalized, MachineTypeNormalized,
+        IdentifierLabel, IdentifierValue
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
+    $manufacturerNorm = $null
+    $modelNorm = $null
+    $systemSkuNorm = $null
+    $fallbackSkuNorm = $null
+    $machineTypeNorm = $null
+    $identifierLabel = 'N/A'
+    $identifierValue = $null
+
+    # Get base system info
+    try {
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+        if ($null -ne $cs) {
+            $rawManufacturer = $cs.Manufacturer
+            $manufacturerNorm = Get-NormalizedManufacturer -RawManufacturer $rawManufacturer
+
+            # Get model — Lenovo uses Win32_ComputerSystemProduct.Version for friendly name
+            if ($manufacturerNorm -eq 'Lenovo') {
+                try {
+                    $csp = Get-CimInstance -ClassName Win32_ComputerSystemProduct -ErrorAction SilentlyContinue
+                    if ($null -ne $csp -and -not [string]::IsNullOrWhiteSpace($csp.Version)) {
+                        $modelNorm = $csp.Version.Trim().ToUpperInvariant()
+                    }
+                }
+                catch {
+                    WriteLog "WARNING: Failed to get Win32_ComputerSystemProduct for Lenovo model: $($_.Exception.Message)"
+                }
+            }
+
+            # Fallback to Win32_ComputerSystem.Model if not Lenovo or if Lenovo query failed
+            if ([string]::IsNullOrWhiteSpace($modelNorm) -and -not [string]::IsNullOrWhiteSpace($cs.Model)) {
+                $modelNorm = $cs.Model.Trim().ToUpperInvariant()
+            }
+
+            # OEM-specific identifier extraction
+            switch ($manufacturerNorm) {
+                'Dell' {
+                    $identifierLabel = 'SystemSKU'
+                    try {
+                        $skuNumber = $cs.SystemSKUNumber
+                        if (-not [string]::IsNullOrWhiteSpace($skuNumber)) {
+                            $systemSkuNorm = $skuNumber.Trim().ToUpperInvariant()
+                            $identifierValue = $systemSkuNorm
+                        }
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to get Dell SystemSKUNumber: $($_.Exception.Message)"
+                    }
+
+                    # Fallback SKU: Parse OEMStringArray for bracket-tag patterns
+                    try {
+                        $oemStrings = $cs.OEMStringArray
+                        if ($null -ne $oemStrings) {
+                            foreach ($oemStr in $oemStrings) {
+                                if ($oemStr -match '\[([^\]]+)\]') {
+                                    $tagValue = $matches[1].Trim().ToUpperInvariant()
+                                    # Use the first bracket-tagged value as fallback SKU
+                                    if (-not [string]::IsNullOrWhiteSpace($tagValue)) {
+                                        $fallbackSkuNorm = $tagValue
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to parse Dell OEMStringArray: $($_.Exception.Message)"
+                    }
+                }
+                'HP' {
+                    $identifierLabel = 'BaseBoardProduct'
+                    try {
+                        $baseBoard = Get-CimInstance -ClassName Win32_BaseBoard -ErrorAction SilentlyContinue
+                        if ($null -ne $baseBoard -and -not [string]::IsNullOrWhiteSpace($baseBoard.Product)) {
+                            $systemSkuNorm = $baseBoard.Product.Trim().ToUpperInvariant()
+                            $identifierValue = $systemSkuNorm
+                        }
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to get HP BaseBoardProduct: $($_.Exception.Message)"
+                    }
+                }
+                'Lenovo' {
+                    $identifierLabel = 'MachineType'
+                    try {
+                        # Lenovo machine type: first 4 chars of Win32_ComputerSystem.Model
+                        $rawModel = $cs.Model
+                        if (-not [string]::IsNullOrWhiteSpace($rawModel) -and $rawModel.Trim().Length -ge 4) {
+                            $machineTypeNorm = $rawModel.Trim().Substring(0, 4).ToUpperInvariant()
+                            $systemSkuNorm = $machineTypeNorm
+                            $identifierValue = $machineTypeNorm
+                        }
+                    }
+                    catch {
+                        WriteLog "WARNING: Failed to extract Lenovo MachineType: $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        WriteLog "WARNING: Failed to get Win32_ComputerSystem for system identity: $($_.Exception.Message)"
+    }
+
+    # Log extracted values
+    $mfgDisplay = if ($null -ne $manufacturerNorm) { $manufacturerNorm } else { 'Not Detected' }
+    $modelDisplay = if ($null -ne $modelNorm) { $modelNorm } else { 'Not Detected' }
+    $idDisplay = if ($null -ne $identifierValue) { $identifierValue } else { 'Not Detected' }
+    WriteLog "System Identity: Manufacturer='$mfgDisplay', Model='$modelDisplay', $identifierLabel='$idDisplay'"
+
+    return [PSCustomObject]@{
+        ManufacturerNormalized = $manufacturerNorm
+        ModelNormalized        = $modelNorm
+        SystemSkuNormalized    = $systemSkuNorm
+        FallbackSkuNormalized  = $fallbackSkuNorm
+        MachineTypeNormalized  = $machineTypeNorm
+        IdentifierLabel        = $identifierLabel
+        IdentifierValue        = $identifierValue
+    }
+}
+
 #Get USB Drive and create log file
 $LogFileName = 'ScriptLog.txt'
 $USBDrive = Get-USBDrive
@@ -562,47 +738,99 @@ if (Test-Path -Path $driverMappingPath -PathType Leaf) {
     WriteLog "DriverMapping.json found at $driverMappingPath. Attempting automatic driver selection."
     Write-Host "DriverMapping.json found. Attempting automatic driver selection."
     try {
-        # Get system information
-        $systemManufacturer = (Get-CimInstance -Class Win32_ComputerSystem).Manufacturer
-        # Lenovo uses a different property for the model name
-        $systemModel = if ($systemManufacturer -like '*LENOVO*') {
-            (Get-CimInstance -Class Win32_ComputerSystemProduct).Version
+        # Extract structured system identity metadata (manufacturer, model, SystemID/MachineType)
+        $systemIdentity = Get-SystemIdentityMetadata
+
+        # Get system model for display and fallback matching (mirrors existing Lenovo-specific logic)
+        $systemManufacturer = if ($null -ne $systemIdentity.ManufacturerNormalized) {
+            $systemIdentity.ManufacturerNormalized
         }
         else {
-            (Get-CimInstance -Class Win32_ComputerSystem).Model
+            (Get-CimInstance -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer
+        }
+        $systemModel = if ($systemIdentity.ManufacturerNormalized -eq 'Lenovo') {
+            $val = (Get-CimInstance -Class Win32_ComputerSystemProduct -ErrorAction SilentlyContinue).Version
+            if (-not [string]::IsNullOrWhiteSpace($val)) { $val } else {
+                (Get-CimInstance -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Model
+            }
+        }
+        else {
+            (Get-CimInstance -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Model
         }
         WriteLog "Detected System: Manufacturer='$systemManufacturer', Model='$systemModel'"
 
         # Load and parse the mapping file, ensuring it's always an array
         $driverMappings = Get-Content -Path $driverMappingPath | Out-String | ConvertFrom-Json -ErrorAction SilentlyContinue
 
-        # Find all matching rules and select the most specific one
+        # Find all matching rules using SystemID/MachineType (precise) + model name (fallback)
         $matchingRules = @()
         # Normalize system model once outside the loop
         $systemModelNorm = ConvertTo-ComparableModelName -Text $systemModel
         foreach ($rule in $driverMappings) {
-            # Use -like for wildcard matching.
-            # Prepare normalized rule model string
-            $ruleModelNorm = ConvertTo-ComparableModelName -Text $rule.Model
-            # This checks if the system model starts with the rule model, or vice-versa, for flexibility.
-            if ($systemManufacturer -like "$($rule.Manufacturer)*" -and ($systemModelNorm -like "$($ruleModelNorm)*" -or $ruleModelNorm -like "$systemModelNorm*")) {
-                WriteLog "Match found: Manufacturer='$($rule.Manufacturer)', Model='$($rule.Model)' (Normalized: System='$systemModelNorm', Rule='$ruleModelNorm')"
-                $matchingRules += $rule
+            # Manufacturer must match (normalized comparison)
+            $ruleManufacturerNorm = Get-NormalizedManufacturer -RawManufacturer $rule.Manufacturer
+            if ($systemIdentity.ManufacturerNormalized -ne $ruleManufacturerNorm) {
+                continue
+            }
+
+            # Try SystemID/MachineType match first (most precise)
+            $identifierMatch = $false
+            if ($null -ne $systemIdentity.IdentifierValue -and
+                $rule.PSObject.Properties['SystemId'] -and
+                -not [string]::IsNullOrWhiteSpace($rule.SystemId)) {
+                if ($systemIdentity.IdentifierValue -eq $rule.SystemId.Trim().ToUpperInvariant()) {
+                    $identifierMatch = $true
+                    WriteLog "SystemID match: System='$($systemIdentity.IdentifierValue)' == Rule.SystemId='$($rule.SystemId)'"
+                }
+            }
+            if (-not $identifierMatch -and
+                $null -ne $systemIdentity.MachineTypeNormalized -and
+                $rule.PSObject.Properties['MachineType'] -and
+                -not [string]::IsNullOrWhiteSpace($rule.MachineType)) {
+                if ($systemIdentity.MachineTypeNormalized -eq $rule.MachineType.Trim().ToUpperInvariant()) {
+                    $identifierMatch = $true
+                    WriteLog "MachineType match: System='$($systemIdentity.MachineTypeNormalized)' == Rule.MachineType='$($rule.MachineType)'"
+                }
+            }
+
+            # Fall back to model name matching (existing logic)
+            $modelMatch = $false
+            if (-not $identifierMatch) {
+                $ruleModelNorm = ConvertTo-ComparableModelName -Text $rule.Model
+                if ($systemModelNorm -like "$($ruleModelNorm)*" -or $ruleModelNorm -like "$systemModelNorm*") {
+                    $modelMatch = $true
+                }
+            }
+
+            if ($identifierMatch -or $modelMatch) {
+                $matchType = if ($identifierMatch) { 'SystemID' } else { 'ModelName' }
+                WriteLog "Match found ($matchType): Manufacturer='$($rule.Manufacturer)', Model='$($rule.Model)'"
+                $matchingRules += [PSCustomObject]@{
+                    Rule           = $rule
+                    MatchType      = $matchType
+                    MatchPrecision = if ($identifierMatch) { 2 } else { 1 }
+                }
             }
         }
 
-        # Select the best match
+        # Select the best match: prefer SystemID matches, then most specific model name
         $matchedRule = $null
         if ($matchingRules.Count -gt 0) {
             WriteLog "Found $($matchingRules.Count) potential driver mapping rule(s)."
             Write-Host "Found $($matchingRules.Count) potential driver mapping rule(s)."
-            foreach ($rule in $matchingRules) {
-                WriteLog "  - Potential Match: Manufacturer='$($rule.Manufacturer)', Model='$($rule.Model)', Path='$($rule.DriverPath)'"
-                Write-Host "  - Potential Match: Manufacturer='$($rule.Manufacturer)', Model='$($rule.Model)', Path='$($rule.DriverPath)'"
-            
+            foreach ($matchEntry in $matchingRules) {
+                $r = $matchEntry.Rule
+                WriteLog "  - Potential Match ($($matchEntry.MatchType)): Manufacturer='$($r.Manufacturer)', Model='$($r.Model)', Path='$($r.DriverPath)'"
+                Write-Host "  - Potential Match ($($matchEntry.MatchType)): Manufacturer='$($r.Manufacturer)', Model='$($r.Model)', Path='$($r.DriverPath)'"
             }
-            # Sort by model name length, descending, to find the most specific match
-            $matchedRule = $matchingRules | Sort-Object -Property @{Expression = { $_.Model.Length } } -Descending | Select-Object -First 1
+            # Sort by match precision (SystemID=2 > ModelName=1), then model name length (most specific)
+            $bestMatch = $matchingRules | Sort-Object -Property @{
+                Expression = { $_.MatchPrecision }; Descending = $true
+            }, @{
+                Expression = { $_.Rule.Model.Length }; Descending = $true
+            } | Select-Object -First 1
+            $matchedRule = $bestMatch.Rule
+            WriteLog "Best match ($($bestMatch.MatchType)): Manufacturer='$($matchedRule.Manufacturer)', Model='$($matchedRule.Model)'"
         }
 
         if ($null -ne $matchedRule) {
