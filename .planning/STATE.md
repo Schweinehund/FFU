@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 37 of 43 (Winget App Ordering and Dependencies) - In Progress
-**Plan:** 1 of 3 complete (37-01)
-**Status:** In progress — Plan 37-01 complete, Plans 37-02 and 37-03 pending
-**Last activity:** 2026-01-29 — Completed 37-01-PLAN.md (helper functions + Add-Win32SilentInstallCommand upgrade)
+**Plan:** 2 of 3 complete (37-01, 37-02)
+**Status:** In progress — Plans 37-01 and 37-02 complete, Plan 37-03 pending
+**Last activity:** 2026-01-29 — Completed 37-02-PLAN.md (dependency resolution + post-download reorder)
 
-Progress: ██░░░░░░░░ 29% (8 of 28 plans complete across 10 phases)
+Progress: ███░░░░░░░ 32% (9 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -38,7 +38,7 @@ Progress: ██░░░░░░░░ 29% (8 of 28 plans complete across 10 p
 | 34: Winget Bug Fixes | JSON safety + MSI path quoting | BUGFIX-01, BUGFIX-03 | Verified (3/3 plans) |
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
-| 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | In Progress (1/3 plans) |
+| 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | In Progress (2/3 plans) |
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
@@ -75,6 +75,10 @@ Progress: ██░░░░░░░░ 29% (8 of 28 plans complete across 10 p
 | 37-01 | Three-tier deduplication: PackageIdentifier, Name, CommandLine+Args | Names vary with architecture suffixes; PackageIdentifier is canonical | Correct dedup for dependencies with architecture variants |
 | 37-01 | Capture scriptblock return to handle duplicate detection | return inside scriptblock exits scriptblock, not outer function | Prevents function continuing after duplicate-skip return |
 | 37-01 | Pre-add Add-Win32DependencySilentInstallCommands to Export-ModuleMember | PowerShell silently ignores export of non-existent functions | Prevents Plan 02 from needing to touch same Export-ModuleMember line |
+| 37-02 | Reorder logic inside Get-Apps (not extracted) | Match upstream placement per CONTEXT.md | Single location for ordering logic |
+| 37-02 | Dependencies slot before parent via IsDependency=0 in stable sort | DependencyFor marker enables grouping deps with their parent | Correct install order: deps before dependent apps |
+| 37-02 | Dependency failure is WARNING only | Build should not fail due to optional dependency processing | Robustness - main app installs regardless of dep processing failure |
+| 37-02 | Architecture suffix normalization via regex | App names include (x64) etc but AppList.json uses plain names | Correct matching between WinGetWin32Apps.json entries and AppList.json |
 
 ## Blockers
 
@@ -83,9 +87,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Completed 37-01-PLAN.md (helper functions + Add-Win32SilentInstallCommand upgrade)
+**Stopped at:** Completed 37-02-PLAN.md (dependency resolution + post-download reorder)
 **Resume file:** None
-**Next action:** Execute 37-02-PLAN.md (dependency resolution + ordering)
+**Next action:** Execute 37-03-PLAN.md (Pester tests for ordering and dependencies)
 
 ---
-*State updated: 2026-01-29 after 37-01 plan complete*
+*State updated: 2026-01-29 after 37-02 plan complete*
