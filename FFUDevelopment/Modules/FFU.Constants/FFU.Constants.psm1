@@ -521,6 +521,7 @@ class FFUConstants {
     # Primary: downloads.dell.com (official CDN)
     # Note: Dell does not provide official mirror, so backup is same URL via HTTPS
     static [string] $DELL_CATALOG_PC_URL = "https://downloads.dell.com/catalog/CatalogPC.cab"
+    static [string] $DELL_CATALOG_INDEX_PC_URL = "https://downloads.dell.com/catalog/CatalogIndexPC.cab"
     static [string] $DELL_CATALOG_SERVER_URL = "https://downloads.dell.com/catalog/Catalog.cab"
 
     # HP driver catalog URLs
