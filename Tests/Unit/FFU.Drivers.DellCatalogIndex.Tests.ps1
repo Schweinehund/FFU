@@ -414,3 +414,162 @@ Describe 'Get-DellDrivers - CatalogIndexPC Fallback Behavior' -Tag 'Unit', 'FFU.
         }
     }
 }
+
+# =============================================================================
+# Drivers.json Schema Extension - SystemId and CabUrl
+# =============================================================================
+
+Describe 'Drivers.json Schema Extension - SystemId and CabUrl' -Tag 'Unit', 'FFU.Drivers', 'Dell', 'Schema' {
+
+    Context 'New schema with SystemId and CabUrl' {
+        BeforeAll {
+            $script:newSchemaJson = @{
+                Dell = @{
+                    Models = @(
+                        @{
+                            Name     = 'Latitude 7490 (0798)'
+                            SystemId = '0798'
+                            CabUrl   = 'https://downloads.dell.com/catalog/Model_Latitude_7490.cab'
+                        }
+                    )
+                }
+            } | ConvertTo-Json -Depth 5
+        }
+
+        It 'Should parse Dell model with SystemId field' {
+            $parsed = $script:newSchemaJson | ConvertFrom-Json
+            $dellModels = $parsed.Dell.Models
+            $dellModels[0].Name | Should -Be 'Latitude 7490 (0798)'
+            $dellModels[0].SystemId | Should -Be '0798'
+        }
+
+        It 'Should parse Dell model with CabUrl field' {
+            $parsed = $script:newSchemaJson | ConvertFrom-Json
+            $dellModels = $parsed.Dell.Models
+            $dellModels[0].CabUrl | Should -BeLike '*Model_Latitude_7490*'
+        }
+    }
+
+    Context 'Backward compatibility - Old schema without SystemId/CabUrl' {
+        BeforeAll {
+            $script:oldSchemaJson = @{
+                Dell = @{
+                    Models = @(
+                        @{
+                            Name = 'Latitude 7490'
+                        }
+                    )
+                }
+            } | ConvertTo-Json -Depth 5
+        }
+
+        It 'Should parse old Dell schema without errors' {
+            { $script:oldSchemaJson | ConvertFrom-Json } | Should -Not -Throw
+        }
+
+        It 'Should have null SystemId for old schema entries' {
+            $parsed = $script:oldSchemaJson | ConvertFrom-Json
+            $dellModels = $parsed.Dell.Models
+            $dellModels[0].PSObject.Properties['SystemId'] | Should -BeNullOrEmpty
+        }
+
+        It 'Should have null CabUrl for old schema entries' {
+            $parsed = $script:oldSchemaJson | ConvertFrom-Json
+            $dellModels = $parsed.Dell.Models
+            $dellModels[0].PSObject.Properties['CabUrl'] | Should -BeNullOrEmpty
+        }
+
+        It 'Should safely check for optional SystemId property' {
+            $parsed = $script:oldSchemaJson | ConvertFrom-Json
+            $model = $parsed.Dell.Models[0]
+            $hasSystemId = $model.PSObject.Properties['SystemId'] -ne $null
+            $hasSystemId | Should -Be $false
+            # This pattern should be used in Import-DriversJson
+        }
+    }
+
+    Context 'Mixed schema - some models with SystemId, some without' {
+        BeforeAll {
+            $script:mixedSchemaJson = @{
+                Dell = @{
+                    Models = @(
+                        @{
+                            Name     = 'Latitude 7490 (0798)'
+                            SystemId = '0798'
+                            CabUrl   = 'https://downloads.dell.com/catalog/Model_Latitude_7490.cab'
+                        },
+                        @{
+                            Name = 'OptiPlex 7080'
+                        }
+                    )
+                }
+            } | ConvertTo-Json -Depth 5
+        }
+
+        It 'Should handle mix of old and new entries' {
+            $parsed = $script:mixedSchemaJson | ConvertFrom-Json
+            $dellModels = $parsed.Dell.Models
+            $dellModels.Count | Should -Be 2
+        }
+
+        It 'First model should have SystemId' {
+            $parsed = $script:mixedSchemaJson | ConvertFrom-Json
+            $parsed.Dell.Models[0].SystemId | Should -Be '0798'
+        }
+
+        It 'Second model should not have SystemId property' {
+            $parsed = $script:mixedSchemaJson | ConvertFrom-Json
+            $parsed.Dell.Models[1].PSObject.Properties['SystemId'] | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'Multi-OEM schema compatibility' {
+        BeforeAll {
+            $script:multiOemJson = @{
+                Dell    = @{
+                    Models = @(
+                        @{
+                            Name     = 'Latitude 7490 (0798)'
+                            SystemId = '0798'
+                            CabUrl   = 'https://downloads.dell.com/catalog/Model_Latitude_7490.cab'
+                        }
+                    )
+                }
+                Lenovo  = @{
+                    Models = @(
+                        @{
+                            Name        = 'ThinkPad T14 Gen 3 (21AH)'
+                            ProductName = 'ThinkPad T14 Gen 3'
+                            MachineType = '21AH'
+                        }
+                    )
+                }
+                HP      = @{
+                    Models = @(
+                        @{
+                            Name = 'HP EliteBook 840 G8'
+                        }
+                    )
+                }
+            } | ConvertTo-Json -Depth 5
+        }
+
+        It 'Should parse multi-OEM JSON with Dell-specific fields' {
+            $parsed = $script:multiOemJson | ConvertFrom-Json
+            $parsed.Dell.Models[0].SystemId | Should -Be '0798'
+            $parsed.Lenovo.Models[0].MachineType | Should -Be '21AH'
+            $parsed.HP.Models[0].Name | Should -Be 'HP EliteBook 840 G8'
+        }
+
+        It 'Lenovo models should not have SystemId field' {
+            $parsed = $script:multiOemJson | ConvertFrom-Json
+            $parsed.Lenovo.Models[0].PSObject.Properties['SystemId'] | Should -BeNullOrEmpty
+        }
+
+        It 'HP models should not have SystemId or CabUrl fields' {
+            $parsed = $script:multiOemJson | ConvertFrom-Json
+            $parsed.HP.Models[0].PSObject.Properties['SystemId'] | Should -BeNullOrEmpty
+            $parsed.HP.Models[0].PSObject.Properties['CabUrl'] | Should -BeNullOrEmpty
+        }
+    }
+}
