@@ -525,6 +525,117 @@ function Get-DellCatalogIndex {
     }
 }
 
+function Get-DellClientModels {
+    <#
+    .SYNOPSIS
+    Parses CatalogIndexPC.xml to extract model metadata
+
+    .DESCRIPTION
+    Internal helper function that uses XmlReader streaming to parse the
+    CatalogIndexPC.xml file and extract model information (Make, Model, SystemId, CabUrl).
+
+    CatalogIndexPC schema:
+    <ManifestIndex>
+      <SystemConfiguration>
+        <Model>Latitude 7490 (0798)</Model>
+        <Brand>Dell</Brand>
+        <systemID>0798</systemID>
+        <dellSystemCabUrl>https://downloads.dell.com/catalog/Model_Latitude_7490.cab</dellSystemCabUrl>
+      </SystemConfiguration>
+    </ManifestIndex>
+
+    .PARAMETER CatalogIndexPath
+    Path to the extracted CatalogIndexPC.xml file
+
+    .OUTPUTS
+    System.Collections.Generic.List[PSCustomObject] - List of model objects with:
+      - Make (string): OEM brand (e.g., "Dell")
+      - Model (string): Model display name with SystemID (e.g., "Latitude 7490 (0798)")
+      - SystemId (string): 4-digit hex SystemID (e.g., "0798")
+      - CabUrl (string): URL to model-specific cab file
+
+    .NOTES
+    This is an internal helper function, not exported from the module
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.Generic.List[PSCustomObject]])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$CatalogIndexPath
+    )
+
+    $reader = $null
+
+    try {
+        # Validate input
+        if (-not (Test-Path $CatalogIndexPath)) {
+            throw "CatalogIndexPC XML not found: $CatalogIndexPath"
+        }
+
+        # Initialize result list
+        $models = New-Object 'System.Collections.Generic.List[PSCustomObject]'
+
+        # Create XmlReader with settings
+        $settings = New-Object System.Xml.XmlReaderSettings
+        $settings.IgnoreWhitespace = $true
+        $settings.IgnoreComments = $true
+
+        $reader = [System.Xml.XmlReader]::Create($CatalogIndexPath, $settings)
+
+        # Stream through XML looking for SystemConfiguration elements
+        while ($reader.Read()) {
+            if ($reader.NodeType -ne [System.Xml.XmlNodeType]::Element -or $reader.Name -ne 'SystemConfiguration') {
+                continue
+            }
+
+            # Read entire SystemConfiguration as DOM subtree for reliable child access
+            $subtreeReader = $reader.ReadSubtree()
+            $sysDoc = New-Object System.Xml.XmlDocument
+            $sysDoc.Load($subtreeReader)
+            $subtreeReader.Dispose()
+
+            # Extract values from the immediate children (not nested descendants)
+            $modelNode = $sysDoc.DocumentElement.SelectSingleNode('Model')
+            $brandNode = $sysDoc.DocumentElement.SelectSingleNode('Brand')
+            $systemIdNode = $sysDoc.DocumentElement.SelectSingleNode('systemID')
+            $cabUrlNode = $sysDoc.DocumentElement.SelectSingleNode('dellSystemCabUrl')
+
+            # Get text values with defaults
+            $modelDisplay = if ($modelNode) { $modelNode.InnerText.Trim() } else { '' }
+            $brand = if ($brandNode) { $brandNode.InnerText.Trim() } else { 'Dell' }
+            $systemId = if ($systemIdNode) { $systemIdNode.InnerText.Trim() } else { '' }
+            $cabUrl = if ($cabUrlNode) { $cabUrlNode.InnerText.Trim() } else { '' }
+
+            # Skip incomplete entries
+            if ([string]::IsNullOrWhiteSpace($modelDisplay) -or
+                [string]::IsNullOrWhiteSpace($systemId) -or
+                [string]::IsNullOrWhiteSpace($cabUrl)) {
+                continue
+            }
+
+            # Add to results
+            $models.Add([PSCustomObject]@{
+                Make = $brand
+                Model = $modelDisplay
+                SystemId = $systemId
+                CabUrl = $cabUrl
+            })
+        }
+
+        # Return sorted results
+        return $models | Sort-Object -Property Make, Model
+    }
+    catch {
+        WriteLog "ERROR: Failed to parse CatalogIndexPC XML: $($_.Exception.Message)"
+        throw
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        }
+    }
+}
+
 function Test-DriverDiskSpace {
     <#
     .SYNOPSIS
