@@ -142,8 +142,11 @@ Plans:
   1. Driver extraction uses SUBST-mapped drive to keep paths below 260 characters
   2. SUBST mapping cleaned up after operations, even on failure
   3. Build log shows SUBST creation and removal
-**Research**: Likely (study upstream SUBST lifecycle and cleanup pattern)
+**Research**: Complete (38-RESEARCH.md — SUBST patterns, INF parsing, long-path prefix, upstream commits)
 **Plans**: 2 plans
+Plans:
+- [ ] 38-01-PLAN.md — SUBST helper functions + INF parsing improvements (Get-AvailableDriveLetter, New/Remove-DriverSubstMapping, auto-growing buffer, GUID normalization, -LiteralPath)
+- [ ] 38-02-PLAN.md — SUBST loop integration (Invoke-DismDriverInjectionWithSubstLoop, FFU.Imaging New-FFU, ApplyFFU.ps1 folder/WIM injection)
 
 ### Phase 39: Model Name Normalization and SystemID Improvements
 **Goal**: Prevent duplicate brand prefixes in model names and improve SystemID extraction for driver matching
