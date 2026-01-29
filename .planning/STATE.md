@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 37 of 43 (Winget App Ordering and Dependencies) - COMPLETE
-**Plan:** 3 of 3 complete (37-01, 37-02, 37-03)
-**Status:** Phase complete — verified 4/4 must-haves
-**Last activity:** 2026-01-28 — Phase 37 verified and complete
+**Phase:** 38 of 43 (SUBST Drive Mapping) - IN PROGRESS
+**Plan:** 1 of 2 complete (38-01)
+**Status:** Plan 38-01 complete — SUBST helpers and INF parsing improvements
+**Last activity:** 2026-01-29 — Completed 38-01-PLAN.md
 
-Progress: ████░░░░░░ 36% (10 of 28 plans complete across 10 phases)
+Progress: ████░░░░░░ 39% (11 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -39,7 +39,7 @@ Progress: ████░░░░░░ 36% (10 of 28 plans complete across 10 
 | 35: PPKG Path Quoting | xcopy space handling | BUGFIX-02 | Verified (1/1 plan) |
 | 36: CU Skip + ESD BITS | Version comparison + BITS downloads | BUGFIX-04, DL-01 | ✓ Verified (3/3 plans) |
 | 37: Winget Ordering | App ordering + dependency handling | WINGET-01, WINGET-02 | ✓ Verified (3/3 plans) |
-| 38: SUBST Drive Mapping | Long path reliability | PATH-01 | Pending |
+| 38: SUBST Drive Mapping | Long path reliability | PATH-01 | In Progress (1/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | Pending |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | Pending |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
@@ -82,6 +82,13 @@ Progress: ████░░░░░░ 36% (10 of 28 plans complete across 10 
 | 37-03 | Module scope invocation for testing non-exported functions | Helper functions are internal (not exported) but need test coverage | Enables comprehensive testing without exposing implementation details |
 | 37-03 | Background runspace for mutex contention testing | Raw Threads lack PowerShell runspace; need cross-thread mutex test | Correct mutex timeout verification without crashes |
 | 37-03 | Inline reorder algorithm simulation in tests | Get-Apps has too many external dependencies (WinGet, network) for unit tests | Tests verify ordering logic directly without integration dependencies |
+| 38-01 | Use cmd.exe for SUBST operations (no native PowerShell cmdlet) | Windows has no native PowerShell SUBST cmdlet; cmd.exe provides consistent behavior | All SUBST operations call cmd.exe with proper argument escaping |
+| 38-01 | Auto-growing buffer starts at 1KB and doubles to 64KB max | Balance memory efficiency with large INF support (SourceDisksFiles can be huge) | Prevents truncation without excessive memory allocation; handles all known OEM packages |
+| 38-01 | Use \\?\ prefix ONLY for Win32 API calls, NOT PowerShell cmdlets | PowerShell cmdlets handle long paths differently; \\?\ prefix breaks them | $longInfFullName for Get-PrivateProfileString/Section, $infFullName for Copy-Item |
+| 38-01 | GUID normalization strips trailing ; comments and extracts token | INF files can have ClassGUID={...};comment format that breaks exact matching | Reliable GUID filtering regardless of INF comment style |
+| 38-01 | Replace all Copy-Item -Path with -LiteralPath | Prevents wildcard expansion on paths with brackets [, ], *, ? | Reliable file copy for drivers with special characters in paths |
+| 38-01 | SUBST functions return $null with WARNING on failure (non-throwing) | Consistent with error handling pattern, allows caller to decide severity | Caller must check for $null, failures are logged but don't halt execution |
+| 38-01 | Pre-add Invoke-DismDriverInjectionWithSubstLoop to exports | PowerShell silently ignores export of non-existent functions | Plan 02 can implement function without touching Export-ModuleMember line |
 
 ## Blockers
 
@@ -89,10 +96,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-01-28
-**Stopped at:** Phase 37 verified and complete
+**Last session:** 2026-01-29
+**Stopped at:** Completed 38-01-PLAN.md
 **Resume file:** None
-**Next action:** /gsd:discuss-phase 38 (SUBST Drive Mapping — independent, no dependencies)
+**Next action:** Execute 38-02-PLAN.md (DISM driver injection with SUBST loop)
 
 ---
-*State updated: 2026-01-28 after Phase 37 verified*
+*State updated: 2026-01-29 after Plan 38-01 complete*
