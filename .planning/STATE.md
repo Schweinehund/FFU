@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 40 of 43 (Dell Refactoring) - VERIFIED
-**Plan:** 3 of 3 complete (40-01, 40-02, 40-03)
-**Status:** Phase 40 verified — CatalogIndexPC infrastructure, UI integration, and test suite (26/26 must-haves)
-**Last activity:** 2026-01-29 — Phase 40 verified
+**Phase:** 41 of 43 (Driver Matching, PE Copy, and UI Clarity) - IN PROGRESS
+**Plan:** 2 of 3 complete (41-01, 41-02)
+**Status:** Plan 41-02 complete — PE driver injection retry logic with [PE]-prefixed summary logging
+**Last activity:** 2026-01-29 — Completed 41-02-PLAN.md
 
-Progress: ██████░░░░ 61% (17 of 28 plans complete across 10 phases)
+Progress: ██████░░░░ 68% (19 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -42,7 +42,7 @@ Progress: ██████░░░░ 61% (17 of 28 plans complete across 10 
 | 38: SUBST Drive Mapping | Long path reliability | PATH-01 | ✓ Complete (2/2 plans) |
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
-| 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | Pending |
+| 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | In Progress (2/3 plans) |
 | 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
@@ -106,6 +106,11 @@ Progress: ██████░░░░ 61% (17 of 28 plans complete across 10 
 | 40-02 | Duplicate CatalogIndexPC helper functions in UI layer | Matches existing pattern where UI and build layers have independent implementations | UI cannot import FFU.Drivers.psm1 due to build-layer dependencies |
 | 40-02 | SystemId and CabUrl are optional in Drivers.json | Models from CatalogPC.cab fallback lack these fields | Enables silent upgrade path for old Drivers.json files without breaking changes |
 | 40-02 | Use PSObject.Properties check before accessing SystemId/CabUrl | Handles models without these properties gracefully (no errors, defaults to $null) | Cleaner than try/catch, preserves other error visibility |
+| 41-02 | Retry count: 2 retries (3 total attempts) with 1-second delay for transient errors | Balances transient error recovery without excessive delay | PE driver injection recovers from file system transient errors |
+| 41-02 | Transient error detection via regex: access denied, sharing violations, file-in-use | Covers common DISM file system errors during driver injection | Retry transient errors, fail-fast on permanent errors |
+| 41-02 | Non-blocking behavior preserved -- build continues even if all PE drivers fail | PE drivers are optional enhancement | Builds don't block on PE driver failures |
+| 41-02 | [PE] prefix for all PE driver log lines | Enables grep filtering and structured logging | PE driver operations easily identifiable in logs |
+| 41-02 | Summary count logging: 'X/Y succeeded' or 'WARNING: X/Y injected, Z failed' | Provides visibility into injection success rate | Users see partial failures without verbose per-driver logging |
 
 ## Blockers
 
@@ -114,9 +119,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-01-29
-**Stopped at:** Phase 40 verified (26/26 must-haves)
+**Stopped at:** Completed 41-02-PLAN.md
 **Resume file:** None
-**Next action:** Begin Phase 41 (Driver Matching, PE Copy, and UI Clarity)
+**Next action:** Continue Phase 41 with Plan 03 (UI Clarity)
 
 ---
-*State updated: 2026-01-29 after Phase 40 verified (Dell Driver Refactoring complete)*
+*State updated: 2026-01-29 after completing 41-02 (PE driver injection retry logic)*
