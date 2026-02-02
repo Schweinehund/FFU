@@ -702,7 +702,24 @@ if ($PSVersionTable.CLRVersion) {
 Write-Host ""
 
 $ProgressPreference = 'SilentlyContinue'
-$version = '2509.1Preview'
+
+# Read version from version.json (single source of truth for all versioning)
+# This replaces the previously hardcoded upstream version string ('2509.1Preview')
+$versionJsonPath = Join-Path $PSScriptRoot "version.json"
+if (Test-Path -Path $versionJsonPath -PathType Leaf) {
+    try {
+        $versionData = Get-Content -Path $versionJsonPath -Raw | ConvertFrom-Json
+        $version = $versionData.version
+    }
+    catch {
+        Write-Warning "Failed to parse version.json: $($_.Exception.Message). Using fallback version."
+        $version = 'unknown'
+    }
+}
+else {
+    Write-Warning "version.json not found at $versionJsonPath. Using fallback version."
+    $version = 'unknown'
+}
 
 # Remove any existing modules to avoid conflicts
 if (Get-Module -Name 'FFU.Common.Core' -ErrorAction SilentlyContinue) {
@@ -3978,8 +3995,14 @@ DIAGNOSTIC: Run 'fltmc filters | Select-String WimMount' to verify WIMMount stat
                 }
                 WriteLog 'Clean Up the WinSxS Folder'
                 WriteLog 'This can take 10+ minutes depending on how old the media is and the size of the KB. Please be patient'
-                Dism /Image:$WindowsPartition /Cleanup-Image /StartComponentCleanup /ResetBase | Out-Null
-                WriteLog 'Clean Up the WinSxS Folder completed'
+                if (-not (Test-DismReady)) {
+                    WriteLog "WARNING: WIMMount filter driver is not loaded - skipping WinSxS cleanup"
+                    WriteLog "WinSxS cleanup is non-critical and can be performed on the deployed image later"
+                }
+                else {
+                    Dism /Image:$WindowsPartition /Cleanup-Image /StartComponentCleanup /ResetBase | Out-Null
+                    WriteLog 'Clean Up the WinSxS Folder completed'
+                }
             }
             catch {
                 Write-Host "Adding KB to VHDX failed with error $_"
