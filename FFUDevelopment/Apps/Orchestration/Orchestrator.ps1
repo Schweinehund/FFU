@@ -160,6 +160,27 @@ if ($verifyIntegrity) {
     }
 }
 
+# ============================================================================
+# Security Platform Initialization Delay (DEPLOY-02)
+# Windows Security Platform services need time to initialize during audit mode
+# first boot. Without this delay, app installations that depend on security
+# services (Defender, SmartScreen, etc.) may fail or produce errors.
+# ============================================================================
+$securityPlatformDelay = 30  # seconds
+
+Write-OrchestratorLog -Message "Waiting $securityPlatformDelay seconds for Windows Security Platform initialization..." -Level Info
+Write-Host ""
+Write-Host "Waiting for Windows Security Platform to initialize..." -ForegroundColor Cyan
+
+for ($i = $securityPlatformDelay; $i -gt 0; $i--) {
+    Write-Host "`r  Time remaining: $i seconds " -NoNewline -ForegroundColor Gray
+    Start-Sleep -Seconds 1
+}
+Write-Host "`r  Security Platform delay complete.       " -ForegroundColor Green
+Write-Host ""
+
+Write-OrchestratorLog -Message "Security Platform initialization delay complete. Proceeding with script execution." -Level Info
+
 # Define the list of scripts to run, order doesn't matter - if you have a custom script, add it here
 $scriptList = @(
     "Update-Defender.ps1",
