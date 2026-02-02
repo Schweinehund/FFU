@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 42 of 43 (New OEM Manufacturers) - IN PROGRESS
-**Plan:** 1 of 8 complete (42-07)
-**Status:** OEM infrastructure complete — ValidateSet, constants, exit codes, UI switch cases for 8 new manufacturers
-**Last activity:** 2026-02-02 — Completed plan 42-07 (OEM scaffolding)
+**Plan:** 2 of 8 complete (42-07, 42-06)
+**Status:** OEM infrastructure and Tier 3 stubs complete — ASUS, MSI, Getac stubs return empty/null with manual download URLs
+**Last activity:** 2026-02-02 — Completed plan 42-06 (Tier 3 stubs)
 
-Progress: ███████░░░ 75% (21 of 28 plans complete across 10 phases)
+Progress: ███████░░░ 78.5% (22 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -43,7 +43,7 @@ Progress: ███████░░░ 75% (21 of 28 plans complete across 10 
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Verified (3/3 plans) |
-| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | In Progress (1/8 plans: 42-07 scaffolding complete) |
+| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | In Progress (2/8 plans: 42-07 scaffolding + 42-06 Tier 3 stubs complete) |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
 ## Decisions Log
@@ -118,6 +118,9 @@ Progress: ███████░░░ 75% (21 of 28 plans complete across 10 
 | 42-07 | Tier 3 stubs (ASUS, MSI, Getac) are complete implementations | No official catalogs available for these OEMs | Complete stub logic (MessageBox + empty array) requires no future work |
 | 42-07 | Tier 1/2 Get-ModelsForMake switch cases call non-existent functions | Establishes calling convention before implementation | Functions created by plans 42-01 through 42-05; PowerShell error acceptable during development |
 | 42-07 | Acer and Dynabook require WindowsRelease validation | Both have OS-version-specific catalog entries | Added to WindowsRelease check alongside Dell and Lenovo |
+| 42-06 | Tier 3 stubs are complete implementations (not placeholders) | ASUS lacks official catalog, MSI requires SDK auth, Getac uses proprietary CLI | Users must manually download drivers; stubs provide clear guidance with URLs |
+| 42-06 | Include manual download URLs in all stub log messages | Clear user guidance when automation unavailable | WARNING logs show OEM-specific reason and exact manual download URL |
+| 42-06 | Use same parameter signatures as functional OEM drivers | Build script dispatch expects consistent calling convention | Stubs accept all standard parameters even if unused, maintaining compatibility |
 
 ## Blockers
 
@@ -126,9 +129,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-02-02
-**Stopped at:** Completed 42-07 (OEM scaffolding)
+**Stopped at:** Completed 42-06 (Tier 3 stubs)
 **Resume file:** None
-**Next action:** Continue Phase 42 - plans 42-01 through 42-06 (individual OEM implementations)
+**Next action:** Continue Phase 42 - plans 42-01 through 42-05 (Tier 1/2 OEM implementations), then 42-08 (integration testing)
 
 ---
-*State updated: 2026-02-02 after completing plan 42-07 (New OEM Infrastructure)*
+*State updated: 2026-02-02 after completing plan 42-06 (Tier 3 Stubs - ASUS, MSI, Getac)*
