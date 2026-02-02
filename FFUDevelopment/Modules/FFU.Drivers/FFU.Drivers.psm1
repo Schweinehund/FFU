@@ -3422,6 +3422,264 @@ function Get-PanasonicDrivers {
     WriteLog "[Panasonic][$Model][Complete] Panasonic driver download and extraction completed successfully"
 }
 
+function Get-FujitsuDrivers {
+    <#
+    .SYNOPSIS
+    Downloads and extracts Fujitsu LIFEBOOK/STYLISTIC drivers for FFU builds
+
+    .DESCRIPTION
+    Searches the Fujitsu support portal for driver packages matching the specified
+    model and Windows version, downloads them, and extracts the driver files.
+    Handles mixed formats (EXE with /extract or /s /e flags, ZIP with Expand-Archive).
+    Falls back to a static model list if the portal is unreachable.
+
+    .PARAMETER Make
+    OEM manufacturer name (should be "Fujitsu")
+
+    .PARAMETER Model
+    Fujitsu model name (e.g., "LIFEBOOK U7412", "STYLISTIC Q7312")
+
+    .PARAMETER WindowsArch
+    Windows architecture (x64, x86, or ARM64)
+
+    .PARAMETER WindowsRelease
+    Windows release version (10 or 11)
+
+    .PARAMETER Headers
+    HTTP headers for web requests
+
+    .PARAMETER UserAgent
+    User agent string for web requests
+
+    .PARAMETER DriversFolder
+    Root path where drivers should be downloaded and extracted
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path for download tracking
+
+    .EXAMPLE
+    Get-FujitsuDrivers -Make "Fujitsu" -Model "LIFEBOOK U7412" -WindowsArch "x64" `
+                       -WindowsRelease 11 -Headers $Headers -UserAgent $UserAgent `
+                       -DriversFolder "C:\FFU\Drivers" -FFUDevelopmentPath "C:\FFU"
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Make,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Model,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("x64", "x86", "ARM64")]
+        [string]$WindowsArch,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(10, 11)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter(Mandatory = $true)]
+        [string]$UserAgent,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath
+    )
+
+    # Setup paths
+    $makeDriversPath = Join-Path -Path $DriversFolder -ChildPath $Make
+    $sanitizedModel = ($Model -replace '[\\\/\:\*\?\"\<\>\| ]', '_')
+    $modelPath = Join-Path -Path $makeDriversPath -ChildPath $sanitizedModel
+
+    # Create directories
+    if (-not (Test-Path -Path $makeDriversPath)) {
+        New-Item -Path $makeDriversPath -ItemType Directory -Force | Out-Null
+    }
+    if (-not (Test-Path -Path $modelPath)) {
+        New-Item -Path $modelPath -ItemType Directory -Force | Out-Null
+    }
+
+    WriteLog "[Fujitsu][$Model][Download] Starting Fujitsu driver download for model: $Model (Windows $WindowsRelease $WindowsArch)"
+
+    # Search Fujitsu support portal for driver packages
+    $searchUrl = "https://support.ts.fujitsu.com/IndexDownload.asp?lng=COM&CT=1&LNG=EN&ProductSearch=$([uri]::EscapeDataString($Model))&OSC=WIN&OSV=$WindowsRelease"
+    WriteLog "[Fujitsu][$Model][Download] Searching: $searchUrl"
+
+    $driverUrls = @()
+    try {
+        $OriginalVerbosePreference = $VerbosePreference
+        $VerbosePreference = 'SilentlyContinue'
+        $response = Invoke-WebRequest -Uri $searchUrl -UseBasicParsing -Headers $Headers -UserAgent $UserAgent -ErrorAction Stop -TimeoutSec 30
+        $VerbosePreference = $OriginalVerbosePreference
+
+        # Parse HTML response for download links (.exe and .zip driver files)
+        $downloadPattern = 'href="([^"]*\.(exe|zip))"'
+        $matches = [regex]::Matches($response.Content, $downloadPattern)
+
+        foreach ($match in $matches) {
+            if ($match.Groups.Count -ge 2) {
+                $driverUrl = $match.Groups[1].Value
+                # Ensure absolute URL
+                if (-not $driverUrl.StartsWith('http')) {
+                    $driverUrl = "https://support.ts.fujitsu.com/$($driverUrl.TrimStart('/'))"
+                }
+                # Filter for driver packages (avoid documentation, etc.)
+                if ($driverUrl -match 'driver|$WindowsRelease') {
+                    $driverUrls += $driverUrl
+                }
+            }
+        }
+
+        WriteLog "[Fujitsu][$Model][Download] Found $($driverUrls.Count) driver package(s) on Fujitsu support portal"
+    }
+    catch {
+        WriteLog "[Fujitsu][$Model][Download] WARNING: Failed to search Fujitsu support portal: $($_.Exception.Message)"
+    }
+
+    if ($driverUrls.Count -eq 0) {
+        WriteLog "[Fujitsu][$Model][Download] WARNING: No driver packages found on Fujitsu support portal for model '$Model' with Windows $WindowsRelease"
+        return
+    }
+
+    # Download and extract each driver package
+    $packageCount = 0
+    foreach ($driverUrl in $driverUrls) {
+        $packageCount++
+        $fileName = [System.IO.Path]::GetFileName($driverUrl)
+        $filePath = Join-Path -Path $modelPath -ChildPath $fileName
+
+        WriteLog "[Fujitsu][$Model][Download] ($packageCount/$($driverUrls.Count)) Downloading: $driverUrl"
+
+        # Check disk space before download
+        $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Fujitsu' -EstimatedCompressedSizeMB 500
+        if (-not $spaceCheck.HasSpace) {
+            WriteLog "[Fujitsu][$Model][DiskSpace] WARNING: $($spaceCheck.Message)"
+            WriteLog "[Fujitsu][$Model][DiskSpace] WARNING: $($spaceCheck.Recommendation)"
+        }
+
+        # Download the driver package with retry
+        Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
+        try {
+            Invoke-DriverDownloadWithRetry -Source $driverUrl -Destination $filePath -OperationName "Fujitsu driver $fileName"
+            Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
+            WriteLog "[Fujitsu][$Model][Download] ($packageCount/$($driverUrls.Count)) Downloaded: $fileName"
+        }
+        catch {
+            Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $filePath
+            WriteLog "[Fujitsu][$Model][Download] WARNING: Failed to download driver '$fileName' after all retries: $($_.Exception.Message). Build will continue without this driver."
+            continue
+        }
+
+        # Determine extraction method based on file extension
+        $extractFolder = Join-Path -Path $modelPath -ChildPath ($fileName -replace '\.(exe|zip)$', '')
+
+        # Check if already extracted
+        if (Test-Path -Path $extractFolder -PathType Container) {
+            $extractSize = (Get-ChildItem -Path $extractFolder -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum -ErrorAction SilentlyContinue).Sum
+            if ($extractSize -gt 1KB) {
+                WriteLog "[Fujitsu][$Model][Extract] ($packageCount/$($driverUrls.Count)) Driver already extracted: $fileName. Skipping."
+                continue
+            }
+        }
+
+        # Create extraction folder
+        if (-not (Test-Path -Path $extractFolder)) {
+            New-Item -Path $extractFolder -ItemType Directory -Force | Out-Null
+        }
+
+        WriteLog "[Fujitsu][$Model][Extract] ($packageCount/$($driverUrls.Count)) Extracting: $fileName"
+
+        if ($fileName -like '*.zip') {
+            # ZIP extraction
+            try {
+                Expand-Archive -Path $filePath -DestinationPath $extractFolder -Force -ErrorAction Stop
+                WriteLog "[Fujitsu][$Model][Extract] ($packageCount/$($driverUrls.Count)) ZIP extracted: $fileName"
+            }
+            catch {
+                WriteLog "[Fujitsu][$Model][Extract] WARNING: ZIP extraction failed for '$fileName': $($_.Exception.Message). Build will continue without this driver."
+                continue
+            }
+        }
+        elseif ($fileName -like '*.exe') {
+            # EXE silent extraction - try /extract first, fall back to /s /e
+            $extractionSucceeded = $false
+            try {
+                $extractArgs = "/extract `"$extractFolder`""
+                $extractProcess = Start-Process -FilePath $filePath -ArgumentList $extractArgs -PassThru -Wait -NoNewWindow
+                $extractionResult = Get-DriverExtractionResult -Vendor 'Fujitsu' -ExitCode $extractProcess.ExitCode -DriverName $fileName
+
+                if ($extractionResult.Action -eq 'Warn') {
+                    WriteLog "[Fujitsu][$Model][Extract] WARNING: $($extractionResult.Message)"
+                    $extractionSucceeded = $true
+                }
+                elseif ($extractionResult.Action -eq 'Fail') {
+                    WriteLog "[Fujitsu][$Model][Extract] /extract failed for '$fileName'. Trying /s /e fallback..."
+                }
+                else {
+                    WriteLog "[Fujitsu][$Model][Extract] ($packageCount/$($driverUrls.Count)) EXE extracted (method 1): $fileName"
+                    $extractionSucceeded = $true
+                }
+            }
+            catch {
+                WriteLog "[Fujitsu][$Model][Extract] /extract failed for '$fileName': $($_.Exception.Message). Trying /s /e fallback..."
+            }
+
+            # Try /s /e fallback if /extract failed
+            if (-not $extractionSucceeded) {
+                try {
+                    $extractArgs = "/s /e=`"$extractFolder`""
+                    $extractProcess = Start-Process -FilePath $filePath -ArgumentList $extractArgs -PassThru -Wait -NoNewWindow
+                    $extractionResult = Get-DriverExtractionResult -Vendor 'Fujitsu' -ExitCode $extractProcess.ExitCode -DriverName $fileName
+
+                    if ($extractionResult.Action -eq 'Warn') {
+                        WriteLog "[Fujitsu][$Model][Extract] WARNING: $($extractionResult.Message)"
+                    }
+                    elseif ($extractionResult.Action -eq 'Fail') {
+                        WriteLog "[Fujitsu][$Model][Extract] WARNING: EXE extraction failed for '$fileName'. This installer may not support silent extraction. Build will continue without this driver."
+                        continue
+                    }
+                    else {
+                        WriteLog "[Fujitsu][$Model][Extract] ($packageCount/$($driverUrls.Count)) EXE extracted (method 2): $fileName"
+                    }
+                }
+                catch {
+                    WriteLog "[Fujitsu][$Model][Extract] WARNING: EXE extraction failed for '$fileName': $($_.Exception.Message). Build will continue without this driver."
+                    continue
+                }
+            }
+        }
+        else {
+            WriteLog "[Fujitsu][$Model][Extract] WARNING: Unknown file format '$fileName'. Skipping."
+            continue
+        }
+
+        # Delete the downloaded file after successful extraction
+        try {
+            Remove-Item -Path $filePath -Force -ErrorAction Stop
+            WriteLog "[Fujitsu][$Model][Cleanup] Deleted installer: $fileName"
+        }
+        catch {
+            WriteLog "[Fujitsu][$Model][Cleanup] WARNING: Failed to delete installer '$fileName': $($_.Exception.Message)"
+        }
+    }
+
+    # Verify extracted content exists
+    $extractedFiles = Get-ChildItem -Path $modelPath -Recurse -File -ErrorAction SilentlyContinue
+    if ($extractedFiles.Count -eq 0) {
+        WriteLog "[Fujitsu][$Model][Download] WARNING: No driver files extracted for model '$Model'. The driver packages may not contain extractable drivers."
+    }
+    else {
+        WriteLog "[Fujitsu][$Model][Download] Successfully extracted $($extractedFiles.Count) driver files for model '$Model'"
+    }
+}
+
+
+
 function Copy-Drivers {
     <#
     .SYNOPSIS
@@ -3881,6 +4139,9 @@ Export-ModuleMember -Function @(
     'Get-HPDrivers',
     'Get-LenovoDrivers',
     'Get-DellDrivers',
+    'Get-PanasonicDrivers',
+    'Get-SamsungDrivers',
+    'Get-AcerDrivers',
     'Get-ASUSDrivers',
     'Get-MSIDrivers',
     'Get-GetacDrivers',
