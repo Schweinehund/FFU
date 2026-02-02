@@ -4414,6 +4414,8 @@ Export-ModuleMember -Function @(
     'Get-PanasonicDrivers',
     'Get-SamsungDrivers',
     'Get-AcerDrivers',
+    'Get-DynabookDrivers',
+    'Get-FujitsuDrivers',
     'Get-ASUSDrivers',
     'Get-MSIDrivers',
     'Get-GetacDrivers',
