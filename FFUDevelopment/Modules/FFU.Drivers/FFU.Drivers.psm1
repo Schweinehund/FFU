@@ -4000,6 +4000,278 @@ function Get-IntelEthernetDrivers {
     return $destE1000e
 }
 
+
+function Get-DynabookDrivers {
+    <#
+    .SYNOPSIS
+    Downloads and extracts Dynabook drivers for FFU builds
+
+    .DESCRIPTION
+    Downloads the Dynabook driver catalog CAB, extracts the XML catalog,
+    finds the driver pack for the specified model, downloads and extracts it.
+    Uses Dynabook's SCCM CAB catalog (identical pattern to Dell CatalogPC.cab).
+
+    .PARAMETER Make
+    OEM manufacturer name (should be "Dynabook")
+
+    .PARAMETER Model
+    Dynabook model name
+
+    .PARAMETER WindowsArch
+    Windows architecture (x64, x86, or ARM64)
+
+    .PARAMETER WindowsRelease
+    Windows release version (10, 11)
+
+    .PARAMETER DriversFolder
+    Root path where drivers should be downloaded and extracted
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path for download tracking
+
+    .PARAMETER isServer
+    Boolean indicating if target OS is Windows Server
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Make,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Model,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("x64", "x86", "ARM64")]
+        [string]$WindowsArch,
+
+        [Parameter(Mandatory = $true)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$isServer
+    )
+
+    WriteLog "[OEM][Dynabook][$Model][Start] Beginning driver download and extraction"
+
+    # Create Dynabook drivers folder
+    $dynabookDriversFolder = Join-Path -Path $DriversFolder -ChildPath $Make
+    if (-not (Test-Path -Path $dynabookDriversFolder)) {
+        New-Item -Path $dynabookDriversFolder -ItemType Directory -Force | Out-Null
+        WriteLog "[OEM][Dynabook][$Model][Setup] Created Dynabook drivers folder: $dynabookDriversFolder"
+    }
+
+    # Disk space validation
+    $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Dynabook' -EstimatedCompressedSizeMB 500
+    if (-not $spaceCheck.HasSpace) {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][DiskSpace] $($spaceCheck.Message)"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][DiskSpace] Remediation: Free up disk space or change the DriversFolder location. The build will continue without Dynabook drivers."
+        return
+    }
+    else {
+        WriteLog $spaceCheck.Message
+    }
+
+    # Download and extract catalog CAB to XML
+    $catalogCab = Join-Path -Path $dynabookDriversFolder -ChildPath "Dynabook_DriverPack_Catalog.cab"
+    $catalogXml = Join-Path -Path $dynabookDriversFolder -ChildPath "Dynabook_DriverPack_Catalog.xml"
+    $catalogUrl = "https://content.us.dynabook.com/content/support/drivers/Dynabook_DriverPack_Catalog.cab"
+
+    WriteLog "[OEM][Dynabook][$Model][Catalog] Downloading Dynabook catalog"
+
+    try {
+        $catalogCab = Get-CachedOEMCatalog -Vendor 'Dynabook' -CatalogType 'DriverPack' `
+            -PrimaryUrl $catalogUrl -CachePath $catalogCab
+    }
+    catch {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Catalog download failed: $($_.Exception.Message)"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Remediation: Check network connectivity to content.us.dynabook.com. Verify the catalog URL is still valid. The build will continue without Dynabook drivers. See FFUDevelopment.log for full error details."
+        return
+    }
+
+    # Extract catalog CAB to XML if not already extracted
+    if (-not (Test-Path -Path $catalogXml)) {
+        WriteLog "[OEM][Dynabook][$Model][Catalog] Extracting catalog CAB to XML"
+        try {
+            Invoke-Process -FilePath Expand.exe -ArgumentList """$catalogCab"" ""$catalogXml""" -ErrorAction Stop | Out-Null
+            WriteLog "[OEM][Dynabook][$Model][Catalog] Catalog extracted successfully"
+        }
+        catch {
+            WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Failed to extract catalog CAB: $($_.Exception.Message)"
+            WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Remediation: The downloaded CAB may be corrupt or truncated. Delete '$catalogCab' and retry the build to force a fresh download. The build will continue without Dynabook drivers. See FFUDevelopment.log for full error details."
+            return
+        }
+
+        # Verify XML file exists after extraction
+        if (-not (Test-Path -Path $catalogXml)) {
+            WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Catalog XML not found after extraction: $catalogXml"
+            WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Remediation: The CAB may not contain the expected XML file. Delete '$catalogCab' and retry the build. The build will continue without Dynabook drivers. See FFUDevelopment.log for full error details."
+            return
+        }
+    }
+
+    # Parse catalog XML to find driver pack for this model
+    WriteLog "[OEM][Dynabook][$Model][Catalog] Parsing catalog for driver pack"
+
+    $driverPackUrl = $null
+    $settings = New-Object System.Xml.XmlReaderSettings
+    $settings.IgnoreWhitespace = $true
+    $settings.IgnoreComments = $true
+
+    $reader = [System.Xml.XmlReader]::Create($catalogXml, $settings)
+    try {
+        while ($reader.Read()) {
+            if ($reader.NodeType -eq [System.Xml.XmlNodeType]::Element) {
+                # Look for model/product nodes
+                if ($reader.Name -in @('Model', 'Product', 'System', 'SupportedSystem')) {
+                    $subtreeReader = $reader.ReadSubtree()
+                    $modelDoc = New-Object System.Xml.XmlDocument
+                    $modelDoc.Load($subtreeReader)
+                    $subtreeReader.Dispose()
+
+                    # Check if this entry matches our model
+                    $nameNode = $modelDoc.SelectSingleNode("//*[@name='$Model' or text()='$Model']")
+                    if ($null -eq $nameNode) {
+                        # Try case-insensitive match
+                        $allNodes = $modelDoc.SelectNodes("//*[@name or text()]")
+                        foreach ($node in $allNodes) {
+                            $nodeValue = if ($node.HasAttribute('name')) { $node.GetAttribute('name') } else { $node.InnerText }
+                            if ($nodeValue -eq $Model) {
+                                $nameNode = $node
+                                break
+                            }
+                        }
+                    }
+
+                    if ($null -ne $nameNode) {
+                        # Found matching model - look for download URL
+                        $urlNode = $modelDoc.SelectSingleNode("//URL | //url | //DownloadURL | //PackageURL | //Path | //path")
+                        if ($null -ne $urlNode) {
+                            $driverPackUrl = $urlNode.InnerText.Trim()
+
+                            # Filter by OS version and architecture if catalog supports it
+                            $osNode = $modelDoc.SelectSingleNode("//*[@os or @OS or @osVersion]")
+                            $archNode = $modelDoc.SelectSingleNode("//*[@arch or @architecture]")
+
+                            if ($null -ne $osNode -or $null -ne $archNode) {
+                                # Catalog has OS/arch filters - validate match
+                                $osMatch = $true
+                                $archMatch = $true
+
+                                if ($null -ne $osNode) {
+                                    $osValue = if ($osNode.HasAttribute('os')) { $osNode.GetAttribute('os') } `
+                                               elseif ($osNode.HasAttribute('OS')) { $osNode.GetAttribute('OS') } `
+                                               else { $osNode.InnerText }
+
+                                    # Check if OS matches (Windows 10 = 10, Windows 11 = 11)
+                                    $osMatch = $osValue -match $WindowsRelease
+                                }
+
+                                if ($null -ne $archNode) {
+                                    $archValue = if ($archNode.HasAttribute('arch')) { $archNode.GetAttribute('arch') } `
+                                                 elseif ($archNode.HasAttribute('architecture')) { $archNode.GetAttribute('architecture') } `
+                                                 else { $archNode.InnerText }
+
+                                    $archMatch = $archValue -match $WindowsArch
+                                }
+
+                                if ($osMatch -and $archMatch) {
+                                    WriteLog "[OEM][Dynabook][$Model][Catalog] Found matching driver pack for OS $WindowsRelease $WindowsArch: $driverPackUrl"
+                                    break
+                                }
+                                else {
+                                    # This entry doesn't match OS/arch - keep looking
+                                    $driverPackUrl = $null
+                                }
+                            }
+                            else {
+                                # No OS/arch filters in catalog - use first match
+                                WriteLog "[OEM][Dynabook][$Model][Catalog] Found driver pack URL: $driverPackUrl"
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($driverPackUrl)) {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] No driver pack found in catalog for model: $Model"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Catalog] Remediation: Verify the model name is correct. Check the Dynabook catalog XML at '$catalogXml' for available models. The build will continue without Dynabook drivers."
+        return
+    }
+
+    # Sanitize model name for folder creation
+    $sanitizedModel = $Model -replace '[\\\/\:\*\?\"\<\>\| ]', '_' -replace '[\,]', '-'
+    $modelDriverFolder = Join-Path -Path $dynabookDriversFolder -ChildPath $sanitizedModel
+
+    # Download driver pack CAB
+    $driverCabFile = Join-Path -Path $dynabookDriversFolder -ChildPath "$sanitizedModel.cab"
+
+    WriteLog "[OEM][Dynabook][$Model][Download] Downloading driver pack from: $driverPackUrl"
+    try {
+        Invoke-DriverDownloadWithRetry -Source $driverPackUrl -Destination $driverCabFile -OperationName "Dynabook $Model driver pack"
+        WriteLog "[OEM][Dynabook][$Model][Download] Driver pack downloaded successfully"
+    }
+    catch {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Download] Failed to download driver pack: $($_.Exception.Message)"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Download] Remediation: Check network connectivity to the driver pack URL. Verify the URL is still valid. The build will continue without Dynabook drivers. See FFUDevelopment.log for full error details."
+        return
+    }
+
+    # Create destination folder
+    if (-not (Test-Path -Path $modelDriverFolder)) {
+        New-Item -Path $modelDriverFolder -ItemType Directory -Force | Out-Null
+    }
+
+    # Extract driver pack CAB
+    WriteLog "[OEM][Dynabook][$Model][Extract] Extracting driver pack to: $modelDriverFolder"
+    try {
+        Invoke-Process -FilePath Expand.exe -ArgumentList """$driverCabFile"" -F:* ""$modelDriverFolder""" -ErrorAction Stop | Out-Null
+        WriteLog "[OEM][Dynabook][$Model][Extract] Driver pack extracted successfully"
+    }
+    catch {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Extract] Failed to extract driver pack: $($_.Exception.Message)"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Extract] Remediation: The downloaded CAB may be corrupt. Delete '$driverCabFile' and retry the build. The build will continue without Dynabook drivers. See FFUDevelopment.log for full error details."
+        return
+    }
+
+    # Verify extraction produced files
+    $extractedFiles = Get-ChildItem -Path $modelDriverFolder -Recurse -File -ErrorAction SilentlyContinue
+    if ($null -eq $extractedFiles -or $extractedFiles.Count -eq 0) {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Extract] No files found after extraction"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Extract] Remediation: The CAB file may be empty or corrupt. Delete '$driverCabFile' and retry the build. The build will continue without Dynabook drivers."
+        return
+    }
+
+    $totalSize = ($extractedFiles | Measure-Object -Property Length -Sum).Sum
+    if ($totalSize -lt 1KB) {
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Extract] Extracted files are too small (< 1KB)"
+        WriteLog "WARNING: [OEM][Dynabook][$Model][Extract] Remediation: The extraction may have failed. Delete '$driverCabFile' and '$modelDriverFolder', then retry the build. The build will continue without Dynabook drivers."
+        return
+    }
+
+    WriteLog "[OEM][Dynabook][$Model][Extract] Verified extraction: $($extractedFiles.Count) files, $([Math]::Round($totalSize / 1MB, 2)) MB"
+
+    # Clean up downloaded CAB
+    if (Test-Path -Path $driverCabFile) {
+        Remove-Item -Path $driverCabFile -Force -ErrorAction SilentlyContinue
+        WriteLog "[OEM][Dynabook][$Model][Cleanup] Deleted driver pack CAB after extraction"
+    }
+
+    WriteLog "[OEM][Dynabook][$Model][Complete] Driver download and extraction completed successfully"
+}
 #region Tier 3 OEM Stubs (No Official Catalogs)
 
 function Get-ASUSDrivers {

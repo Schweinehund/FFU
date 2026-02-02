@@ -67,6 +67,7 @@
         'Get-HPDrivers',
         'Get-LenovoDrivers',
         'Get-DellDrivers',
+        'Get-FujitsuDrivers',
         'Get-PanasonicDrivers',
         'Get-AcerDrivers',
         'Get-ASUSDrivers',
