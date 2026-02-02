@@ -553,7 +553,11 @@ $LogFileName = 'ScriptLog.txt'
 $USBDrive = Get-USBDrive
 New-item -Path $USBDrive -Name $LogFileName -ItemType "file" -Force | Out-Null
 $LogFile = $USBDrive + $LogFilename
-$version = '2509.1Preview'
+# VERSION SYNC NOTE: This script runs in WinPE from USB media without access to version.json.
+# This version must be kept in sync with FFUDevelopment/version.json manually.
+# When bumping the main version in version.json, update this value as well.
+# See also: BuildFFUVM.ps1 which reads version.json dynamically at runtime.
+$version = '1.9.12'
 WriteLog 'Begin Logging'
 WriteLog "Script version: $version"
 

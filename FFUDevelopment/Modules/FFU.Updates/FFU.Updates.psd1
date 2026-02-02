@@ -7,7 +7,7 @@
     RootModule = 'FFU.Updates.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.0'
+    ModuleVersion = '1.2.0'
 
     # ID used to uniquely identify this module
     GUID = 'e3b9c4a1-5f7d-4e2b-8c9a-1d6f3e8b2a5c'
@@ -80,7 +80,20 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Updates v1.1.0
+# Release Notes - FFU.Updates v1.2.0
+
+## v1.2.0 - Phase 44-01 DISM Resilience (2026-02-02)
+
+### DISM Resilience Gates
+- **FIX:** Test-MountState calls Test-DismReady before Get-WindowsEdition (prevents 10-min hang)
+- **FIX:** Add-WindowsPackageWithRetry calls Test-DismReady before each attempt
+- **FIX:** Add-WindowsPackageWithRetry retry refresh path guarded with Test-DismReady
+- **FIX:** Add-WindowsPackageWithUnattend calls Test-DismReady before all Add-WindowsPackage calls (3 sites)
+- **IMPROVEMENT:** Fast-fail with auto-repair attempt when WIMMount filter driver is broken
+- **IMPROVEMENT:** Clear resolution messaging on WIMMount failure (reboot required)
+- Closes Test-DismReady coverage gap in update application phase
+- Eliminates 30+ minute hangs when WIMMount breaks mid-build
+- Completes v1.9.8 DISM resilience fixes across all modules
 
 ## v1.1.0 - Phase 20 Reliability Hardening (2026-01-24)
 

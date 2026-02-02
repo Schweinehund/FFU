@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.9.11",
-    "buildDate": "2026-01-29",
+    "version": "1.9.12",
+    "buildDate": "2026-02-02",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -64,9 +64,9 @@
             "description": "ISO disk space pre-validation (REL-MED-03) - Test-ISOCreationReadiness estimates ISO size from WinPE folder, validates output destination space before oscdimg"
         },
         "FFU.Updates": {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "path": "Modules/FFU.Updates/FFU.Updates.psd1",
-            "description": "Update reliability (REL-UPD-01/02/03/04) - Catalog query retry, MSU integrity validation, update application isolation, catalog cache management"
+            "description": "DISM resilience (Phase 44-01) - Test-DismReady gates before all Add-WindowsPackage calls, fast-fail on WIMMount failure, eliminates 30+ min hangs"
         },
         "FFU.VM": {
             "version": "1.0.13",
