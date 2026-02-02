@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 42 of 43 (New OEM Manufacturers) - IN PROGRESS
-**Plan:** 2 of 8 complete (42-07, 42-06)
-**Status:** OEM infrastructure and Tier 3 stubs complete — ASUS, MSI, Getac stubs return empty/null with manual download URLs
-**Last activity:** 2026-02-02 — Completed plan 42-06 (Tier 3 stubs)
+**Plan:** 3 of 8 complete (42-07, 42-06, 42-01)
+**Status:** Acer driver support complete — UI model list, UI download, build-time function with CAB/ZIP extraction
+**Last activity:** 2026-02-02 — Completed plan 42-01 (Acer driver support)
 
-Progress: ███████░░░ 78.5% (22 of 28 plans complete across 10 phases)
+Progress: ███████░░░ 82% (23 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -43,7 +43,7 @@ Progress: ███████░░░ 78.5% (22 of 28 plans complete across 1
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Verified (3/3 plans) |
-| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | In Progress (2/8 plans: 42-07 scaffolding + 42-06 Tier 3 stubs complete) |
+| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | In Progress (3/8 plans: 42-07 scaffolding + 42-06 Tier 3 stubs + 42-01 Acer complete) |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
 ## Decisions Log
@@ -121,6 +121,11 @@ Progress: ███████░░░ 78.5% (22 of 28 plans complete across 1
 | 42-06 | Tier 3 stubs are complete implementations (not placeholders) | ASUS lacks official catalog, MSI requires SDK auth, Getac uses proprietary CLI | Users must manually download drivers; stubs provide clear guidance with URLs |
 | 42-06 | Include manual download URLs in all stub log messages | Clear user guidance when automation unavailable | WARNING logs show OEM-specific reason and exact manual download URL |
 | 42-06 | Use same parameter signatures as functional OEM drivers | Build script dispatch expects consistent calling convention | Stubs accept all standard parameters even if unused, maintaining compatibility |
+| 42-01 | Direct XML download for Acer catalog (no CAB wrapping) | Acer provides XML directly unlike Dell/HP CAB approach | Simplifies download flow - no expand.exe step for catalog |
+| 42-01 | Defensive XML parser with multiple fallback strategies | Acer catalog schema may vary or change | Resilient to schema changes without breaking builds |
+| 42-01 | Dual extraction support (CAB and ZIP) | Acer driver packs use both formats | Single codebase handles all Acer driver packages |
+| 42-01 | 500MB disk space estimate for Acer | Acer packs smaller than Dell (2500MB) | More accurate disk space warnings |
+| 42-01 | Manual cache check vs Get-CachedOEMCatalog in UI layer | UI layer simpler without ValidateSet coupling | Clean separation between UI and build-layer patterns |
 
 ## Blockers
 
@@ -129,9 +134,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-02-02
-**Stopped at:** Completed 42-06 (Tier 3 stubs)
+**Stopped at:** Completed 42-01 (Acer driver support)
 **Resume file:** None
-**Next action:** Continue Phase 42 - plans 42-01 through 42-05 (Tier 1/2 OEM implementations), then 42-08 (integration testing)
+**Next action:** Continue Phase 42 - plans 42-02 through 42-05 (Dynabook, Panasonic, Samsung, Fujitsu), then 42-08 (integration testing)
 
 ---
 *State updated: 2026-02-02 after completing plan 42-06 (Tier 3 Stubs - ASUS, MSI, Getac)*
