@@ -1537,6 +1537,20 @@ function Add-WindowsPackageWithRetry {
     while (-not $success -and $attempt -lt $MaxRetries) {
         $attempt++
 
+        # Verify WIMMount filter driver is loaded before attempting DISM operation
+        # This uses fltmc.exe (instant, no DISM dependency) to detect mid-build WIMMount failures
+        if (-not (Test-DismReady)) {
+            WriteLog "WARNING: WIMMount filter driver is not loaded. Attempting auto-repair..."
+            # Test-DismReady already attempts repair internally; check result
+            if (-not (Test-DismReady)) {
+                WriteLog "CRITICAL: WIMMount filter driver could not be restored"
+                WriteLog "RESOLUTION: Reboot your computer and restart the FFU build process"
+                WriteLog "A reboot will reload the WIMMount driver and reset DISM services"
+                throw "WIMMount filter driver is not functional. DISM operations cannot proceed."
+            }
+            WriteLog "WIMMount filter driver restored successfully"
+        }
+
         try {
             if ($attempt -gt 1) {
                 WriteLog "Retry attempt $attempt of $MaxRetries for package: $packageName"
