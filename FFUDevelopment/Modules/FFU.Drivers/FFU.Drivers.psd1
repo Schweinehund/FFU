@@ -21,7 +21,7 @@
     Copyright = '(c) FFU Builder Project. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'OEM-specific driver download, parsing, and injection module for FFU Builder. Supports Microsoft Surface, HP, Lenovo, Dell, Acer, Dynabook, Panasonic, Samsung, and Fujitsu driver catalogs with automatic download, extraction, and DISM injection capabilities. ASUS, MSI, and Getac are stub implementations.'
+    Description = 'OEM-specific driver download, parsing, and injection module for FFU Builder. Supports Microsoft Surface, HP, Lenovo, Dell, Acer, Dynabook, Panasonic, Samsung, and Fujitsu driver catalogs with automatic download, extraction, and DISM injection capabilities. Includes stub support for ASUS, MSI, and Getac (manual download required).'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '7.0'
@@ -67,6 +67,10 @@
         'Get-HPDrivers',
         'Get-LenovoDrivers',
         'Get-DellDrivers',
+        'Get-AcerDrivers',
+        'Get-ASUSDrivers',
+        'Get-MSIDrivers',
+        'Get-GetacDrivers',
         'Copy-Drivers',
         'Get-IntelEthernetDrivers',
         'Get-AvailableDriveLetter',
@@ -97,7 +101,7 @@
     PrivateData = @{
         PSData = @{
             # Tags applied to this module. These help with module discovery in online galleries.
-            Tags = @('FFU', 'Driver', 'OEM', 'Microsoft', 'HP', 'Lenovo', 'Dell', 'Surface', 'Download', 'DISM')
+            Tags = @('FFU', 'Driver', 'OEM', 'Microsoft', 'HP', 'Lenovo', 'Dell', 'Acer', 'ASUS', 'MSI', 'Getac', 'Surface', 'Download', 'DISM')
 
             # A URL to the license for this module.
             LicenseUri = 'https://github.com/rbalsleyMSFT/FFU/blob/main/LICENSE'

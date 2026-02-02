@@ -2768,6 +2768,426 @@ function Get-DellDrivers {
     }
 }
 
+function Get-AcerDrivers {
+    <#
+    .SYNOPSIS
+    Downloads and extracts Acer drivers for FFU builds
+
+    .DESCRIPTION
+    Downloads Acer SCCM driver catalog (AcerCatalog.xml), parses available models,
+    and extracts the appropriate driver package for the specified Acer model and
+    Windows version. Uses Acer's online XML catalog for driver discovery.
+
+    .PARAMETER Make
+    OEM manufacturer name (should be "Acer")
+
+    .PARAMETER Model
+    Acer model name (e.g., "Aspire 5 A515-56", "TravelMate P2 TMP214-54")
+
+    .PARAMETER WindowsArch
+    Windows architecture (x64, x86, or ARM64)
+
+    .PARAMETER WindowsRelease
+    Windows release version (10 or 11)
+
+    .PARAMETER DriversFolder
+    Root path where drivers should be downloaded and extracted
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path for download tracking
+
+    .PARAMETER isServer
+    Boolean indicating if target OS is Windows Server (Acer does not support Server — logs warning and returns)
+
+    .EXAMPLE
+    Get-AcerDrivers -Make "Acer" -Model "Aspire 5 A515-56" -WindowsArch "x64" `
+                    -WindowsRelease 11 -DriversFolder "C:\FFU\Drivers" `
+                    -FFUDevelopmentPath "C:\FFU" -isServer $false
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Make,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Model,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("x64", "x86", "ARM64")]
+        [string]$WindowsArch,
+
+        [Parameter(Mandatory = $true)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$isServer
+    )
+
+    try {
+        # Server guard
+        if ($isServer) {
+            WriteLog "WARNING: [Acer][$Model][Catalog] Acer does not provide Windows Server driver catalogs. Skipping Acer driver download."
+            return
+        }
+
+        # Create OEM drivers folder
+        if (-not (Test-Path -Path $DriversFolder)) {
+            WriteLog "Creating Drivers folder: $DriversFolder"
+            New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
+        }
+        $DriversFolder = "$DriversFolder\$Make"
+        WriteLog "[Acer][$Model][Setup] Creating Acer Drivers folder: $DriversFolder"
+        New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
+
+        # Disk space validation
+        # Acer driver packs are typically smaller than Dell (est. 500MB compressed vs Dell's 2500MB)
+        $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Acer' -EstimatedCompressedSizeMB 500
+        if (-not $spaceCheck.HasSpace) {
+            WriteLog "WARNING: [Acer][$Model][DiskSpace] $($spaceCheck.Message)"
+            WriteLog "WARNING: [Acer][$Model][DiskSpace] $($spaceCheck.Recommendation)"
+        } else {
+            WriteLog $spaceCheck.Message
+        }
+
+        # Download and cache catalog XML
+        $catalogXmlPath = Join-Path -Path $DriversFolder -ChildPath "AcerCatalog.xml"
+        WriteLog "[Acer][$Model][Catalog] Downloading Acer catalog..."
+
+        # Manual cache check + download (safe fallback approach)
+        if (-not (Test-Path -Path $catalogXmlPath) -or ((Get-Date) - (Get-Item $catalogXmlPath).LastWriteTime).TotalDays -gt 7) {
+            WriteLog "[Acer][$Model][Catalog] Downloading AcerCatalog.xml to $catalogXmlPath"
+            Invoke-DriverDownloadWithRetry -Source ([FFUConstants]::ACER_CATALOG_URL) -Destination $catalogXmlPath -OperationName "Acer catalog XML" -ErrorAction Stop
+            WriteLog "[Acer][$Model][Catalog] AcerCatalog.xml download complete."
+        } else {
+            WriteLog "[Acer][$Model][Catalog] Using cached AcerCatalog.xml from $catalogXmlPath"
+        }
+
+        # Parse catalog XML to find model and driver URL
+        WriteLog "[Acer][$Model][Catalog] Parsing AcerCatalog.xml for model '$Model'..."
+        [xml]$catalogContent = Get-Content -Path $catalogXmlPath -Raw -Encoding UTF8 -ErrorAction Stop
+
+        # Find model node matching $Model (defensive: try multiple approaches)
+        $modelNode = $null
+        if ($catalogContent.AcerCatalog.ModelList.Model) {
+            $modelNode = $catalogContent.AcerCatalog.ModelList.Model | Where-Object { $_.name -eq $Model } | Select-Object -First 1
+        }
+
+        # Fallback: try XPath if initial search fails
+        if ($null -eq $modelNode) {
+            $xpathResult = Select-Xml -Xml $catalogContent -XPath "//Model[@name='$Model']"
+            if ($xpathResult) {
+                $modelNode = $xpathResult.Node
+            }
+        }
+
+        # Fallback: try case-insensitive match
+        if ($null -eq $modelNode) {
+            if ($catalogContent.AcerCatalog.ModelList.Model) {
+                $modelNode = $catalogContent.AcerCatalog.ModelList.Model | Where-Object { $_.name -like $Model } | Select-Object -First 1
+            }
+        }
+
+        if ($null -eq $modelNode) {
+            throw "Model '$Model' not found in AcerCatalog.xml."
+        }
+
+        # Find SCCM child element matching requested OS
+        $sccmNode = $null
+        $requestedOsString = "Windows $WindowsRelease"
+
+        # Try to find exact match first
+        foreach ($sccm in $modelNode.SCCM) {
+            $osAttr = $sccm.os
+            $versionAttr = $sccm.version
+
+            # Check if this SCCM node matches requested OS
+            if ($osAttr -like "*$requestedOsString*") {
+                # If we have a matching SCCM node, use it
+                $sccmNode = $sccm
+                WriteLog "[Acer][$Model][Catalog] Found driver pack for $requestedOsString"
+                break
+            }
+        }
+
+        if ($null -eq $sccmNode) {
+            throw "No driver pack found for Acer model '$Model' matching Windows $WindowsRelease"
+        }
+
+        # Extract driver package URL
+        $driverPackUrl = $sccmNode.'#text'
+        if ([string]::IsNullOrWhiteSpace($driverPackUrl)) {
+            $driverPackUrl = $sccmNode.InnerText
+        }
+
+        if ([string]::IsNullOrWhiteSpace($driverPackUrl)) {
+            throw "Driver package URL is empty for model '$Model'"
+        }
+
+        WriteLog "[Acer][$Model][Download] Found driver pack URL: $driverPackUrl"
+
+        # Download driver package
+        $extension = [System.IO.Path]::GetExtension($driverPackUrl)
+        if ([string]::IsNullOrWhiteSpace($extension)) {
+            # Default to .cab if no extension
+            $extension = ".cab"
+        }
+        $sanitizedModel = $Model -replace '[\\/:*?"<>|]', '_'
+        $driverPackFile = Join-Path -Path $DriversFolder -ChildPath "AcerDriverPack_$($sanitizedModel)$extension"
+
+        WriteLog "[Acer][$Model][Download] Downloading driver pack from $driverPackUrl"
+        Invoke-DriverDownloadWithRetry -Source $driverPackUrl -Destination $driverPackFile -OperationName "Acer driver pack for $Model" -ErrorAction Stop
+        WriteLog "[Acer][$Model][Download] Driver pack download complete."
+
+        # Extract driver package
+        $extractFolder = Join-Path -Path $DriversFolder -ChildPath $sanitizedModel
+        if (-not (Test-Path -Path $extractFolder)) {
+            New-Item -Path $extractFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        }
+
+        WriteLog "[Acer][$Model][Extract] Extracting driver pack to $extractFolder"
+
+        if ($extension -eq ".cab") {
+            # CAB extraction using expand.exe
+            WriteLog "[Acer][$Model][Extract] Extracting CAB file using expand.exe"
+            Invoke-Process -FilePath "expand.exe" -ArgumentList @($driverPackFile, "-F:*", $extractFolder) -ErrorAction Stop | Out-Null
+        }
+        elseif ($extension -eq ".zip") {
+            # ZIP extraction using Expand-Archive
+            WriteLog "[Acer][$Model][Extract] Extracting ZIP file using Expand-Archive"
+            Expand-Archive -Path $driverPackFile -DestinationPath $extractFolder -Force -ErrorAction Stop
+        }
+        else {
+            # Unknown format - try ZIP as default
+            WriteLog "WARNING: [Acer][$Model][Extract] Unknown driver pack format '$extension', attempting ZIP extraction..."
+            Expand-Archive -Path $driverPackFile -DestinationPath $extractFolder -Force -ErrorAction Stop
+        }
+
+        WriteLog "[Acer][$Model][Extract] Driver pack extraction complete."
+
+        # Cleanup: Remove downloaded archive
+        Remove-Item -Path $driverPackFile -Force -ErrorAction SilentlyContinue
+        WriteLog "[Acer][$Model][Cleanup] Deleted driver pack file: $driverPackFile"
+
+        WriteLog "[Acer][$Model][Complete] Acer driver download and extraction completed successfully"
+    }
+    catch {
+        WriteLog "ERROR: [Acer][$Model][Failed] $($_.Exception.Message)"
+        WriteLog "ERROR: [Acer][$Model][Remediation] Check network connectivity and verify the Acer catalog URL is accessible: $([FFUConstants]::ACER_CATALOG_URL)"
+        # Do NOT re-throw - graceful degradation (build continues without Acer drivers)
+    }
+}
+
+function Get-PanasonicDrivers {
+    <#
+    .SYNOPSIS
+    Downloads and extracts Panasonic TOUGHBOOK drivers for FFU builds
+
+    .DESCRIPTION
+    Downloads the Panasonic SCCM driver catalog, parses available TOUGHBOOK models,
+    and extracts the appropriate driver packages for the specified model and Windows version.
+    Uses Panasonic's SCCM CAB catalog for driver discovery. Falls back to static model list
+    if SCCM catalog is unavailable.
+
+    .PARAMETER Make
+    OEM manufacturer name (expected: "Panasonic")
+
+    .PARAMETER Model
+    Panasonic model name (e.g., "TOUGHBOOK 55 (FZ-55)")
+
+    .PARAMETER WindowsArch
+    Windows architecture (x64, x86, or ARM64)
+
+    .PARAMETER WindowsRelease
+    Windows release version (10 or 11)
+
+    .PARAMETER WindowsVersion
+    Specific Windows version/build (e.g., "22H2", "23H2")
+
+    .PARAMETER DriversFolder
+    Root path where drivers should be downloaded and extracted
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path for download tracking
+
+    .EXAMPLE
+    Get-PanasonicDrivers -Make "Panasonic" -Model "TOUGHBOOK 55 (FZ-55)" -WindowsArch "x64" `
+                         -WindowsRelease 11 -WindowsVersion "23H2" -DriversFolder "C:\FFU\Drivers" `
+                         -FFUDevelopmentPath "C:\FFU"
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Make,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Model,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("x64", "x86", "ARM64")]
+        [string]$WindowsArch,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(10, 11)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WindowsVersion,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath
+    )
+
+    # Download and extract the Panasonic SCCM catalog (with caching)
+    $DriversFolder = "$DriversFolder\$Make"
+    $CatalogCab = "$DriversFolder\PanasonicSCCM.cab"
+    $CatalogXml = "$DriversFolder\PanasonicSCCM.xml"
+
+    if (-not (Test-Path -Path $DriversFolder)) {
+        WriteLog "Creating Drivers folder: $DriversFolder"
+        New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
+        WriteLog "Drivers folder created"
+    }
+
+    # Disk space validation (REL-DRV-04)
+    # Panasonic driver packs are typically smaller (200-500MB)
+    $spaceCheck = Test-DriverDiskSpace -DriversFolder $DriversFolder -Vendor 'Panasonic' -EstimatedCompressedSizeMB 500
+    if (-not $spaceCheck.HasSpace) {
+        WriteLog "WARNING: [Panasonic][$Model][DiskSpace] $($spaceCheck.Message)"
+        WriteLog "WARNING: [Panasonic][$Model][DiskSpace] $($spaceCheck.Recommendation)"
+    }
+    else {
+        WriteLog $spaceCheck.Message
+    }
+
+    try {
+        # Check if catalog URL is configured
+        $catalogUrl = [FFUConstants]::PANASONIC_CATALOG_URL
+        if ([string]::IsNullOrEmpty($catalogUrl)) {
+            WriteLog "WARNING: [Panasonic][$Model][Catalog] PANASONIC_CATALOG_URL is empty. Panasonic SCCM catalog unavailable."
+            throw "Panasonic SCCM catalog unavailable. Visit Panasonic deployment tools portal to obtain drivers manually for model '$Model'."
+        }
+
+        # Download catalog using Get-CachedOEMCatalog
+        $CatalogCab = Get-CachedOEMCatalog -Vendor 'Panasonic' -CatalogType 'SCCM' `
+            -PrimaryUrl $catalogUrl -CachePath $CatalogCab
+    }
+    catch {
+        WriteLog "ERROR: [Panasonic][$Model][Catalog] $($_.Exception.Message)"
+        WriteLog "ERROR: [Panasonic][$Model][Remediation] Visit https://na.panasonic.com/us/support/contact-support for TOUGHBOOK driver resources"
+        throw
+    }
+
+    # Extract CAB to XML
+    if (-not (Test-Path -Path $CatalogXml)) {
+        WriteLog "[Panasonic][$Model][Catalog] Extracting catalog CAB to XML"
+        Invoke-Process -FilePath "expand.exe" -ArgumentList @($CatalogCab, $CatalogXml) -ErrorAction Stop | Out-Null
+        WriteLog "[Panasonic][$Model][Catalog] Catalog extraction complete"
+    }
+
+    # Parse catalog XML to find driver pack URL for the given Model and WindowsRelease/WindowsVersion
+    WriteLog "[Panasonic][$Model][Catalog] Parsing catalog for model '$Model' Windows $WindowsRelease $WindowsVersion"
+    [xml]$catalogContent = Get-Content -Path $CatalogXml -Raw -Encoding UTF8 -ErrorAction Stop
+
+    $driverPackUrl = $null
+    $sanitizedModel = ConvertTo-SafeName -Name $Model
+    if ($sanitizedModel -ne $Model) { WriteLog "Sanitized model name: '$Model' -> '$sanitizedModel'" }
+
+    # Search for matching model in SCCM catalog
+    if ($catalogContent.SystemsManagementCatalog) {
+        foreach ($package in $catalogContent.SystemsManagementCatalog.SoftwareDistributionPackage) {
+            $matchFound = $false
+
+            # Look for matching model in WmiQuery
+            foreach ($installableItem in $package.InstallableItem) {
+                if ($installableItem.ApplicabilityRules.IsInstallable.And) {
+                    foreach ($wmiQuery in $installableItem.ApplicabilityRules.IsInstallable.And.WmiQuery) {
+                        $wql = $wmiQuery.WqlQuery
+                        if ($wql -match [regex]::Escape($Model) -or $wql -match [regex]::Escape($sanitizedModel)) {
+                            # Check if Windows version matches
+                            $osVersionMatch = $wmiQuery.WqlQuery -match "Version.*$WindowsRelease" -or $wmiQuery.WqlQuery -match $WindowsVersion
+                            if ($osVersionMatch) {
+                                $matchFound = $true
+                                break
+                            }
+                        }
+                    }
+                }
+                if ($matchFound) { break }
+            }
+
+            # Extract driver pack URL from matching package
+            if ($matchFound) {
+                # Try multiple URL extraction patterns
+                if ($package.InstallableItem.OriginUri) {
+                    $driverPackUrl = $package.InstallableItem.OriginUri | Select-Object -First 1
+                }
+                elseif ($package.PayloadFiles.File.OriginUri) {
+                    $driverPackUrl = $package.PayloadFiles.File.OriginUri | Select-Object -First 1
+                }
+                elseif ($package.UpdateIdentity.UpdateID) {
+                    # Some SCCM catalogs use UpdateID as the download reference
+                    WriteLog "WARNING: [Panasonic][$Model][Catalog] Found UpdateID but no direct URL in catalog. Manual download may be required."
+                }
+
+                if ($driverPackUrl) {
+                    WriteLog "[Panasonic][$Model][Download] Found driver pack URL: $driverPackUrl"
+                    break
+                }
+            }
+        }
+    }
+
+    if ([string]::IsNullOrEmpty($driverPackUrl)) {
+        WriteLog "WARNING: [Panasonic][$Model][Catalog] No driver pack URL found in catalog for Windows $WindowsRelease $WindowsVersion"
+        throw "No driver pack URL found in Panasonic catalog for model '$Model' Windows $WindowsRelease $WindowsVersion. Manual download required."
+    }
+
+    # Download driver pack CAB
+    $driverPackFileName = Split-Path -Path $driverPackUrl -Leaf
+    $driverPackCab = Join-Path -Path $DriversFolder -ChildPath $driverPackFileName
+    $extractFolder = Join-Path -Path $DriversFolder -ChildPath $sanitizedModel
+
+    WriteLog "[Panasonic][$Model][Download] Downloading driver pack from $driverPackUrl"
+    Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverPackCab
+    try {
+        Invoke-DriverDownloadWithRetry -Source $driverPackUrl -Destination $driverPackCab -OperationName "Panasonic $Model driver pack"
+    }
+    catch {
+        Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverPackCab
+        WriteLog "ERROR: [Panasonic][$Model][Download] Failed to download driver pack after all retries: $($_.Exception.Message)"
+        throw
+    }
+    Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -TargetPath $driverPackCab
+
+    # Create extraction folder
+    if (-not (Test-Path -Path $extractFolder)) {
+        New-Item -Path $extractFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
+    }
+
+    # Extract driver pack using expand.exe
+    WriteLog "[Panasonic][$Model][Extract] Extracting driver pack to $extractFolder"
+    Invoke-Process -FilePath "expand.exe" -ArgumentList @($driverPackCab, "-F:*", $extractFolder) -ErrorAction Stop | Out-Null
+
+    # REL-DRV-02: Classify expand.exe exit code (standard exit codes: 0=success)
+    # expand.exe is reliable with well-defined exit codes
+    WriteLog "[Panasonic][$Model][Extract] Driver pack extraction complete"
+
+    # Cleanup: Remove downloaded CAB
+    Remove-Item -Path $driverPackCab -Force -ErrorAction SilentlyContinue
+    WriteLog "[Panasonic][$Model][Cleanup] Deleted driver pack file: $driverPackCab"
+
+    WriteLog "[Panasonic][$Model][Complete] Panasonic driver download and extraction completed successfully"
+}
+
 function Copy-Drivers {
     <#
     .SYNOPSIS
@@ -3088,17 +3508,152 @@ function Get-IntelEthernetDrivers {
     return $destE1000e
 }
 
+#region Tier 3 OEM Stubs (No Official Catalogs)
+
+function Get-ASUSDrivers {
+    <#
+    .SYNOPSIS
+    Stub for ASUS driver downloads - not yet supported
+
+    .DESCRIPTION
+    ASUS does not provide an official enterprise driver catalog. This stub logs
+    a warning and returns $null. Users should download ASUS drivers manually
+    from https://www.asus.com/support/
+
+    .PARAMETER Make
+    OEM manufacturer name (e.g., "ASUS")
+
+    .PARAMETER Model
+    ASUS model name
+
+    .PARAMETER DriversFolder
+    Root path where drivers would be downloaded
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$DriversFolder,
+
+        [string]$Make = 'ASUS',
+
+        [string]$Model,
+
+        [string]$WindowsArch,
+
+        [int]$WindowsRelease,
+
+        [string]$FFUDevelopmentPath
+    )
+
+    WriteLog "WARNING: [ASUS][$Model] ASUS driver automation not yet supported - no official catalog available."
+    WriteLog "[ASUS][$Model] To install ASUS drivers, download them manually from https://www.asus.com/support/"
+    return $null
+}
+
+function Get-MSIDrivers {
+    <#
+    .SYNOPSIS
+    Stub for MSI driver downloads - not yet supported
+
+    .DESCRIPTION
+    MSI SDK requires authentication and focuses on gaming hardware. This stub logs
+    a warning and returns $null. Users should download MSI drivers manually
+    from https://www.msi.com/support
+
+    .PARAMETER Make
+    OEM manufacturer name (e.g., "MSI")
+
+    .PARAMETER Model
+    MSI model name
+
+    .PARAMETER DriversFolder
+    Root path where drivers would be downloaded
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$DriversFolder,
+
+        [string]$Make = 'MSI',
+
+        [string]$Model,
+
+        [string]$WindowsArch,
+
+        [int]$WindowsRelease,
+
+        [string]$FFUDevelopmentPath
+    )
+
+    WriteLog "WARNING: [MSI][$Model] MSI driver automation not yet supported - SDK requires authentication."
+    WriteLog "[MSI][$Model] To install MSI drivers, download them manually from https://www.msi.com/support"
+    return $null
+}
+
+function Get-GetacDrivers {
+    <#
+    .SYNOPSIS
+    Stub for Getac driver downloads - not yet supported
+
+    .DESCRIPTION
+    Getac uses proprietary SmartUpdate CLI for driver management. This stub logs
+    a warning and returns $null. Users should download Getac drivers manually
+    from https://www.getac.com/en/support/
+
+    .PARAMETER Make
+    OEM manufacturer name (e.g., "Getac")
+
+    .PARAMETER Model
+    Getac model name
+
+    .PARAMETER DriversFolder
+    Root path where drivers would be downloaded
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$DriversFolder,
+
+        [string]$Make = 'Getac',
+
+        [string]$Model,
+
+        [string]$WindowsArch,
+
+        [int]$WindowsRelease,
+
+        [string]$FFUDevelopmentPath
+    )
+
+    WriteLog "WARNING: [Getac][$Model] Getac driver automation not yet supported - requires SmartUpdate CLI."
+    WriteLog "[Getac][$Model] To install Getac drivers, download them manually from https://www.getac.com/en/support/"
+    return $null
+}
+
+#endregion Tier 3 OEM Stubs
+
 # Export all functions
 Export-ModuleMember -Function @(
     'Get-MicrosoftDrivers',
     'Get-HPDrivers',
     'Get-LenovoDrivers',
     'Get-DellDrivers',
+    'Get-ASUSDrivers',
+    'Get-MSIDrivers',
+    'Get-GetacDrivers',
     'Copy-Drivers',
     'Get-IntelEthernetDrivers',
     'Get-AvailableDriveLetter',
     'New-DriverSubstMapping',
     'Remove-DriverSubstMapping',
     'Invoke-DismDriverInjectionWithSubstLoop'
-    'Get-IntelEthernetDrivers'
 )
