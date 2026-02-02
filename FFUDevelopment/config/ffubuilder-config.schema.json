@@ -420,6 +420,12 @@
             "default": false,
             "description": "When set to true, allows preview/optional updates in Windows Update searches. When false (default), search queries exclude preview updates to ensure only GA (Generally Available) releases are downloaded. Affects Cumulative Updates and .NET Framework updates."
         },
+        "BitsPriority": {
+            "type": "string",
+            "enum": ["Foreground", "High", "Normal", "Low"],
+            "default": "Normal",
+            "description": "Controls the BITS (Background Intelligent Transfer Service) download priority for update and ESD downloads. Foreground provides fastest speeds but may impact other network activity. Normal is the default and recommended for most scenarios. High and Low provide intermediate priority levels."
+        },
         "UseDriversAsPEDrivers": {
             "type": "boolean",
             "default": false,
