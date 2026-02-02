@@ -1,25 +1,84 @@
 ﻿function Get-USBDrive() {
-    $USBDriveLetter = (Get-Volume | Where-Object { $_.DriveType -eq 'Removable' -and $_.FileSystemType -eq 'NTFS' }).DriveLetter
+    # NICE-01: Enhanced USB detection with BusType filter and UniqueId audit trail
+    $USBDriveLetter = $null
+
+    # Primary detection: BusType-filtered USB disk
+    $usbDisks = @(Get-Disk | Where-Object { $_.BusType -eq 'USB' })
+    if ($usbDisks.Count -gt 0) {
+        foreach ($disk in $usbDisks) {
+            # Log UniqueId for audit trail
+            $physicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $disk.Number }
+            if ($null -ne $physicalDisk -and -not [string]::IsNullOrWhiteSpace($physicalDisk.UniqueId)) {
+                WriteLog "USB disk found via BusType: Number=$($disk.Number), UniqueId=$($physicalDisk.UniqueId)"
+            }
+            else {
+                WriteLog "USB disk found via BusType: Number=$($disk.Number) (UniqueId unavailable)"
+            }
+
+            # Find NTFS partition on this disk (prioritize "Deploy" label)
+            $partitions = Get-Partition -DiskNumber $disk.Number -ErrorAction SilentlyContinue
+            $deployVolume = $null
+            $firstNtfsVolume = $null
+
+            foreach ($partition in $partitions) {
+                if ($partition.DriveLetter) {
+                    $volume = Get-Volume -DriveLetter $partition.DriveLetter -ErrorAction SilentlyContinue
+                    if ($volume -and $volume.FileSystemType -eq 'NTFS') {
+                        if ($volume.FileSystemLabel -eq 'Deploy') {
+                            $deployVolume = $volume
+                            break
+                        }
+                        elseif ($null -eq $firstNtfsVolume) {
+                            $firstNtfsVolume = $volume
+                        }
+                    }
+                }
+            }
+
+            if ($deployVolume) {
+                $USBDriveLetter = $deployVolume.DriveLetter
+                WriteLog "Selected USB drive with 'Deploy' label: $USBDriveLetter"
+                break
+            }
+            elseif ($firstNtfsVolume) {
+                $USBDriveLetter = $firstNtfsVolume.DriveLetter
+                WriteLog "Selected first NTFS volume on USB disk: $USBDriveLetter"
+                break
+            }
+        }
+    }
+
+    # Fallback 1: Original volume-based removable detection
     if ($null -eq $USBDriveLetter) {
-        #Must be using a fixed USB drive - difficult to grab drive letter from win32_diskdrive. Assume user followed instructions and used Deploy as the friendly name for partition
+        WriteLog "No USB disk found via BusType. Trying volume-based removable detection."
+        $USBDriveLetter = (Get-Volume | Where-Object { $_.DriveType -eq 'Removable' -and $_.FileSystemType -eq 'NTFS' }).DriveLetter
+    }
+
+    # Fallback 2: Fixed drive with "Deploy" label
+    if ($null -eq $USBDriveLetter) {
+        WriteLog "No removable volume found. Trying fixed drive with 'Deploy' label."
         $USBDriveLetter = (Get-Volume | Where-Object { $_.DriveType -eq 'Fixed' -and $_.FileSystemType -eq 'NTFS' -and $_.FileSystemLabel -eq 'Deploy' }).DriveLetter
-        #If we didn't get the drive letter, stop the script.
+
+        # If we didn't get the drive letter, stop the script.
         if ($null -eq $USBDriveLetter) {
             $errorMessage = 'Cannot find USB drive letter. If using a fixed USB drive, name the deployment partition "Deploy".'
             WriteLog ($errorMessage + ' Exiting.')
             Stop-Script -Message $errorMessage
         }
-
     }
+
     $USBDriveLetter = $USBDriveLetter + ":\"
     return $USBDriveLetter
 }
 
 function Get-HardDrive() {
+    # DEPLOY-01: Enhanced disk selection with multi-disk interactive menu
     $systemInfo = Get-CimInstance -Class 'Win32_ComputerSystem'
     $manufacturer = $systemInfo.Manufacturer
     $model = $systemInfo.Model
     WriteLog 'Getting Hard Drive info'
+
+    # VM detection logic UNCHANGED
     if ($manufacturer -eq 'Microsoft Corporation' -and $model -eq 'Virtual Machine') {
         WriteLog 'Running in a Hyper-V VM. Getting virtual disk on Index 0 and SCSILogicalUnit 0'
         $diskDrive = Get-CimInstance -Class 'Win32_DiskDrive' | Where-Object { $_.MediaType -eq 'Fixed hard disk media' `
@@ -29,9 +88,51 @@ function Get-HardDrive() {
         }
     }
     else {
-        WriteLog 'Not running in a VM. Getting physical disk drive'
-        $diskDrive = Get-CimInstance -Class 'Win32_DiskDrive' | Where-Object { $_.MediaType -eq 'Fixed hard disk media' -and $_.Model -ne 'Microsoft Virtual Disk' }
+        WriteLog 'Not running in a VM. Getting physical disk drive(s)'
+        # Wrap in @() to ALWAYS get an array
+        $diskDrives = @(Get-CimInstance -Class 'Win32_DiskDrive' | Where-Object { $_.MediaType -eq 'Fixed hard disk media' -and $_.Model -ne 'Microsoft Virtual Disk' })
+
+        if ($diskDrives.Count -gt 1) {
+            # Multi-disk selection menu (follows FFU file selection pattern)
+            WriteLog "Found $($diskDrives.Count) physical disks. Prompting for selection."
+            Write-Host "Found $($diskDrives.Count) physical disks:"
+
+            $array = @()
+            for ($i = 0; $i -lt $diskDrives.Count; $i++) {
+                $sizeGB = [math]::Round($diskDrives[$i].Size / 1GB, 2)
+                $Properties = [ordered]@{
+                    Number  = $i + 1
+                    Model   = $diskDrives[$i].Model
+                    SizeGB  = $sizeGB
+                    Index   = $diskDrives[$i].Index
+                }
+                $array += New-Object PSObject -Property $Properties
+            }
+            $array | Format-Table -AutoSize -Property Number, Model, SizeGB, Index
+
+            do {
+                try {
+                    $var = $true
+                    [int]$diskSelected = Read-Host 'Enter the disk number to install to'
+                    $diskSelected = $diskSelected - 1
+                }
+                catch {
+                    Write-Host 'Input was not in correct format. Please enter a valid disk number'
+                    $var = $false
+                }
+            } until (($diskSelected -ge 0) -and ($diskSelected -lt $diskDrives.Count) -and $var)
+
+            $diskDrive = $diskDrives[$diskSelected]
+            WriteLog "User selected disk: Index=$($diskDrive.Index), Model=$($diskDrive.Model), Size=$([math]::Round($diskDrive.Size / 1GB, 2)) GB"
+        }
+        elseif ($diskDrives.Count -eq 1) {
+            # Auto-select single disk (same as current behavior)
+            $diskDrive = $diskDrives[0]
+            WriteLog "Single physical disk found: Index=$($diskDrive.Index), Model=$($diskDrive.Model)"
+        }
+        # If count == 0, $diskDrive remains $null and existing check at line 476 handles this
     }
+
     $deviceID = $diskDrive.DeviceID
     $bytesPerSector = $diskDrive.BytesPerSector
     $diskSize = $diskDrive.Size
