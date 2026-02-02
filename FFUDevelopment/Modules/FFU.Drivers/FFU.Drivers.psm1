@@ -4181,7 +4181,7 @@ function Get-DynabookDrivers {
                                 }
 
                                 if ($osMatch -and $archMatch) {
-                                    WriteLog "[OEM][Dynabook][$Model][Catalog] Found matching driver pack for OS $WindowsRelease $WindowsArch: $driverPackUrl"
+                                    WriteLog "[OEM][Dynabook][$Model][Catalog] Found matching driver pack for OS ${WindowsRelease} ${WindowsArch}: $driverPackUrl"
                                     break
                                 }
                                 else {
