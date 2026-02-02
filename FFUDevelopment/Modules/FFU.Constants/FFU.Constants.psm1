@@ -549,6 +549,11 @@ class FFUConstants {
     # REST APIs exist for PRIMERGY servers but client laptop catalog requires HTML scraping
     static [string] $FUJITSU_PORTAL_URL = ""
 
+    # Panasonic TOUGHBOOK SCCM catalog (CAB containing XML - same pattern as Dell/HP)
+    # SCCM driver packs for rugged enterprise laptops/tablets (TOUGHBOOK/TOUGHPAD lines)
+    # Empty URL indicates static fallback model list will be used
+    static [string] $PANASONIC_CATALOG_URL = ""
+
     # Catalog cache settings
     # Default staleness: 7 days (OEM catalogs updated weekly at most)
     static [int] $OEM_CATALOG_CACHE_HOURS = 168
