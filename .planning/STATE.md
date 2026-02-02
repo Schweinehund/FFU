@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 43 of 43 (Deployment Improvements and Nice-to-Haves) - IN PROGRESS
-**Plan:** 2 of 7 complete (43-01 research, 43-02 security delay)
-**Status:** Phase 43 in progress — Security Platform delay implemented in Orchestrator.ps1
-**Last activity:** 2026-02-02 — Completed 43-02-PLAN.md (Security Platform initialization delay)
+**Plan:** 3 of 7 complete (43-01 deployment enhancements, 43-02 security delay)
+**Status:** Phase 43 in progress — ApplyFFU.ps1 enhanced with multi-disk, empty drivers, USB UniqueId, skip-drivers
+**Last activity:** 2026-02-02 — Completed 43-01-PLAN.md (Deployment Improvements: DEPLOY-01, DEPLOY-03, NICE-01, NICE-02)
 
-Progress: █████████░ 98% (29 of 35 plans complete across 10 phases)
+Progress: █████████░ 98% (30 of 35 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -138,6 +138,12 @@ Progress: █████████░ 98% (29 of 35 plans complete across 10 
 | 42-05 | Mixed EXE/ZIP extraction with /extract primary and /s /e fallback | Fujitsu uses both formats; EXE extraction flags vary by package version | Handles diverse driver package formats without manual conversion |
 | 42-05 | Graceful degradation: individual driver failures continue to next driver | Partial driver installation is better than no drivers; matches Dell/HP/Lenovo patterns | Builds continue even if some drivers fail to download/extract |
 | 43-02 | Implement delay directly in Orchestrator.ps1 rather than unattend.xml | More maintainable, visible to users, easier to adjust | Orchestrator.ps1 has 30-second Security Platform delay with countdown display before app installations |
+| 43-01 | Multi-disk menu shows Number, Model, SizeGB, Index columns for clear disk identification | Prevents accidental wrong-disk wipes with comprehensive display | ApplyFFU.ps1 Get-HardDrive uses Format-Table with 4 columns following FFU file selection pattern |
+| 43-01 | USB detection uses Get-Disk BusType='USB' as primary, falls back to volume-based detection for compatibility | Modern disk-level detection more reliable than volume properties | Primary: BusType filter, Fallback 1: Removable volumes, Fallback 2: Fixed "Deploy" label |
+| 43-01 | UniqueId logged for USB disks (when available) to create audit trail of deployment media | Enables tracking which physical USB drives were used for deployments | Logged via Get-PhysicalDisk for each USB disk detected via BusType |
+| 43-01 | Empty folder check uses recursive .inf file search (handles nested OEM driver structures) | Prevents DISM 0x80070057 errors on empty paths | Get-ChildItem -Recurse -Include *.inf checks before injection |
+| 43-01 | Skip-drivers prompt appears before any driver detection to avoid unnecessary processing | Optional deployment feature with early-exit optimization | Y/N prompt bypasses both DriverMapping.json and manual selection |
+| 43-01 | VM detection logic completely unchanged (Index 0, SCSILogicalUnit 0) to preserve existing behavior | Hyper-V VM deployments have specific disk requirements | Get-HardDrive VM path untouched to maintain compatibility |
 
 ## Blockers
 
@@ -146,9 +152,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-02-02
-**Stopped at:** Completed 43-02-PLAN.md (Security Platform initialization delay)
+**Stopped at:** Completed 43-01-PLAN.md (Deployment Improvements)
 **Resume file:** None
 **Next action:** Continue Phase 43 execution (plans 43-03 through 43-07 remaining)
 
 ---
-*State updated: 2026-02-02 after Phase 42 verification complete*
+*State updated: 2026-02-02 after 43-01 plan completion*
