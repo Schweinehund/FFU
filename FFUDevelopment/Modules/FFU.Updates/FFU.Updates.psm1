@@ -1461,13 +1461,26 @@ function Test-MountState {
         [string]$Path
     )
 
-    # First check if path exists
+    # First check if path exists (filesystem level, no DISM dependency)
     if (-not (Test-Path $Path)) {
         WriteLog "ERROR: Mounted image path not found: $Path"
         return $false
     }
 
-    # Try to query the image with DISM
+    # Check WIMMount filter driver BEFORE attempting any DISM operation
+    # This avoids the 10-minute hang that occurs when calling Get-WindowsEdition
+    # against a broken WIMMount (the exact anti-pattern identified in v1.9.8 fixes)
+    if (-not (Test-DismReady)) {
+        WriteLog "ERROR: WIMMount filter driver is not loaded - mounted image cannot be validated via DISM"
+        WriteLog "Attempting WIMMount auto-repair..."
+        if (-not (Test-DismReady)) {
+            WriteLog "ERROR: WIMMount auto-repair failed. Mounted image state cannot be determined."
+            return $false
+        }
+        WriteLog "WIMMount filter driver restored. Proceeding with image validation."
+    }
+
+    # Now safe to call DISM - WIMMount is confirmed loaded
     try {
         $null = Get-WindowsEdition -Path $Path -ErrorAction Stop
         return $true
