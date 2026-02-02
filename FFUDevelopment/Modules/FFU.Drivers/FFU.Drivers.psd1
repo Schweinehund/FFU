@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.5.0'
+    ModuleVersion = '1.6.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -70,6 +70,7 @@
         'Get-FujitsuDrivers',
         'Get-PanasonicDrivers',
         'Get-AcerDrivers',
+        'Get-DynabookDrivers',
         'Get-ASUSDrivers',
         'Get-MSIDrivers',
         'Get-SamsungDrivers',
@@ -117,6 +118,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.6.0: Phase 42 Dynabook Driver Support
+- Added Get-DynabookDrivers: CAB-to-XML catalog download, model matching, driver extraction
+- Dynabook catalog cached with 7-day TTL via Get-CachedOEMCatalog
+- Structured logging with [OEM][Dynabook] prefixes
+- Graceful degradation on catalog/download failures
+- Follows Dell CAB-to-XML pattern (Phase 40 refactored structure)
+
 v1.5.0: Phase 38 SUBST Drive Mapping for Long Paths (PATH-01)
 - Added Get-AvailableDriveLetter: Scans Z->A for first unused drive letter
 - Added New-DriverSubstMapping: Creates SUBST virtual drive mapping with defensive pre-removal
