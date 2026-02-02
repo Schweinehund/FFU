@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
 **Phase:** 43 of 43 (Deployment Improvements and Nice-to-Haves) - IN PROGRESS
-**Plan:** 3 of 7 complete (43-01 deployment enhancements, 43-02 security delay)
-**Status:** Phase 43 in progress — ApplyFFU.ps1 enhanced with multi-disk, empty drivers, USB UniqueId, skip-drivers
-**Last activity:** 2026-02-02 — Completed 43-01-PLAN.md (Deployment Improvements: DEPLOY-01, DEPLOY-03, NICE-01, NICE-02)
+**Plan:** 3 of 7 complete (43-01 deployment enhancements, 43-02 security delay, 43-03 pester tests)
+**Status:** Phase 43 in progress — 107 Pester tests created covering all 5 deployment requirements
+**Last activity:** 2026-02-02 — Completed 43-03-PLAN.md (Pester Test Suite: 72 ApplyFFU tests + 35 Orchestrator tests)
 
-Progress: █████████░ 98% (30 of 35 plans complete across 10 phases)
+Progress: █████████░ 98% (31 of 35 plans complete across 10 phases)
 
 ## Shipped Milestones
 
