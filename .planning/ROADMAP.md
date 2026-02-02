@@ -230,8 +230,12 @@ Plans:
   3. 30s delay in audit mode for Security Platform
   4. USB uses UniqueId instead of SerialNumber
   5. "Skip driver installation" option available
-**Research**: Unlikely (well-defined behaviors in existing ApplyFFU.ps1)
+**Research**: Complete (43-RESEARCH.md -- ApplyFFU.ps1 patterns, Orchestrator.ps1 scope, audit mode placement)
 **Plans**: 3 plans
+Plans:
+- [ ] 43-01-PLAN.md -- ApplyFFU.ps1 deployment improvements (DEPLOY-01, DEPLOY-03, NICE-01, NICE-02)
+- [ ] 43-02-PLAN.md -- Orchestrator.ps1 Security Platform delay (DEPLOY-02)
+- [ ] 43-03-PLAN.md -- Pester tests for all Phase 43 requirements
 
 ## Progress
 
