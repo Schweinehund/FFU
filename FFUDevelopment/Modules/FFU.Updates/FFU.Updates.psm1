@@ -1660,6 +1660,10 @@ function Add-WindowsPackageWithUnattend {
     # For CAB files, apply directly (no unattend.xml issues)
     if ($PackagePath -match '\.cab$') {
         WriteLog "CAB file detected, applying directly with DISM"
+        # Verify DISM readiness before CAB application
+        if (-not (Test-DismReady)) {
+            throw "WIMMount filter driver is not functional. Cannot apply CAB package."
+        }
         Add-WindowsPackage -Path $Path -PackagePath $PackagePath | Out-Null
         WriteLog "Package $packageName applied successfully"
         return
@@ -1810,7 +1814,10 @@ function Add-WindowsPackageWithUnattend {
                 }
 
                 WriteLog "Attempting direct package application with Add-WindowsPackage"
-
+                # Verify DISM readiness before direct MSU application
+                if (-not (Test-DismReady)) {
+                    throw "WIMMount filter driver is not functional. Cannot apply MSU package directly."
+                }
                 try {
                     Add-WindowsPackage -Path $Path -PackagePath $PackagePath -ErrorAction Stop | Out-Null
                     WriteLog "Package $packageName applied successfully (direct method)"
@@ -1901,7 +1908,11 @@ function Add-WindowsPackageWithUnattend {
                 # Apply each CAB file (typically there's only one main CAB)
                 foreach ($cabFile in $cabFiles) {
                     WriteLog "Applying CAB: $($cabFile.Name) (Size: $([Math]::Round($cabFile.Length / 1MB, 2)) MB)"
-
+                    # Verify DISM readiness before each CAB application
+                    if (-not (Test-DismReady)) {
+                        WriteLog "CRITICAL: WIMMount filter driver failed before applying CAB: $($cabFile.Name)"
+                        throw "WIMMount filter driver is not functional. Cannot apply CAB package."
+                    }
                     try {
                         Add-WindowsPackage -Path $Path -PackagePath $cabFile.FullName -ErrorAction Stop | Out-Null
                         WriteLog "CAB $($cabFile.Name) applied successfully"
