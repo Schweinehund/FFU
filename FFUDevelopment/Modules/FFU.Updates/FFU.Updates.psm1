@@ -1579,8 +1579,13 @@ function Add-WindowsPackageWithRetry {
                 Start-Sleep -Seconds $RetryDelaySeconds
 
                 WriteLog "Refreshing DISM mount state before retry..."
-                # Clear any potentially stuck DISM operations
-                $null = Get-WindowsEdition -Path $Path -ErrorAction SilentlyContinue
+                # Only attempt DISM refresh if WIMMount is confirmed loaded (avoid 10-min hang)
+                if (Test-DismReady) {
+                    $null = Get-WindowsEdition -Path $Path -ErrorAction SilentlyContinue
+                }
+                else {
+                    WriteLog "WARNING: Skipping DISM refresh - WIMMount is not loaded"
+                }
             }
 
             Add-WindowsPackageWithUnattend -Path $Path -PackagePath $PackagePath
