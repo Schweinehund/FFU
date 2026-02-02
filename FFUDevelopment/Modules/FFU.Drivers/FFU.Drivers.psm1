@@ -168,7 +168,7 @@ function Get-DriverExtractionResult {
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('Dell', 'HP', 'Lenovo', 'Microsoft')]
+        [ValidateSet('Dell', 'HP', 'Lenovo', 'Microsoft', 'Acer', 'Dynabook', 'Panasonic', 'Samsung', 'Fujitsu')]
         [string]$Vendor,
 
         [Parameter(Mandatory)]
@@ -369,7 +369,7 @@ function Get-CachedOEMCatalog {
     [OutputType([string])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('Dell', 'HP', 'Lenovo')]
+        [ValidateSet('Dell', 'HP', 'Lenovo', 'Acer', 'Dynabook', 'Panasonic', 'Samsung', 'Fujitsu')]
         [string]$Vendor,
 
         [Parameter(Mandatory)]
@@ -741,7 +741,7 @@ function Test-DriverDiskSpace {
         [int]$EstimatedCompressedSizeMB = 2000,
 
         [Parameter()]
-        [ValidateSet('Dell', 'HP', 'Lenovo', 'Microsoft')]
+        [ValidateSet('Dell', 'HP', 'Lenovo', 'Microsoft', 'Acer', 'Dynabook', 'Panasonic', 'Samsung', 'Fujitsu', 'ASUS', 'MSI', 'Getac')]
         [string]$Vendor = 'Dell'
     )
 

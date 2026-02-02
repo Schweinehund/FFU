@@ -340,7 +340,7 @@ param(
     [Parameter(Mandatory = $false)]
     [ValidateScript({ [string]::IsNullOrWhiteSpace($_) -or (Test-Path (Split-Path $_ -Parent) -PathType Container) })]
     [string]$OfficeConfigXMLFile,
-    [ValidateSet('Microsoft', 'Dell', 'HP', 'Lenovo')]
+    [ValidateSet('Microsoft', 'Dell', 'HP', 'Lenovo', 'Acer', 'Dynabook', 'Panasonic', 'Samsung', 'Fujitsu', 'ASUS', 'MSI', 'Getac')]
     [string]$Make,
     [string]$Model,
     [bool]$InstallDrivers,

@@ -21,7 +21,7 @@
     Copyright = '(c) FFU Builder Project. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'OEM-specific driver download, parsing, and injection module for FFU Builder. Supports Microsoft Surface, HP, Lenovo, and Dell driver catalogs with automatic download, extraction, and DISM injection capabilities.'
+    Description = 'OEM-specific driver download, parsing, and injection module for FFU Builder. Supports Microsoft Surface, HP, Lenovo, Dell, Acer, Dynabook, Panasonic, Samsung, and Fujitsu driver catalogs with automatic download, extraction, and DISM injection capabilities. ASUS, MSI, and Getac are stub implementations.'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '7.0'

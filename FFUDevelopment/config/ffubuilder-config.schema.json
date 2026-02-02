@@ -272,7 +272,7 @@
         },
         "Make": {
             "type": "string",
-            "enum": ["", "Microsoft", "Dell", "HP", "Lenovo"],
+            "enum": ["", "Microsoft", "Dell", "HP", "Lenovo", "Acer", "Dynabook", "Panasonic", "Samsung", "Fujitsu", "ASUS", "MSI", "Getac"],
             "default": "",
             "description": "Make of the device to download drivers. Required if automatic driver download is desired."
         },

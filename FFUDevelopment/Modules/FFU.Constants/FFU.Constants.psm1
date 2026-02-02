@@ -533,6 +533,22 @@ class FFUConstants {
     # Note: Lenovo PSREF API and catalog URLs are model-specific, not cacheable as single file
     static [string] $LENOVO_CATALOG_BASE_URL = "https://download.lenovo.com/catalog/"
 
+    # Acer driver catalog URL (XML, direct download - source: DAT v8.0.0)
+    # SCCM-native XML catalog with model list and driver pack URLs
+    static [string] $ACER_CATALOG_URL = "https://global-download.acer.com/GDFiles/Driver/SCCM/AcerCatalog.xml"
+
+    # Dynabook driver catalog URL (CAB containing XML - same pattern as Dell CatalogPC)
+    # Enterprise SCCM driver packs for ex-Toshiba business laptops
+    static [string] $DYNABOOK_CATALOG_URL = "https://content.us.dynabook.com/content/support/drivers/Dynabook_DriverPack_Catalog.cab"
+
+    # Samsung enterprise PC management portal
+    # HTML portal with SCCM/MDT deployment guides and Galaxy Book driver pack ZIPs
+    static [string] $SAMSUNG_PORTAL_URL = "https://pcmanagement.biz.samsung.com"
+
+    # Fujitsu support portal (LIFEBOOK/STYLISTIC client laptops)
+    # REST APIs exist for PRIMERGY servers but client laptop catalog requires HTML scraping
+    static [string] $FUJITSU_PORTAL_URL = ""
+
     # Catalog cache settings
     # Default staleness: 7 days (OEM catalogs updated weekly at most)
     static [int] $OEM_CATALOG_CACHE_HOURS = 168

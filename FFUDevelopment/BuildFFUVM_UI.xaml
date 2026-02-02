@@ -674,7 +674,7 @@
 
                         <!-- Row 5: Make Section (Indented) -->
                         <StackPanel x:Name="spMakeSection" Grid.Row="5" Visibility="Collapsed" Margin="25,5,5,0">
-                            <TextBlock Text="Make:" Margin="0,0,0,5" ToolTip="Make of the device to download drivers. Accepted values are: 'Microsoft', 'Dell', 'HP', 'Lenovo'."/>
+                            <TextBlock Text="Make:" Margin="0,0,0,5" ToolTip="Make of the device to download drivers. Accepted values are: 'Microsoft', 'Dell', 'HP', 'Lenovo', 'Acer', 'Dynabook', 'Panasonic', 'Samsung', 'Fujitsu', 'ASUS', 'MSI', 'Getac'. Note: ASUS, MSI, and Getac are stub implementations pending catalog availability."/>
                             <ComboBox x:Name="cmbMake" Margin="0,0,0,5" HorizontalAlignment="Left" Width="200"/>
                             <!-- Model TextBox is removed from here, filtering will be done below -->
                         </StackPanel>
