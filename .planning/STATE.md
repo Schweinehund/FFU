@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 41 of 43 (Driver Matching, PE Copy, and UI Clarity) - VERIFIED
-**Plan:** 3 of 3 complete (41-01, 41-02, 41-03)
-**Status:** Phase 41 verified — Family fallback, PE retry, driver source UI (7/7 must-haves)
-**Last activity:** 2026-01-29 — Phase 41 verified
+**Phase:** 42 of 43 (New OEM Manufacturers) - IN PROGRESS
+**Plan:** 1 of 8 complete (42-07)
+**Status:** OEM infrastructure complete — ValidateSet, constants, exit codes, UI switch cases for 8 new manufacturers
+**Last activity:** 2026-02-02 — Completed plan 42-07 (OEM scaffolding)
 
-Progress: ███████░░░ 71% (20 of 28 plans complete across 10 phases)
+Progress: ███████░░░ 75% (21 of 28 plans complete across 10 phases)
 
 ## Shipped Milestones
 
@@ -43,7 +43,7 @@ Progress: ███████░░░ 71% (20 of 28 plans complete across 10 
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Verified (3/3 plans) |
-| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | Pending |
+| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | In Progress (1/8 plans: 42-07 scaffolding complete) |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
 ## Decisions Log
@@ -114,6 +114,10 @@ Progress: ███████░░░ 71% (20 of 28 plans complete across 10 
 | 41-03 | Use AST analysis for testing non-runnable scripts | ApplyFFU.ps1 runs in WinPE, FFU.Media.psm1 requires ADK - AST validates structure without execution | Enables comprehensive testing without mock complexity or VM integration tests |
 | 41-03 | Search Extent.Text instead of StringConstantExpressionAst.Value | Log messages use string interpolation - patterns exist in full extent, not constant values | Reliable AST pattern matching for interpolated strings |
 | 41-03 | Register control explicitly via FindName in Initialize module | WPF controls are NOT auto-discovered - must be registered in $State.Controls | Explicit control registration prevents null reference errors at runtime |
+| 42-07 | Omit Panasonic catalog URL from constants pending portal validation | Portal access requires validation during implementation | Plan 42-03 will add constant if public URL exists or use hardcoded URL |
+| 42-07 | Tier 3 stubs (ASUS, MSI, Getac) are complete implementations | No official catalogs available for these OEMs | Complete stub logic (MessageBox + empty array) requires no future work |
+| 42-07 | Tier 1/2 Get-ModelsForMake switch cases call non-existent functions | Establishes calling convention before implementation | Functions created by plans 42-01 through 42-05; PowerShell error acceptable during development |
+| 42-07 | Acer and Dynabook require WindowsRelease validation | Both have OS-version-specific catalog entries | Added to WindowsRelease check alongside Dell and Lenovo |
 
 ## Blockers
 
@@ -121,10 +125,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-01-29
-**Stopped at:** Phase 41 verified (7/7 must-haves)
+**Last session:** 2026-02-02
+**Stopped at:** Completed 42-07 (OEM scaffolding)
 **Resume file:** None
-**Next action:** Begin Phase 42 (New OEM Manufacturers)
+**Next action:** Continue Phase 42 - plans 42-01 through 42-06 (individual OEM implementations)
 
 ---
-*State updated: 2026-01-29 after Phase 41 verified (Driver Matching, PE Copy, and UI Clarity complete)*
+*State updated: 2026-02-02 after completing plan 42-07 (New OEM Infrastructure)*
