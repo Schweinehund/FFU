@@ -1,5 +1,33 @@
 # Project Milestones: FFU Builder
 
+## v1.10.0 Upstream Cherry-Pick (Shipped: 2026-02-02)
+
+**Delivered:** Selectively ported 60 upstream commits into modular architecture — critical bug fixes, 8 new OEM manufacturers, Dell CatalogIndexPC optimization, SUBST long-path reliability, and deployment UX improvements.
+
+**Phases completed:** 34-43 (31 plans total)
+
+**Key accomplishments:**
+
+- Winget reliability overhaul: mutex-protected JSON writes, app ordering enforcement, and Win32 dependency resolution with deduplication
+- 8 new OEM manufacturers added (Acer, Dynabook, Panasonic, Samsung, Fujitsu, ASUS, MSI, Getac) with catalog integration
+- Dell CatalogIndexPC refactoring achieving 10-30x download reduction (6-15MB vs 160MB) with three-tier fallback
+- SUBST virtual drive mapping prevents >260 character path failures during driver operations
+- Deployment improvements: multi-disk selection menu, empty driver skip, Security Platform delay, USB UniqueId tracking
+- CU skip logic avoids unnecessary 3-4GB cumulative update downloads when ESD version already matches
+
+**Stats:**
+
+- 121 files created/modified
+- +28,748 / -401 lines of PowerShell
+- 10 phases, 31 plans, 20 requirements
+- 6 days (2026-01-28 → 2026-02-02)
+
+**Git range:** `37b96bc` → `d063107`
+
+**What's next:** Define requirements for next improvement cycle
+
+---
+
 ## v1.9.3 OEM Driver Bug Fixes (Shipped: 2026-01-27)
 
 **Delivered:** Fix HP and Dell OEM driver bugs and ensure all OEM driver operations use proper file logging.

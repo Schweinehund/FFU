@@ -83,18 +83,26 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Dell CatalogPC.xml missing with fallback behavior
   - Structured OEM driver logging with [OEM][Model][Operation] prefixes
   - All driver operations use WriteLog (not console-only output)
+- **Upstream Cherry-Pick** — v1.10.0
+  - Mutex-protected Winget JSON writes preventing parallel corruption
+  - App ordering enforcement and Win32 dependency resolution with deduplication
+  - PPKG xcopy path quoting fix with Copy-Item fallback
+  - CU skip logic (avoid 3-4GB downloads when ESD already matches)
+  - ESD BITS transfer with configurable priority
+  - SUBST virtual drive mapping for >260 char path reliability
+  - Model name normalization removing duplicate brand prefixes
+  - SystemID/MachineType extraction for HP, Dell, Lenovo
+  - Dell CatalogIndexPC refactoring (10-30x download reduction)
+  - Family-level driver fallback with decision trail logging
+  - PE driver copy retry on transient failures
+  - Driver source selection UI clarity label
+  - 8 new OEM manufacturers (Acer, Dynabook, Panasonic, Samsung, Fujitsu, ASUS, MSI, Getac)
+  - Multi-disk interactive selection menu for deployment
+  - Empty driver folder auto-skip during deployment
+  - 30-second Security Platform delay in audit mode
+  - USB UniqueId identification and skip-driver option
 
 ### Active
-
-**Current Milestone:** v1.10.0 Upstream Cherry-Pick
-
-**Target features:**
-- Port critical bug fixes from upstream (JSON corruption, path quoting, CU skip logic)
-- Add Winget app ordering and dependency handling
-- Implement SUBST drive mapping for long path reliability
-- Refactor Dell driver download with CatalogIndexPC logic
-- Add 8 new OEM manufacturers (Panasonic, Fujitsu, Getac, Dynabook, Samsung, Acer, ASUS, MSI)
-- Improve deployment experience (multi-disk selection, empty driver skip, Security Platform delay)
 
 **Deferred bugs (carry forward):**
 - expand.exe fails on large MSU files (fallback works — explicitly out of scope)
@@ -102,21 +110,23 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 ### Out of Scope
 
 - Major architectural rewrites — focus on incremental improvements
-- New OEM vendor support — current vendors sufficient
 - Mobile/web UI — desktop WPF application only
 - Real-time monitoring dashboard — existing log monitoring adequate
 - Module decomposition — deferred due to 12-15x import penalty (see docs/MODULE_DECOMPOSITION.md)
 
 ## Context
 
-FFU Builder is a mature codebase with 98.8% PowerShell, 13 modules (11 original + FFU.Checkpoint + FFU.ConfigMigration) totaling ~62,000 lines of code. The v1.8.0 milestone completed comprehensive improvements including 535+ new Pester tests, three new features (cancellation, checkpoint/resume, config migration), and dependency resilience patterns.
+FFU Builder is a mature codebase with 98.8% PowerShell, 13 modules (11 original + FFU.Checkpoint + FFU.ConfigMigration) totaling ~90,000+ lines of code. Through 8 milestones (v1.8.0 → v1.10.0), the project has shipped 133 plans across 43 phases. The v1.10.0 milestone selectively ported 60 upstream commits, adding 8 new OEM manufacturers, Dell CatalogIndexPC optimization, SUBST long-path support, and deployment UX improvements.
 
 Key files:
 - `BuildFFUVM.ps1` — Core build orchestrator
 - `BuildFFUVM_UI.ps1` — WPF UI host
+- `ApplyFFU.ps1` — Deployment script (heavily modified in v1.10.0)
+- `Orchestrator.ps1` — Deployment orchestration
 - `Modules/` — 13 specialized modules
-- `FFU.Common/` — Shared utilities
+- `FFU.Common/` — Shared utilities (Winget, Downloads, Drivers)
 - `FFUUI.Core/` — UI framework
+- `Drivers/Providers/` — OEM driver implementations (now 12 manufacturers)
 
 ## Constraints
 
@@ -145,6 +155,14 @@ Key files:
 | Default preferred drive letter to W | Consistent with New-OSPartition | ✓ Good |
 | NoteProperty for drive letter attachment | Maintains backward compatibility | ✓ Good |
 | Retry with exponential backoff for mounts | Handles transient disk operation failures | ✓ Good |
+| Selective cherry-pick vs rebase | Keep modular architecture, port only valuable changes | ✓ Good |
+| Mutex for Winget JSON writes | Prevents parallel corruption without file locks | ✓ Good |
+| CatalogIndexPC for Dell drivers | 10-30x download reduction vs full catalog | ✓ Good |
+| SUBST virtual drive for long paths | Avoids >260 char failures without LongPathsEnabled | ✓ Good |
+| Tier 3 stubs for ASUS/MSI/Getac | Manual download guidance until catalogs available | ✓ Good |
+| Multi-disk menu with Format-Table | Clear disk identification prevents accidental wipes | ✓ Good |
+| Security Platform delay in Orchestrator | More maintainable than unattend.xml approach | ✓ Good |
+| BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
 ---
-*Last updated: 2026-01-28 after v1.10.0 milestone started*
+*Last updated: 2026-02-02 after v1.10.0 milestone complete*
