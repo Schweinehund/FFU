@@ -868,13 +868,39 @@ $DriversPath = $USBDrive + "Drivers"
 $DriverSourcePath = $null
 $DriverSourceType = $null # Will be 'WIM' or 'Folder'
 $driverMappingPath = Join-Path -Path $DriversPath -ChildPath "DriverMapping.json"
+$skipDrivers = $false
 
 If (Test-Path -Path $DriversPath) {
     Write-SectionHeader -Title 'Drivers Selection'
+
+    # NICE-02: Optional driver installation skip
+    Write-Host 'Drivers folder detected.'
+    do {
+        try {
+            $var = $true
+            $response = Read-Host 'Install drivers? (Y/N)'
+            if ($response -match '^[Yy]') {
+                $skipDrivers = $false
+            }
+            elseif ($response -match '^[Nn]') {
+                $skipDrivers = $true
+                WriteLog 'User elected to skip driver installation'
+                Write-Host 'Driver installation will be skipped.'
+            }
+            else {
+                Write-Host 'Please enter Y or N'
+                $var = $false
+            }
+        }
+        catch {
+            Write-Host 'Invalid input. Please enter Y or N'
+            $var = $false
+        }
+    } until ($var)
 }
 
 # --- Automatic Driver Detection using DriverMapping.json ---
-if (Test-Path -Path $driverMappingPath -PathType Leaf) {
+if (-not $skipDrivers -and (Test-Path -Path $driverMappingPath -PathType Leaf)) {
     WriteLog "DriverMapping.json found at $driverMappingPath. Attempting automatic driver selection."
     Write-Host "DriverMapping.json found. Attempting automatic driver selection."
     try {
@@ -1040,7 +1066,7 @@ else {
 }
 
 # --- Manual Driver Selection (Fallback) ---
-if ($null -eq $DriverSourcePath) {
+if (-not $skipDrivers -and $null -eq $DriverSourcePath) {
     If (Test-Path -Path $DriversPath) {
         WriteLog "Searching for driver WIMs and folders in $DriversPath"
     
@@ -1291,6 +1317,19 @@ If ($computername) {
 }
 
 # Add Drivers
+# DEPLOY-03: Empty driver folder detection (safety net for Folder-type sources)
+if ($null -ne $DriverSourcePath -and $DriverSourceType -eq 'Folder') {
+    $driverInfFiles = Get-ChildItem -Path $DriverSourcePath -Recurse -File -Include *.inf -ErrorAction SilentlyContinue
+    if ($null -eq $driverInfFiles -or $driverInfFiles.Count -eq 0) {
+        WriteLog "Driver folder '$DriverSourcePath' contains no .inf files. Skipping driver installation."
+        Write-Host "Driver folder '$DriverSourcePath' contains no .inf files. Skipping driver installation."
+        $DriverSourcePath = $null
+    }
+    else {
+        WriteLog "Found $($driverInfFiles.Count) driver .inf file(s) in '$DriverSourcePath'"
+    }
+}
+
 if ($null -ne $DriverSourcePath) {
     Write-SectionHeader -Title 'Installing Drivers'
     if ($DriverSourceType -eq 'WIM') {
