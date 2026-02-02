@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 **Milestone:** v1.10.0 Upstream Cherry-Pick
-**Phase:** 42 of 43 (New OEM Manufacturers) - COMPLETE
-**Plan:** 8 of 8 complete (all plans)
-**Status:** Phase 42 complete — All 8 new OEM drivers implemented and tested with comprehensive Pester coverage
-**Last activity:** 2026-02-02 — Completed plan 42-08 (Pester tests for 8 new OEM drivers)
+**Phase:** 42 of 43 (New OEM Manufacturers) - VERIFIED
+**Plan:** 8 of 8 complete (all plans executed + export fix)
+**Status:** Phase 42 verified — all 8 OEMs implemented, tested (87 Pester tests), export gap fixed
+**Last activity:** 2026-02-02 — Phase 42 verified and complete
 
-Progress: █████████░ 100% (28 of 28 plans complete across 10 phases)
+Progress: █████████░ 97% (28 of 28 plans complete across 10 phases, Phase 43 pending)
 
 ## Shipped Milestones
 
@@ -43,7 +43,7 @@ Progress: █████████░ 100% (28 of 28 plans complete across 10
 | 39: Model Normalization | Brand dedup + SystemID | DRV-02, DRV-03 | ✓ Complete (2/2 plans) |
 | 40: Dell Refactoring | CatalogIndexPC logic | DRV-01 | ✓ Verified (3/3 plans) |
 | 41: Driver Matching + UI | Fallback, PE copy, UI clarity | DRV-05, DRV-06, DRV-07 | ✓ Verified (3/3 plans) |
-| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | In Progress (7/8 plans: 42-07 scaffolding + 42-06 Tier 3 stubs + 42-01 Acer + 42-04 Samsung + 42-03 Panasonic + 42-05 Fujitsu + 42-02 Dynabook complete) |
+| 42: New OEM Manufacturers | 8 new OEMs | DRV-04 | ✓ Verified (8/8 plans) |
 | 43: Deployment Improvements | Multi-disk, empty drivers, delay | DEPLOY-01..03, NICE-01..02 | Pending |
 
 ## Decisions Log
@@ -145,9 +145,9 @@ None.
 ## Session Continuity
 
 **Last session:** 2026-02-02
-**Stopped at:** Completed 42-02 (Dynabook driver support)
+**Stopped at:** Phase 42 verified and complete
 **Resume file:** None
-**Next action:** Continue Phase 42 - plan 42-08 (version coordination and testing)
+**Next action:** Plan and execute Phase 43 (Deployment Improvements)
 
 ---
-*State updated: 2026-02-02 after completing plan 42-05 (Fujitsu driver support)*
+*State updated: 2026-02-02 after Phase 42 verification complete*

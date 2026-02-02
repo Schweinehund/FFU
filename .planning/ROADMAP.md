@@ -30,7 +30,7 @@
 - [x] **Phase 39: Model Name Normalization and SystemID** - Brand dedup + BIOS extraction
 - [x] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
 - [x] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
-- [ ] **Phase 42: New OEM Manufacturers** - 8 new OEMs
+- [x] **Phase 42: New OEM Manufacturers** - 8 new OEMs
 - [ ] **Phase 43: Deployment Improvements and Nice-to-Haves** - Multi-disk, empty drivers, delay
 
 ## Execution Waves (max 3 concurrent)
@@ -207,8 +207,18 @@ Plans:
   2. UI Make dropdown includes all 8 new manufacturers
   3. Structured [OEM] prefixed logging for all new manufacturers
   4. Pester tests per OEM verify catalog download and model parsing
-**Research**: Likely (catalog URLs, XML schemas, extraction tools for 8 OEMs)
-**Plans**: 5 plans (2 OEMs per plan + UI/tests plan)
+**Research**: Complete (42-RESEARCH.md — 8 OEM catalogs, tier classification, extraction patterns)
+**Plans**: 8 plans
+Plans:
+- [x] 42-07-PLAN.md — Infrastructure scaffolding (constants, ValidateSet, config, XAML, switch cases)
+- [x] 42-01-PLAN.md — Acer driver support (direct XML catalog, dual CAB/ZIP extraction)
+- [x] 42-02-PLAN.md — Dynabook driver support (CAB-to-XML catalog, graceful degradation)
+- [x] 42-03-PLAN.md — Panasonic driver support (SCCM CAB + 13-model static fallback)
+- [x] 42-04-PLAN.md — Samsung driver support (HTML portal + 20-model Galaxy Book fallback)
+- [x] 42-05-PLAN.md — Fujitsu driver support (search input, HTML portal, mixed EXE/ZIP)
+- [x] 42-06-PLAN.md — Tier 3 stubs (ASUS, MSI, Getac with manual download guidance)
+- [x] 42-08-PLAN.md — Pester tests (87 tests across 3 files for all 8 OEMs + ValidateSet)
+**Completed:** 2026-02-02 — Verified (all must-haves + export fix)
 
 ### Phase 43: Deployment Improvements and Nice-to-Haves
 **Goal**: Improve deployment with multi-disk selection, empty driver handling, Security Platform delay, UniqueId USB, and skip-driver option
@@ -234,9 +244,9 @@ Plans:
 | v1.9.1 Build Phase Integration | 26 | 3 | Complete | 2026-01-24 |
 | v1.9.2 Smart Config & Bug Fixes | 27-30 | 10 | Complete | 2026-01-25 |
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
-| v1.10.0 Upstream Cherry-Pick | 34-43 | 28 | In Progress | — |
+| v1.10.0 Upstream Cherry-Pick | 34-43 | 31 | In Progress | — |
 
-**Total:** 43 phases, 130 plans (122 complete + 8 planned)
+**Total:** 43 phases, 133 plans (130 complete + 3 planned)
 
 ---
-*Last updated: 2026-01-29 - Phase 41 complete*
+*Last updated: 2026-02-02 - Phase 42 complete*
