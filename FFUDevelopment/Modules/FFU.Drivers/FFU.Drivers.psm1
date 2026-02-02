@@ -2768,6 +2768,240 @@ function Get-DellDrivers {
     }
 }
 
+function Get-SamsungDrivers {
+    <#
+    .SYNOPSIS
+    Downloads and extracts Samsung Galaxy Book drivers for FFU builds
+
+    .DESCRIPTION
+    Downloads Samsung Galaxy Book driver packs from the Samsung enterprise portal
+    or uses a static model list fallback. Driver packs are ZIP files extracted
+    with Expand-Archive. Follows the Microsoft Surface pattern for HTML-based
+    OEM driver acquisition.
+
+    .PARAMETER Make
+    OEM manufacturer name (expected: "Samsung")
+
+    .PARAMETER Model
+    Samsung model name (e.g., "Galaxy Book4 Pro")
+
+    .PARAMETER WindowsRelease
+    Windows release version (10 or 11)
+
+    .PARAMETER Headers
+    HTTP headers for web requests
+
+    .PARAMETER UserAgent
+    User agent string for web requests
+
+    .PARAMETER DriversFolder
+    Root path where drivers should be downloaded and extracted
+
+    .PARAMETER FFUDevelopmentPath
+    Root FFUDevelopment path for download tracking
+
+    .EXAMPLE
+    Get-SamsungDrivers -Make "Samsung" -Model "Galaxy Book4 Pro" -WindowsRelease 11 `
+                       -Headers $Headers -UserAgent $UserAgent -DriversFolder "C:\FFU\Drivers" `
+                       -FFUDevelopmentPath "C:\FFU"
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Make,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Model,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(10, 11)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter(Mandatory = $true)]
+        [string]$UserAgent,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DriversFolder,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FFUDevelopmentPath
+    )
+
+    # Static model list - both fallback and lookup source
+    $staticModels = @(
+        @{ Model = 'Galaxy Book4 Pro 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book4 Pro'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book4 Ultra'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book4 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book4'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book3 Pro 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book3 Pro'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book3 Ultra'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book3 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book3'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book2 Pro 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book2 Pro'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book2 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book2'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book Pro 360'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book Pro'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book Go'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book Go 5G'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book Ion'; Link = 'https://pcmanagement.biz.samsung.com' }
+        @{ Model = 'Galaxy Book Flex'; Link = 'https://pcmanagement.biz.samsung.com' }
+    )
+
+    $portalUrl = [FFUConstants]::SAMSUNG_PORTAL_URL
+    $downloadLink = $null
+    $selectedModel = $null
+
+    ### ATTEMPT PORTAL SCRAPING
+    try {
+        WriteLog "[Samsung][$Model][Portal] Attempting to retrieve driver information from $portalUrl"
+        $OriginalVerbosePreference = $VerbosePreference
+        $VerbosePreference = 'SilentlyContinue'
+        $webContent = Invoke-WebRequest -Uri $portalUrl -UseBasicParsing -Headers $Headers -UserAgent $UserAgent -TimeoutSec 15 -ErrorAction Stop
+        $VerbosePreference = $OriginalVerbosePreference
+
+        WriteLog "[Samsung][$Model][Portal] Parsing HTML for driver download links"
+        $html = $webContent.Content
+
+        # Parse for ZIP download links matching the model name
+        $zipPattern = 'href="(https?://[^"]+\.zip)"'
+        $zipMatches = [regex]::Matches($html, $zipPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+        foreach ($match in $zipMatches) {
+            $url = $match.Groups[1].Value
+            # Check if URL contains model name keywords (simplified matching)
+            $modelKeywords = $Model -replace '\s+', '.*'
+            if ($url -match $modelKeywords) {
+                $downloadLink = $url
+                WriteLog "[Samsung][$Model][Portal] Found matching download link: $downloadLink"
+                break
+            }
+        }
+    }
+    catch [System.Net.WebException] {
+        WriteLog "[Samsung][$Model][Portal] Network error accessing Samsung portal: $($_.Exception.Message)"
+    }
+    catch {
+        WriteLog "[Samsung][$Model][Portal] Failed to retrieve Samsung portal: $($_.Exception.Message)"
+    }
+
+    ### FALLBACK TO STATIC MODEL LIST
+    if (-not $downloadLink) {
+        WriteLog "[Samsung][$Model][Selection] Portal scraping failed, using static model data"
+        $selectedModel = $staticModels | Where-Object { $_.Model -eq $Model }
+
+        if ($null -eq $selectedModel) {
+            $errorMsg = "Model '$Model' not found in static Samsung model list. Available models: $($staticModels.Model -join ', ')"
+            WriteLog "[Samsung][$Model][Error] $errorMsg"
+            throw $errorMsg
+        }
+
+        # Try to fetch the model's page to find download link
+        try {
+            WriteLog "[Samsung][$Model][Download] Attempting to find download link from model page: $($selectedModel.Link)"
+            $OriginalVerbosePreference = $VerbosePreference
+            $VerbosePreference = 'SilentlyContinue'
+            $modelPage = Invoke-WebRequest -Uri $selectedModel.Link -UseBasicParsing -Headers $Headers -UserAgent $UserAgent -TimeoutSec 15 -ErrorAction Stop
+            $VerbosePreference = $OriginalVerbosePreference
+
+            # Parse for ZIP links with Windows version preference
+            $zipPattern = 'href="(https?://[^"]+\.zip)"'
+            $zipMatches = [regex]::Matches($modelPage.Content, $zipPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+            if ($zipMatches.Count -gt 0) {
+                # Prefer Windows release-specific packages
+                $releasePattern = if ($WindowsRelease -eq 11) { 'Win11|W11' } else { 'Win10|W10' }
+                $matchedLink = $zipMatches | Where-Object { $_.Groups[1].Value -match $releasePattern } | Select-Object -First 1
+
+                if ($null -eq $matchedLink) {
+                    $matchedLink = $zipMatches[0]
+                }
+
+                $downloadLink = $matchedLink.Groups[1].Value
+                WriteLog "[Samsung][$Model][Download] Found ZIP download link: $downloadLink"
+            }
+        }
+        catch {
+            WriteLog "[Samsung][$Model][Download] Failed to retrieve model page: $($_.Exception.Message)"
+        }
+
+        if (-not $downloadLink) {
+            $errorMsg = "No downloadable driver pack found for $Model. Visit $portalUrl to manually download drivers."
+            WriteLog "[Samsung][$Model][Error] $errorMsg"
+            throw $errorMsg
+        }
+    }
+
+    ### DOWNLOAD AND EXTRACT
+    try {
+        # Set download tracking marker
+        Set-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -OEM $Make -Model $Model
+
+        # Create directories
+        if (-not (Test-Path -Path $DriversFolder)) {
+            WriteLog "[Samsung][$Model][Setup] Creating Drivers folder: $DriversFolder"
+            New-Item -Path $DriversFolder -ItemType Directory -Force | Out-Null
+        }
+
+        $sanitizedModelName = ConvertTo-SafeName -Name $Model
+        if ($sanitizedModelName -ne $Model) {
+            WriteLog "[Samsung][$Model][Setup] Sanitized model name: '$Model' -> '$sanitizedModelName'"
+        }
+
+        $makeDriversPath = Join-Path -Path $DriversFolder -ChildPath $Make
+        $modelPath = Join-Path -Path $makeDriversPath -ChildPath $sanitizedModelName
+
+        if (-not (Test-Path -Path $modelPath)) {
+            WriteLog "[Samsung][$Model][Setup] Creating model folder: $modelPath"
+            New-Item -Path $modelPath -ItemType Directory -Force | Out-Null
+        }
+        else {
+            WriteLog "[Samsung][$Model][Setup] Model folder already exists: $modelPath"
+        }
+
+        ### DOWNLOAD
+        $fileName = Split-Path -Path $downloadLink -Leaf
+        $filePath = Join-Path -Path $makeDriversPath -ChildPath $fileName
+        WriteLog "[Samsung][$Model][Download] Downloading driver pack from $downloadLink"
+
+        # Use Invoke-DriverDownloadWithRetry for consistency with Get-MicrosoftDrivers
+        Invoke-DriverDownloadWithRetry -Url $downloadLink -DestinationPath $filePath
+
+        WriteLog "[Samsung][$Model][Download] Download complete"
+
+        ### EXTRACT
+        WriteLog "[Samsung][$Model][Extract] Extracting ZIP driver pack to $modelPath"
+        $ProgressPreference = 'SilentlyContinue'
+        Expand-Archive -Path $filePath -DestinationPath $modelPath -Force
+        $ProgressPreference = 'Continue'
+        WriteLog "[Samsung][$Model][Extract] Extraction complete"
+
+        # Remove downloaded file
+        WriteLog "[Samsung][$Model][Cleanup] Removing $filePath"
+        Remove-Item -Path $filePath -Force -ErrorAction SilentlyContinue
+        WriteLog "[Samsung][$Model][Cleanup] Cleanup complete"
+    }
+    catch [System.Net.WebException] {
+        WriteLog "[Samsung][$Model][Error] Network error downloading driver pack: $($_.Exception.Message)"
+        WriteLog "[Samsung][$Model][Error] Check network connectivity and proxy settings. Build will continue without Samsung drivers."
+        throw "Failed to download Samsung drivers for $Model`: $($_.Exception.Message)"
+    }
+    catch {
+        WriteLog "[Samsung][$Model][Error] Failed to download and extract drivers: $($_.Exception.Message)"
+        throw
+    }
+    finally {
+        # Clear download tracking marker
+        Clear-DownloadInProgress -FFUDevelopmentPath $FFUDevelopmentPath -OEM $Make -Model $Model
+    }
+}
+
 function Get-AcerDrivers {
     <#
     .SYNOPSIS
