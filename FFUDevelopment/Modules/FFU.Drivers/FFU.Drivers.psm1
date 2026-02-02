@@ -324,6 +324,107 @@ function Get-DriverExtractionResult {
                 }
             }
         }
+        'Acer' {
+            # Acer uses expand.exe for CAB extraction - standard exit codes
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Acer ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Acer ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                default {
+                    $result.Message = "Acer ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Dynabook' {
+            # Dynabook uses expand.exe for CAB extraction - standard exit codes
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Dynabook ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Dynabook ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                default {
+                    $result.Message = "Dynabook ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Panasonic' {
+            # Panasonic uses expand.exe for CAB extraction - standard exit codes
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Panasonic ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Panasonic ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                default {
+                    $result.Message = "Panasonic ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Samsung' {
+            # Samsung uses Expand-Archive for ZIP extraction - standard exit codes
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Samsung ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Samsung ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                default {
+                    $result.Message = "Samsung ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
+        'Fujitsu' {
+            # Fujitsu uses mixed extraction (EXE /extract, ZIP) - standard Windows Installer codes
+            switch ($ExitCode) {
+                0       {
+                    $result.Success = $true
+                    $result.Message = "Fujitsu ${DriverName} extracted successfully"
+                }
+                1       {
+                    $result.Message = "Fujitsu ${DriverName} extraction warning (general error)"
+                    $result.Action = 'Warn'
+                }
+                1603    {
+                    $result.Message = "Fujitsu ${DriverName} - Fatal error during extraction (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                1618    {
+                    $result.Message = "Fujitsu ${DriverName} - Another installation in progress (non-critical)"
+                    $result.Action = 'Warn'
+                }
+                1641    {
+                    $result.Success = $true
+                    $result.Message = "Fujitsu ${DriverName} extracted (reboot initiated - ignored)"
+                }
+                3010    {
+                    $result.Success = $true
+                    $result.Message = "Fujitsu ${DriverName} extracted (reboot required - expected)"
+                }
+                default {
+                    $result.Message = "Fujitsu ${DriverName} unknown exit code ${ExitCode} (continuing)"
+                    $result.Action = 'Warn'
+                }
+            }
+        }
     }
 
     return $result

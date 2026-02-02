@@ -29,7 +29,7 @@ function Get-ModelsForMake {
     $Headers = $staticVars.Headers
     $UserAgent = $staticVars.UserAgent
 
-    if (-not $localWindowsRelease -and ($SelectedMake -eq 'Dell' -or $SelectedMake -eq 'Lenovo')) {
+    if (-not $localWindowsRelease -and ($SelectedMake -eq 'Dell' -or $SelectedMake -eq 'Lenovo' -or $SelectedMake -eq 'Acer' -or $SelectedMake -eq 'Dynabook')) {
         [System.Windows.MessageBox]::Show("Please select a Windows Release first for $SelectedMake.", "Missing Information", "OK", "Warning")
         throw "Windows Release not selected for $SelectedMake."
     }
@@ -52,6 +52,51 @@ function Get-ModelsForMake {
             }
             $State.Controls.txtStatus.Text = "Searching Lenovo models for '$modelSearchTerm'..."
             $rawModels = Get-LenovoDriversModelList -ModelSearchTerm $modelSearchTerm -Headers $Headers -UserAgent $UserAgent
+        }
+        # Tier 1: Structured XML/CAB catalogs
+        'Acer' {
+            $rawModels = Get-AcerDriversModelList -WindowsRelease $localWindowsRelease -DriversFolder $localDriversFolder -Make $SelectedMake
+        }
+        'Dynabook' {
+            $rawModels = Get-DynabookDriversModelList -DriversFolder $localDriversFolder -Make $SelectedMake
+        }
+        'Panasonic' {
+            $rawModels = Get-PanasonicDriversModelList -DriversFolder $localDriversFolder -Make $SelectedMake
+        }
+        # Tier 2: Portal-based with HTML parsing
+        'Samsung' {
+            $rawModels = Get-SamsungDriversModelList -Headers $Headers -UserAgent $UserAgent
+        }
+        'Fujitsu' {
+            $modelSearchTerm = [Microsoft.VisualBasic.Interaction]::InputBox(
+                "Enter Fujitsu Model Name (e.g., LIFEBOOK U7412):", "Fujitsu Model Search", "")
+            if ([string]::IsNullOrWhiteSpace($modelSearchTerm)) {
+                return @()
+            }
+            $State.Controls.txtStatus.Text = "Searching Fujitsu models for '$modelSearchTerm'..."
+            $rawModels = Get-FujitsuDriversModelList -ModelSearchTerm $modelSearchTerm -Headers $Headers -UserAgent $UserAgent
+        }
+        # Tier 3: Stub implementations - no catalog available
+        'ASUS' {
+            WriteLog "WARNING: ASUS driver automation not yet supported - no official catalog available. Select drivers manually."
+            [System.Windows.MessageBox]::Show(
+                "ASUS driver automation is not yet supported. No official enterprise driver catalog is available.`n`nPlease download drivers manually from the ASUS support website.",
+                "ASUS - Not Yet Supported", "OK", "Information")
+            $rawModels = @()
+        }
+        'MSI' {
+            WriteLog "WARNING: MSI driver automation not yet supported - SDK requires authentication. Select drivers manually."
+            [System.Windows.MessageBox]::Show(
+                "MSI driver automation is not yet supported. The MSI SDK requires authentication and is not publicly available.`n`nPlease download drivers manually from the MSI support website.",
+                "MSI - Not Yet Supported", "OK", "Information")
+            $rawModels = @()
+        }
+        'Getac' {
+            WriteLog "WARNING: Getac driver automation not yet supported - requires SmartUpdate CLI. Select drivers manually."
+            [System.Windows.MessageBox]::Show(
+                "Getac driver automation is not yet supported. Getac uses a proprietary SmartUpdate tool for driver management.`n`nPlease download drivers manually from the Getac support website.",
+                "Getac - Not Yet Supported", "OK", "Information")
+            $rawModels = @()
         }
         default {
             [System.Windows.MessageBox]::Show("Selected Make '$SelectedMake' is not supported for automatic model retrieval.", "Unsupported Make", "OK", "Warning")
