@@ -8,6 +8,47 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.9.12] - 2026-02-02
+
+### Phase 44-01: DISM Resilience in FFU.Updates (v1.9.12)
+
+**Problem:** The v1.9.8 Test-DismReady (WIMMount filter driver validation) fix was implemented in FFU.Core, FFU.Imaging, FFU.VM, and BuildFFUVM.ps1, but the entire FFU.Updates module—the most DISM-intensive part of the build—was missed. When WIMMount broke mid-build during Windows Update application, DISM operations hung for 10+ minutes before failing, resulting in 30+ minute total hangs across multiple retry attempts.
+
+**Solution:** Added Test-DismReady gates before all Add-WindowsPackage DISM calls in FFU.Updates, implementing fast-fail with auto-repair when WIMMount filter driver is broken.
+
+#### Changes
+
+- **Test-MountState:** Added Test-DismReady check before Get-WindowsEdition (prevents 10-min hang on mount validation)
+- **Add-WindowsPackageWithRetry:** Added Test-DismReady gate at top of retry loop (catches inter-update WIMMount failures)
+- **Add-WindowsPackageWithRetry retry refresh:** Guarded Get-WindowsEdition refresh call with Test-DismReady (prevents DISM-to-check-DISM anti-pattern)
+- **Add-WindowsPackageWithUnattend:** Added Test-DismReady gates at 3 call sites:
+  - Direct CAB application (line ~1663)
+  - Direct MSU fallback application (line ~1816)
+  - Extracted CAB application in foreach loop (line ~1910)
+- **BuildFFUVM.ps1 WinSxS cleanup:** Guarded raw Dism.exe /Cleanup-Image call with Test-DismReady (non-critical operation, safe to skip)
+
+#### Testing
+
+- 19 Pester tests covering all DISM resilience integration points
+- Tests verify Test-DismReady is called before DISM operations
+- Tests verify fast-fail behavior when WIMMount is broken
+- Tests verify retry refresh guard prevents hanging
+
+#### Impact
+
+- Eliminates 30+ minute hangs when WIMMount breaks during update application
+- Fast-fail provides immediate actionable error message (reboot required)
+- Auto-repair attempt before failing (Test-DismReady includes remediation)
+- Completes v1.9.8 DISM resilience fixes across all modules
+- Closes Test-DismReady coverage gap identified in Phase 44 analysis
+
+#### Module Versions
+
+- **FFU.Updates:** 1.1.0 → 1.2.0
+- **Main version:** 1.9.11 → 1.9.12
+
+---
+
 ## [1.9.7] - 2026-01-27
 
 ### Phase 33: OEM Driver Logging (v1.9.7)
