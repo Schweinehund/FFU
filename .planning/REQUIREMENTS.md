@@ -29,9 +29,9 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 
 ### Deployment Improvements (DEPLOY)
 
-- [ ] **DEPLOY-01**: Multiple physical disks present an interactive selection menu instead of defaulting to disk 0
-- [ ] **DEPLOY-02**: 30-second delay in audit mode allows Windows Security Platform to initialize before app installations
-- [ ] **DEPLOY-03**: Empty driver folders automatically skipped during deployment with log message
+- [x] **DEPLOY-01**: Multiple physical disks present an interactive selection menu instead of defaulting to disk 0
+- [x] **DEPLOY-02**: 30-second delay in audit mode allows Windows Security Platform to initialize before app installations
+- [x] **DEPLOY-03**: Empty driver folders automatically skipped during deployment with log message
 
 ### Driver Improvements (DRV)
 
@@ -45,8 +45,8 @@ Requirements for v1.10.0 release. Each maps to roadmap phases.
 
 ### Nice-to-Have (NICE)
 
-- [ ] **NICE-01**: USB drive identification uses UniqueId instead of SerialNumber for reliability
-- [ ] **NICE-02**: Deployment supports "skip driver installation" option for driver-free scenarios
+- [x] **NICE-01**: USB drive identification uses UniqueId instead of SerialNumber for reliability
+- [x] **NICE-02**: Deployment supports "skip driver installation" option for driver-free scenarios
 
 ## v2 Requirements
 
@@ -83,9 +83,9 @@ Which phases cover which requirements. Updated by create-roadmap.
 | WINGET-02 | Phase 37 | Complete |
 | DL-01 | Phase 36 | Complete |
 | PATH-01 | Phase 38 | Complete |
-| DEPLOY-01 | Phase 43 | Pending |
-| DEPLOY-02 | Phase 43 | Pending |
-| DEPLOY-03 | Phase 43 | Pending |
+| DEPLOY-01 | Phase 43 | Complete |
+| DEPLOY-02 | Phase 43 | Complete |
+| DEPLOY-03 | Phase 43 | Complete |
 | DRV-01 | Phase 40 | Complete |
 | DRV-02 | Phase 39 | Complete |
 | DRV-03 | Phase 39 | Complete |
@@ -93,8 +93,8 @@ Which phases cover which requirements. Updated by create-roadmap.
 | DRV-05 | Phase 41 | Complete |
 | DRV-06 | Phase 41 | Complete |
 | DRV-07 | Phase 41 | Complete |
-| NICE-01 | Phase 43 | Pending |
-| NICE-02 | Phase 43 | Pending |
+| NICE-01 | Phase 43 | Complete |
+| NICE-02 | Phase 43 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total

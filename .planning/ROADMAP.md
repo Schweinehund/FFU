@@ -9,7 +9,7 @@
 - **v1.9.1 Build Phase Integration** - Phase 26 (shipped 2026-01-24)
 - **v1.9.2 Smart Configuration & Bug Fixes** - Phases 27-30 (shipped 2026-01-25) - [Archive](milestones/v1.9.2-ROADMAP.md)
 - **v1.9.3 OEM Driver Bug Fixes** - Phases 31-33 (shipped 2026-01-27)
-- **v1.10.0 Upstream Cherry-Pick** - Phases 34-43 (in progress)
+- **v1.10.0 Upstream Cherry-Pick** - Phases 34-43 (shipped 2026-02-02)
 
 ## Current Milestone
 
@@ -31,7 +31,7 @@
 - [x] **Phase 40: Dell Driver Refactoring (CatalogIndexPC)** - Efficient catalog selection
 - [x] **Phase 41: Driver Matching, PE Copy, and UI Clarity** - Fallback, reliability, UI
 - [x] **Phase 42: New OEM Manufacturers** - 8 new OEMs
-- [ ] **Phase 43: Deployment Improvements and Nice-to-Haves** - Multi-disk, empty drivers, delay
+- [x] **Phase 43: Deployment Improvements and Nice-to-Haves** - Multi-disk, empty drivers, delay
 
 ## Execution Waves (max 3 concurrent)
 
@@ -233,9 +233,10 @@ Plans:
 **Research**: Complete (43-RESEARCH.md -- ApplyFFU.ps1 patterns, Orchestrator.ps1 scope, audit mode placement)
 **Plans**: 3 plans
 Plans:
-- [ ] 43-01-PLAN.md -- ApplyFFU.ps1 deployment improvements (DEPLOY-01, DEPLOY-03, NICE-01, NICE-02)
-- [ ] 43-02-PLAN.md -- Orchestrator.ps1 Security Platform delay (DEPLOY-02)
-- [ ] 43-03-PLAN.md -- Pester tests for all Phase 43 requirements
+- [x] 43-01-PLAN.md -- ApplyFFU.ps1 deployment improvements (DEPLOY-01, DEPLOY-03, NICE-01, NICE-02)
+- [x] 43-02-PLAN.md -- Orchestrator.ps1 Security Platform delay (DEPLOY-02)
+- [x] 43-03-PLAN.md -- Pester tests for all Phase 43 requirements
+**Completed:** 2026-02-02 — Verified (7/7 must-haves)
 
 ## Progress
 
@@ -248,9 +249,9 @@ Plans:
 | v1.9.1 Build Phase Integration | 26 | 3 | Complete | 2026-01-24 |
 | v1.9.2 Smart Config & Bug Fixes | 27-30 | 10 | Complete | 2026-01-25 |
 | v1.9.3 OEM Driver Bug Fixes | 31-33 | 5 | Complete | 2026-01-27 |
-| v1.10.0 Upstream Cherry-Pick | 34-43 | 31 | In Progress | — |
+| v1.10.0 Upstream Cherry-Pick | 34-43 | 31 | Complete | 2026-02-02 |
 
-**Total:** 43 phases, 133 plans (130 complete + 3 planned)
+**Total:** 43 phases, 133 plans (133 complete)
 
 ---
-*Last updated: 2026-02-02 - Phase 42 complete*
+*Last updated: 2026-02-02 - Phase 43 complete, milestone v1.10.0 complete*
