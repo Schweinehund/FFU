@@ -70,6 +70,10 @@ function Start-ResilientDownload {
     .PARAMETER SkipBITS
         Skip BITS entirely and go straight to fallback methods
 
+    .PARAMETER Priority
+        BITS transfer priority level (default: Normal)
+        Valid values: Foreground, High, Normal, Low
+
     .PARAMETER ProxyConfig
         Optional FFUNetworkConfiguration object for proxy support
 
@@ -78,6 +82,9 @@ function Start-ResilientDownload {
 
     .EXAMPLE
         Start-ResilientDownload -Source $url -Destination $dest -SkipBITS -Retries 5
+
+    .EXAMPLE
+        Start-ResilientDownload -Source $url -Destination $dest -Priority High
     #>
     [CmdletBinding()]
     param(
@@ -94,6 +101,9 @@ function Start-ResilientDownload {
         [DownloadMethod]$PreferredMethod = [DownloadMethod]::BITS,
 
         [switch]$SkipBITS,
+
+        [ValidateSet('Foreground', 'High', 'Normal', 'Low')]
+        [string]$Priority = 'Normal',
 
         [object]$ProxyConfig = $null
     )
@@ -124,7 +134,7 @@ function Start-ResilientDownload {
 
             switch ($method) {
                 ([DownloadMethod]::BITS) {
-                    $result = Invoke-BITSDownload -Source $Source -Destination $Destination -Retries $Retries -Credential $Credential -ProxyConfig $ProxyConfig
+                    $result = Invoke-BITSDownload -Source $Source -Destination $Destination -Retries $Retries -Credential $Credential -Priority $Priority -ProxyConfig $ProxyConfig
                     if ($result) {
                         WriteLog "SUCCESS: Downloaded using BITS"
                         $true
@@ -198,6 +208,8 @@ function Invoke-BITSDownload {
         [string]$Destination,
         [int]$Retries,
         [PSCredential]$Credential,
+        [ValidateSet('Foreground', 'High', 'Normal', 'Low')]
+        [string]$Priority = 'Normal',
         [object]$ProxyConfig = $null
     )
 
@@ -212,7 +224,7 @@ function Invoke-BITSDownload {
             $bitsParams = @{
                 Source      = $Source
                 Destination = $Destination
-                Priority    = 'Normal'
+                Priority    = $Priority
                 ErrorAction = 'Stop'
             }
 
