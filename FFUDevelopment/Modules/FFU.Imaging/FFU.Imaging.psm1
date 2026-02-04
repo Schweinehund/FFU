@@ -1920,6 +1920,17 @@ function Enable-WindowsFeaturesByName {
         [string]$WindowsPartition
     )
 
+    # v1.3.2 (DISM-HEALTH-RECUR): Validate WIMMount before Enable-WindowsOptionalFeature
+    # Prevents 0x80004005 failures during long-running builds when WIMMount degrades
+    # This was the missing gate that caused NetFx3 failures late in FFU builds
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+        if (-not (Test-DismReady -AttemptRepair $true)) {
+            throw "Enable-WindowsOptionalFeature cannot proceed: WIMMount filter driver is not loaded. " +
+                  "DISM operations will fail with 'DismInitialize failed. Error code = 0x80004005'. " +
+                  "Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
+        }
+    }
+
     $FeaturesArray = $FeatureNames.Split(';')
 
     # Looping through each feature and enabling it

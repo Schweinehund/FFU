@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.3'
+    ModuleVersion = '1.3.4'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -93,6 +93,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.4 - DISM-HEALTH-RECUR: Fix recurring 0x80004005 in Enable-WindowsFeaturesByName
+- Enable-WindowsFeaturesByName: Added Test-DismReady gate before Enable-WindowsOptionalFeature
+- Prevents 0x80004005 failures during NetFx3 enablement late in long-running FFU builds
+- Closes gap: All other DISM operations (Add-WindowsPackage, Expand-WindowsImage) were protected in v1.3.1, but Enable-WindowsOptionalFeature was missed
+- Addresses recurring issue where WIMMount filter driver degrades during multi-hour builds
+- Auto-repair attempt via Test-DismReady -AttemptRepair before failing
+
 v1.3.3 - Phase 38 PATH-01: SUBST Drive Mapping Integration
 - New-FFU: Driver injection now uses Invoke-DismDriverInjectionWithSubstLoop for MAX_PATH safety
 - Replaces direct Add-WindowsDriver with SUBST-based sequential loop
