@@ -2674,6 +2674,16 @@ function New-FFU {
             # Ensure required Windows services are running for DISM operations
             Start-RequiredServicesForDISM
 
+            # v1.3.5 (DISM-HEALTH-COVERAGE): Validate WIMMount before Mount-WindowsImage
+            # This gate was missing, causing 0x80004005 failures during long builds when WIMMount degrades
+            if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+                if (-not (Test-DismReady -AttemptRepair $true)) {
+                    throw "Mount-WindowsImage cannot proceed: WIMMount filter driver is not loaded. " +
+                          "DISM operations will fail with 'DismInitialize failed. Error code = 0x80004005'. " +
+                          "Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
+                }
+            }
+
             # Mount the image with retry logic
             WriteLog "Mounting $FFUFile to $mountPath"
             try {

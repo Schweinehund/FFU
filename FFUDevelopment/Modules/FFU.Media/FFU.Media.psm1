@@ -1114,6 +1114,16 @@ function New-PEMedia {
     # Ensure required Windows services are running for DISM operations
     Start-RequiredServicesForDISM
 
+    # v1.8.1 (DISM-HEALTH-COVERAGE): Validate WIMMount before Mount-WindowsImage and Add-WindowsPackage
+    # This gate was missing, causing 0x80004005 failures during long builds when WIMMount degrades
+    if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+        if (-not (Test-DismReady -AttemptRepair $true)) {
+            throw "Mount-WindowsImage/Add-WindowsPackage cannot proceed: WIMMount filter driver is not loaded. " +
+                  "DISM operations will fail with 'DismInitialize failed. Error code = 0x80004005'. " +
+                  "Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
+        }
+    }
+
     WriteLog 'Mounting WinPE media to add WinPE optional components'
     Mount-WindowsImage -ImagePath $bootWimPath -Index 1 -Path $mountPath -ErrorAction Stop | Out-Null
     WriteLog 'Mounting complete'

@@ -7,7 +7,7 @@
     RootModule = 'FFU.Media.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.8.0'
+    ModuleVersion = '1.8.1'
 
     # ID used to uniquely identify this module
     GUID = 'a84d5d7c-3cb5-4ba3-a1a8-2dcd0916fb5d'
@@ -75,7 +75,14 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Media v1.8.0
+# Release Notes - FFU.Media v1.8.1
+
+## v1.8.1 - DISM-HEALTH-COVERAGE: Complete DISM readiness coverage in Add-CustomWinPE
+- Add-CustomWinPE: Added Test-DismReady gate before Mount-WindowsImage and Add-WindowsPackage loop
+- Completes DISM protection coverage - closes last remaining gap in WinPE media creation
+- Prevents 0x80004005 failures during WinPE customization in long-running builds
+- Protects 1 Mount-WindowsImage call + 12 Add-WindowsPackage calls that were missed in previous DISM-HEALTH audits
+- Auto-repair attempt via Test-DismReady -AttemptRepair before failing
 
 ## v1.8.0 - REL-MED-03: ISO Disk Space Pre-Validation
 - NEW: Test-ISOCreationReadiness estimates ISO size and validates disk space

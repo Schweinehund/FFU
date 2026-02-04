@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.4'
+    ModuleVersion = '1.3.5'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -93,6 +93,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.5 - DISM-HEALTH-COVERAGE: Complete DISM readiness coverage in Add-FFUDrivers
+- Add-FFUDrivers: Added Test-DismReady gate before Mount-WindowsImage (both initial and retry attempts)
+- Completes DISM protection coverage - closes last remaining gap after Enable-WindowsFeaturesByName fix
+- Prevents 0x80004005 failures during driver injection late in long-running FFU builds
+- Protects 2 Mount-WindowsImage calls that were missed in previous DISM-HEALTH audits
+- Auto-repair attempt via Test-DismReady -AttemptRepair before failing
+
 v1.3.4 - DISM-HEALTH-RECUR: Fix recurring 0x80004005 in Enable-WindowsFeaturesByName
 - Enable-WindowsFeaturesByName: Added Test-DismReady gate before Enable-WindowsOptionalFeature
 - Prevents 0x80004005 failures during NetFx3 enablement late in long-running FFU builds
