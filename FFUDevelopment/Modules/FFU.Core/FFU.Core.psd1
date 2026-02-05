@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.24'
+    ModuleVersion = '1.0.25'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -136,7 +136,16 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.24
+# Release Notes - FFU.Core v1.0.25
+
+## v1.0.25 - Test-DismReady Functional Validation (TEST-DISMREADY-FUNCTIONAL)
+- CRITICAL FIX: Test-DismReady now performs functional DISM validation, not just filter driver check
+- Added Test-DismFunctional: Helper function tests DISM service initialization with 15-second timeout
+- Prevents false positives where WimMount filter is loaded but DISM service is degraded (0x80004005 errors)
+- All repair code paths now verify DISM functionality after repair, not just filter load status
+- Addresses issue where Test-DismReady passed but DISM operations failed with 10-minute hangs
+- Uses Start-Job with timeout to avoid hanging main thread during validation
+- 54 total functions exported (Test-DismFunctional is internal helper, not exported)
 
 ## v1.0.24 - Phase 38 INF Parsing Improvements (PATH-01)
 - Get-PrivateProfileString: Auto-growing buffer (1KB to 64KB) for large INF values

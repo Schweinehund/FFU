@@ -176,7 +176,8 @@ All version information is stored in `version.json` in the FFUDevelopment folder
    - Update `buildDate` to current date
    - Update the module version in the `modules` section
 3. Add release notes to the affected module's `.psd1` manifest
-4. The UI automatically reads from `version.json` on startup
+4. Update `$version` in `WinPEDeployFFUFiles/ApplyFFU.ps1` (hardcoded — runs in WinPE without access to version.json)
+5. The UI and BuildFFUVM.ps1 automatically read from `version.json` at runtime
 
 ### Helper Functions
 ```powershell

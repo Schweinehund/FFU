@@ -1,6 +1,7 @@
 # Phase 42: New OEM Manufacturers - Context
 
 **Gathered:** 2026-01-29
+**Updated:** 2026-02-02 (DAT v8 + web research corrections)
 **Status:** Ready for planning
 
 <domain>
@@ -14,15 +15,34 @@ Add driver download, model listing, and extraction support for 8 new OEM manufac
 ## Implementation Decisions
 
 ### OEM Prioritization and Grouping
-- **Tiered approach**: Tier 1 (catalog-based): Panasonic, Fujitsu, Dynabook — have public driver catalogs. Tier 2 (scrape-based): ASUS, Acer, Samsung, MSI — require page scraping or manual. Tier 3 (rugged niche): Getac — limited enterprise catalog.
-- **Plan structure**: 1 OEM per plan (8 plans for OEMs + UI integration/tests plan = 9 plans total). Departs from original 5-plan estimate for better granularity.
+- **Tiered approach** (revised 2026-02-02 based on DAT v8 + web research):
+  - **Tier 1 (XML/CAB catalog):** Acer, Dynabook, Panasonic — have confirmed structured driver catalogs.
+    - Acer: `global-download.acer.com/.../AcerCatalog.xml` (XML, confirmed via DAT v8.0.0)
+    - Dynabook: `content.us.dynabook.com/.../Dynabook_DriverPack_Catalog.cab` (CAB→XML, direct URL confirmed)
+    - Panasonic: SCCM CAB catalog via deployment tools portal
+  - **Tier 2 (Portal + docs):** Samsung, Fujitsu — have support portals with driver packs but no structured XML/CAB catalog.
+    - Samsung: HTML portal at `pcmanagement.biz.samsung.com` with SCCM/MDT deployment guides, ZIP driver packs
+    - Fujitsu: REST APIs exist but are server-focused (PRIMERGY), unclear for LIFEBOOK laptops
+  - **Tier 3 (Stub):** ASUS, MSI, Getac — no reliable automated catalog available.
+    - ASUS: Undocumented reverse-engineered JSON APIs only, no official catalog
+    - MSI: SDK requires authentication, gaming focus, no public enterprise catalog
+    - Getac: SmartUpdate CLI only, no structured catalog
+- **Tier changes from original:**
+  - Acer: Tier 2 → **Tier 1** (DAT v8 confirmed XML catalog)
+  - Fujitsu: Tier 1 → **Tier 2** (REST APIs are server-focused, not client laptops)
+  - ASUS: Tier 2 → **Tier 3** (no documented catalog, reverse-engineered only)
+  - MSI: Tier 2 → **Tier 3** (SDK requires auth, gaming focus)
+- **DAT reference**: Driver Automation Tool v8.0.0 supports Dell, HP, Lenovo, Microsoft, and Acer (new in v8). None of the other 7 Phase 42 targets are supported by any major enterprise driver tool.
+- **Plan structure**: Tier-grouped plans (Tier 1 first, then Tier 2, then Tier 3 stubs) + UI integration/tests plan. Revised from 9 individual plans.
 - **Drop policy**: If an OEM has no usable catalog, create a stub provider that returns an empty model list with a log message. Can be filled in later without re-architecture.
-- **Getac stays Tier 3**: Separate plan due to limited catalog availability, even though it's enterprise/rugged like Panasonic.
+- **Getac stays Tier 3**: Limited catalog availability, even though it's enterprise/rugged like Panasonic.
 
 ### Catalog Source Strategy
-- **Primary approach**: Support page scraping (HTML parsing), following the Microsoft Surface pattern. Most OEMs have public support/download pages.
+- **Tier 1 approach**: Structured XML/CAB catalog download and parsing (like Dell/HP). Acer XML, Dynabook CAB→XML, Panasonic SCCM CAB.
+- **Tier 2 approach**: Support page scraping (HTML parsing), following the Microsoft Surface pattern. Samsung and Fujitsu have support portals.
+- **Tier 3 approach**: Stub providers returning empty model lists with log messages. ASUS, MSI, Getac lack reliable automated catalogs.
 - **No upstream build-time implementations exist**: Upstream commit d6688de provides deploy-time matching only. Build-time catalog/download strategy is entirely ours.
-- **Caching**: Reuse existing `Get-CachedOEMCatalog` function (7-day TTL, fallback URL) for all new OEMs. Add OEM-specific catalog URLs as FFUConstants.
+- **Caching**: Reuse existing `Get-CachedOEMCatalog` function (7-day TTL, fallback URL) for Tier 1 and Tier 2 OEMs. Add OEM-specific catalog URLs as FFUConstants.
 - **Research requirement**: Each OEM's research phase must identify catalog URL, page structure, and model list format.
 
 ### Model Listing Interaction
@@ -67,3 +87,4 @@ Add driver download, model listing, and extraction support for 8 new OEM manufac
 
 *Phase: 42-new-oem-manufacturers*
 *Context gathered: 2026-01-29*
+*Context updated: 2026-02-02 (DAT v8 research + tier corrections)*

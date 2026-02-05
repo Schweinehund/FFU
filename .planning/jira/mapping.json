@@ -132,8 +132,26 @@
         "commits": 47,
         "filesModified": 50
       }
+    },
+    "v1.9.3": {
+      "epicKey": "RTS-108",
+      "status": "In Progress",
+      "summary": "FFU Builder v1.9.3 - OEM Driver Bug Fixes",
+      "created": "2026-01-25",
+      "started": "2026-01-26",
+      "phases": "31-33",
+      "requirements": 14
+    },
+    "v1.10.0": {
+      "epicKey": "RTS-117",
+      "status": "In Progress",
+      "summary": "FFU Builder v1.10.0 - Upstream Cherry-Pick",
+      "created": "2026-01-29",
+      "started": "2026-01-29",
+      "phases": "34-43",
+      "requirements": 20
     }
   },
   "lastAudit": "2026-01-25",
-  "notes": "v1.9.2 complete - Jira epic RTS-107 transitioned to Done on 2026-01-25"
+  "notes": "v1.10.0 epic RTS-117 created on 2026-01-29 - Upstream Cherry-Pick (10 phases, 20 requirements)"
 }

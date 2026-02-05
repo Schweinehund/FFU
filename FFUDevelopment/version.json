@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.10.2",
-    "buildDate": "2026-02-04",
+    "version": "1.10.3",
+    "buildDate": "2026-02-05",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -29,9 +29,9 @@
             "description": "BUG-WINGET-02: Register Winget Source package + source initialization for elevated admin"
         },
         "FFU.Core": {
-            "version": "1.0.23",
+            "version": "1.0.25",
             "path": "Modules/FFU.Core/FFU.Core.psd1",
-            "description": "DISM readiness check (DISM-HEALTH-01) - Test-DismReady WIMMount validation, Clear-OrphanedMountPointsWithoutDism non-DISM fallback"
+            "description": "Test-DismReady functional validation (TEST-DISMREADY-FUNCTIONAL) - Two-stage validation with 15-sec timeout prevents false positives"
         },
         "FFU.Constants": {
             "version": "1.1.2",

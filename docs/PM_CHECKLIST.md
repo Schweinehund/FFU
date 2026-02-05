@@ -90,6 +90,7 @@ After completing code changes, verify:
   - [ ] Updated ModuleVersion in affected .psd1 file(s)
   - [ ] Added release notes to ReleaseNotes in .psd1 file(s)
   - [ ] Version follows semantic versioning (MAJOR.MINOR.BUILD)
+  - [ ] Updated `$version` in `WinPEDeployFFUFiles/ApplyFFU.ps1` if main version changed (hardcoded — no access to version.json in WinPE)
 
 - [ ] **Testing**
   - [ ] Created Pester tests for new functionality
@@ -124,6 +125,12 @@ After completing code changes, verify:
 | FFU.Common | `FFU.Common\FFU.Common.psd1` |
 | FFU.Common.Logging | `FFU.Common\FFU.Common.Logging.psd1` |
 
+**Scripts with hardcoded version (must be updated manually when main version changes):**
+
+| Script | Location | Notes |
+|--------|----------|-------|
+| ApplyFFU.ps1 | `WinPEDeployFFUFiles\ApplyFFU.ps1` line ~560 | Runs in WinPE, no access to version.json |
+
 ## Test File Locations
 
 | Category | Path |
@@ -141,6 +148,7 @@ After completing code changes, verify:
 5. **Missing -ErrorAction Stop** - Critical cmdlets need this
 6. **No cleanup registration** - Resources need cleanup on failure
 7. **Not running tests** - Always run full test suite before completing
+8. **Forgetting ApplyFFU.ps1 version sync** - When bumping main version in version.json, also update the hardcoded `$version` in `WinPEDeployFFUFiles/ApplyFFU.ps1`
 
 ## Quick Reference Commands
 

@@ -4413,20 +4413,96 @@ function Update-OrchestrationHashManifest {
 
 #region DISM Readiness Check (v1.0.23 - DISM-HEALTH-01)
 
+function Test-DismFunctional {
+    <#
+    .SYNOPSIS
+    Tests if DISM service is actually functional by attempting a lightweight operation.
+
+    .DESCRIPTION
+    Performs a quick DISM operation (Get-WindowsImage -Online) with a 15-second timeout
+    to verify DISM service can initialize successfully. This catches cases where WimMount
+    filter is loaded but DISM service is in a degraded state (0x80004005 errors).
+
+    Uses a background job with timeout to avoid 10-minute DISM hangs.
+
+    .OUTPUTS
+    System.Boolean - $true if DISM is functional, $false if degraded/hung
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    try {
+        # Use a background job with timeout to avoid 10-minute DISM hangs
+        $job = Start-Job -ScriptBlock {
+            try {
+                # Lightweight DISM test - Get-WindowsImage -Online queries running OS
+                $null = Get-WindowsImage -Online -ErrorAction Stop
+                return $true
+            }
+            catch {
+                return $false
+            }
+        }
+
+        # Wait up to 15 seconds for DISM to respond
+        $completed = $job | Wait-Job -Timeout 15
+        if ($completed) {
+            $result = Receive-Job -Job $job -ErrorAction SilentlyContinue
+            $dismFunctional = [bool]$result
+        }
+        else {
+            # DISM hung - service is degraded
+            if ($function:WriteLog) {
+                WriteLog "WARNING: DISM functional test timed out after 15 seconds - service is degraded"
+            }
+            Stop-Job -Job $job -ErrorAction SilentlyContinue
+            $dismFunctional = $false
+        }
+
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+
+        if ($dismFunctional) {
+            if ($function:WriteLog) {
+                WriteLog "DISM functional validation passed - service is ready"
+            }
+            return $true
+        }
+        else {
+            if ($function:WriteLog) {
+                WriteLog "WARNING: DISM functional test failed - service is NOT responding"
+            }
+            return $false
+        }
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: DISM functional test error: $($_.Exception.Message)"
+        }
+        return $false
+    }
+}
+
 function Test-DismReady {
     <#
     .SYNOPSIS
-    Lightweight check whether DISM operations will succeed by verifying WIMMount filter driver.
+    Comprehensive check whether DISM operations will succeed by verifying both WIMMount filter and DISM service functionality.
 
     .DESCRIPTION
-    Checks if the WIMMount filter driver is loaded using 'fltmc filters' (does NOT use DISM itself).
-    This avoids the chicken-and-egg problem where DISM health checks use DISM, which hangs for
-    10 minutes when WIMMount is broken.
+    Performs a two-stage validation:
+    1. Fast check: Uses 'fltmc filters' to verify WIMMount filter driver is loaded
+    2. Functional test: Attempts lightweight DISM operation (Get-WindowsImage -Online) with 15-second timeout
 
-    If WIMMount is not loaded, attempts automatic repair:
-    1. Start wimmount service via sc.exe
-    2. Load filter via fltmc
-    3. If FFU.Preflight is available, delegates to Test-FFUWimMount for comprehensive repair
+    This catches both cases:
+    - WIMMount filter not loaded at all (fast fail)
+    - WIMMount loaded but DISM service degraded (functional test with timeout prevents 10-minute hangs)
+
+    If validation fails and -AttemptRepair is enabled, attempts automatic repair:
+    1. Delegate to Test-FFUWimMount (if FFU.Preflight available) for comprehensive repair
+    2. Start wimmount service via sc.exe and load filter
+    3. Try rundll32 registration of WimMount driver
+
+    After each repair attempt, re-validates both filter load status AND functional DISM operation.
 
     Returns $true if DISM is ready, $false if repair failed. Logs all actions.
 
@@ -4467,12 +4543,67 @@ function Test-DismReady {
     }
 
     if ($wimMountLoaded) {
-        return $true
-    }
+        # Filter is loaded - now verify DISM service is actually functional
+        # This catches cases where WimMount appears loaded but DISM initialization fails
+        if ($function:WriteLog) {
+            WriteLog "WIMMount filter detected - performing functional DISM validation..."
+        }
 
-    # WIMMount is not loaded
-    if ($function:WriteLog) {
-        WriteLog "WARNING: WIMMount filter driver is NOT loaded. DISM operations will fail with DismInitialize 0x80004005."
+        $dismFunctional = $false
+        try {
+            # Use a background job with timeout to avoid 10-minute DISM hangs
+            $job = Start-Job -ScriptBlock {
+                try {
+                    # Lightweight DISM test - Get-WindowsImage -Online queries running OS
+                    $null = Get-WindowsImage -Online -ErrorAction Stop
+                    return $true
+                }
+                catch {
+                    return $false
+                }
+            }
+
+            # Wait up to 15 seconds for DISM to respond
+            $completed = $job | Wait-Job -Timeout 15
+            if ($completed) {
+                $result = Receive-Job -Job $job -ErrorAction SilentlyContinue
+                $dismFunctional = [bool]$result
+            }
+            else {
+                # DISM hung - service is degraded
+                if ($function:WriteLog) {
+                    WriteLog "WARNING: DISM functional test timed out after 15 seconds - service is degraded"
+                }
+                Stop-Job -Job $job -ErrorAction SilentlyContinue
+            }
+
+            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+        }
+        catch {
+            if ($function:WriteLog) {
+                WriteLog "WARNING: DISM functional test failed: $($_.Exception.Message)"
+            }
+        }
+
+        if ($dismFunctional) {
+            if ($function:WriteLog) {
+                WriteLog "DISM functional validation passed - service is ready"
+            }
+            return $true
+        }
+
+        # Filter is loaded but DISM service is non-functional
+        if ($function:WriteLog) {
+            WriteLog "WARNING: WIMMount filter is loaded but DISM service is NOT functional (DismInitialize likely failing with 0x80004005)"
+        }
+
+        # Fall through to repair attempts if -AttemptRepair is enabled
+    }
+    else {
+        # WIMMount filter is not loaded at all
+        if ($function:WriteLog) {
+            WriteLog "WARNING: WIMMount filter driver is NOT loaded. DISM operations will fail with DismInitialize 0x80004005."
+        }
     }
 
     if (-not $AttemptRepair) {
@@ -4494,7 +4625,8 @@ function Test-DismReady {
                 if ($function:WriteLog) {
                     WriteLog "WIMMount repair succeeded via Test-FFUWimMount: $($wimResult.Message)"
                 }
-                return $true
+                # Verify DISM is actually functional after repair
+                return Test-DismFunctional
             }
             else {
                 if ($function:WriteLog) {
@@ -4528,7 +4660,8 @@ function Test-DismReady {
             if ($function:WriteLog) {
                 WriteLog "WIMMount filter loaded successfully after direct repair"
             }
-            return $true
+            # Verify DISM is actually functional after repair
+            return Test-DismFunctional
         }
     }
     catch {
@@ -4547,7 +4680,8 @@ function Test-DismReady {
             if ($function:WriteLog) {
                 WriteLog "WIMMount filter loaded successfully after rundll32 repair"
             }
-            return $true
+            # Verify DISM is actually functional after repair
+            return Test-DismFunctional
         }
     }
     catch {
