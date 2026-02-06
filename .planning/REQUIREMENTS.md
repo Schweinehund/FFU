@@ -67,35 +67,35 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISM-01 | TBD | Pending |
-| DISM-02 | TBD | Pending |
-| DISM-03 | TBD | Pending |
-| DASH-01 | TBD | Pending |
-| DASH-02 | TBD | Pending |
-| DASH-03 | TBD | Pending |
-| DASH-04 | TBD | Pending |
-| DASH-05 | TBD | Pending |
-| DASH-06 | TBD | Pending |
-| DASH-07 | TBD | Pending |
-| DASH-08 | TBD | Pending |
-| HYP-01 | TBD | Pending |
-| HYP-02 | TBD | Pending |
-| HYP-03 | TBD | Pending |
-| HYP-04 | TBD | Pending |
-| HYP-05 | TBD | Pending |
-| REM-01 | TBD | Pending |
-| REM-02 | TBD | Pending |
-| REM-03 | TBD | Pending |
-| REM-04 | TBD | Pending |
-| CFG-01 | TBD | Pending |
-| CFG-02 | TBD | Pending |
-| CFG-03 | TBD | Pending |
+| DISM-01 | Phase 45 | Pending |
+| DISM-02 | Phase 45 | Pending |
+| DISM-03 | Phase 45 | Pending |
+| DASH-01 | Phase 46 | Pending |
+| DASH-02 | Phase 46 | Pending |
+| DASH-03 | Phase 46 | Pending |
+| DASH-04 | Phase 46 | Pending |
+| DASH-05 | Phase 46 | Pending |
+| DASH-06 | Phase 46 | Pending |
+| DASH-07 | Phase 46 | Pending |
+| DASH-08 | Phase 46 | Pending |
+| HYP-01 | Phase 47 | Pending |
+| HYP-02 | Phase 47 | Pending |
+| HYP-03 | Phase 47 | Pending |
+| HYP-04 | Phase 47 | Pending |
+| HYP-05 | Phase 47 | Pending |
+| REM-01 | Phase 47 | Pending |
+| REM-02 | Phase 47 | Pending |
+| REM-03 | Phase 47 | Pending |
+| REM-04 | Phase 47 | Pending |
+| CFG-01 | Phase 48 | Pending |
+| CFG-02 | Phase 48 | Pending |
+| CFG-03 | Phase 48 | Pending |
 
 **Coverage:**
 - v1.11.0 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 (pending roadmap creation)
+- Mapped to phases: 23 (100% coverage ✓)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after initial definition*
+*Last updated: 2026-02-06 after roadmap creation*

@@ -5,15 +5,27 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V
+**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V — Phase 45: DISM Resilience Formalization
 
 ## Current Position
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
-**Phase:** Not started (defining requirements)
+**Phase:** 45 of 48 (DISM Resilience Formalization)
 **Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-02-05 — Milestone v1.11.0 started
+**Status:** Ready to plan
+**Last activity:** 2026-02-06 — Roadmap created with 4 phases, 23 requirements mapped
+
+Progress: [░░░░░░░░░░] 0% (0/4 phases complete)
+
+## Roadmap Summary
+
+**v1.11.0 Phases:**
+- Phase 45: DISM Resilience Formalization (3 requirements)
+- Phase 46: Dashboard Foundation (8 requirements)
+- Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
+- Phase 48: Config-Aware Revalidation (3 requirements)
+
+**Coverage:** 23/23 requirements mapped ✓
 
 ## Shipped Milestones
 
@@ -33,8 +45,15 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 ## Decisions Log
 
-| ID | Phase | Decision | Impact |
-|----|-------|----------|--------|
+Recent decisions affecting current work:
+
+- **Hypervisor-aware preflight:** Hyper-V only checked when selected as hypervisor (pending)
+- **Readiness dashboard on Home tab:** Most impactful user-facing improvement for build confidence (pending)
+- **Critical/non-critical check gating:** Block on must-haves, warn on nice-to-haves (pending)
+- **Auto-check on launch + refresh:** Immediate feedback without user action (pending)
+- **Auto-remediate safe fixes:** Reduce friction for fixable issues (pending)
+
+See PROJECT.md for full decision history.
 
 ## Blockers
 
@@ -42,10 +61,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-05
-**Stopped at:** Milestone v1.11.0 initialized, defining requirements
+**Last session:** 2026-02-06
+**Stopped at:** Roadmap created for v1.11.0 milestone
 **Resume file:** None
-**Next action:** Define requirements and create roadmap
+**Next action:** Plan Phase 45 — `/gsd:plan-phase 45`
 
 ---
-*State updated: 2026-02-05 after milestone v1.11.0 started*
+*State updated: 2026-02-06 after roadmap creation*
