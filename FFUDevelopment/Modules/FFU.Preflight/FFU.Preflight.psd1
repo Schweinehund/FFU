@@ -62,6 +62,10 @@
         'Test-FFUAntivirusExclusions',
         # Tier 4: Cleanup (Pre-Remediation)
         'Invoke-FFUDISMCleanup',
+        # Phase 47: Auto-remediation repair functions
+        'Repair-FFUWimMount',
+        'Repair-FFUDismState',
+        'Repair-FFUNetwork',
         # Helper functions
         'New-FFUCheckResult',
         'Get-FFURequirements',

@@ -4605,6 +4605,318 @@ function Test-FFUDISMState {
     }
 }
 
+#region Phase 47: Auto-Remediation Repair Functions
+
+function Repair-FFUWimMount {
+    <#
+    .SYNOPSIS
+    Repairs WIMMount filter driver configuration for WIM/FFU imaging operations.
+
+    .DESCRIPTION
+    Performs automatic repair of the WIMMount filter driver by executing a proven
+    6-step repair sequence:
+    1. Verify wimmount.sys driver file exists
+    2. Create/recreate WimMount service registry entries
+    3. Create filter instance with correct Altitude (180700)
+    4. Start WimMount service via sc.exe
+    5. Load WimMount filter via fltmc.exe
+    6. Verify filter is loaded and functional
+
+    This function extracts the auto-repair logic from Test-FFUWimMount for use
+    by dashboard one-click remediation. It does NOT call Test-FFUWimMount to avoid
+    circular dependencies.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Succeeded: Boolean indicating repair success
+    - Message: Human-readable status message
+    - DurationMs: Time taken for repair operation
+
+    .EXAMPLE
+    $result = Repair-FFUWimMount
+    if ($result.Succeeded) {
+        Write-Information "WIMMount repair succeeded: $($result.Message)"
+    }
+
+    .NOTES
+    Requires Administrator privileges. Uses the same repair strategies as
+    Test-FFUWimMount lines 2120-2260 (registry repair, service start, filter load).
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $repairActions = [System.Collections.Generic.List[string]]::new()
+
+    try {
+        # Verify driver file exists before attempting repair
+        $driverPath = Join-Path $env:SystemRoot 'System32\drivers\wimmount.sys'
+        if (-not (Test-Path $driverPath)) {
+            $stopwatch.Stop()
+            return [PSCustomObject]@{
+                Succeeded  = $false
+                Message    = "Cannot repair - wimmount.sys driver file missing at $driverPath"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+
+        # Strategy 1: Registry repair (idempotent)
+        $serviceRegPath = "HKLM:\SYSTEM\CurrentControlSet\Services\WimMount"
+        $instancesPath = "$serviceRegPath\Instances"
+        $defaultInstancePath = "$instancesPath\WimMount"
+
+        try {
+            # Create main service key if missing
+            if (-not (Test-Path $serviceRegPath)) {
+                New-Item -Path $serviceRegPath -Force | Out-Null
+                $repairActions.Add('Created WimMount service registry key')
+            }
+
+            # Set service properties (Windows defaults)
+            Set-ItemProperty -Path $serviceRegPath -Name "Type" -Value 2 -Type DWord
+            Set-ItemProperty -Path $serviceRegPath -Name "Start" -Value 3 -Type DWord
+            Set-ItemProperty -Path $serviceRegPath -Name "ErrorControl" -Value 1 -Type DWord
+            Set-ItemProperty -Path $serviceRegPath -Name "ImagePath" -Value "system32\drivers\wimmount.sys" -Type ExpandString
+            Set-ItemProperty -Path $serviceRegPath -Name "DisplayName" -Value "WIMMount" -Type String
+            Set-ItemProperty -Path $serviceRegPath -Name "Group" -Value "FSFilter Infrastructure" -Type String
+            Set-ItemProperty -Path $serviceRegPath -Name "SupportedFeatures" -Value 3 -Type DWord
+
+            # Create Instances key for filter registration
+            if (-not (Test-Path $instancesPath)) {
+                New-Item -Path $instancesPath -Force | Out-Null
+            }
+            Set-ItemProperty -Path $instancesPath -Name "DefaultInstance" -Value "WimMount" -Type String
+
+            # Create default instance with correct altitude
+            if (-not (Test-Path $defaultInstancePath)) {
+                New-Item -Path $defaultInstancePath -Force | Out-Null
+            }
+            Set-ItemProperty -Path $defaultInstancePath -Name "Altitude" -Value "180700" -Type String
+            Set-ItemProperty -Path $defaultInstancePath -Name "Flags" -Value 0 -Type DWord
+
+            $repairActions.Add('Configured WimMount service registry entries')
+        }
+        catch {
+            $repairActions.Add("Registry repair failed: $($_.Exception.Message)")
+        }
+
+        # Strategy 2: Start service via sc.exe
+        try {
+            $output = & sc.exe start wimmount 2>&1
+            $exitCode = $LASTEXITCODE
+            # 0 = success, 1056 = already running
+            if ($exitCode -eq 0) {
+                $repairActions.Add('Started WimMount service')
+            }
+            elseif ($exitCode -eq 1056) {
+                $repairActions.Add('WimMount service already running')
+            }
+            else {
+                $repairActions.Add("Service start returned exit code $exitCode")
+            }
+        }
+        catch {
+            $repairActions.Add("Service start failed: $($_.Exception.Message)")
+        }
+
+        # Brief pause to allow service to initialize
+        Start-Sleep -Milliseconds 500
+
+        # Strategy 3: Load filter via fltmc
+        try {
+            # Check if already loaded first
+            $fltmcCheck = fltmc filters 2>&1
+            if ($fltmcCheck -match 'WimMount') {
+                $repairActions.Add('WimMount filter already loaded')
+            }
+            else {
+                $output = & fltmc load WimMount 2>&1
+                $exitCode = $LASTEXITCODE
+                if ($exitCode -eq 0) {
+                    $repairActions.Add('Loaded WimMount filter')
+                }
+                else {
+                    $repairActions.Add("Filter load returned exit code $exitCode")
+                }
+            }
+        }
+        catch {
+            $repairActions.Add("Filter load failed: $($_.Exception.Message)")
+        }
+
+        # Final verification
+        Start-Sleep -Seconds 1
+        $finalCheck = fltmc filters 2>&1
+        $filterLoaded = [bool]($finalCheck -match 'WimMount')
+
+        $stopwatch.Stop()
+
+        if ($filterLoaded) {
+            return [PSCustomObject]@{
+                Succeeded  = $true
+                Message    = "WIMMount filter loaded successfully. Actions: $($repairActions -join '; ')"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        else {
+            return [PSCustomObject]@{
+                Succeeded  = $false
+                Message    = "Repair completed but WIMMount filter still not loaded. Actions attempted: $($repairActions -join '; ')"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        return [PSCustomObject]@{
+            Succeeded  = $false
+            Message    = "Repair failed with exception: $($_.Exception.Message). Actions attempted: $($repairActions -join '; ')"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
+    }
+}
+
+function Repair-FFUDismState {
+    <#
+    .SYNOPSIS
+    Repairs DISM component store corruption using DISM RestoreHealth operation.
+
+    .DESCRIPTION
+    Executes 'dism.exe /Online /Cleanup-Image /RestoreHealth' to repair Windows
+    component store corruption that may affect WIM/FFU imaging operations.
+
+    This is a wrapper for dashboard one-click remediation of DISM health issues
+    detected by Test-FFUDISMState.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Succeeded: Boolean indicating repair success
+    - Message: Human-readable status message including DISM output
+    - DurationMs: Time taken for repair operation
+
+    .EXAMPLE
+    $result = Repair-FFUDismState
+    if ($result.Succeeded) {
+        Write-Information "DISM repair succeeded: $($result.Message)"
+    }
+
+    .NOTES
+    Requires Administrator privileges. Can take several minutes to complete.
+    DISM RestoreHealth uses Windows Update or WSUS to download repair files.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        # Execute DISM RestoreHealth
+        $dismOutput = & dism.exe /Online /Cleanup-Image /RestoreHealth 2>&1
+        $exitCode = $LASTEXITCODE
+
+        $stopwatch.Stop()
+
+        if ($exitCode -eq 0) {
+            return [PSCustomObject]@{
+                Succeeded  = $true
+                Message    = "DISM component store repair completed successfully"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        else {
+            # Extract relevant output lines (last 10 lines often contain the summary)
+            $outputLines = $dismOutput | Select-Object -Last 10
+            $outputSummary = ($outputLines | Out-String).Trim()
+
+            return [PSCustomObject]@{
+                Succeeded  = $false
+                Message    = "DISM repair failed (exit code: $exitCode). Output: $outputSummary"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        return [PSCustomObject]@{
+            Succeeded  = $false
+            Message    = "DISM repair failed with exception: $($_.Exception.Message)"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
+    }
+}
+
+function Repair-FFUNetwork {
+    <#
+    .SYNOPSIS
+    Repairs network connectivity by clearing DNS cache and verifying connectivity.
+
+    .DESCRIPTION
+    Clears the DNS client cache using Clear-DnsClientCache, then verifies network
+    connectivity by testing HTTPS connection to www.microsoft.com:443.
+
+    This is a wrapper for dashboard one-click remediation of network connectivity
+    issues detected by Test-FFUNetwork.
+
+    .OUTPUTS
+    PSCustomObject with properties:
+    - Succeeded: Boolean indicating repair success (connectivity test passed)
+    - Message: Human-readable status message
+    - DurationMs: Time taken for repair operation
+
+    .EXAMPLE
+    $result = Repair-FFUNetwork
+    if ($result.Succeeded) {
+        Write-Information "Network repair succeeded: $($result.Message)"
+    }
+
+    .NOTES
+    Requires network adapter configuration to be correct. This repair only clears
+    DNS cache and verifies connectivity - it cannot fix adapter/routing issues.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        # Clear DNS cache
+        Clear-DnsClientCache -ErrorAction Stop
+
+        # Test connectivity
+        $testResult = Test-NetConnection -ComputerName 'www.microsoft.com' -Port 443 -WarningAction SilentlyContinue -ErrorAction Stop
+
+        $stopwatch.Stop()
+
+        if ($testResult.TcpTestSucceeded) {
+            return [PSCustomObject]@{
+                Succeeded  = $true
+                Message    = "DNS cache cleared and network connectivity verified (www.microsoft.com:443 reachable)"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        else {
+            return [PSCustomObject]@{
+                Succeeded  = $false
+                Message    = "DNS cache cleared but network connectivity test failed (www.microsoft.com:443 unreachable)"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        return [PSCustomObject]@{
+            Succeeded  = $false
+            Message    = "Network repair failed with exception: $($_.Exception.Message)"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
+    }
+}
+
+#endregion Phase 47: Auto-Remediation Repair Functions
+
 #endregion REL-PRE-01: Enhanced Prerequisite Detection
 
 # Export all public functions
@@ -4634,6 +4946,10 @@ Export-ModuleMember -Function @(
     'Test-FFUAntivirusExclusions',
     # Tier 4: Cleanup (Pre-Remediation)
     'Invoke-FFUDISMCleanup',
+    # Phase 47: Auto-remediation repair functions
+    'Repair-FFUWimMount',
+    'Repair-FFUDismState',
+    'Repair-FFUNetwork',
     # Helper functions
     'New-FFUCheckResult',
     'Get-FFURequirements',
