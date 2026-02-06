@@ -104,6 +104,17 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ### Active
 
+**Current Milestone: v1.11.0 — Readiness Dashboard & Optional Hyper-V**
+
+**Goal:** Transform the Home tab into a pre-flight readiness dashboard and make Hyper-V optional when VMware is available.
+
+**Target features:**
+- DISM resilience formalization (in-flight Test-DismReady/Test-DismFunctional work)
+- Hypervisor-aware preflight — Hyper-V only required when selected, VMware checks when VMware selected
+- Pre-Flight Readiness Dashboard on Home tab — grouped category checks, auto-run on launch with refresh button
+- Auto-remediation where safe, remediation guidance for manual fixes
+- Critical check failures block builds, non-critical failures warn but allow
+
 **Deferred bugs (carry forward):**
 - expand.exe fails on large MSU files (fallback works — explicitly out of scope)
 
@@ -164,5 +175,11 @@ Key files:
 | Security Platform delay in Orchestrator | More maintainable than unattend.xml approach | ✓ Good |
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
+| Hypervisor-aware preflight | Hyper-V only checked when selected as hypervisor | — Pending |
+| Readiness dashboard on Home tab | Most impactful user-facing improvement for build confidence | — Pending |
+| Critical/non-critical check gating | Block on must-haves, warn on nice-to-haves | — Pending |
+| Auto-check on launch + refresh | Immediate feedback without user action | — Pending |
+| Auto-remediate safe fixes | Reduce friction for fixable issues | — Pending |
+
 ---
-*Last updated: 2026-02-02 after v1.10.0 milestone complete*
+*Last updated: 2026-02-05 after v1.11.0 milestone started*
