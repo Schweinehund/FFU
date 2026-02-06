@@ -920,4 +920,122 @@ $window.Add_Closed({
         # [System.GC]::WaitForPendingFinalizers()
     })
 
+# --------------------------------------------------------------------------
+# SECTION: Pre-Flight Dashboard
+# --------------------------------------------------------------------------
+
+function Start-DashboardChecks {
+    <#
+    .SYNOPSIS
+        Launches FFU.Preflight checks in a background ThreadJob and wires messaging for live UI updates.
+    .DESCRIPTION
+        Shows progress panel, disables refresh, clears previous results, creates messaging context,
+        gathers feature selections from UI, and starts a ThreadJob that runs Invoke-FFUPreflight.
+        Check results are sent back via FFU.Messaging ConcurrentQueue as structured messages.
+    #>
+
+    # Show progress panel and disable refresh
+    $script:uiState.Controls.pnlDashboardProgress.Visibility = 'Visible'
+    $script:uiState.Controls.btnRefreshChecks.IsEnabled = $false
+
+    # Clear previous results
+    Clear-DashboardResults -State $script:uiState
+
+    # Set summary banner to loading state
+    $script:uiState.Controls.txtSummaryStatus.Text = 'Checking system readiness...'
+
+    # Create messaging context for dashboard (reuse or create new)
+    if ($null -eq $script:uiState.Data.dashboardMessagingContext) {
+        $script:uiState.Data.dashboardMessagingContext = New-FFUMessagingContext
+    }
+
+    # Initialize category stats tracking
+    $script:uiState.Data.dashboardCategoryStats = @{
+        System       = @{ Total = 0; Passed = 0; Failed = 0; Warning = 0 }
+        Hypervisor   = @{ Total = 0; Passed = 0; Failed = 0; Warning = 0 }
+        BuildTools   = @{ Total = 0; Passed = 0; Failed = 0; Warning = 0 }
+        Network      = @{ Total = 0; Passed = 0; Failed = 0; Warning = 0 }
+        Optimization = @{ Total = 0; Passed = 0; Failed = 0; Warning = 0 }
+    }
+
+    # Gather feature selections from UI checkboxes
+    $features = @{
+        CreateVM              = $true  # Always check VM readiness
+        CreateCaptureMedia    = [bool]$script:uiState.Controls.chkCreateCaptureMedia.IsChecked
+        CreateDeploymentMedia = [bool]$script:uiState.Controls.chkCreateDeploymentMedia.IsChecked
+        InstallApps           = [bool]$script:uiState.Controls.chkInstallApps.IsChecked
+        UpdateLatestCU        = [bool]$script:uiState.Controls.chkLatestCU.IsChecked
+        DownloadDrivers       = [bool]$script:uiState.Controls.chkDownloadDrivers.IsChecked
+    }
+
+    # Determine hypervisor type from UI dropdown
+    $hypervisorType = switch ($script:uiState.Controls.cmbHypervisorType.SelectedIndex) {
+        0 { 'HyperV' }
+        1 { 'VMware' }
+        2 { 'Auto' }
+        default { 'HyperV' }
+    }
+
+    # Launch background job via Start-ThreadJob
+    $script:uiState.Data.currentDashboardJob = Start-ThreadJob -ScriptBlock {
+        param($context, $features, $ffuPath, $hypervisorType)
+
+        # Add module path for FFU.Preflight and FFU.Messaging
+        $modulePath = Join-Path $ffuPath 'Modules'
+        if ($env:PSModulePath -notlike "*$modulePath*") {
+            $env:PSModulePath = "$modulePath;$env:PSModulePath"
+        }
+
+        Import-Module FFU.Preflight -Force
+        Import-Module FFU.Messaging -Force
+
+        try {
+            Write-FFUMessage -Context $context -Message "DASHBOARD_STARTED" -Level Info
+
+            $result = Invoke-FFUPreflight -Features $features `
+                -FFUDevelopmentPath $ffuPath `
+                -HypervisorType $hypervisorType `
+                -SkipCleanup `
+                -ErrorAction Stop
+
+            # Send individual check results from all tiers
+            $checkNum = 0
+            $allTiers = @('Tier1Results', 'Tier2Results', 'Tier3Results')
+            $totalChecks = 0
+            foreach ($tier in $allTiers) {
+                $totalChecks += $result.$tier.Count
+            }
+
+            foreach ($tier in $allTiers) {
+                foreach ($checkName in $result.$tier.Keys) {
+                    $checkNum++
+                    $check = $result.$tier[$checkName]
+
+                    # Send progress update
+                    Write-FFUMessage -Context $context `
+                        -Message "DASHBOARD_PROGRESS|$checkNum|$totalChecks|$checkName" -Level Info
+
+                    # Send check result (pipe-delimited format)
+                    $severity = if ($check.PSObject.Properties['Severity']) { $check.Severity } else { 'Info' }
+                    $remediation = if ($check.PSObject.Properties['Remediation']) { $check.Remediation } else { '' }
+                    # Replace pipes in message/remediation to avoid delimiter collision
+                    $safeMsg = ($check.Message -replace '\|', ' - ')
+                    $safeRemed = ($remediation -replace '\|', ' - ')
+
+                    Write-FFUMessage -Context $context `
+                        -Message "DASHBOARD_CHECK|$checkName|$($check.Status)|$severity|$safeMsg|$safeRemed" -Level Info
+                }
+            }
+
+            # Send completion with severity counts
+            Write-FFUMessage -Context $context `
+                -Message "DASHBOARD_COMPLETE|$($result.CriticalCount)|$($result.WarningCount)|$totalChecks|$checkNum" -Level Info
+        }
+        catch {
+            Write-FFUMessage -Context $context `
+                -Message "DASHBOARD_ERROR|Pre-flight checks failed: $($_.Exception.Message)" -Level Error
+        }
+    } -ArgumentList $script:uiState.Data.dashboardMessagingContext, $features, $FFUDevelopmentPath, $hypervisorType
+}
+
 [void]$window.ShowDialog()
