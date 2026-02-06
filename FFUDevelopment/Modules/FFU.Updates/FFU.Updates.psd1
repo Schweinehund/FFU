@@ -7,7 +7,7 @@
     RootModule = 'FFU.Updates.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.0'
+    ModuleVersion = '1.3.0'
 
     # ID used to uniquely identify this module
     GUID = 'e3b9c4a1-5f7d-4e2b-8c9a-1d6f3e8b2a5c'
@@ -80,7 +80,23 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Updates v1.2.0
+# Release Notes - FFU.Updates v1.3.0
+
+## v1.3.0 - DISM Resilience Formalization (Phase 45, 2026-02-06)
+- **BREAKING BEHAVIOR:** Post-KB DISM degradation now causes immediate hard stop (throw) instead of warning
+- **FIX:** Prevents cascading failures from corrupted DISM state during KB batch install
+- **NEW:** Post-package DISM validation after individual CAB applications in Add-WindowsPackageWithUnattend
+- **IMPROVEMENT:** Success logging for all DISM pre-checks (CAB, MSU direct, extracted CAB)
+- **IMPROVEMENT:** Standardized error message format with remediation steps
+- Addresses DISM-01 (pre-operation validation) and DISM-02 (post-KB degradation detection)
+
+## v1.2.1 - Post-Update DISM Validation (DISM-HEALTH-02, 2026-02-05)
+- **NEW:** Add-WindowsPackageWithRetry validates DISM health after each successful package
+- **FIX:** Detects DISM degradation immediately after KB install (before cascading failures)
+- **IMPROVEMENT:** Automatic wimmount service restart on post-update degradation
+- **IMPROVEMENT:** Clear warning messages if DISM cannot be recovered
+- Uses Test-DismFunctional from FFU.Core v1.0.26 for functional validation
+- Prevents false success when DISM breaks mid-update batch
 
 ## v1.2.0 - Phase 44-01 DISM Resilience (2026-02-02)
 

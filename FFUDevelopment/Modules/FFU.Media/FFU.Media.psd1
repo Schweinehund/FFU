@@ -7,7 +7,7 @@
     RootModule = 'FFU.Media.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.8.1'
+    ModuleVersion = '1.9.0'
 
     # ID used to uniquely identify this module
     GUID = 'a84d5d7c-3cb5-4ba3-a1a8-2dcd0916fb5d'
@@ -75,7 +75,15 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Media v1.8.1
+# Release Notes - FFU.Media v1.9.0
+
+## v1.9.0 - DISM Resilience Formalization (Phase 45, 2026-02-06)
+- **NEW:** Test-DismReady pre-mount validation in New-WinPEMediaNative before boot.wim mount
+- **NEW:** Test-DismFunctional post-package validation after each WinPE optional component
+- **IMPROVEMENT:** Success logging for all DISM checks in WinPE operations
+- **IMPROVEMENT:** Progress tracking for WinPE package installation (package N of M)
+- **IMPROVEMENT:** Standardized error message format with remediation steps and operation context
+- Prevents corrupted WinPE media from DISM degradation during component installation
 
 ## v1.8.1 - DISM-HEALTH-COVERAGE: Complete DISM readiness coverage in Add-CustomWinPE
 - Add-CustomWinPE: Added Test-DismReady gate before Mount-WindowsImage and Add-WindowsPackage loop

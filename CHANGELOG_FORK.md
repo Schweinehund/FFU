@@ -8,6 +8,24 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.0 - DISM Resilience Formalization (Phase 45, 2026-02-06)
+
+### DISM Pipeline Integration (DISM-01, DISM-02, DISM-03)
+- **NEW:** DISM startup gate in BuildFFUVM.ps1 - comprehensive health check before any image operations
+- **NEW:** Debug mode (`-DebugMode` parameter / `debugMode: true` in config.json) - preserves state on failure
+- **BREAKING BEHAVIOR:** Post-KB DISM degradation now causes immediate hard stop instead of warning
+- **NEW:** Test-DismReady pre-mount validation in New-WinPEMediaNative
+- **NEW:** Test-DismFunctional post-package validation after each WinPE optional component
+- **IMPROVEMENT:** Standardized error messages with structured remediation steps across all modules
+- **IMPROVEMENT:** Detailed success logging for all DISM checks (not just failures)
+- **IMPROVEMENT:** Debug-aware trap handler skips cleanup to preserve state for troubleshooting
+
+### Module Updates
+- FFU.Updates v1.3.0: Hard-stop post-KB degradation, post-CAB validation
+- FFU.Media v1.9.0: Pre-mount and post-package DISM checks for WinPE
+
+---
+
 ## [1.9.12] - 2026-02-02
 
 ### Phase 44-01: DISM Resilience in FFU.Updates (v1.9.12)
