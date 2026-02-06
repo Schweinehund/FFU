@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
-**Phase:** 47 of 48 (Hypervisor Conditional Logic & Auto-Remediation)
-**Plan:** 4 of 4
-**Status:** Phase complete
-**Last activity:** 2026-02-06 — Completed 47-04-PLAN.md (Testing, Versioning, Documentation)
+**Phase:** 48 of 48 (Config-Aware Revalidation)
+**Plan:** 1 of 4
+**Status:** In progress
+**Last activity:** 2026-02-06 — Completed 48-01-PLAN.md (Dashboard Helper Functions)
 
-Progress: [██████░░░░] 75% (3/4 phases complete)
+Progress: [███████░░░] 75% (3/4 phases complete, Phase 48: 1/4 plans)
 
 ## Roadmap Summary
 
@@ -49,6 +49,10 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Export-DashboardDiagnostics returns path not MessageBox | 48-01 | Separation of concerns for testability - function generates file, caller handles UI confirmation |
+| Get-HypervisorDependentChecks uses static mapping | 48-01 | Derived from FFU.Preflight conditional logic, simplifies revalidation scope (1 Hyper-V, 5 VMware, 14 independent) |
+| Set-CategoryDimmed uses 0.5 opacity | 48-01 | Standard WPF disabled state convention (50% opacity) with italic "(rechecking...)" text |
+| FFUUI.Core.psd1 uses wildcard exports | 48-01 | FunctionsToExport='*' automatically exports new functions, no manifest changes needed |
 | Test coverage strategy for Phase 47 | 47-04 | Focus on testable business logic (maps, parsing, formatting), skip WPF-dependent UI tests, validate logic via underlying function tests |
 | Version bump strategy Phase 47 | 47-04 | MINOR bumps for FFU.Preflight (1.7.0) and FFUUI.Core (0.2.0) due to new user-facing functions, PATCH bump for main (1.11.2) per versioning policy |
 | Failed repair re-enables Fix button for retry | 47-03 | If Invoke-DashboardRemediation returns Succeeded=false, button resets to Fix state with error tooltip |
@@ -86,12 +90,12 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T17:34:08Z
-**Stopped at:** Completed 47-04-PLAN.md (Testing, Versioning, Documentation)
+**Last session:** 2026-02-06T18:31:26Z
+**Stopped at:** Completed 48-01-PLAN.md (Dashboard Helper Functions)
 **Resume file:** None
-**Next action:** Phase 47 complete - ready for Phase 48 (Config-Aware Revalidation)
+**Next action:** Continue Phase 48 - Plan 02 (XAML UI Elements)
 
-**Phase 46 Progress:**
+**Phase 46 Progress (COMPLETE):**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
 - ✅ 46-02: Dashboard Helper Functions (6 min, 2 commits)
 - ✅ 46-03: Dashboard UI Wiring (6 min, 3 commits)
@@ -104,5 +108,8 @@ None.
 - ✅ 47-03: XAML + UI Wiring (5 min, 3 commits)
 - ✅ 47-04: Testing, Versioning, Documentation (21 min, 3 commits)
 
+**Phase 48 Progress:**
+- ✅ 48-01: Dashboard Helper Functions (2 min, 1 commit)
+
 ---
-*State updated: 2026-02-06 after Phase 47 verified (9/9 must-haves, 4 plans, 13 commits)*
+*State updated: 2026-02-06 after Phase 48 Plan 01 (3 new dashboard functions for revalidation features)*
