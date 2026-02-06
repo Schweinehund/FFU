@@ -1087,8 +1087,320 @@ function Get-UnsafeRemediationMap {
     return $script:UnsafeRemediationMap
 }
 
+function Export-DashboardDiagnostics {
+    <#
+    .SYNOPSIS
+        Exports dashboard check results and system information to a timestamped text file.
+
+    .DESCRIPTION
+        Generates a comprehensive diagnostics report containing system information,
+        module versions, and all check results. The report is saved to the Logs
+        folder with a timestamped filename. Returns the full path to the generated file.
+
+    .PARAMETER State
+        The UI state object containing check results, version info, and control references.
+
+    .OUTPUTS
+        [string] - Full path to the generated diagnostics file.
+
+    .EXAMPLE
+        $path = Export-DashboardDiagnostics -State $script:uiState
+        # Returns: "C:\FFUDevelopment\Logs\FFU-Diagnostics-2026-02-06-183015.txt"
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [PSCustomObject]$State
+    )
+
+    # Generate timestamped filename
+    $timestamp = [DateTime]::Now.ToString('yyyy-MM-dd-HHmmss')
+    $logsPath = Join-Path $State.FFUDevelopmentPath 'Logs'
+
+    # Ensure Logs folder exists
+    if (-not (Test-Path $logsPath)) {
+        New-Item -Path $logsPath -ItemType Directory -Force | Out-Null
+    }
+
+    $outputPath = Join-Path $logsPath "FFU-Diagnostics-$timestamp.txt"
+
+    $sb = [System.Text.StringBuilder]::new()
+
+    # ========== HEADER ==========
+    [void]$sb.AppendLine("=" * 80)
+    [void]$sb.AppendLine("FFU BUILDER PRE-FLIGHT DIAGNOSTICS REPORT")
+    [void]$sb.AppendLine("=" * 80)
+    [void]$sb.AppendLine("Generated: $([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss'))")
+    [void]$sb.AppendLine()
+
+    # ========== SYSTEM INFORMATION ==========
+    [void]$sb.AppendLine("SYSTEM INFORMATION")
+    [void]$sb.AppendLine("-" * 80)
+    [void]$sb.AppendLine("OS Version       : $([Environment]::OSVersion.VersionString)")
+    [void]$sb.AppendLine("PowerShell       : PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))")
+    [void]$sb.AppendLine("FFU Builder      : v$($State.Version.Number) (Build: $($State.Version.BuildDate))")
+
+    # Selected hypervisor
+    $hvType = 'Unknown'
+    try {
+        if ($null -ne $State.Controls -and $null -ne $State.Controls.cmbHypervisorType) {
+            $hvType = switch ($State.Controls.cmbHypervisorType.SelectedIndex) {
+                0 { 'Hyper-V' }
+                1 { 'VMware Workstation Pro' }
+                2 { 'Auto-detect' }
+                default { 'Unknown' }
+            }
+        }
+    }
+    catch {
+        $hvType = 'Unable to determine'
+    }
+    [void]$sb.AppendLine("Hypervisor       : $hvType")
+
+    # Available disk space
+    try {
+        $drive = [System.IO.Path]::GetPathRoot($State.FFUDevelopmentPath)
+        $driveInfo = [System.IO.DriveInfo]::new($drive)
+        $freeSpaceGB = [Math]::Round($driveInfo.AvailableFreeSpace / 1GB, 2)
+        [void]$sb.AppendLine("Available Space  : $freeSpaceGB GB ($drive)")
+    }
+    catch {
+        [void]$sb.AppendLine("Available Space  : Unable to determine")
+    }
+
+    [void]$sb.AppendLine()
+
+    # ========== MODULE VERSIONS ==========
+    if ($null -ne $State.Version.Modules) {
+        [void]$sb.AppendLine("MODULE VERSIONS")
+        [void]$sb.AppendLine("-" * 80)
+        foreach ($module in $State.Version.Modules.PSObject.Properties) {
+            $name = $module.Name
+            $version = $module.Value.version
+            [void]$sb.AppendLine("  $($name.PadRight(30)): v$version")
+        }
+        [void]$sb.AppendLine()
+    }
+
+    # ========== CHECK RESULTS ==========
+    [void]$sb.AppendLine("CHECK RESULTS")
+    [void]$sb.AppendLine("-" * 80)
+
+    $allCategories = @('System', 'Hypervisor', 'BuildTools', 'Network', 'Optimization')
+    foreach ($category in $allCategories) {
+        $stats = $null
+        if ($null -ne $State.Data -and $null -ne $State.Data.dashboardCategoryStats) {
+            $stats = $State.Data.dashboardCategoryStats[$category]
+        }
+
+        if ($null -eq $stats -or $stats.Total -eq 0) {
+            continue
+        }
+
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine("[$category]")
+        [void]$sb.AppendLine("  Total: $($stats.Total) | Passed: $($stats.Passed) | Failed: $($stats.Failed) | Warning: $($stats.Warning)")
+
+        # Individual check details if available
+        if ($null -ne $State.Data -and $null -ne $State.Data.dashboardCheckResults) {
+            foreach ($checkEntry in $State.Data.dashboardCheckResults.GetEnumerator()) {
+                $checkName = $checkEntry.Key
+                $checkData = $checkEntry.Value
+
+                # Filter by category
+                $checkCategory = Get-CheckCategory -CheckName $checkName
+                if ($checkCategory -ne $category) {
+                    continue
+                }
+
+                $statusPrefix = switch ($checkData.Status) {
+                    'Passed'  { '[PASS]' }
+                    'Failed'  { '[FAIL]' }
+                    'Warning' { '[WARN]' }
+                    'Skipped' { '[SKIP]' }
+                    default   { '[????]' }
+                }
+
+                $durationText = ''
+                if ($checkData.DurationMs -gt 0) {
+                    $seconds = [Math]::Round($checkData.DurationMs / 1000.0, 1)
+                    $durationText = " ($($seconds)s)"
+                }
+
+                # Get friendly name
+                $displayName = if ($script:FriendlyNames.ContainsKey($checkName)) {
+                    $script:FriendlyNames[$checkName]
+                }
+                else {
+                    $checkName
+                }
+
+                [void]$sb.AppendLine("  $statusPrefix $displayName - $($checkData.Message)$durationText")
+
+                # For failed checks, add severity and remediation info
+                if ($checkData.Status -eq 'Failed' -and $null -ne $checkData.Severity) {
+                    [void]$sb.AppendLine("         Severity: $($checkData.Severity)")
+                    if (-not [string]::IsNullOrWhiteSpace($checkData.Remediation)) {
+                        # Extract just the commands for concise output
+                        $commands = Extract-PowerShellCommands -RemediationText $checkData.Remediation
+                        if ($commands.Count -gt 0) {
+                            [void]$sb.AppendLine("         Remediation: $($commands[0])")
+                            if ($commands.Count -gt 1) {
+                                [void]$sb.AppendLine("                      (+ $($commands.Count - 1) more command(s))")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    [void]$sb.AppendLine()
+    [void]$sb.AppendLine("=" * 80)
+    [void]$sb.AppendLine("END OF REPORT")
+    [void]$sb.AppendLine("=" * 80)
+
+    # Write to file
+    $sb.ToString() | Out-File -FilePath $outputPath -Encoding UTF8
+
+    return $outputPath
+}
+
+function Get-HypervisorDependentChecks {
+    <#
+    .SYNOPSIS
+        Returns lists of checks that are dependent on hypervisor selection.
+
+    .DESCRIPTION
+        Identifies which pre-flight checks are conditionally executed based on
+        the HypervisorType parameter. Used to determine revalidation scope when
+        the hypervisor selection changes.
+
+        Based on Invoke-FFUPreflight conditional logic in FFU.Preflight.psm1.
+
+    .OUTPUTS
+        [hashtable] - Contains three keys:
+        - HyperV: Array of check names that only run for Hyper-V
+        - VMware: Array of check names that only run for VMware
+        - Independent: Array of check names that run for all hypervisors
+
+    .EXAMPLE
+        $deps = Get-HypervisorDependentChecks
+        # $deps.HyperV contains @('HyperV')
+        # $deps.VMware contains @('VmxToolkit', 'VMwareDrivers', ...)
+        # $deps.Independent contains @('Administrator', 'PowerShellVersion', ...)
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+
+    return @{
+        # Checks that ONLY run when HypervisorType = 'HyperV'
+        HyperV = @(
+            'HyperV'
+        )
+
+        # Checks that ONLY run when HypervisorType = 'VMware'
+        VMware = @(
+            'VmxToolkit'
+            'VMwareDrivers'
+            'HyperVSwitchConflict'
+            'VMwareBridgeConfig'
+            'HostIPAddress'
+        )
+
+        # Checks that run regardless of hypervisor selection
+        Independent = @(
+            'Administrator'
+            'PowerShellVersion'
+            'VMResources'
+            'ScratchSpace'
+            'ADK'
+            'WimMount'
+            'DiskSpace'
+            'DISMState'
+            'DISMCleanup'
+            'Network'
+            'Configuration'
+            'AntivirusExclusions'
+            'AppsISODiskSpace'
+            'CaptureDiskSpace'
+        )
+    }
+}
+
+function Set-CategoryDimmed {
+    <#
+    .SYNOPSIS
+        Applies or removes visual dimming on a dashboard category expander.
+
+    .DESCRIPTION
+        Manages the visual transition state for a category during revalidation.
+        When dimmed, sets opacity to 0.5 and shows italic "(rechecking...)" text.
+        When undimmed, restores opacity to 1.0 and normal font style.
+
+    .PARAMETER State
+        The UI state object containing control references.
+
+    .PARAMETER Category
+        The dashboard category name (System, Hypervisor, BuildTools, Network, Optimization).
+
+    .PARAMETER IsDimmed
+        True to apply dimming, false to remove dimming.
+
+    .OUTPUTS
+        [void]
+
+    .EXAMPLE
+        Set-CategoryDimmed -State $State -Category 'Hypervisor' -IsDimmed $true
+        # Dims the Hypervisor category and shows "(rechecking...)"
+
+    .EXAMPLE
+        Set-CategoryDimmed -State $State -Category 'Hypervisor' -IsDimmed $false
+        # Restores normal appearance (Update-CategorySummary will update text)
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory)]
+        [PSCustomObject]$State,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('System', 'Hypervisor', 'BuildTools', 'Network', 'Optimization')]
+        [string]$Category,
+
+        [Parameter(Mandatory)]
+        [bool]$IsDimmed
+    )
+
+    $expander = $State.Controls."exp$Category"
+    if ($null -eq $expander) {
+        return
+    }
+
+    if ($IsDimmed) {
+        # Apply dimming
+        $expander.Opacity = 0.5
+        $summaryControl = $State.Controls."txt${Category}Summary"
+        if ($null -ne $summaryControl) {
+            $summaryControl.FontStyle = [System.Windows.FontStyles]::Italic
+            $summaryControl.Text = '(rechecking...)'
+        }
+    }
+    else {
+        # Remove dimming
+        $expander.Opacity = 1.0
+        $summaryControl = $State.Controls."txt${Category}Summary"
+        if ($null -ne $summaryControl) {
+            $summaryControl.FontStyle = [System.Windows.FontStyles]::Normal
+            # Do NOT change text - Update-CategorySummary will set final text
+        }
+    }
+}
+
 # --------------------------------------------------------------------------
 # SECTION: Module Export
 # --------------------------------------------------------------------------
 
-Export-ModuleMember -Function Get-CheckCategory, Update-DashboardCheckUI, Update-CategorySummary, Update-SummaryStatus, Update-BuildButtonState, Clear-DashboardResults, Update-HypervisorCategoryVisibility, Invoke-DashboardRemediation, Get-SafeRepairMap, Get-UnsafeRemediationMap
+Export-ModuleMember -Function Get-CheckCategory, Update-DashboardCheckUI, Update-CategorySummary, Update-SummaryStatus, Update-BuildButtonState, Clear-DashboardResults, Update-HypervisorCategoryVisibility, Invoke-DashboardRemediation, Get-SafeRepairMap, Get-UnsafeRemediationMap, Export-DashboardDiagnostics, Get-HypervisorDependentChecks, Set-CategoryDimmed
