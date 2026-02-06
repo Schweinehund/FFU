@@ -1038,4 +1038,169 @@ function Start-DashboardChecks {
     } -ArgumentList $script:uiState.Data.dashboardMessagingContext, $features, $FFUDevelopmentPath, $hypervisorType
 }
 
+# --------------------------------------------------------------------------
+# Dashboard DispatcherTimer: polls messaging context at 50ms for live UI updates
+# --------------------------------------------------------------------------
+$script:uiState.Data.dashboardPollTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:uiState.Data.dashboardPollTimer.Interval = [TimeSpan]::FromMilliseconds(50)
+
+$script:uiState.Data.dashboardPollTimer.Add_Tick({
+    param($sender, $e)
+
+    # Return early if no messaging context
+    if ($null -eq $script:uiState.Data.dashboardMessagingContext) {
+        return
+    }
+
+    $msgContext = $script:uiState.Data.dashboardMessagingContext
+    $msg = $null
+
+    # Drain messages from queue
+    while ($msgContext.MessageQueue.TryDequeue([ref]$msg)) {
+        $msgText = $msg.Message
+
+        if ($msgText -eq 'DASHBOARD_STARTED') {
+            # No additional action needed; progress already shown
+            continue
+        }
+
+        if ($msgText -like 'DASHBOARD_PROGRESS|*') {
+            # Format: DASHBOARD_PROGRESS|{num}|{total}|{name}
+            $parts = $msgText -split '\|', 4
+            if ($parts.Count -ge 4) {
+                $checkNum = $parts[1]
+                $totalChecks = $parts[2]
+                $checkName = $parts[3]
+                $script:uiState.Controls.txtDashboardProgressStatus.Text = "Running check $checkNum of ${totalChecks}: $checkName..."
+                $script:uiState.Controls.progressDashboard.Maximum = [int]$totalChecks
+                $script:uiState.Controls.progressDashboard.Value = [int]$checkNum
+            }
+            continue
+        }
+
+        if ($msgText -like 'DASHBOARD_CHECK|*') {
+            # Format: DASHBOARD_CHECK|{name}|{status}|{severity}|{message}|{remediation}
+            $parts = $msgText -split '\|', 6
+            if ($parts.Count -ge 5) {
+                $name = $parts[1]
+                $status = $parts[2]
+                $severity = $parts[3]
+                $message = $parts[4]
+                $remediation = if ($parts.Count -ge 6) { $parts[5] } else { '' }
+
+                # Resolve category and update UI
+                $category = Get-CheckCategory -CheckName $name
+                Update-DashboardCheckUI -State $script:uiState -CheckName $name `
+                    -Status $status -Severity $severity -Message $message -Remediation $remediation
+
+                # Track category stats
+                $stats = $script:uiState.Data.dashboardCategoryStats[$category]
+                if ($null -ne $stats) {
+                    $stats.Total++
+                    switch ($status) {
+                        'Passed'  { $stats.Passed++ }
+                        'Failed'  {
+                            if ($severity -eq 'Critical') { $stats.Failed++ }
+                            else { $stats.Warning++ }
+                        }
+                        'Warning' { $stats.Warning++ }
+                        'Skipped' { $stats.Total-- }
+                    }
+
+                    # Live update category summary as each check completes
+                    Update-CategorySummary -State $script:uiState -Category $category `
+                        -TotalChecks $stats.Total -PassedChecks $stats.Passed `
+                        -FailedChecks $stats.Failed -WarningChecks $stats.Warning
+                }
+            }
+            continue
+        }
+
+        if ($msgText -like 'DASHBOARD_COMPLETE|*') {
+            # Format: DASHBOARD_COMPLETE|{criticalCount}|{warningCount}|{totalChecks}|{passedChecks}
+            $parts = $msgText -split '\|', 5
+            if ($parts.Count -ge 5) {
+                $criticalCount = [int]$parts[1]
+                $warningCount = [int]$parts[2]
+                $totalChecks = [int]$parts[3]
+                $passedChecks = $totalChecks - $criticalCount - $warningCount
+
+                # Hide progress, enable refresh
+                $script:uiState.Controls.pnlDashboardProgress.Visibility = 'Collapsed'
+                $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+
+                # Store counts for build button warning dialog
+                $script:uiState.Data.dashboardCriticalCount = $criticalCount
+                $script:uiState.Data.dashboardWarningCount = $warningCount
+
+                # Update summary banner and build button state
+                Update-SummaryStatus -State $script:uiState -CriticalCount $criticalCount `
+                    -WarningCount $warningCount -TotalChecks $totalChecks -PassedChecks $passedChecks
+                Update-BuildButtonState -State $script:uiState -CriticalCount $criticalCount `
+                    -WarningCount $warningCount
+
+                # Reorder categories: failures first, then warnings, then passing
+                $container = $script:uiState.Controls.stackDashboardContainer
+                if ($null -ne $container) {
+                    $expanders = @()
+                    $nonExpanders = @()
+                    foreach ($child in @($container.Children)) {
+                        if ($child -is [System.Windows.Controls.Expander]) {
+                            $expanders += $child
+                        }
+                        else {
+                            $nonExpanders += $child
+                        }
+                    }
+
+                    $sortedExpanders = $expanders | Sort-Object {
+                        $catName = $_.Name -replace '^exp', ''
+                        $catStats = $script:uiState.Data.dashboardCategoryStats[$catName]
+                        if ($null -eq $catStats) { return 2 }
+                        if ($catStats.Failed -gt 0) { return 0 }
+                        if ($catStats.Warning -gt 0) { return 1 }
+                        return 2
+                    }
+
+                    $container.Children.Clear()
+                    foreach ($item in $nonExpanders) { [void]$container.Children.Add($item) }
+                    foreach ($exp in $sortedExpanders) { [void]$container.Children.Add($exp) }
+                }
+            }
+            continue
+        }
+
+        if ($msgText -like 'DASHBOARD_ERROR|*') {
+            # Format: DASHBOARD_ERROR|{message}
+            $errorMsg = $msgText.Substring('DASHBOARD_ERROR|'.Length)
+
+            # Hide progress, enable refresh, show error in summary
+            $script:uiState.Controls.pnlDashboardProgress.Visibility = 'Collapsed'
+            $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+
+            $brushConverter = [System.Windows.Media.BrushConverter]::new()
+            $script:uiState.Controls.borderSummaryStatus.Background = $brushConverter.ConvertFromString('#FFEBEE')
+            $script:uiState.Controls.txtSummaryStatus.Text = "Error: $errorMsg"
+            $script:uiState.Controls.txtSummaryStatus.Foreground = $brushConverter.ConvertFromString('#C62828')
+            continue
+        }
+    }
+
+    # Check if dashboard job has completed and clean up
+    $dashJob = $script:uiState.Data.currentDashboardJob
+    if ($null -ne $dashJob -and $dashJob.State -in @('Completed', 'Failed', 'Stopped')) {
+        try {
+            $dashJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
+            Remove-Job -Job $dashJob -Force -ErrorAction SilentlyContinue
+        }
+        catch {
+            # Silently handle job cleanup errors
+        }
+        $script:uiState.Data.currentDashboardJob = $null
+    }
+})
+
+# Start the dashboard poll timer
+$script:uiState.Data.dashboardPollTimer.Start()
+
 [void]$window.ShowDialog()
