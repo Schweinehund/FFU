@@ -107,6 +107,9 @@ $script:UnsafeRemediationMap = @{
 }
 
 function Extract-PowerShellCommands {
+    # Internal helper function - unapproved verb and plural noun are acceptable for internal use
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '')]
     <#
     .SYNOPSIS
         Extracts PowerShell command lines from remediation text.
@@ -140,14 +143,15 @@ function Extract-PowerShellCommands {
         return @()
     }
 
-    # Find text between "=== FIX ===" and the next section marker
-    if ($RemediationText -match '(?s)=== FIX ===.*?\n\n(.*?)(?:Manual steps:|=== VERIFY ===|$)') {
-        $commandBlock = $matches[1]
+    # Find text between "=== FIX ===" and the next section marker or end
+    # The pattern: after "=== FIX ===", skip any header lines, capture indented commands
+    if ($RemediationText -match '(?s)=== FIX ===\s+(.*?)(?:(?:^|\n)Manual steps:|(?:^|\n)=== VERIFY ===|$)') {
+        $fixSection = $matches[1]
 
-        # Split by newlines and extract command lines
-        $commands = $commandBlock -split '\r?\n' |
+        # Split by newlines and extract command lines (indented with 4+ spaces)
+        $commands = $fixSection -split '\r?\n' |
             Where-Object {
-                # Keep lines that are indented (4+ spaces) and not comments
+                # Keep lines that start with 4+ spaces and aren't blank/comments after trimming
                 $trimmed = $_.Trim()
                 $_ -match '^\s{4,}' -and
                 -not [string]::IsNullOrWhiteSpace($trimmed) -and
