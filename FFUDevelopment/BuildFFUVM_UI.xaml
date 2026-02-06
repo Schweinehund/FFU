@@ -91,14 +91,25 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Staleness Banner (Phase 48: CFG-02) -->
+                        <Border x:Name="borderStaleResults" Background="#FFF8E1" Padding="8" CornerRadius="3" Margin="0,4,0,4" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x26A0;" FontSize="14" Foreground="#F57F17" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtStaleResults" Text="" Foreground="#F57F17" FontSize="12" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Progress Panel (hidden until checks run) -->
                         <StackPanel x:Name="pnlDashboardProgress" Visibility="Collapsed" Margin="0,0,0,8">
                             <ProgressBar x:Name="progressDashboard" Height="4" IsIndeterminate="True"/>
                             <TextBlock x:Name="txtDashboardProgressStatus" Text="" Margin="0,4,0,0" FontSize="12" Foreground="Gray"/>
                         </StackPanel>
 
-                        <!-- Refresh Button -->
-                        <Button x:Name="btnRefreshChecks" Content="Refresh Checks" Width="140" HorizontalAlignment="Left" Margin="0,0,0,10" Padding="8,4"/>
+                        <!-- Action Buttons (Phase 48: Export Diagnostics next to Refresh) -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button x:Name="btnRefreshChecks" Content="Refresh Checks" Width="140" Padding="8,4"/>
+                            <Button x:Name="btnExportDiagnostics" Content="Export Diagnostics" Width="160" Margin="8,0,0,0" Padding="8,4" IsEnabled="False"/>
+                        </StackPanel>
 
                         <!-- Category: System -->
                         <Expander x:Name="expSystem" Style="{StaticResource MinimalExpanderNoHighlightStyle}" IsExpanded="True" Margin="0,2">
