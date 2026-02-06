@@ -8,6 +8,50 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.2 - Hypervisor Conditional Logic & Auto-Remediation (Phase 47, 2026-02-06)
+
+### Phase 47: Hypervisor Conditional Logic & Auto-Remediation (v1.11.2)
+**Date:** 2026-02-06
+
+### Hypervisor Conditional Logic (HYP-01 through HYP-05)
+- Dashboard shows inline info banner indicating active hypervisor ("Validating for: VMware Workstation")
+- Hypervisor info banner indicates which checks are skipped ("Hyper-V checks skipped")
+- Backend already conditional (Invoke-FFUPreflight) — dashboard now surfaces this visually
+- Info banner visible below summary status with blue info icon
+- Text updates based on dropdown selection (HyperV, VMware, Auto)
+
+### Auto-Remediation (REM-01 through REM-04)
+- One-click Fix button for safe issues: WIMMount repair, DISM cleanup, DISM restore health, DNS cache clear
+- Fix button shows "Fixing..." disabled state during execution, re-runs single check on completion
+- Unsafe remediations (Hyper-V enablement) show WPF MessageBox with exact command and reboot warning
+- Declined fixes show "Fix available" indicator distinct from pass/fail states
+- Failed checks have expandable Details section with copy-paste PowerShell commands in monospace textbox
+- Copy button copies commands to clipboard with "Copied!" feedback (2-second async reset)
+- Every completed check displays execution duration: "Passed (1.2s)" or "Failed (0.8s)"
+
+### Modules Updated
+- **FFU.Preflight v1.7.0:** Repair-FFUWimMount, Repair-FFUDismState, Repair-FFUNetwork
+  - Standalone repair functions extracted from existing validation logic
+  - Consistent PSCustomObject return format (Succeeded, Message, DurationMs)
+  - No circular dependencies - independently callable from dashboard
+- **FFUUI.Core v0.2.0:** 4 new functions, enhanced Update-DashboardCheckUI
+  - Update-HypervisorCategoryVisibility for info banner management
+  - Invoke-DashboardRemediation for repair execution
+  - Get-SafeRepairMap / Get-UnsafeRemediationMap expose repair mappings
+  - Enhanced Update-DashboardCheckUI with Fix button, Details expander, duration display
+
+### Files Modified
+- `FFUDevelopment/Modules/FFU.Preflight/FFU.Preflight.psm1` - 3 new repair functions
+- `FFUDevelopment/Modules/FFU.Preflight/FFU.Preflight.psd1` - Version 1.7.0, release notes
+- `FFUDevelopment/FFUUI.Core/FFUUI.Core.Dashboard.psm1` - 4 new public functions, enhanced UI logic
+- `FFUDevelopment/FFUUI.Core/FFUUI.Core.psd1` - Version 0.2.0, release notes
+- `FFUDevelopment/BuildFFUVM_UI.xaml` - Hypervisor info banner XAML
+- `FFUDevelopment/BuildFFUVM_UI.ps1` - 3 scriptblock handlers, single-check refresh
+- `FFUDevelopment/FFUUI.Core/FFUUI.Core.Initialize.psm1` - Control registration
+- `Tests/Unit/FFUUI.Core.Dashboard.AutoRemediation.Tests.ps1` - NEW: 32 passing tests
+
+---
+
 ## v1.11.1 - Dashboard Foundation (Phase 46, 2026-02-06)
 
 ### Phase 46: Dashboard Foundation (v1.11.1)

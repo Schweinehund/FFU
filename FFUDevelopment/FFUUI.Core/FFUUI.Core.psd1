@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.1.0'
+ModuleVersion = '0.2.0'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -123,6 +123,16 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.2.0: Phase 47 - Hypervisor conditional logic & auto-remediation
+- NEW: Update-HypervisorCategoryVisibility - Shows/hides hypervisor info banner
+- NEW: Invoke-DashboardRemediation - Executes safe repair functions
+- NEW: Get-SafeRepairMap / Get-UnsafeRemediationMap - Expose repair mappings
+- ENHANCED: Update-DashboardCheckUI - Fix button, Details expander, duration display
+- Fix button inline for safe issues (WimMount, DISM, Network)
+- Unsafe fix shows MessageBox confirmation (Hyper-V enablement)
+- Details expander with monospace PowerShell commands and Copy button
+- Duration display "(X.Xs)" on every check result
+
 v0.1.0: Pre-flight readiness dashboard - 6 new functions for Home tab dashboard UI (Get-CheckCategory, Update-DashboardCheckUI, Update-CategorySummary, Update-SummaryStatus, Update-BuildButtonState, Clear-DashboardResults). Dashboard submodule FFUUI.Core.Dashboard.psm1.
 
 v0.0.20: BUG-WINGET-02 - Winget Source package registration for elevated admin

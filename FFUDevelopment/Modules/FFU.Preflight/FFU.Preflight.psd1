@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.6.0'
+    ModuleVersion = '1.7.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -99,7 +99,26 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.6.0
+# Release Notes - FFU.Preflight v1.7.0
+
+## v1.7.0 (2026-02-06)
+### Phase 47: Auto-Remediation Repair Functions
+- **NEW**: Repair-FFUWimMount - Standalone WIMMount repair (registry, service, fltmc)
+  - Extracts proven 6-step repair sequence from Test-FFUWimMount
+  - No circular dependency - independently callable from dashboard
+  - Returns PSCustomObject with Succeeded, Message, DurationMs
+- **NEW**: Repair-FFUDismState - DISM component store RestoreHealth wrapper
+  - Executes DISM /RestoreHealth operation
+  - Tracks duration for dashboard transparency
+  - Returns consistent result format
+- **NEW**: Repair-FFUNetwork - DNS cache clear and connectivity verification
+  - Combines Clear-DnsClientCache with Test-NetConnection
+  - Verifies fix worked with www.microsoft.com:443 connectivity test
+  - Returns repair result with success/failure message
+- **PATTERN**: All repair functions return consistent PSCustomObject (Succeeded, Message, DurationMs)
+- **INTEGRATION**: Dashboard one-click fix integration (Phase 47-02, 47-03)
+
+---
 
 ## v1.6.0 (2026-01-27)
 ### Capture Location Disk Space Pre-flight Check
