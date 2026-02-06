@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 46 of 48 (Dashboard Foundation)
-**Plan:** —
-**Status:** Ready to plan
-**Last activity:** 2026-02-06 — Phase 45 verified and complete (5/5 must-haves passed)
+**Plan:** 1 of 5
+**Status:** In progress
+**Last activity:** 2026-02-06 — Completed 46-01-PLAN.md (Home Tab Dashboard XAML Layout)
 
 Progress: [██░░░░░░░░] 25% (1/4 phases complete)
 
@@ -21,7 +21,7 @@ Progress: [██░░░░░░░░] 25% (1/4 phases complete)
 
 **v1.11.0 Phases:**
 - Phase 45: DISM Resilience Formalization (3 requirements) ✅
-- Phase 46: Dashboard Foundation (8 requirements)
+- Phase 46: Dashboard Foundation (8 requirements) — Plan 1/5 complete
 - Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
 - Phase 48: Config-Aware Revalidation (3 requirements)
 
@@ -49,16 +49,17 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Fixed MinimalExpanderNoHighlightStyle for Header binding | 46-01 | Style had hardcoded text; ContentPresenter needed for dashboard Expanders |
+| Dashboard container is StackPanel not Grid | 46-01 | Simpler vertical flow for banner, progress, button, categories |
+| Naming convention: exp/txt/pnl + Category + role | 46-01 | Consistent pattern for 5 dashboard categories |
 | MINOR version bumps for both modules | 45-03 | Hard-stop behavior change and new WinPE validation features warrant MINOR bumps |
 | Main version 1.11.0 (MINOR bump) | 45-03 | First version of v1.11.0 milestone, significant DISM resilience feature set |
 | Hard-stop on post-KB DISM degradation | 45-02 | Mid-build degradation leads to cascading failures - fail fast with clear remediation |
 | Per-package DISM validation for WinPE | 45-02 | 12-package sequence needs per-package checks to identify failing package |
 | Use $DebugMode instead of $Debug | 45-01 | Avoid collision with PowerShell built-in -Debug common parameter |
 | DISM startup gate after pre-flight | 45-01 | Fail-fast before resource allocation, after ADK/DISM confirmed present |
-| Debug mode as general-purpose | 45-01 | Not DISM-specific, extensible for future debug processes |
-| Dual activation (CLI + config.json) | 45-01 | CLI for ad-hoc debugging, config.json for persistent automation |
 | Hypervisor-aware preflight | Pending | Hyper-V only checked when selected as hypervisor |
-| Readiness dashboard on Home tab | Pending | Most impactful user-facing improvement for build confidence |
+| Readiness dashboard on Home tab | 46-01 | XAML layout established, controls registered |
 | Critical/non-critical check gating | Pending | Block on must-haves, warn on nice-to-haves |
 | Auto-check on launch + refresh | Pending | Immediate feedback without user action |
 | Auto-remediate safe fixes | Pending | Reduce friction for fixable issues |
@@ -71,16 +72,17 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T13:24:10Z
-**Stopped at:** Completed Phase 45 (DISM Resilience Formalization) - All 3 plans executed
+**Last session:** 2026-02-06T14:25:50Z
+**Stopped at:** Completed 46-01-PLAN.md (Home Tab Dashboard XAML Layout)
 **Resume file:** None
-**Next action:** Plan Phase 46 — `/gsd:discuss-phase 46`
+**Next action:** Execute 46-02-PLAN.md
 
-**Phase 45 Complete:**
-- ✅ 45-01: Debug mode and DISM startup gate (3 min)
-- ✅ 45-02: Hard-stop DISM degradation and WinPE validation (5 min)
-- ✅ 45-03: Version bumps, tests, changelog, verification (14 min)
-- **Total:** 22 minutes, 6 commits, version 1.11.0 shipped
+**Phase 46 Progress:**
+- ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
+- ⬜ 46-02: Check Engine
+- ⬜ 46-03: UI Wiring
+- ⬜ 46-04: TBD
+- ⬜ 46-05: TBD
 
 ---
-*State updated: 2026-02-06 after Phase 45 verification passed (5/5 must-haves)*
+*State updated: 2026-02-06 after 46-01-PLAN.md completed (2 tasks, 2 commits)*
