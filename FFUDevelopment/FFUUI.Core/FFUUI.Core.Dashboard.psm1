@@ -893,8 +893,198 @@ function Clear-DashboardResults {
     }
 }
 
+function Update-HypervisorCategoryVisibility {
+    <#
+    .SYNOPSIS
+        Updates hypervisor info banner text based on selected hypervisor type.
+
+    .DESCRIPTION
+        Updates the inline hypervisor info banner to indicate which hypervisor
+        is currently being validated. All hypervisor types have relevant checks,
+        so the Hypervisor category expander is always visible. The backend
+        (Invoke-FFUPreflight) handles which checks run vs skip.
+
+    .PARAMETER State
+        The UI state object containing Controls hashtable.
+
+    .PARAMETER HypervisorType
+        The hypervisor type selected: HyperV, VMware, or Auto.
+
+    .OUTPUTS
+        [void]
+
+    .EXAMPLE
+        Update-HypervisorCategoryVisibility -State $State -HypervisorType 'VMware'
+        # Sets info banner to: "Validating for: VMware Workstation -- Hyper-V checks skipped"
+
+    .EXAMPLE
+        Update-HypervisorCategoryVisibility -State $State -HypervisorType 'HyperV'
+        # Sets info banner to: "Validating for: Hyper-V -- VMware checks skipped"
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory)]
+        [PSCustomObject]$State,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('HyperV', 'VMware', 'Auto')]
+        [string]$HypervisorType
+    )
+
+    # All hypervisor types have relevant checks, so always show the Hypervisor expander
+    # The backend (Invoke-FFUPreflight) handles which checks run vs skip
+    # This function's primary role is updating the info banner text
+
+    # Update hypervisor info banner
+    $infoBorder = $State.Controls.borderHypervisorInfo
+    $infoText = $State.Controls.txtHypervisorInfo
+
+    if ($null -ne $infoBorder -and $null -ne $infoText) {
+        $infoBorder.Visibility = [System.Windows.Visibility]::Visible
+        $infoText.Text = switch ($HypervisorType) {
+            'HyperV' { 'Validating for: Hyper-V -- VMware checks skipped' }
+            'VMware' { 'Validating for: VMware Workstation -- Hyper-V checks skipped' }
+            'Auto'   { 'Validating for: Auto-detected hypervisor' }
+        }
+    }
+}
+
+function Invoke-DashboardRemediation {
+    <#
+    .SYNOPSIS
+        Executes a safe repair function for a failed check.
+
+    .DESCRIPTION
+        Looks up the repair function name from SafeRepairMap and executes it.
+        Tracks execution duration and returns a result object with Succeeded,
+        Message, and DurationMs properties.
+
+        Special case: Invoke-FFUDISMCleanup requires -FFUDevelopmentPath parameter.
+
+    .PARAMETER CheckName
+        The name of the check to repair (e.g., 'WimMount', 'DISMState').
+
+    .PARAMETER FFUDevelopmentPath
+        The FFU development path. Required for DISMCleanup repair.
+
+    .OUTPUTS
+        [PSCustomObject] - Result object with Succeeded, Message, DurationMs properties.
+
+    .EXAMPLE
+        $result = Invoke-DashboardRemediation -CheckName 'WimMount'
+        # Executes Repair-FFUWimMount and returns result
+
+    .EXAMPLE
+        $result = Invoke-DashboardRemediation -CheckName 'DISMCleanup' -FFUDevelopmentPath 'C:\FFUDevelopment'
+        # Executes Invoke-FFUDISMCleanup with path parameter
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$CheckName,
+
+        [Parameter()]
+        [string]$FFUDevelopmentPath = ''
+    )
+
+    # Verify check has a mapped repair function
+    if (-not $script:SafeRepairMap.ContainsKey($CheckName)) {
+        return [PSCustomObject]@{
+            Succeeded = $false
+            Message = "No repair available for $CheckName"
+            DurationMs = 0
+        }
+    }
+
+    $funcName = $script:SafeRepairMap[$CheckName]
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        # Special case: DISMCleanup needs FFUDevelopmentPath parameter
+        if ($CheckName -eq 'DISMCleanup') {
+            if ([string]::IsNullOrWhiteSpace($FFUDevelopmentPath)) {
+                throw 'DISMCleanup repair requires FFUDevelopmentPath parameter'
+            }
+            $result = & $funcName -FFUDevelopmentPath $FFUDevelopmentPath
+        }
+        else {
+            $result = & $funcName
+        }
+
+        $stopwatch.Stop()
+
+        # Return the result from the repair function
+        if ($null -ne $result) {
+            return $result
+        }
+
+        # Fallback if repair function doesn't return a result
+        return [PSCustomObject]@{
+            Succeeded = $true
+            Message = "Repair executed successfully"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        return [PSCustomObject]@{
+            Succeeded = $false
+            Message = "Repair failed: $($_.Exception.Message)"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
+    }
+}
+
+function Get-SafeRepairMap {
+    <#
+    .SYNOPSIS
+        Returns the safe repair function mapping hashtable.
+
+    .DESCRIPTION
+        Exposes the script-scoped SafeRepairMap for external callers
+        (e.g., BuildFFUVM_UI.ps1 click handler wiring).
+
+    .OUTPUTS
+        [hashtable] - Map of check names to repair function names.
+
+    .EXAMPLE
+        $repairMap = Get-SafeRepairMap
+        # Returns: @{ 'WimMount' = 'Repair-FFUWimMount'; ... }
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+
+    return $script:SafeRepairMap
+}
+
+function Get-UnsafeRemediationMap {
+    <#
+    .SYNOPSIS
+        Returns the unsafe remediation details mapping hashtable.
+
+    .DESCRIPTION
+        Exposes the script-scoped UnsafeRemediationMap for external callers
+        (e.g., BuildFFUVM_UI.ps1 confirmation dialog logic).
+
+    .OUTPUTS
+        [hashtable] - Map of check names to unsafe remediation details.
+
+    .EXAMPLE
+        $unsafeMap = Get-UnsafeRemediationMap
+        # Returns: @{ 'HyperV' = @{ Command = '...'; RequiresReboot = $true; ... } }
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+
+    return $script:UnsafeRemediationMap
+}
+
 # --------------------------------------------------------------------------
 # SECTION: Module Export
 # --------------------------------------------------------------------------
 
-Export-ModuleMember -Function Get-CheckCategory, Update-DashboardCheckUI, Update-CategorySummary, Update-SummaryStatus, Update-BuildButtonState, Clear-DashboardResults
+Export-ModuleMember -Function Get-CheckCategory, Update-DashboardCheckUI, Update-CategorySummary, Update-SummaryStatus, Update-BuildButtonState, Clear-DashboardResults, Update-HypervisorCategoryVisibility, Invoke-DashboardRemediation, Get-SafeRepairMap, Get-UnsafeRemediationMap
