@@ -1950,6 +1950,51 @@ if (-not $Cleanup -and -not $skipPreflightValidation) {
     }
 }
 
+# =============================================================================
+# DISM Startup Gate (DISM-01): Comprehensive DISM health validation
+# Validates DISM service availability before any image operations begin.
+# Fails fast with remediation guidance instead of cryptic errors 2 hours in.
+# =============================================================================
+WriteLog "=" * 80
+WriteLog "PHASE: DISM Startup Health Validation"
+WriteLog "=" * 80
+WriteLog "Validating DISM service availability before build operations begin..."
+
+if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+    WriteLog "Running Test-DismReady with auto-repair enabled (timeout: 30s)..."
+    $dismStartupResult = Test-DismReady -AttemptRepair $true -TimeoutSeconds 30
+
+    if (-not $dismStartupResult) {
+        $errorMsg = @"
+DISM STARTUP VALIDATION FAILED
+===============================
+WIMMount service is not available or not responding after repair attempt.
+
+This means the build cannot mount Windows images for customization.
+All Mount-WindowsImage and Add-WindowsPackage operations will fail.
+
+Remediation Steps:
+1. Run 'sfc /scannow' in elevated command prompt to repair system files
+2. Restart WIMMount service: Restart-Service wimmount -Force
+3. If issue persists, reboot system and retry build
+4. Check Windows Update for pending ADK/DISM updates
+5. Reinstall Windows ADK if all else fails
+"@
+        WriteLog "ERROR: $errorMsg"
+        throw "DISM startup validation failed. WIMMount service unavailable. See build log for remediation steps."
+    }
+
+    WriteLog "DISM startup validation PASSED"
+    WriteLog "  WIMMount filter driver: Loaded"
+    WriteLog "  DISM functional test: Passed"
+    WriteLog "  Service ready for image operations"
+}
+else {
+    WriteLog "WARNING: Test-DismReady not available (FFU.Core module may not export it)"
+    WriteLog "Proceeding without DISM startup validation - errors may occur during image operations"
+}
+WriteLog "=" * 80
+
 # === CANCELLATION CHECKPOINT 1: After Pre-flight Validation ===
 # Check for cancellation before proceeding with resource-intensive operations
 if (Test-BuildCancellation -MessagingContext $MessagingContext -PhaseName "Pre-flight Validation" -InvokeCleanup) {
