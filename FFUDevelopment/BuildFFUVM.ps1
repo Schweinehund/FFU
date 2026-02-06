@@ -896,12 +896,12 @@ if ($ConfigFile -and (Test-Path -Path $ConfigFile)) {
 
 # Log debug mode status if enabled
 if ($DebugMode) {
-    WriteLog "=" * 80
+    WriteLog ("=" * 80)
     WriteLog "DEBUG MODE ACTIVE"
-    WriteLog "=" * 80
+    WriteLog ("=" * 80)
     WriteLog "Cleanup will be skipped on failure to preserve state for troubleshooting"
     WriteLog "Manual cleanup will be required after troubleshooting session"
-    WriteLog "=" * 80
+    WriteLog ("=" * 80)
 }
 
 # Set BITS transfer priority from parameter or environment (Phase 36)
@@ -1137,16 +1137,16 @@ trap {
     # This handles the edge case where an error occurs before modules are loaded
     # Uses InvokeCommand.GetCommand for ThreadJob compatibility (v1.8.10)
     if ($DebugMode) {
-        WriteLog "=" * 80
+        WriteLog ("=" * 80)
         WriteLog "DEBUG MODE: Skipping ALL cleanup to preserve state for troubleshooting"
-        WriteLog "=" * 80
+        WriteLog ("=" * 80)
         WriteLog "Manual cleanup instructions:"
         WriteLog "  1. Dismount images: Get-WindowsImage -Mounted | ForEach-Object { Dismount-WindowsImage -Path `$_.Path -Discard }"
         WriteLog "  2. Clean DISM mountpoints: dism.exe /Cleanup-Mountpoints"
         WriteLog "  3. Remove VM (if applicable): Remove-VM -Name '<VMName>' -Force"
         WriteLog "  4. Dismount VHD: Dismount-VHD -Path '<vhdx-path>'"
         WriteLog "  5. Clean temp files: Remove-Item '<FFUDevelopmentPath>\Mount' -Recurse -Force"
-        WriteLog "=" * 80
+        WriteLog ("=" * 80)
     }
     elseif ($ExecutionContext.InvokeCommand.GetCommand('Get-CleanupRegistry', 'Function')) {
         $registry = Get-CleanupRegistry
@@ -1955,9 +1955,9 @@ if (-not $Cleanup -and -not $skipPreflightValidation) {
 # Validates DISM service availability before any image operations begin.
 # Fails fast with remediation guidance instead of cryptic errors 2 hours in.
 # =============================================================================
-WriteLog "=" * 80
+WriteLog ("=" * 80)
 WriteLog "PHASE: DISM Startup Health Validation"
-WriteLog "=" * 80
+WriteLog ("=" * 80)
 WriteLog "Validating DISM service availability before build operations begin..."
 
 if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
@@ -1993,7 +1993,7 @@ else {
     WriteLog "WARNING: Test-DismReady not available (FFU.Core module may not export it)"
     WriteLog "Proceeding without DISM startup validation - errors may occur during image operations"
 }
-WriteLog "=" * 80
+WriteLog ("=" * 80)
 
 # === CANCELLATION CHECKPOINT 1: After Pre-flight Validation ===
 # Check for cancellation before proceeding with resource-intensive operations

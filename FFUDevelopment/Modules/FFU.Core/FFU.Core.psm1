@@ -4413,76 +4413,6 @@ function Update-OrchestrationHashManifest {
 
 #region DISM Readiness Check (v1.0.23 - DISM-HEALTH-01)
 
-function Test-DismFunctional {
-    <#
-    .SYNOPSIS
-    Tests if DISM service is actually functional by attempting a lightweight operation.
-
-    .DESCRIPTION
-    Performs a quick DISM operation (Get-WindowsImage -Online) with a 15-second timeout
-    to verify DISM service can initialize successfully. This catches cases where WimMount
-    filter is loaded but DISM service is in a degraded state (0x80004005 errors).
-
-    Uses a background job with timeout to avoid 10-minute DISM hangs.
-
-    .OUTPUTS
-    System.Boolean - $true if DISM is functional, $false if degraded/hung
-    #>
-    [CmdletBinding()]
-    [OutputType([bool])]
-    param()
-
-    try {
-        # Use a background job with timeout to avoid 10-minute DISM hangs
-        $job = Start-Job -ScriptBlock {
-            try {
-                # Lightweight DISM test - Get-WindowsImage -Online queries running OS
-                $null = Get-WindowsImage -Online -ErrorAction Stop
-                return $true
-            }
-            catch {
-                return $false
-            }
-        }
-
-        # Wait up to 15 seconds for DISM to respond
-        $completed = $job | Wait-Job -Timeout 15
-        if ($completed) {
-            $result = Receive-Job -Job $job -ErrorAction SilentlyContinue
-            $dismFunctional = [bool]$result
-        }
-        else {
-            # DISM hung - service is degraded
-            if ($function:WriteLog) {
-                WriteLog "WARNING: DISM functional test timed out after 15 seconds - service is degraded"
-            }
-            Stop-Job -Job $job -ErrorAction SilentlyContinue
-            $dismFunctional = $false
-        }
-
-        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
-
-        if ($dismFunctional) {
-            if ($function:WriteLog) {
-                WriteLog "DISM functional validation passed - service is ready"
-            }
-            return $true
-        }
-        else {
-            if ($function:WriteLog) {
-                WriteLog "WARNING: DISM functional test failed - service is NOT responding"
-            }
-            return $false
-        }
-    }
-    catch {
-        if ($function:WriteLog) {
-            WriteLog "WARNING: DISM functional test error: $($_.Exception.Message)"
-        }
-        return $false
-    }
-}
-
 function Test-DismReady {
     <#
     .SYNOPSIS
@@ -4670,23 +4600,31 @@ function Test-DismReady {
         }
     }
 
-    # Attempt 3: Try rundll32 registration
-    try {
-        $null = & rundll32.exe wimmount.dll,WimMountDriver 2>&1
-        Start-Sleep -Seconds 2
+    # Attempt 3: Try rundll32 registration (only if wimmount.dll exists)
+    $wimmountDll = Join-Path $env:SystemRoot 'System32\wimmount.dll'
+    if (Test-Path -Path $wimmountDll -PathType Leaf) {
+        try {
+            $null = & rundll32.exe wimmount.dll,WimMountDriver 2>&1
+            Start-Sleep -Seconds 2
 
-        $fltmcCheck = & fltmc.exe filters 2>&1
-        if ($fltmcCheck -match 'WimMount') {
-            if ($function:WriteLog) {
-                WriteLog "WIMMount filter loaded successfully after rundll32 repair"
+            $fltmcCheck = & fltmc.exe filters 2>&1
+            if ($fltmcCheck -match 'WimMount') {
+                if ($function:WriteLog) {
+                    WriteLog "WIMMount filter loaded successfully after rundll32 repair"
+                }
+                # Verify DISM is actually functional after repair
+                return Test-DismFunctional
             }
-            # Verify DISM is actually functional after repair
-            return Test-DismFunctional
+        }
+        catch {
+            if ($function:WriteLog) {
+                WriteLog "WARNING: rundll32 WIMMount repair failed: $($_.Exception.Message)"
+            }
         }
     }
-    catch {
+    else {
         if ($function:WriteLog) {
-            WriteLog "WARNING: rundll32 WIMMount repair failed: $($_.Exception.Message)"
+            WriteLog "WARNING: wimmount.dll not found at $wimmountDll - skipping rundll32 registration"
         }
     }
 
@@ -4823,6 +4761,323 @@ function Clear-OrphanedMountPointsWithoutDism {
 
 #endregion DISM Readiness Check (v1.0.23 - DISM-HEALTH-01)
 
+#region DISM Health Monitoring (v1.0.26 - DISM-HEALTH-02)
+
+function Get-DismHealthScore {
+    <#
+    .SYNOPSIS
+    Calculates a health score (0-100) for DISM service readiness.
+
+    .DESCRIPTION
+    Evaluates multiple indicators of DISM health to produce a composite score:
+    - WimMount service status (30 points)
+    - DismHost process count (20 points) - multiple processes indicate degradation
+    - Mounted images count (10 points) - stale mounts indicate issues
+    - Event log errors (up to 40 points) - recent DISM/WimMount errors
+
+    Thresholds:
+    - 90-100: Healthy - DISM operations expected to succeed
+    - 70-89:  Warning - Minor issues detected, may succeed
+    - 50-69:  Degraded - Issues present, attempt repair before operations
+    - 0-49:   Failed - Critical issues, reboot likely required
+
+    .OUTPUTS
+    System.Int32 - Health score from 0 to 100
+
+    .EXAMPLE
+    $score = Get-DismHealthScore
+    if ($score -lt 70) {
+        WriteLog "WARNING: DISM health degraded (score: $score)"
+        Test-DismReady -AttemptRepair $true | Out-Null
+    }
+
+    .NOTES
+    Added in v1.0.26 (DISM-HEALTH-02) for proactive DISM health monitoring.
+    Uses WMI/CIM queries which work in ThreadJob contexts.
+    Does NOT call any DISM operations to avoid triggering hang on degraded systems.
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param()
+
+    $score = 100
+
+    try {
+        # Check 1: WimMount service status (30 points)
+        try {
+            $service = Get-Service -Name 'wimmount' -ErrorAction SilentlyContinue
+            if (-not $service) {
+                $score -= 30
+                if ($function:WriteLog) {
+                    WriteLog "DISM Health: WimMount service not found (-30)"
+                }
+            }
+            elseif ($service.Status -ne 'Running' -and $service.Status -ne 'Stopped') {
+                # Stopped is OK (demand-start), but other states indicate issues
+                $score -= 15
+                if ($function:WriteLog) {
+                    WriteLog "DISM Health: WimMount service in unexpected state: $($service.Status) (-15)"
+                }
+            }
+        }
+        catch {
+            $score -= 30
+        }
+
+        # Check 2: DismHost process count (20 points)
+        # Multiple DismHost processes indicate DISM operations are stuck
+        try {
+            $dismHosts = @(Get-Process -Name 'DismHost' -ErrorAction SilentlyContinue)
+            if ($dismHosts.Count -gt 3) {
+                $score -= 20
+                if ($function:WriteLog) {
+                    WriteLog "DISM Health: $($dismHosts.Count) DismHost processes running (>3 indicates stuck operations) (-20)"
+                }
+            }
+            elseif ($dismHosts.Count -gt 0) {
+                # Some DismHost processes - minor concern
+                $score -= ($dismHosts.Count * 5)
+                if ($function:WriteLog) {
+                    WriteLog "DISM Health: $($dismHosts.Count) DismHost processes running (-$($dismHosts.Count * 5))"
+                }
+            }
+        }
+        catch { }
+
+        # Check 3: Mounted images via registry (10 points)
+        # Does NOT use DISM cmdlets which could hang
+        try {
+            $mountRegPath = 'HKLM:\SOFTWARE\Microsoft\WIMMount\Mounted Images'
+            if (Test-Path -Path $mountRegPath) {
+                $mountEntries = @(Get-ChildItem -Path $mountRegPath -ErrorAction SilentlyContinue)
+                if ($mountEntries.Count -gt 0) {
+                    $score -= 10
+                    if ($function:WriteLog) {
+                        WriteLog "DISM Health: $($mountEntries.Count) stale mount entries in registry (-10)"
+                    }
+                }
+            }
+        }
+        catch { }
+
+        # Check 4: Event log errors (up to 40 points)
+        # Recent DISM/WimMount errors in Application log
+        try {
+            $cutoffTime = [DateTime]::Now.AddMinutes(-30)
+            $dismErrors = @(Get-WinEvent -LogName Application -MaxEvents 100 -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.TimeCreated -gt $cutoffTime -and
+                    $_.Level -le 2 -and  # Error or Critical
+                    ($_.Message -match 'WimMount' -or $_.Message -match 'DISM' -or $_.ProviderName -eq 'Microsoft-Windows-DISM')
+                })
+
+            if ($dismErrors.Count -gt 0) {
+                $deduction = [Math]::Min(40, $dismErrors.Count * 10)
+                $score -= $deduction
+                if ($function:WriteLog) {
+                    WriteLog "DISM Health: $($dismErrors.Count) DISM/WimMount errors in last 30 minutes (-$deduction)"
+                }
+            }
+        }
+        catch { }
+
+        # Ensure score stays in range
+        $score = [Math]::Max(0, [Math]::Min(100, $score))
+
+        if ($function:WriteLog) {
+            $status = switch ($score) {
+                { $_ -ge 90 } { 'Healthy' }
+                { $_ -ge 70 } { 'Warning' }
+                { $_ -ge 50 } { 'Degraded' }
+                default { 'Failed' }
+            }
+            WriteLog "DISM Health Score: $score ($status)"
+        }
+
+        return $score
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Failed to calculate DISM health score: $($_.Exception.Message)"
+        }
+        # Return middle-range score on error - don't block operations but signal caution
+        return 50
+    }
+}
+
+function Get-DismRemediationGuidance {
+    <#
+    .SYNOPSIS
+    Returns standardized remediation guidance for DISM failures.
+
+    .DESCRIPTION
+    Provides consistent, actionable remediation guidance for different types
+    of DISM failures. Each failure type returns:
+    - Issue: Description of the problem
+    - TimeToFix: Estimated time for remediation
+    - AutoFix: Command for automatic repair
+    - ManualFix: Command for manual repair
+    - LastResort: Final option if others fail
+
+    .PARAMETER FailureType
+    Type of DISM failure. Valid values:
+    - WimMountNotLoaded: WimMount filter driver not loaded
+    - ServiceHung: DISM service not responding (hung)
+    - DriverMissing: wimmount.sys file missing or corrupt
+    - HealthDegraded: Health score below threshold
+
+    .OUTPUTS
+    System.Collections.Hashtable - Remediation guidance with Issue, TimeToFix, AutoFix, ManualFix, LastResort
+
+    .EXAMPLE
+    $guidance = Get-DismRemediationGuidance -FailureType WimMountNotLoaded
+    Write-Host "Issue: $($guidance.Issue)"
+    Write-Host "Run: $($guidance.AutoFix)"
+
+    .EXAMPLE
+    if (-not (Test-DismFunctional)) {
+        $guidance = Get-DismRemediationGuidance -FailureType ServiceHung
+        WriteLog "DISM Error: $($guidance.Issue). Time to fix: $($guidance.TimeToFix)."
+        WriteLog "Run: $($guidance.AutoFix)"
+    }
+
+    .NOTES
+    Added in v1.0.26 (DISM-HEALTH-02) for standardized remediation messaging.
+    Ensures consistent user guidance across all DISM-related functions.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('WimMountNotLoaded', 'ServiceHung', 'DriverMissing', 'HealthDegraded')]
+        [string]$FailureType
+    )
+
+    $guidance = @{
+        WimMountNotLoaded = @{
+            Issue = "WimMount filter driver not loaded"
+            TimeToFix = "2-3 minutes (auto-repair) or reboot (guaranteed)"
+            AutoFix = "Test-DismReady -AttemptRepair `$true"
+            ManualFix = ".\Repair-WimMountService.ps1 -Force"
+            LastResort = "Reboot the computer"
+            HealthScore = "Expect score 40-60"
+        }
+        ServiceHung = @{
+            Issue = "DISM service not responding (DismInitialize hangs)"
+            TimeToFix = "Reboot required (5-10 minutes)"
+            AutoFix = "Restart-Service wimmount -Force; Start-Sleep -Seconds 5; Test-DismFunctional"
+            ManualFix = ".\Force-WimMountLoad.ps1"
+            LastResort = "Reboot the computer"
+            HealthScore = "Expect score 20-40"
+        }
+        DriverMissing = @{
+            Issue = "wimmount.sys file missing or corrupt"
+            TimeToFix = "20-40 minutes (DISM RestoreHealth)"
+            AutoFix = "None - manual repair required"
+            ManualFix = ".\Restore-WimMountComplete.ps1 or DISM /Online /Cleanup-Image /RestoreHealth"
+            LastResort = "Windows repair installation or ADK reinstall"
+            HealthScore = "Expect score 0-20"
+        }
+        HealthDegraded = @{
+            Issue = "DISM health score below threshold (degradation detected)"
+            TimeToFix = "2-5 minutes for auto-repair, reboot if repair fails"
+            AutoFix = "Test-DismReady -AttemptRepair `$true"
+            ManualFix = "Get-DismHealthScore to identify specific issues"
+            LastResort = "Reboot the computer"
+            HealthScore = "Current score below 70"
+        }
+    }
+
+    return $guidance[$FailureType]
+}
+
+function Test-DismFunctional {
+    <#
+    .SYNOPSIS
+    Tests if DISM service is actually functional by attempting a lightweight operation.
+
+    .DESCRIPTION
+    Performs a quick DISM operation (Get-WindowsEdition -Online) with a 15-second timeout
+    to verify DISM service can initialize successfully. This catches cases where WimMount
+    filter is loaded but DISM service is in a degraded state (0x80004005 errors).
+
+    Uses a background job with timeout to avoid 10-minute DISM hangs.
+
+    Note: Get-WindowsImage does NOT have an -Online parameter. Get-WindowsEdition -Online
+    is the correct lightweight operation that tests DISM initialization.
+
+    .OUTPUTS
+    System.Boolean - $true if DISM is functional, $false if degraded/hung
+
+    .EXAMPLE
+    if (-not (Test-DismFunctional)) {
+        WriteLog "DISM is degraded - attempting recovery"
+        Restart-Service wimmount -Force
+    }
+
+    .NOTES
+    Internal helper function used by Test-DismReady.
+    Exported in v1.0.26 for use in post-update validation.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    try {
+        # Use a background job with timeout to avoid 10-minute DISM hangs
+        $job = Start-Job -ScriptBlock {
+            try {
+                # Lightweight DISM test - Get-WindowsEdition -Online queries running OS
+                # Note: Get-WindowsImage does NOT have an -Online parameter
+                # Get-WindowsEdition -Online is the correct lightweight DISM initialization test
+                $null = Get-WindowsEdition -Online -ErrorAction Stop
+                return $true
+            }
+            catch {
+                return $false
+            }
+        }
+
+        # Wait up to 15 seconds for DISM to respond
+        $completed = $job | Wait-Job -Timeout 15
+        if ($completed) {
+            $result = Receive-Job -Job $job -ErrorAction SilentlyContinue
+            $dismFunctional = [bool]$result
+        }
+        else {
+            # DISM hung - service is degraded
+            if ($function:WriteLog) {
+                WriteLog "WARNING: DISM functional test timed out after 15 seconds - service is degraded"
+            }
+            Stop-Job -Job $job -ErrorAction SilentlyContinue
+            $dismFunctional = $false
+        }
+
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+
+        if ($dismFunctional) {
+            if ($function:WriteLog) {
+                WriteLog "DISM functional validation passed - service is ready"
+            }
+            return $true
+        }
+        else {
+            if ($function:WriteLog) {
+                WriteLog "WARNING: DISM functional test failed - service is NOT responding"
+            }
+            return $false
+        }
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: DISM functional test error: $($_.Exception.Message)"
+        }
+        return $false
+    }
+}
+
+#endregion DISM Health Monitoring (v1.0.26 - DISM-HEALTH-02)
+
 # Create backward compatibility aliases for renamed functions (v1.0.11)
 # These aliases allow existing code to continue working while encouraging migration to approved verbs
 Set-Alias -Name 'LogVariableValues' -Value 'Write-VariableValues' -Scope Script
@@ -4900,6 +5155,10 @@ Export-ModuleMember -Function @(
     # DISM readiness check (v1.0.23 - DISM-HEALTH-01)
     'Test-DismReady'
     'Clear-OrphanedMountPointsWithoutDism'
+    # DISM health monitoring (v1.0.26 - DISM-HEALTH-02)
+    'Get-DismHealthScore'
+    'Get-DismRemediationGuidance'
+    'Test-DismFunctional'
 )
 
 # Export backward compatibility aliases (deprecated - use new function names)
@@ -4908,4 +5167,4 @@ Export-ModuleMember -Alias @(
     'Mark-DownloadInProgress'           # Deprecated: Use Set-DownloadInProgress
     'Cleanup-CurrentRunDownloads'       # Deprecated: Use Clear-CurrentRunDownloads
 )
-# Module updated: 2026-01-24 - v1.0.22 REL-BUILD-01 Phase Wrapper with Graceful Degradation
+# Module updated: 2026-02-05 - v1.0.26 DISM-HEALTH-02 Health Score and Remediation Guidance

@@ -7,7 +7,7 @@
     RootModule = 'FFU.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.25'
+    ModuleVersion = '1.0.27'
 
     # ID used to uniquely identify this module
     GUID = '9332d136-2710-49af-b356-a0281ebd8999'
@@ -105,7 +105,11 @@
         'Invoke-BuildPhase',
         # DISM readiness check (v1.0.23 - DISM-HEALTH-01)
         'Test-DismReady',
-        'Clear-OrphanedMountPointsWithoutDism'
+        'Clear-OrphanedMountPointsWithoutDism',
+        # DISM health monitoring (v1.0.26 - DISM-HEALTH-02)
+        'Get-DismHealthScore',
+        'Get-DismRemediationGuidance',
+        'Test-DismFunctional'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -136,7 +140,22 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Core v1.0.25
+# Release Notes - FFU.Core v1.0.27
+
+## v1.0.27 - Fix Test-DismFunctional DISM Cmdlet (BUG-DISM-01)
+- **FIX:** Test-DismFunctional was using Get-WindowsImage -Online which does NOT exist
+- Get-WindowsImage does NOT have an -Online parameter (only -ImagePath, -Index, etc.)
+- Changed to Get-WindowsEdition -Online which is the correct lightweight DISM test
+- This fixes false "DISM functional test failed" errors when WIMMount filter is loaded
+
+## v1.0.26 - DISM Health Monitoring (DISM-HEALTH-02)
+- Added Get-DismHealthScore: Calculates 0-100 health score based on service status, process count, mounts, event logs
+- Added Get-DismRemediationGuidance: Returns standardized remediation for WimMountNotLoaded, ServiceHung, DriverMissing, HealthDegraded
+- Exported Test-DismFunctional: Previously internal helper, now available for post-update validation
+- Health score thresholds: 90-100 healthy, 70-89 warning, 50-69 degraded, 0-49 failed
+- Remediation guidance includes: Issue description, TimeToFix, AutoFix, ManualFix, LastResort
+- All functions use ThreadJob-safe patterns ($function:WriteLog check)
+- 57 total functions now exported
 
 ## v1.0.25 - Test-DismReady Functional Validation (TEST-DISMREADY-FUNCTIONAL)
 - CRITICAL FIX: Test-DismReady now performs functional DISM validation, not just filter driver check

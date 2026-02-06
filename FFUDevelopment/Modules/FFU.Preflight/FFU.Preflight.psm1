@@ -315,8 +315,8 @@ function Get-FFURequirements {
         NeedsNetwork        = ($Features.InstallApps -or $Features.UpdateLatestCU -or
                               $Features.DownloadDrivers -or $Features.InstallDefender -or
                               $Features.GetOneDrive)
-        NeedsADK            = ($Features.CreateCaptureMedia -or $Features.CreateDeploymentMedia -or
-                              $Features.OptimizeFFU)
+        NeedsADK            = ($Features.CreateVM -or $Features.CreateCaptureMedia -or
+                              $Features.CreateDeploymentMedia -or $Features.OptimizeFFU)
         NeedsWinPE          = ($Features.CreateCaptureMedia -or $Features.CreateDeploymentMedia)
         NeedsHyperV         = ($Features.CreateVM -eq $true -and $HypervisorType -eq 'HyperV')
     }
@@ -876,19 +876,26 @@ function Test-FFUHyperV {
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
-        [int]$MaxRetries = 3,
+        [int]$MaxRetries = 2,
 
         [Parameter()]
-        [int]$RetryDelaySeconds = 5
+        [int]$RetryDelaySeconds = 3
     )
 
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $attempt = 0
     $lastError = $null
 
-    # Pre-cleanup: Clean stale DISM mount points to avoid interference
+    # Pre-cleanup: Clean stale DISM mount points to avoid interference (with timeout)
     try {
-        & dism.exe /Cleanup-Mountpoints 2>&1 | Out-Null
+        $dismJob = Start-Job -ScriptBlock { & dism.exe /Cleanup-Mountpoints 2>&1 | Out-Null }
+        $null = $dismJob | Wait-Job -Timeout 10
+        if ($dismJob.State -eq 'Running') {
+            $dismJob | Stop-Job -PassThru | Remove-Job -Force
+        }
+        else {
+            $dismJob | Remove-Job -Force
+        }
     }
     catch {
         # Ignore cleanup errors - not critical for Hyper-V check
@@ -909,8 +916,18 @@ function Test-FFUHyperV {
                 $featureState = if ($isEnabled) { 'Installed' } else { 'Not Installed' }
             }
             else {
-                # Windows Client: Use Get-WindowsOptionalFeature
-                $hyperVFeature = Get-WindowsOptionalFeature -Online -FeatureName 'Microsoft-Hyper-V-All' -ErrorAction Stop
+                # Windows Client: Use Get-WindowsOptionalFeature with timeout
+                # (DISM-backed cmdlet can hang when WimMount service is broken)
+                $featureJob = Start-Job -ScriptBlock {
+                    Get-WindowsOptionalFeature -Online -FeatureName 'Microsoft-Hyper-V-All' -ErrorAction Stop
+                }
+                $null = $featureJob | Wait-Job -Timeout 30
+                if ($featureJob.State -eq 'Running') {
+                    $featureJob | Stop-Job -PassThru | Remove-Job -Force
+                    throw "Get-WindowsOptionalFeature timed out after 30s (DISM may be unresponsive)"
+                }
+                $hyperVFeature = $featureJob | Receive-Job
+                $featureJob | Remove-Job -Force
                 $isEnabled = $hyperVFeature.State -eq 'Enabled'
                 $featureState = $hyperVFeature.State
             }
@@ -1352,7 +1369,7 @@ function Test-FFUNetwork {
     $requirements = Get-FFURequirements -Features $Features -VHDXSizeGB 50
     if (-not $requirements.NeedsNetwork) {
         $stopwatch.Stop()
-        New-FFUCheckResult -CheckName 'Network' -Status 'Skipped' `
+        return New-FFUCheckResult -CheckName 'Network' -Status 'Skipped' `
             -Message 'Network connectivity check skipped (no network-dependent features enabled)' `
             -Details @{
                 NeedsNetwork = $false
@@ -1374,7 +1391,7 @@ function Test-FFUNetwork {
 
         if (-not $details.DNSResolution) {
             $stopwatch.Stop()
-            New-FFUCheckResult -CheckName 'Network' -Status 'Failed' `
+            return New-FFUCheckResult -CheckName 'Network' -Status 'Failed' `
                 -Severity 'Critical' `
                 -Message 'DNS resolution failed - cannot resolve www.microsoft.com' `
                 -Details $details `
@@ -1503,7 +1520,7 @@ function Test-FFUConfigurationFile {
     # Skip if no config file specified
     if ([string]::IsNullOrWhiteSpace($ConfigFilePath)) {
         $stopwatch.Stop()
-        New-FFUCheckResult -CheckName 'Configuration' -Status 'Skipped' `
+        return New-FFUCheckResult -CheckName 'Configuration' -Status 'Skipped' `
             -Message 'Configuration file validation skipped (no config file specified)' `
             -DurationMs $stopwatch.ElapsedMilliseconds
     }
@@ -1511,7 +1528,7 @@ function Test-FFUConfigurationFile {
     # Check if file exists
     if (-not (Test-Path -Path $ConfigFilePath -PathType Leaf)) {
         $stopwatch.Stop()
-        New-FFUCheckResult -CheckName 'Configuration' -Status 'Failed' `
+        return New-FFUCheckResult -CheckName 'Configuration' -Status 'Failed' `
             -Severity 'Critical' `
             -Message "Configuration file not found: $ConfigFilePath" `
             -Details @{ ConfigFilePath = $ConfigFilePath } `
@@ -2200,21 +2217,28 @@ function Test-FFUWimMount {
 
             # Strategy 4: Driver re-registration (if filter still not loaded)
             if (-not $filterLoaded) {
-                $details.RemediationActions.Add('Attempting driver re-registration via rundll32...')
+                # Guard: only attempt rundll32 if wimmount.dll exists on system
+                $wimmountDll = Join-Path $env:SystemRoot 'System32\wimmount.dll'
+                if (Test-Path -Path $wimmountDll -PathType Leaf) {
+                    $details.RemediationActions.Add('Attempting driver re-registration via rundll32...')
 
-                $reregResult = Invoke-WimMountRepairWithRetry -ActionName "rundll32 wimmount.dll" `
-                    -RepairAction {
-                        $null = & rundll32.exe wimmount.dll,WimMountDriver 2>&1
-                        Start-Sleep -Seconds 2  # Allow driver to initialize
+                    $reregResult = Invoke-WimMountRepairWithRetry -ActionName "rundll32 wimmount.dll" `
+                        -RepairAction {
+                            $null = & rundll32.exe wimmount.dll,WimMountDriver 2>&1
+                            Start-Sleep -Seconds 2  # Allow driver to initialize
 
-                        # Verify filter is now loaded
-                        $fltmcCheck = fltmc filters 2>&1
-                        if ($fltmcCheck -match 'WimMount') {
-                            return $true
-                        }
-                        throw "Filter still not loaded after re-registration"
-                    } `
-                    -MaxRetries 2 -BaseDelaySeconds 3 -Details $details
+                            # Verify filter is now loaded
+                            $fltmcCheck = fltmc filters 2>&1
+                            if ($fltmcCheck -match 'WimMount') {
+                                return $true
+                            }
+                            throw "Filter still not loaded after re-registration"
+                        } `
+                        -MaxRetries 2 -BaseDelaySeconds 3 -Details $details
+                }
+                else {
+                    $details.RemediationActions.Add('Skipped rundll32 re-registration: wimmount.dll not found on system')
+                }
             }
 
             # Strategy 5: Filter Manager restart (last resort)
@@ -3082,7 +3106,7 @@ function Test-FFUAntivirusExclusions {
 
         if (-not $mpStatus) {
             $stopwatch.Stop()
-            New-FFUCheckResult -CheckName 'AntivirusExclusions' -Status 'Skipped' `
+            return New-FFUCheckResult -CheckName 'AntivirusExclusions' -Status 'Skipped' `
                 -Message 'Windows Defender status unavailable (may be using third-party AV)' `
                 -Details $details `
                 -DurationMs $stopwatch.ElapsedMilliseconds
@@ -3092,7 +3116,7 @@ function Test-FFUAntivirusExclusions {
 
         if (-not $mpStatus.RealTimeProtectionEnabled) {
             $stopwatch.Stop()
-            New-FFUCheckResult -CheckName 'AntivirusExclusions' -Status 'Skipped' `
+            return New-FFUCheckResult -CheckName 'AntivirusExclusions' -Status 'Skipped' `
                 -Message 'Windows Defender real-time protection is disabled' `
                 -Details $details `
                 -DurationMs $stopwatch.ElapsedMilliseconds
@@ -3544,7 +3568,14 @@ function Invoke-FFUPreflight {
         [string]$VMHostIPAddress,
 
         [Parameter()]
-        [string]$FFUCaptureLocation
+        [string]$FFUCaptureLocation,
+
+        [Parameter()]
+        [ValidateSet('nat', 'bridged', 'hostonly', '')]
+        [string]$VMwareNetworkType = '',
+
+        [Parameter()]
+        [hashtable]$MessagingContext
     )
 
     $overallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -3573,6 +3604,20 @@ function Invoke-FFUPreflight {
         InfoCount            = 0
     }
 
+    # Helper to send real-time progress to UI via messaging queue
+    $sendProgress = {
+        param([string]$CheckName, [string]$Action)
+        if ($null -ne $MessagingContext) {
+            try {
+                Write-FFUMessage -Context $MessagingContext `
+                    -Message "PREFLIGHT_RUNNING|$CheckName|$Action" -Level Info
+            }
+            catch {
+                # Non-fatal: messaging failure should never block pre-flight
+            }
+        }
+    }
+
     # Calculate requirements (pass HypervisorType to determine if Hyper-V is needed)
     $requirements = Get-FFURequirements -Features $Features -VHDXSizeGB $VHDXSizeGB -HypervisorType $HypervisorType
     $result.RequiredDiskSpaceGB = $requirements.RequiredDiskSpaceGB
@@ -3587,6 +3632,7 @@ function Invoke-FFUPreflight {
     Write-Information "-----------------------------"
 
     # Administrator check
+    & $sendProgress 'Administrator' 'Checking administrator privileges'
     $adminResult = Test-FFUAdministrator
     $result.Tier1Results['Administrator'] = $adminResult
     if ($adminResult.Status -eq 'Passed') {
@@ -3600,6 +3646,7 @@ function Invoke-FFUPreflight {
     }
 
     # PowerShell version check
+    & $sendProgress 'PowerShellVersion' 'Checking PowerShell version'
     $psResult = Test-FFUPowerShellVersion
     $result.Tier1Results['PowerShellVersion'] = $psResult
     if ($psResult.Status -eq 'Passed') {
@@ -3614,6 +3661,7 @@ function Invoke-FFUPreflight {
 
     # Hyper-V check (only if using Hyper-V hypervisor and CreateVM is enabled)
     if ($requirements.NeedsHyperV) {
+        & $sendProgress 'HyperV' 'Checking Hyper-V feature (may take up to 30s)'
         $hvResult = Test-FFUHyperV
         $result.Tier1Results['HyperV'] = $hvResult
         if ($hvResult.Status -eq 'Passed') {
@@ -3639,6 +3687,7 @@ function Invoke-FFUPreflight {
 
     # VM Resources check (only if CreateVM enabled) - REL-PRE-01
     if ($Features.CreateVM) {
+        & $sendProgress 'VMResources' 'Checking VM resources'
         $vmResourcesResult = Test-FFUVMResources -HypervisorType $HypervisorType
         $result.Tier1Results['VMResources'] = $vmResourcesResult
         if ($vmResourcesResult.Status -eq 'Passed') {
@@ -3670,6 +3719,7 @@ function Invoke-FFUPreflight {
 
     # ADK check (only if needed)
     if ($requirements.NeedsADK) {
+        & $sendProgress 'ADK' 'Checking Windows ADK'
         $adkResult = Test-FFUADK -RequireWinPE $requirements.NeedsWinPE -WindowsArch $WindowsArch
         $result.Tier2Results['ADK'] = $adkResult
         if ($adkResult.Status -eq 'Passed') {
@@ -3690,6 +3740,7 @@ function Invoke-FFUPreflight {
 
     # WIM mount capability check (only if WinPE or DISM operations are needed)
     if ($requirements.NeedsWinPE -or $requirements.NeedsADK) {
+        & $sendProgress 'WimMount' 'Checking WIM mount capability (may take up to 30s)'
         $wimMountResult = Test-FFUWimMount -AttemptRemediation
         $result.Tier2Results['WimMount'] = $wimMountResult
         if ($wimMountResult.Status -eq 'Passed') {
@@ -3719,6 +3770,7 @@ function Invoke-FFUPreflight {
     # vmxtoolkit check (only if using VMware hypervisor)
     # vmxtoolkit is OPTIONAL - vmrun.exe fallback handles all VM operations
     if ($HypervisorType -eq 'VMware') {
+        & $sendProgress 'VmxToolkit' 'Checking vmxtoolkit module'
         $vmxToolkitResult = Test-FFUVmxToolkit -AttemptRemediation
         $result.Tier2Results['VmxToolkit'] = $vmxToolkitResult
         if ($vmxToolkitResult.Status -eq 'Passed') {
@@ -3748,6 +3800,7 @@ function Invoke-FFUPreflight {
 
     # Hyper-V switch conflict check (only if using VMware hypervisor)
     if ($HypervisorType -eq 'VMware') {
+        & $sendProgress 'HyperVSwitchConflict' 'Checking Hyper-V switch conflicts'
         $switchConflictResult = Test-FFUHyperVSwitchConflict -HypervisorType $HypervisorType
         $result.Tier2Results['HyperVSwitchConflict'] = $switchConflictResult
         if ($switchConflictResult.Status -eq 'Passed') {
@@ -3768,8 +3821,9 @@ function Invoke-FFUPreflight {
             -Message 'Hyper-V switch conflict check skipped (not using VMware hypervisor)'
     }
 
-    # VMware bridge configuration check (only if using VMware hypervisor)
-    if ($HypervisorType -eq 'VMware') {
+    # VMware bridge configuration check (only if using VMware with bridged networking)
+    if ($HypervisorType -eq 'VMware' -and $VMwareNetworkType -eq 'bridged') {
+        & $sendProgress 'VMwareBridgeConfig' 'Checking VMware bridge configuration'
         $bridgeConfigResult = Test-FFUVMwareBridgeConfiguration -HypervisorType $HypervisorType
         $result.Tier2Results['VMwareBridgeConfig'] = $bridgeConfigResult
         if ($bridgeConfigResult.Status -eq 'Passed') {
@@ -3794,13 +3848,15 @@ function Invoke-FFUPreflight {
         }
     }
     else {
-        Write-Information "  VMware bridge configuration check... SKIPPED (not using VMware)"
+        $skipReason = if ($HypervisorType -ne 'VMware') { 'not using VMware' } else { "network type is '$VMwareNetworkType', not bridged" }
+        Write-Information "  VMware bridge configuration check... SKIPPED ($skipReason)"
         $result.Tier2Results['VMwareBridgeConfig'] = New-FFUCheckResult -CheckName 'VMwareBridgeConfig' -Status 'Skipped' `
-            -Message 'VMware bridge configuration check skipped (not using VMware hypervisor)'
+            -Message "VMware bridge configuration check skipped ($skipReason)"
     }
 
     # Host IP Address check (when VMware and IP configured) - Phase 30 NET-02 gap closure
     if ($HypervisorType -eq 'VMware' -and -not [string]::IsNullOrWhiteSpace($VMHostIPAddress)) {
+        & $sendProgress 'HostIPAddress' 'Checking host IP address'
         $hostIPResult = Test-FFUHostIPAddress -ConfiguredIP $VMHostIPAddress
         $result.Tier2Results['HostIPAddress'] = $hostIPResult
         if ($hostIPResult.Status -eq 'Passed') {
@@ -3833,6 +3889,7 @@ function Invoke-FFUPreflight {
     }
 
     # Disk space check
+    & $sendProgress 'DiskSpace' 'Checking disk space'
     $diskResult = Test-FFUDiskSpace -FFUDevelopmentPath $FFUDevelopmentPath `
                                     -Features $Features -VHDXSizeGB $VHDXSizeGB
     $result.Tier2Results['DiskSpace'] = $diskResult
@@ -3849,6 +3906,7 @@ function Invoke-FFUPreflight {
 
     # Apps.iso disk space check (when InstallApps is enabled) - Phase 29 DISK-02
     if ($Features.InstallApps) {
+        & $sendProgress 'AppsISODiskSpace' 'Checking Apps.iso disk space'
         $appsISODiskResult = Test-FFUAppsISODiskSpace -AppsPath (Join-Path $FFUDevelopmentPath "Apps") -Features $Features
         $result.Tier2Results['AppsISODiskSpace'] = $appsISODiskResult
         if ($appsISODiskResult.Status -eq 'Passed') {
@@ -3868,6 +3926,7 @@ function Invoke-FFUPreflight {
     }
 
     # Capture location disk space check - fail fast before a 30+ min build wastes time
+    & $sendProgress 'CaptureDiskSpace' 'Checking capture location disk space'
     $captureLocation = if ($FFUCaptureLocation) { $FFUCaptureLocation } else { Join-Path $FFUDevelopmentPath 'FFU' }
     $captureSpaceResult = Test-FFUCaptureDiskSpace -FFUCaptureLocation $captureLocation
     $result.Tier2Results['CaptureDiskSpace'] = $captureSpaceResult
@@ -3887,6 +3946,7 @@ function Invoke-FFUPreflight {
     }
 
     # Scratch space check - REL-PRE-01
+    & $sendProgress 'ScratchSpace' 'Checking scratch space'
     $scratchResult = Test-FFUScratchSpace -FFUDevelopmentPath $FFUDevelopmentPath
     $result.Tier2Results['ScratchSpace'] = $scratchResult
     if ($scratchResult.Status -eq 'Passed') {
@@ -3906,6 +3966,7 @@ function Invoke-FFUPreflight {
 
     # DISM state check (only if ADK operations needed) - REL-PRE-01
     if ($requirements.NeedsADK) {
+        & $sendProgress 'DISMState' 'Checking DISM state'
         $dismStateResult = Test-FFUDISMState -AttemptRemediation
         $result.Tier2Results['DISMState'] = $dismStateResult
         if ($dismStateResult.Status -eq 'Passed') {
@@ -3932,6 +3993,7 @@ function Invoke-FFUPreflight {
 
     # Network check (only if needed)
     if ($requirements.NeedsNetwork) {
+        & $sendProgress 'Network' 'Checking network connectivity'
         $netResult = Test-FFUNetwork -Features $Features
         $result.Tier2Results['Network'] = $netResult
         if ($netResult.Status -eq 'Passed') {
@@ -3961,6 +4023,7 @@ function Invoke-FFUPreflight {
 
     # Configuration file check
     if ($ConfigFile) {
+        & $sendProgress 'Configuration' 'Validating configuration file'
         $configResult = Test-FFUConfigurationFile -ConfigFilePath $ConfigFile
         $result.Tier2Results['Configuration'] = $configResult
         if ($configResult.Status -eq 'Passed') {
@@ -3989,6 +4052,7 @@ function Invoke-FFUPreflight {
     Write-Information "--------------------------------------------"
 
     # Antivirus exclusions check
+    & $sendProgress 'AntivirusExclusions' 'Checking antivirus exclusions'
     $avResult = Test-FFUAntivirusExclusions -FFUDevelopmentPath $FFUDevelopmentPath
     $result.Tier3Results['AntivirusExclusions'] = $avResult
     if ($avResult.Status -eq 'Passed') {
@@ -4015,6 +4079,7 @@ function Invoke-FFUPreflight {
         Write-Information "`n[Tier 4] Pre-Build Cleanup"
         Write-Information "--------------------------"
 
+        & $sendProgress 'DISMCleanup' 'Performing DISM cleanup'
         $cleanupResult = Invoke-FFUDISMCleanup -FFUDevelopmentPath $FFUDevelopmentPath
         $result.Tier4Results['DISMCleanup'] = $cleanupResult
         $result.CleanupPerformed = $cleanupResult.Details.CleanupActions

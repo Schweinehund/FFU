@@ -201,6 +201,9 @@ $window.Add_Loaded({
         catch {
             WriteLog "Auto-load previous environment failed: $($_.Exception.Message)"
         }
+
+        # Auto-run dashboard checks after all controls are initialized
+        Start-DashboardChecks
     })
 
 
@@ -998,6 +1001,16 @@ function Start-DashboardChecks {
         Check results are sent back via FFU.Messaging ConcurrentQueue as structured messages.
     #>
 
+    # Guard: skip dashboard checks if required controls are not present in XAML
+    if ($null -eq $script:uiState.Controls.pnlDashboardProgress -or
+        $null -eq $script:uiState.Controls.btnRefreshChecks -or
+        $null -eq $script:uiState.Controls.txtSummaryStatus) {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Dashboard controls not found in XAML. Skipping pre-flight dashboard checks."
+        }
+        return
+    }
+
     # Show progress panel and disable refresh
     $script:uiState.Controls.pnlDashboardProgress.Visibility = 'Visible'
     $script:uiState.Controls.btnRefreshChecks.IsEnabled = $false
@@ -1006,14 +1019,17 @@ function Start-DashboardChecks {
     Clear-DashboardResults -State $script:uiState
 
     # Hide hypervisor info banner (will be shown again after determining hypervisor type)
-    $script:uiState.Controls.borderHypervisorInfo.Visibility = 'Collapsed'
+    if ($null -ne $script:uiState.Controls.borderHypervisorInfo) {
+        $script:uiState.Controls.borderHypervisorInfo.Visibility = 'Collapsed'
+    }
 
     # Set summary banner to loading state
     $script:uiState.Controls.txtSummaryStatus.Text = 'Checking system readiness...'
 
     # Create messaging context for dashboard (reuse or create new)
     if ($null -eq $script:uiState.Data.dashboardMessagingContext) {
-        $script:uiState.Data.dashboardMessagingContext = New-FFUMessagingContext
+        $script:uiState.Data.dashboardMessagingContext = New-FFUMessagingContext `
+            -EnableFileLogging -LogFilePath $script:uiState.LogFilePath
     }
 
     # Initialize category stats tracking
@@ -1046,8 +1062,12 @@ function Start-DashboardChecks {
     }
 
     # Phase 48: Disable build and export during revalidation (CFG-01 transition behavior)
-    $script:uiState.Controls.btnRun.IsEnabled = $false
-    $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $false
+    if ($null -ne $script:uiState.Controls.btnRun) {
+        $script:uiState.Controls.btnRun.IsEnabled = $false
+    }
+    if ($null -ne $script:uiState.Controls.btnExportDiagnostics) {
+        $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $false
+    }
 
     # Gather feature selections from UI checkboxes
     $features = @{
@@ -1067,12 +1087,26 @@ function Start-DashboardChecks {
         default { 'HyperV' }
     }
 
+    # Determine VMware network type from UI dropdown
+    $vmwareNetworkType = ''
+    if ($hypervisorType -eq 'VMware' -and $null -ne $script:uiState.Controls.cmbVMwareNetworkType) {
+        $selectedItem = $script:uiState.Controls.cmbVMwareNetworkType.SelectedItem
+        if ($null -ne $selectedItem) {
+            # ComboBoxItem returns object; extract .Content for the string value
+            $vmwareNetworkType = if ($selectedItem -is [System.Windows.Controls.ComboBoxItem]) {
+                $selectedItem.Content.ToString().ToLower()
+            } else {
+                $selectedItem.ToString().ToLower()
+            }
+        }
+    }
+
     # Update hypervisor info banner (Phase 47: HYP-04, HYP-05)
     Update-HypervisorCategoryVisibility -State $script:uiState -HypervisorType $hypervisorType
 
     # Launch background job via Start-ThreadJob
     $script:uiState.Data.currentDashboardJob = Start-ThreadJob -ScriptBlock {
-        param($context, $features, $ffuPath, $hypervisorType)
+        param($context, $features, $ffuPath, $hypervisorType, $vmwareNetworkType)
 
         # Add module path for FFU.Preflight and FFU.Messaging
         $modulePath = Join-Path $ffuPath 'Modules'
@@ -1086,11 +1120,18 @@ function Start-DashboardChecks {
         try {
             Write-FFUMessage -Context $context -Message "DASHBOARD_STARTED" -Level Info
 
-            $result = Invoke-FFUPreflight -Features $features `
-                -FFUDevelopmentPath $ffuPath `
-                -HypervisorType $hypervisorType `
-                -SkipCleanup `
-                -ErrorAction Stop
+            $preflightParams = @{
+                Features           = $features
+                FFUDevelopmentPath = $ffuPath
+                HypervisorType     = $hypervisorType
+                SkipCleanup        = $true
+                MessagingContext   = $context
+                ErrorAction        = 'Stop'
+            }
+            if ($vmwareNetworkType) {
+                $preflightParams.VMwareNetworkType = $vmwareNetworkType
+            }
+            $result = Invoke-FFUPreflight @preflightParams
 
             # Send individual check results from all tiers
             $checkNum = 0
@@ -1130,7 +1171,7 @@ function Start-DashboardChecks {
             Write-FFUMessage -Context $context `
                 -Message "DASHBOARD_ERROR|Pre-flight checks failed: $($_.Exception.Message)" -Level Error
         }
-    } -ArgumentList $script:uiState.Data.dashboardMessagingContext, $features, $FFUDevelopmentPath, $hypervisorType
+    } -ArgumentList $script:uiState.Data.dashboardMessagingContext, $features, $FFUDevelopmentPath, $hypervisorType, $vmwareNetworkType
 }
 
 # --------------------------------------------------------------------------
@@ -1156,6 +1197,16 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
 
         if ($msgText -eq 'DASHBOARD_STARTED') {
             # No additional action needed; progress already shown
+            continue
+        }
+
+        if ($msgText -like 'PREFLIGHT_RUNNING|*') {
+            # Real-time progress from inside Invoke-FFUPreflight
+            # Format: PREFLIGHT_RUNNING|{checkName}|{description}
+            $parts = $msgText -split '\|', 3
+            if ($parts.Count -ge 3) {
+                $script:uiState.Controls.txtDashboardProgressStatus.Text = $parts[2] + '...'
+            }
             continue
         }
 
@@ -1253,11 +1304,15 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
                 # Phase 48: Restore dimmed categories and clear staleness (CFG-01, CFG-02)
                 Set-CategoryDimmed -State $script:uiState -Category 'Hypervisor' -IsDimmed $false
                 $script:uiState.Data.resultsStale = $false
-                $script:uiState.Controls.borderStaleResults.Visibility = 'Collapsed'
+                if ($null -ne $script:uiState.Controls.borderStaleResults) {
+                    $script:uiState.Controls.borderStaleResults.Visibility = 'Collapsed'
+                }
                 $script:uiState.Data.lastCheckCompletedAt = [DateTime]::Now
 
                 # Phase 48: Enable Export Diagnostics button after first successful check run (CFG-03)
-                $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $true
+                if ($null -ne $script:uiState.Controls.btnExportDiagnostics) {
+                    $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $true
+                }
 
                 # Reorder categories: failures first, then warnings, then passing
                 $container = $script:uiState.Controls.stackDashboardContainer
@@ -1306,7 +1361,9 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
             # Phase 48: Restore dimmed categories on error
             Set-CategoryDimmed -State $script:uiState -Category 'Hypervisor' -IsDimmed $false
             $script:uiState.Data.resultsStale = $false
-            $script:uiState.Controls.borderStaleResults.Visibility = 'Collapsed'
+            if ($null -ne $script:uiState.Controls.borderStaleResults) {
+                $script:uiState.Controls.borderStaleResults.Visibility = 'Collapsed'
+            }
 
             continue
         }
@@ -1596,13 +1653,15 @@ function Invoke-SingleCheckRefresh {
 # --------------------------------------------------------------------------
 # Refresh button handler: re-runs dashboard checks on click
 # --------------------------------------------------------------------------
-$script:uiState.Controls.btnRefreshChecks.Add_Click({
-    # Don't refresh during active builds
-    if ($script:uiState.Flags.isBuilding) {
-        return
-    }
-    Start-DashboardChecks
-})
+if ($null -ne $script:uiState.Controls.btnRefreshChecks) {
+    $script:uiState.Controls.btnRefreshChecks.Add_Click({
+        # Don't refresh during active builds
+        if ($script:uiState.Flags.isBuilding) {
+            return
+        }
+        Start-DashboardChecks
+    })
+}
 
 # --------------------------------------------------------------------------
 # SECTION: Hypervisor Revalidation (Phase 48: CFG-01, CFG-02)
@@ -1611,92 +1670,91 @@ $script:uiState.Controls.btnRefreshChecks.Add_Click({
 # Cancels any in-progress check, dims affected categories, and restarts checks.
 # --------------------------------------------------------------------------
 
-$script:uiState.Controls.cmbHypervisorType.Add_SelectionChanged({
-    param($sender, $e)
+if ($null -ne $script:uiState.Controls.cmbHypervisorType) {
+    $script:uiState.Controls.cmbHypervisorType.Add_SelectionChanged({
+        param($sender, $e)
 
-    # Ignore initialization event — first fire when WPF sets SelectedIndex during load
-    if ($null -eq $script:uiState.Data.lastHypervisorSelection) {
-        $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
-        return
-    }
+        # Ignore initialization event — first fire when WPF sets SelectedIndex during load
+        if ($null -eq $script:uiState.Data.lastHypervisorSelection) {
+            $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
+            return
+        }
 
-    # Skip if selection didn't actually change (WPF can fire multiple times)
-    if ($sender.SelectedIndex -eq $script:uiState.Data.lastHypervisorSelection) {
-        return
-    }
+        # Skip if selection didn't actually change (WPF can fire multiple times)
+        if ($sender.SelectedIndex -eq $script:uiState.Data.lastHypervisorSelection) {
+            return
+        }
 
-    # Skip if build is running (dashboard disabled during build)
-    if ($script:uiState.Flags.isBuilding) {
-        # Still track the change for staleness when build completes
+        # Skip if build is running (dashboard disabled during build)
+        if ($script:uiState.Flags.isBuilding) {
+            # Still track the change for staleness when build completes
+            $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
+            $script:uiState.Data.hypervisorChangedAt = [DateTime]::Now
+            $script:uiState.Data.resultsStale = $true
+            return
+        }
+
+        # Update tracking state
         $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
         $script:uiState.Data.hypervisorChangedAt = [DateTime]::Now
         $script:uiState.Data.resultsStale = $true
-        return
-    }
 
-    # Update tracking state
-    $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
-    $script:uiState.Data.hypervisorChangedAt = [DateTime]::Now
-    $script:uiState.Data.resultsStale = $true
+        # Show staleness banner immediately
+        $script:uiState.Controls.txtStaleResults.Text = "Hypervisor selection changed `u{2014} rechecking environment..."
+        $script:uiState.Controls.borderStaleResults.Visibility = 'Visible'
 
-    # Show staleness banner immediately
-    $script:uiState.Controls.txtStaleResults.Text = "Hypervisor selection changed `u{2014} rechecking environment..."
-    $script:uiState.Controls.borderStaleResults.Visibility = 'Visible'
-
-    # Cancel in-progress check job if running (cancel-and-restart per user decision)
-    if ($null -ne $script:uiState.Data.currentDashboardJob) {
-        try {
-            Stop-Job -Job $script:uiState.Data.currentDashboardJob -ErrorAction SilentlyContinue
-            Remove-Job -Job $script:uiState.Data.currentDashboardJob -Force -ErrorAction SilentlyContinue
+        # Cancel in-progress check job if running (cancel-and-restart per user decision)
+        if ($null -ne $script:uiState.Data.currentDashboardJob) {
+            try {
+                Stop-Job -Job $script:uiState.Data.currentDashboardJob -ErrorAction SilentlyContinue
+                Remove-Job -Job $script:uiState.Data.currentDashboardJob -Force -ErrorAction SilentlyContinue
+            }
+            catch {
+                # Silently handle cleanup errors (job may have already completed)
+            }
+            $script:uiState.Data.currentDashboardJob = $null
         }
-        catch {
-            # Silently handle cleanup errors (job may have already completed)
-        }
-        $script:uiState.Data.currentDashboardJob = $null
-    }
 
-    # Restart checks with new hypervisor selection
-    Start-DashboardChecks
-}.GetNewClosure())
+        # Restart checks with new hypervisor selection
+        Start-DashboardChecks
+    }.GetNewClosure())
+}
 
 # --------------------------------------------------------------------------
 # SECTION: Export Diagnostics (Phase 48: CFG-03)
 # --------------------------------------------------------------------------
-$script:uiState.Controls.btnExportDiagnostics.Add_Click({
-    try {
-        # Disable button during export to prevent double-click
-        $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $false
-        $script:uiState.Controls.btnExportDiagnostics.Content = 'Exporting...'
+if ($null -ne $script:uiState.Controls.btnExportDiagnostics) {
+    $script:uiState.Controls.btnExportDiagnostics.Add_Click({
+        try {
+            # Disable button during export to prevent double-click
+            $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $false
+            $script:uiState.Controls.btnExportDiagnostics.Content = 'Exporting...'
 
-        # Call Export-DashboardDiagnostics (returns file path)
-        $outputPath = Export-DashboardDiagnostics -State $script:uiState
+            # Call Export-DashboardDiagnostics (returns file path)
+            $outputPath = Export-DashboardDiagnostics -State $script:uiState
 
-        # Show success confirmation with file path
-        [System.Windows.MessageBox]::Show(
-            "Diagnostics exported successfully:`n`n$outputPath",
-            'Export Complete',
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Information
-        )
-    }
-    catch {
-        [System.Windows.MessageBox]::Show(
-            "Failed to export diagnostics:`n$($_.Exception.Message)",
-            'Export Failed',
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Error
-        )
-    }
-    finally {
-        # Re-enable button and restore text
-        $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $true
-        $script:uiState.Controls.btnExportDiagnostics.Content = 'Export Diagnostics'
-    }
-}.GetNewClosure())
-
-# --------------------------------------------------------------------------
-# Auto-run dashboard checks on launch (non-blocking via ThreadJob)
-# --------------------------------------------------------------------------
-Start-DashboardChecks
+            # Show success confirmation with file path
+            [System.Windows.MessageBox]::Show(
+                "Diagnostics exported successfully:`n`n$outputPath",
+                'Export Complete',
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Information
+            )
+        }
+        catch {
+            [System.Windows.MessageBox]::Show(
+                "Failed to export diagnostics:`n$($_.Exception.Message)",
+                'Export Failed',
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Error
+            )
+        }
+        finally {
+            # Re-enable button and restore text
+            $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $true
+            $script:uiState.Controls.btnExportDiagnostics.Content = 'Export Diagnostics'
+        }
+    }.GetNewClosure())
+}
 
 [void]$window.ShowDialog()

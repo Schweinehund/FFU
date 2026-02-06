@@ -753,3 +753,263 @@ Describe 'Invoke-WimMountWithErrorHandling Documentation' -Tag 'Unit', 'FFU.Core
         }
     }
 }
+
+# =============================================================================
+# Additional Error Code Tests (Phase 2 - Extended Coverage)
+# =============================================================================
+
+Describe 'Invoke-WimMountWithErrorHandling Additional Error Codes' -Tag 'Unit', 'FFU.Core', 'WimMount', 'ErrorCodes' {
+
+    BeforeEach {
+        Mock -CommandName WriteLog -MockWith { } -ModuleName 'FFU.Core'
+    }
+
+    Context 'Error 0x80070020 - File In Use (Sharing Violation)' {
+        It 'Should handle 0x80070020 error (file in use) as non-WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                # ERROR_SHARING_VIOLATION = 0x80070020 = -2147024864 signed
+                $exception = New-Object System.ComponentModel.Win32Exception(-2147024864)
+                throw $exception
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            # Should NOT be treated as WIMMount error (this is a file lock issue)
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+            $error.Exception.Message | Should -Match 'Mount-WindowsImage failed'
+        }
+
+        It 'Should handle 0x80070020 error message pattern' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "The process cannot access the file because it is being used by another process. Error: 0x80070020"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            # Should NOT be treated as WIMMount error
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should include image path in file-in-use error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "The process cannot access the file because it is being used by another process"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\locked.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Match 'C:\\locked\.wim'
+        }
+    }
+
+    Context 'Error 0x800F081F - Image Not Found (CBS_E_SOURCE_MISSING)' {
+        It 'Should handle 0x800F081F error (source not found) as non-WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                # CBS_E_SOURCE_MISSING = 0x800F081F = -2146498529 signed
+                $exception = New-Object System.Exception("The source files could not be found. Error: 0x800F081F")
+                throw $exception
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\missing.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            # Should NOT be treated as WIMMount error
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+            $error.Exception.Message | Should -Match 'Mount-WindowsImage failed'
+        }
+
+        It 'Should handle 0x800F081F error message (lowercase)' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error 0x800f081f: The source files could not be found"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should include original error in context for source missing error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "The source files could not be found"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Match 'source files could not be found'
+        }
+    }
+
+    Context 'Error 0xC1420117 - Mount Path Already In Use' {
+        It 'Should handle 0xC1420117 error (mount path in use) as non-WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                # DISMAPI_E_MOUNT_DIR_IN_USE = 0xC1420117 = -1052704489 signed
+                $exception = New-Object System.Exception("The specified mount path is already in use. Error: 0xC1420117")
+                throw $exception
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            # Should NOT be treated as WIMMount error (this is a mount path conflict)
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+            $error.Exception.Message | Should -Match 'Mount-WindowsImage failed'
+        }
+
+        It 'Should handle 0xC1420117 error message (lowercase)' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error 0xc1420117: Mount directory is already in use"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should include mount path in error for mount path conflict' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Mount directory is already in use"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\occupied\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Match 'C:\\occupied\\mount'
+        }
+    }
+
+    Context 'Error 0x80070005 - Access Denied' {
+        It 'Should handle 0x80070005 error (access denied) as non-WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                # E_ACCESSDENIED = 0x80070005 = -2147024891 signed
+                $exception = New-Object System.ComponentModel.Win32Exception(5) # Access Denied
+                throw $exception
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+            $error.Exception.Message | Should -Match 'Mount-WindowsImage failed'
+        }
+    }
+
+    Context 'Error 0x80070070 - Insufficient Disk Space' {
+        It 'Should handle 0x80070070 error (disk full) as non-WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                # ERROR_DISK_FULL = 0x80070070 = -2147024784 signed
+                throw "There is not enough space on the disk. Error: 0x80070070"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+    }
+
+    Context 'Confirm WIMMount Detection Still Works' {
+        It 'Should still detect 0x800704DB (service does not exist) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                # ERROR_SERVICE_DOES_NOT_EXIST = 0x800704DB
+                $exception = New-Object System.ComponentModel.Win32Exception(-2147023653)
+                throw $exception
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            # This SHOULD be treated as WIMMount error
+            $error.Exception.Message | Should -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should still detect "specified service does not exist" message as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "The specified service does not exist as an installed service"
+            } -ModuleName 'FFU.Core'
+
+            $error = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+            $error.Exception.Message | Should -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+    }
+}
+
+# =============================================================================
+# Error Code Classification Tests
+# =============================================================================
+
+Describe 'Invoke-WimMountWithErrorHandling Error Classification' -Tag 'Unit', 'FFU.Core', 'WimMount', 'Classification' {
+
+    BeforeEach {
+        Mock -CommandName WriteLog -MockWith { } -ModuleName 'FFU.Core'
+    }
+
+    Context 'WIMMount vs Non-WIMMount Error Classification' {
+        It 'Should NOT classify 0x80070020 (sharing violation) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error occurred: 0x80070020"
+            } -ModuleName 'FFU.Core'
+
+            $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+            $result.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should NOT classify 0x800F081F (source missing) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error occurred: 0x800F081F"
+            } -ModuleName 'FFU.Core'
+
+            $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+            $result.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should NOT classify 0xC1420117 (mount path in use) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error occurred: 0xC1420117"
+            } -ModuleName 'FFU.Core'
+
+            $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+            $result.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should NOT classify 0x80070005 (access denied) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error occurred: 0x80070005"
+            } -ModuleName 'FFU.Core'
+
+            $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+            $result.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should NOT classify 0x80070070 (disk full) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error occurred: 0x80070070"
+            } -ModuleName 'FFU.Core'
+
+            $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+            $result.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should NOT classify 0x80070002 (file not found) as WIMMount error' {
+            Mock -CommandName Mount-WindowsImage -MockWith {
+                throw "Error occurred: 0x80070002"
+            } -ModuleName 'FFU.Core'
+
+            $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+            $result.Exception.Message | Should -Not -Match 'MOUNT FAILED: WIMMount filter driver'
+        }
+
+        It 'Should only classify specific error patterns as WIMMount errors' {
+            # WIMMount error patterns (should trigger WIMMount remediation)
+            $wimMountPatterns = @(
+                'The specified service does not exist',
+                '0x800704DB',
+                '0x800704db'
+            )
+
+            foreach ($pattern in $wimMountPatterns) {
+                Mock -CommandName Mount-WindowsImage -MockWith {
+                    throw $using:pattern
+                }.GetNewClosure() -ModuleName 'FFU.Core'
+
+                $result = { Invoke-WimMountWithErrorHandling -ImagePath 'C:\test.wim' -Path 'C:\mount' } | Should -Throw -PassThru
+
+                # Verify it IS classified as WIMMount error
+                $result.Exception.Message | Should -Match 'MOUNT FAILED: WIMMount filter driver' -Because "Pattern '$pattern' should be classified as WIMMount error"
+            }
+        }
+    }
+}
