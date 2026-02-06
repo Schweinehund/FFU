@@ -8,6 +8,45 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.3 - Config-Aware Revalidation (Phase 48, 2026-02-06) — v1.11.0 Milestone Complete
+
+### Phase 48: Config-Aware Revalidation (v1.11.3)
+*Date: 2026-02-06*
+
+### Config-Aware Revalidation (CFG-01)
+- Dashboard automatically re-runs all checks when hypervisor dropdown changes in VM Settings
+- Cancel-and-restart: changing hypervisor again during revalidation cancels current run and restarts
+- Hypervisor category dimmed (50% opacity) during revalidation with "(rechecking...)" text
+- Progress bar reappears during revalidation consistent with initial launch
+- Build button disabled during revalidation, re-enabled with correct state on completion
+
+### Staleness Detection (CFG-02)
+- Amber banner appears immediately on hypervisor change: "Hypervisor selection changed — rechecking environment..."
+- Banner auto-hides when checks complete and results are current
+- Config-change only (no time-based staleness) per design decision
+- Tracks hypervisor change timestamps for elapsed time display
+
+### Diagnostics Export (CFG-03)
+- "Export Diagnostics" button on dashboard (next to Refresh Checks)
+- Generates timestamped .txt file in FFUDevelopment\Logs folder
+- Includes: OS version, PowerShell version, FFU Builder version, selected hypervisor, disk space
+- Includes: all check results with pass/fail/warning status, severity, and duration
+- Button disabled until first check completes (prevents empty reports)
+- Success confirmation shows exact file path
+
+### Modules Updated
+- FFUUI.Core v0.3.0: Export-DashboardDiagnostics, Get-HypervisorDependentChecks, Set-CategoryDimmed
+
+### v1.11.0 Milestone Summary
+This release completes the v1.11.0 Readiness Dashboard & Optional Hyper-V milestone:
+- Phase 45: DISM Resilience Formalization (3 requirements)
+- Phase 46: Dashboard Foundation (8 requirements)
+- Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
+- Phase 48: Config-Aware Revalidation (3 requirements)
+Total: 23/23 requirements, 16 plans, 4 phases
+
+---
+
 ## v1.11.2 - Hypervisor Conditional Logic & Auto-Remediation (Phase 47, 2026-02-06)
 
 ### Phase 47: Hypervisor Conditional Logic & Auto-Remediation (v1.11.2)

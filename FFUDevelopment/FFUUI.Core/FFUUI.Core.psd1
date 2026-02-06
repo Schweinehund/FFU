@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.2.0'
+ModuleVersion = '0.3.0'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -123,6 +123,14 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.3.0: Phase 48 - Config-Aware Revalidation & Diagnostics Export
+- NEW: Export-DashboardDiagnostics - Generates timestamped .txt diagnostics report
+- NEW: Get-HypervisorDependentChecks - Identifies hypervisor-dependent check scope
+- NEW: Set-CategoryDimmed - Visual dimming for categories during revalidation
+- Revalidation triggered on hypervisor dropdown change (cancel-and-restart)
+- Staleness banner with amber indicator when config changes
+- Export button disabled until first check completes
+
 v0.2.0: Phase 47 - Hypervisor conditional logic & auto-remediation
 - NEW: Update-HypervisorCategoryVisibility - Shows/hides hypervisor info banner
 - NEW: Invoke-DashboardRemediation - Executes safe repair functions

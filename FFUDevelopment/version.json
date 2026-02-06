@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.11.2",
+    "version": "1.11.3",
     "buildDate": "2026-02-06",
 
     "versioningPolicy": {
@@ -24,9 +24,9 @@
             "description": "Structured logging with levels, JSON output, session correlation"
         },
         "FFUUI.Core": {
-            "version": "0.2.0",
+            "version": "0.3.0",
             "path": "FFUUI.Core/FFUUI.Core.psd1",
-            "description": "Phase 47 - Hypervisor conditional logic & auto-remediation (4 new functions, enhanced dashboard UI)"
+            "description": "Phase 48 - Config-aware revalidation, diagnostics export, hypervisor-dependent check mapping"
         },
         "FFU.Core": {
             "version": "1.0.27",
