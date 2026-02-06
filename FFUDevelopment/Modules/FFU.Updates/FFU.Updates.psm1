@@ -1591,6 +1591,34 @@ function Add-WindowsPackageWithRetry {
             Add-WindowsPackageWithUnattend -Path $Path -PackagePath $PackagePath
             $success = $true
             WriteLog "Package $packageName applied successfully on attempt $attempt"
+
+            # Post-update DISM validation (DISM-01/DISM-02 Phase 45)
+            # Hard stop on degradation - prevents cascading failures from corrupted DISM state
+            # Recovery is NOT attempted mid-build (image is mounted, service restart is unsafe)
+            if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismFunctional', 'Function')) {
+                WriteLog "Validating DISM health after package application ($packageName)..."
+                if (-not (Test-DismFunctional)) {
+                    $errorMsg = @"
+DISM SERVICE DEGRADED after KB install
+=======================================
+KB Package: $packageName
+Operation: Add-WindowsPackageWithRetry (attempt $attempt)
+
+WIMMount service entered degraded state after update installation.
+Further DISM operations will fail or hang. Build halted to prevent cascading failures.
+
+Remediation Steps (after build cleanup completes):
+1. Ensure all images unmounted: Get-WindowsImage -Mounted | ForEach-Object { Dismount-WindowsImage -Path `$_.Path -Discard }
+2. Clean DISM mountpoints: dism.exe /Cleanup-Mountpoints
+3. Restart WIMMount service: Restart-Service wimmount -Force
+4. Retry build from clean state
+5. If issue persists, reboot system
+"@
+                    WriteLog "ERROR: $errorMsg"
+                    throw "DISM SERVICE DEGRADED after $packageName install. Build halted. See log for remediation steps."
+                }
+                WriteLog "DISM post-install validation PASSED - service remains functional after $packageName"
+            }
         }
         catch {
             WriteLog "ERROR: Attempt $attempt failed for package $packageName - $($_.Exception.Message)"
@@ -1664,8 +1692,18 @@ function Add-WindowsPackageWithUnattend {
         if (-not (Test-DismReady)) {
             throw "WIMMount filter driver is not functional. Cannot apply CAB package."
         }
+        WriteLog "DISM pre-check PASSED for CAB application: $packageName"
         Add-WindowsPackage -Path $Path -PackagePath $PackagePath | Out-Null
         WriteLog "Package $packageName applied successfully"
+
+        # DISM-02 Phase 45: Validate DISM functional after package application
+        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismFunctional', 'Function')) {
+            WriteLog "Validating DISM health after CAB application ($packageName)..."
+            if (-not (Test-DismFunctional)) {
+                throw "DISM SERVICE DEGRADED after CAB $packageName. WIMMount service entered degraded state. Build halted."
+            }
+            WriteLog "DISM post-install validation PASSED after CAB $packageName"
+        }
         return
     }
 
@@ -1818,6 +1856,7 @@ function Add-WindowsPackageWithUnattend {
                 if (-not (Test-DismReady)) {
                     throw "WIMMount filter driver is not functional. Cannot apply MSU package directly."
                 }
+                WriteLog "DISM pre-check PASSED for direct MSU application: $packageName"
                 try {
                     Add-WindowsPackage -Path $Path -PackagePath $PackagePath -ErrorAction Stop | Out-Null
                     WriteLog "Package $packageName applied successfully (direct method)"
@@ -1913,9 +1952,19 @@ function Add-WindowsPackageWithUnattend {
                         WriteLog "CRITICAL: WIMMount filter driver failed before applying CAB: $($cabFile.Name)"
                         throw "WIMMount filter driver is not functional. Cannot apply CAB package."
                     }
+                    WriteLog "DISM pre-check PASSED for extracted CAB application: $($cabFile.Name)"
                     try {
                         Add-WindowsPackage -Path $Path -PackagePath $cabFile.FullName -ErrorAction Stop | Out-Null
                         WriteLog "CAB $($cabFile.Name) applied successfully"
+
+                        # DISM-02 Phase 45: Validate DISM functional after package application
+                        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismFunctional', 'Function')) {
+                            WriteLog "Validating DISM health after CAB application ($($cabFile.Name))..."
+                            if (-not (Test-DismFunctional)) {
+                                throw "DISM SERVICE DEGRADED after CAB $($cabFile.Name). WIMMount service entered degraded state. Build halted."
+                            }
+                            WriteLog "DISM post-install validation PASSED after CAB $($cabFile.Name)"
+                        }
                     }
                     catch {
                         # Check if error is "package already installed" (not an error for us)
