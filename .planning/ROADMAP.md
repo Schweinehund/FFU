@@ -68,10 +68,12 @@ Transform FFU Builder's Home tab from placeholder text into a live pre-flight re
 4. All DISM operations log clear actionable errors when validation fails
 5. User sees "DISM service unavailable - remediation required" messages instead of cryptic 0x800704db errors
 
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 45-01: TBD during planning
+- [ ] 45-01-PLAN.md — Debug mode infrastructure + DISM startup gate in BuildFFUVM.ps1
+- [ ] 45-02-PLAN.md — Harden post-KB checks (hard stop) in FFU.Updates + add missing DISM checks in FFU.Media
+- [ ] 45-03-PLAN.md — Version bumps, Pester tests, changelog, and verify-app
 
 ---
 
@@ -151,7 +153,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 45. DISM Resilience Formalization | v1.11.0 | 0/TBD | Not started | - |
+| 45. DISM Resilience Formalization | v1.11.0 | 0/3 | Planned | - |
 | 46. Dashboard Foundation | v1.11.0 | 0/TBD | Not started | - |
 | 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 0/TBD | Not started | - |
 | 48. Config-Aware Revalidation | v1.11.0 | 0/TBD | Not started | - |
