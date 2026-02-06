@@ -82,6 +82,127 @@ $script:FriendlyNames = @{
 $script:AllCategories = @('System', 'Hypervisor', 'BuildTools', 'Network', 'Optimization')
 
 # --------------------------------------------------------------------------
+# SECTION: Remediation Mappings and Helpers
+# --------------------------------------------------------------------------
+
+# Map of check names to safe repair function names
+# These repairs can be executed without reboot or major system changes
+$script:SafeRepairMap = @{
+    'WimMount'    = 'Repair-FFUWimMount'
+    'DISMState'   = 'Repair-FFUDismState'
+    'DISMCleanup' = 'Invoke-FFUDISMCleanup'
+    'Network'     = 'Repair-FFUNetwork'
+}
+
+# Map of check names to unsafe remediation details
+# These require reboot or major system changes
+$script:UnsafeRemediationMap = @{
+    'HyperV' = @{
+        Command = 'Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart'
+        RequiresReboot = $true
+        ConfirmTitle = 'Confirm System Change'
+        ConfirmMessage = "This will enable Hyper-V on your system.`n`nCommand to run:`n  Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart`n`nA system reboot is required to complete the installation.`nThe build cannot proceed until the system is restarted.`n`nContinue?"
+        SuccessMessage = 'Hyper-V has been enabled. Please reboot your system to complete the installation.'
+    }
+}
+
+function Extract-PowerShellCommands {
+    <#
+    .SYNOPSIS
+        Extracts PowerShell command lines from remediation text.
+
+    .DESCRIPTION
+        Parses the FIX section from New-FFURemediationBlock formatted remediation
+        text and returns an array of executable PowerShell command lines.
+
+        Looks for the "=== FIX ===" section, extracts indented command lines,
+        and filters out comment lines and blank lines.
+
+    .PARAMETER RemediationText
+        The formatted remediation text from a check result.
+
+    .OUTPUTS
+        [string[]] - Array of PowerShell command strings, or the full remediation
+        text if parsing fails.
+
+    .EXAMPLE
+        $commands = Extract-PowerShellCommands -RemediationText $check.Remediation
+        # Returns: @('Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All')
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RemediationText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RemediationText)) {
+        return @()
+    }
+
+    # Find text between "=== FIX ===" and the next section marker
+    if ($RemediationText -match '(?s)=== FIX ===.*?\n\n(.*?)(?:Manual steps:|=== VERIFY ===|$)') {
+        $commandBlock = $matches[1]
+
+        # Split by newlines and extract command lines
+        $commands = $commandBlock -split '\r?\n' |
+            Where-Object {
+                # Keep lines that are indented (4+ spaces) and not comments
+                $trimmed = $_.Trim()
+                $_ -match '^\s{4,}' -and
+                -not [string]::IsNullOrWhiteSpace($trimmed) -and
+                -not $trimmed.StartsWith('#')
+            } |
+            ForEach-Object { $_.Trim() }
+
+        if ($commands.Count -gt 0) {
+            return $commands
+        }
+    }
+
+    # Fallback: return the full remediation text as a single item
+    return @($RemediationText)
+}
+
+function Format-CheckDuration {
+    <#
+    .SYNOPSIS
+        Formats check duration in milliseconds as a display string.
+
+    .DESCRIPTION
+        Converts a duration in milliseconds to a formatted string like " (1.2s)".
+        Returns an empty string if duration is 0 or negative.
+
+    .PARAMETER DurationMs
+        The duration in milliseconds.
+
+    .OUTPUTS
+        [string] - Formatted duration string with 1 decimal precision, or empty string.
+
+    .EXAMPLE
+        Format-CheckDuration -DurationMs 1234
+        # Returns: " (1.2s)"
+
+    .EXAMPLE
+        Format-CheckDuration -DurationMs 0
+        # Returns: ""
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter()]
+        [int]$DurationMs = 0
+    )
+
+    if ($DurationMs -le 0) {
+        return ''
+    }
+
+    $seconds = [Math]::Round($DurationMs / 1000.0, 1)
+    return " (${seconds}s)"
+}
+
+# --------------------------------------------------------------------------
 # SECTION: Public Functions
 # --------------------------------------------------------------------------
 
