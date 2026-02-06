@@ -1160,11 +1160,14 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
                 $remediation = if ($parts.Count -ge 6) { $parts[5] } else { '' }
                 $durationMs = if ($parts.Count -ge 7) { [int]$parts[6] } else { 0 }
 
-                # Resolve category and update UI (Phase 47: REM-04 - pass DurationMs)
+                # Resolve category and update UI (Phase 47: REM-04 - pass DurationMs and handler scriptblocks)
                 $category = Get-CheckCategory -CheckName $name
                 Update-DashboardCheckUI -State $script:uiState -CheckName $name `
                     -Status $status -Severity $severity -Message $message -Remediation $remediation `
-                    -DurationMs $durationMs
+                    -DurationMs $durationMs `
+                    -OnFixClick $script:onFixClickHandler `
+                    -OnUnsafeFixClick $script:onUnsafeFixClickHandler `
+                    -OnCopyClick $script:onCopyClickHandler
 
                 # Track category stats
                 $stats = $script:uiState.Data.dashboardCategoryStats[$category]
@@ -1275,6 +1278,270 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
 
 # Start the dashboard poll timer
 $script:uiState.Data.dashboardPollTimer.Start()
+
+# --------------------------------------------------------------------------
+# SECTION: Dashboard Button Click Handler Scriptblocks (Phase 47: REM-01, REM-02, REM-03)
+# --------------------------------------------------------------------------
+# These scriptblocks are passed to Update-DashboardCheckUI via -OnFixClick,
+# -OnUnsafeFixClick, and -OnCopyClick parameters. Buttons are wired at creation time.
+# --------------------------------------------------------------------------
+
+$script:onFixClickHandler = {
+    param($sender, $e)
+    $cn = $sender.Tag  # CheckName stored in Tag by Update-DashboardCheckUI
+
+    try {
+        # Disable button and show fixing state
+        $sender.Content = 'Fixing...'
+        $sender.IsEnabled = $false
+        $sender.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#E0E0E0')
+
+        # Execute repair in ThreadJob to avoid blocking UI
+        $repairJob = Start-ThreadJob -ScriptBlock {
+            param($checkName, $ffuPath)
+            $modulePath = Join-Path $ffuPath 'Modules'
+            if ($env:PSModulePath -notlike "*$modulePath*") {
+                $env:PSModulePath = "$modulePath;$env:PSModulePath"
+            }
+            $ffuuiPath = Join-Path $ffuPath 'FFUUI.Core'
+            Import-Module (Join-Path $ffuuiPath 'FFUUI.Core.psd1') -Force -ErrorAction SilentlyContinue
+            Import-Module FFU.Preflight -Force
+
+            Invoke-DashboardRemediation -CheckName $checkName -FFUDevelopmentPath $ffuPath
+        } -ArgumentList $cn, $script:FFUDevelopmentPath
+
+        # Poll for repair completion using DispatcherTimer (500ms)
+        $repairTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $repairTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+        $repairTimer.Tag = @{ Job = $repairJob; Button = $sender; CheckName = $cn }
+        $repairTimer.Add_Tick({
+            param($timerSender, $timerE)
+            $job = $timerSender.Tag.Job
+            $btn = $timerSender.Tag.Button
+            $cn = $timerSender.Tag.CheckName
+
+            if ($job.State -in @('Completed', 'Failed', 'Stopped')) {
+                $timerSender.Stop()
+                $repairResult = $null
+                try {
+                    $repairResult = Receive-Job -Job $job -ErrorAction SilentlyContinue
+                    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+                } catch { }
+
+                $succeeded = $false
+                if ($null -ne $repairResult -and $repairResult.PSObject.Properties['Succeeded']) {
+                    $succeeded = $repairResult.Succeeded
+                }
+
+                if ($succeeded) {
+                    $btn.Content = 'Fixed!'
+                    $btn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#C8E6C9')
+                    Invoke-SingleCheckRefresh -CheckName $cn -State $script:uiState
+                } else {
+                    # Repair failed — re-enable Fix button for retry
+                    $btn.Content = 'Fix'
+                    $btn.IsEnabled = $true
+                    $btn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#C8E6C9')
+                    $errorMsg = if ($null -ne $repairResult -and $repairResult.PSObject.Properties['Message']) { $repairResult.Message } else { 'Repair failed' }
+                    $btn.ToolTip = $errorMsg
+                }
+            }
+        })
+        $repairTimer.Start()
+    } catch {
+        # Error handling: reset button state and show error to user
+        $sender.Content = 'Fix'
+        $sender.IsEnabled = $true
+        $sender.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#C8E6C9')
+        $sender.ToolTip = "Fix failed: $($_.Exception.Message)"
+    }
+}.GetNewClosure()
+
+$script:onUnsafeFixClickHandler = {
+    param($sender, $e)
+    $cn = $sender.Tag  # CheckName stored in Tag
+
+    try {
+        $unsafeMap = Get-UnsafeRemediationMap
+        $info = $unsafeMap[$cn]
+        if ($null -eq $info) { return }
+
+        $result = [System.Windows.MessageBox]::Show(
+            $info.ConfirmMessage,
+            $info.ConfirmTitle,
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Warning
+        )
+
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            $sender.Content = 'Fixing...'
+            $sender.IsEnabled = $false
+
+            try {
+                Invoke-Expression $info.Command
+                [System.Windows.MessageBox]::Show(
+                    $info.SuccessMessage,
+                    'Reboot Required',
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information
+                )
+            } catch {
+                [System.Windows.MessageBox]::Show(
+                    "Failed to execute: $($_.Exception.Message)",
+                    'Error',
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Error
+                )
+                # Reset button state on failure
+                $sender.Content = 'Fix...'
+                $sender.IsEnabled = $true
+            }
+        } else {
+            # User declined — show "Fix available" indicator
+            if ($null -ne $script:uiState.Data) {
+                $script:uiState.Data."fixDeclined_$cn" = $true
+            }
+            $sender.Content = 'Fix available'
+            $sender.FontStyle = [System.Windows.FontStyles]::Italic
+            $sender.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#1565C0')
+            $sender.Background = [System.Windows.Media.Brushes]::Transparent
+            $sender.BorderThickness = [System.Windows.Thickness]::new(0)
+        }
+    } catch {
+        # Error handling: reset button state and show error
+        $sender.Content = 'Fix...'
+        $sender.IsEnabled = $true
+        [System.Windows.MessageBox]::Show(
+            "Unexpected error: $($_.Exception.Message)",
+            'Error',
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error
+        )
+    }
+}.GetNewClosure()
+
+$script:onCopyClickHandler = {
+    param($sender, $e)
+    $cn = $sender.Tag  # CheckName stored in Tag
+
+    try {
+        # Find the associated TextBox in the same parent panel
+        $parent = $sender.Parent
+        if ($null -ne $parent) {
+            foreach ($child in $parent.Children) {
+                if ($child -is [System.Windows.Controls.TextBox] -and $child.Name -eq "txtRemediation_$cn") {
+                    [System.Windows.Clipboard]::SetText($child.Text)
+                    $originalContent = $sender.Content
+                    $sender.Content = 'Copied!'
+
+                    # Reset after 2 seconds using DispatcherTimer
+                    $resetTimer = [System.Windows.Threading.DispatcherTimer]::new()
+                    $resetTimer.Interval = [TimeSpan]::FromSeconds(2)
+                    $resetTimer.Tag = @{ Button = $sender; OriginalContent = $originalContent }
+                    $resetTimer.Add_Tick({
+                        param($ts, $te)
+                        $ts.Tag.Button.Content = $ts.Tag.OriginalContent
+                        $ts.Stop()
+                    })
+                    $resetTimer.Start()
+                    break
+                }
+            }
+        }
+    } catch {
+        # Error handling: show error on button and reset
+        $sender.Content = 'Error!'
+        $sender.ToolTip = "Copy failed: $($_.Exception.Message)"
+        # Reset after 2 seconds
+        $resetTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $resetTimer.Interval = [TimeSpan]::FromSeconds(2)
+        $resetTimer.Tag = @{ Button = $sender }
+        $resetTimer.Add_Tick({
+            param($ts, $te)
+            $ts.Tag.Button.Content = 'Copy'
+            $ts.Tag.Button.ToolTip = $null
+            $ts.Stop()
+        })
+        $resetTimer.Start()
+    }
+}.GetNewClosure()
+
+function Invoke-SingleCheckRefresh {
+    <#
+    .SYNOPSIS
+        Re-runs a single dashboard check after a successful repair.
+    .DESCRIPTION
+        Launches a ThreadJob to execute the specific Test-FFU* function for the given
+        check name, polls for completion, and updates the dashboard UI with the new result.
+    .PARAMETER CheckName
+        The check name (e.g., 'WimMount', 'DISMState').
+    .PARAMETER State
+        The UI state object containing Controls and Data hashtables.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$CheckName,
+        [PSCustomObject]$State
+    )
+    try {
+        $refreshJob = Start-ThreadJob -ScriptBlock {
+            param($checkName, $ffuPath)
+            $modulePath = Join-Path $ffuPath 'Modules'
+            if ($env:PSModulePath -notlike "*$modulePath*") {
+                $env:PSModulePath = "$modulePath;$env:PSModulePath"
+            }
+            Import-Module FFU.Preflight -Force
+
+            $funcName = "Test-FFU$checkName"
+            $result = & $funcName
+            return $result
+        } -ArgumentList $CheckName, $script:FFUDevelopmentPath
+
+        $refreshTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $refreshTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+        $refreshTimer.Tag = @{ Job = $refreshJob; CheckName = $CheckName; State = $State }
+        $refreshTimer.Add_Tick({
+            param($ts, $te)
+            $job = $ts.Tag.Job
+            $cn = $ts.Tag.CheckName
+            $state = $ts.Tag.State
+
+            if ($job.State -in @('Completed', 'Failed', 'Stopped')) {
+                $ts.Stop()
+                $checkResult = $null
+                try {
+                    $checkResult = Receive-Job -Job $job -ErrorAction SilentlyContinue
+                    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+                } catch { }
+
+                if ($null -ne $checkResult) {
+                    $category = Get-CheckCategory -CheckName $cn
+                    $panel = $state.Controls."pnl${category}Checks"
+                    if ($null -ne $panel) {
+                        $severity = if ($checkResult.PSObject.Properties['Severity']) { $checkResult.Severity } else { 'Info' }
+                        $remediation = if ($checkResult.PSObject.Properties['Remediation']) { $checkResult.Remediation } else { '' }
+                        $durationMs = if ($checkResult.PSObject.Properties['DurationMs']) { $checkResult.DurationMs } else { 0 }
+
+                        # Pass handler scriptblocks so new buttons are wired at creation time
+                        Update-DashboardCheckUI -State $state -CheckName $cn `
+                            -Status $checkResult.Status -Severity $severity `
+                            -Message $checkResult.Message -Remediation $remediation `
+                            -DurationMs $durationMs `
+                            -OnFixClick $script:onFixClickHandler `
+                            -OnUnsafeFixClick $script:onUnsafeFixClickHandler `
+                            -OnCopyClick $script:onCopyClickHandler
+                    }
+                }
+            }
+        })
+        $refreshTimer.Start()
+    } catch {
+        # If refresh fails, log but don't crash — user can click Refresh manually
+        if ($function:WriteLog) {
+            WriteLog "WARNING: Single check refresh failed for $CheckName`: $($_.Exception.Message)"
+        }
+    }
+}
 
 # --------------------------------------------------------------------------
 # Refresh button handler: re-runs dashboard checks on click
