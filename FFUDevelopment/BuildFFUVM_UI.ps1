@@ -1605,6 +1605,96 @@ $script:uiState.Controls.btnRefreshChecks.Add_Click({
 })
 
 # --------------------------------------------------------------------------
+# SECTION: Hypervisor Revalidation (Phase 48: CFG-01, CFG-02)
+# --------------------------------------------------------------------------
+# Fires when user changes hypervisor dropdown in VM Settings tab.
+# Cancels any in-progress check, dims affected categories, and restarts checks.
+# --------------------------------------------------------------------------
+
+$script:uiState.Controls.cmbHypervisorType.Add_SelectionChanged({
+    param($sender, $e)
+
+    # Ignore initialization event — first fire when WPF sets SelectedIndex during load
+    if ($null -eq $script:uiState.Data.lastHypervisorSelection) {
+        $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
+        return
+    }
+
+    # Skip if selection didn't actually change (WPF can fire multiple times)
+    if ($sender.SelectedIndex -eq $script:uiState.Data.lastHypervisorSelection) {
+        return
+    }
+
+    # Skip if build is running (dashboard disabled during build)
+    if ($script:uiState.Flags.isBuilding) {
+        # Still track the change for staleness when build completes
+        $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
+        $script:uiState.Data.hypervisorChangedAt = [DateTime]::Now
+        $script:uiState.Data.resultsStale = $true
+        return
+    }
+
+    # Update tracking state
+    $script:uiState.Data.lastHypervisorSelection = $sender.SelectedIndex
+    $script:uiState.Data.hypervisorChangedAt = [DateTime]::Now
+    $script:uiState.Data.resultsStale = $true
+
+    # Show staleness banner immediately
+    $script:uiState.Controls.txtStaleResults.Text = "Hypervisor selection changed `u{2014} rechecking environment..."
+    $script:uiState.Controls.borderStaleResults.Visibility = 'Visible'
+
+    # Cancel in-progress check job if running (cancel-and-restart per user decision)
+    if ($null -ne $script:uiState.Data.currentDashboardJob) {
+        try {
+            Stop-Job -Job $script:uiState.Data.currentDashboardJob -ErrorAction SilentlyContinue
+            Remove-Job -Job $script:uiState.Data.currentDashboardJob -Force -ErrorAction SilentlyContinue
+        }
+        catch {
+            # Silently handle cleanup errors (job may have already completed)
+        }
+        $script:uiState.Data.currentDashboardJob = $null
+    }
+
+    # Restart checks with new hypervisor selection
+    Start-DashboardChecks
+}.GetNewClosure())
+
+# --------------------------------------------------------------------------
+# SECTION: Export Diagnostics (Phase 48: CFG-03)
+# --------------------------------------------------------------------------
+$script:uiState.Controls.btnExportDiagnostics.Add_Click({
+    try {
+        # Disable button during export to prevent double-click
+        $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $false
+        $script:uiState.Controls.btnExportDiagnostics.Content = 'Exporting...'
+
+        # Call Export-DashboardDiagnostics (returns file path)
+        $outputPath = Export-DashboardDiagnostics -State $script:uiState
+
+        # Show success confirmation with file path
+        [System.Windows.MessageBox]::Show(
+            "Diagnostics exported successfully:`n`n$outputPath",
+            'Export Complete',
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Information
+        )
+    }
+    catch {
+        [System.Windows.MessageBox]::Show(
+            "Failed to export diagnostics:`n$($_.Exception.Message)",
+            'Export Failed',
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error
+        )
+    }
+    finally {
+        # Re-enable button and restore text
+        $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $true
+        $script:uiState.Controls.btnExportDiagnostics.Content = 'Export Diagnostics'
+    }
+}.GetNewClosure())
+
+# --------------------------------------------------------------------------
 # Auto-run dashboard checks on launch (non-blocking via ThreadJob)
 # --------------------------------------------------------------------------
 Start-DashboardChecks
