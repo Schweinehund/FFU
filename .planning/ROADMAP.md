@@ -123,10 +123,13 @@ Plans:
 8. Failed checks display copy-paste PowerShell commands in a selectable textbox for manual remediation
 9. Each completed check displays its duration ("Completed in 1.2s") for transparency
 
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 47-01: TBD during planning
+- [ ] 47-01-PLAN.md — FFU.Preflight repair functions (Repair-FFUWimMount, Repair-FFUDismState, Repair-FFUNetwork)
+- [ ] 47-02-PLAN.md — Dashboard module enhancements (Fix button, Details expander, duration, hypervisor visibility)
+- [ ] 47-03-PLAN.md — XAML + UI wiring (info banner, DurationMs passing, Fix/Copy/Unsafe button handlers)
+- [ ] 47-04-PLAN.md — Pester tests, version bumps, changelog, verify-app
 
 ---
 
@@ -159,9 +162,9 @@ Phases execute in numeric order: 45 → 46 → 47 → 48
 |-------|-----------|----------------|--------|-----------|
 | 45. DISM Resilience Formalization | v1.11.0 | 3/3 | ✅ Complete | 2026-02-06 |
 | 46. Dashboard Foundation | v1.11.0 | 5/5 | ✅ Complete | 2026-02-06 |
-| 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 0/TBD | Not started | - |
+| 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 0/4 | Planned | - |
 | 48. Config-Aware Revalidation | v1.11.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-06 for milestone v1.11.0*
-*Last updated: 2026-02-06 — Phase 46 complete*
+*Last updated: 2026-02-06 — Phase 47 planned (4 plans, 3 waves)*
