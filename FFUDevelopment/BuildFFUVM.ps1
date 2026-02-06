@@ -578,7 +578,12 @@ param(
     # Default is 10 seconds
     [Parameter(Mandatory = $false)]
     [ValidateRange(5, 60)]
-    [int]$FFUFileLockRetryDelaySeconds = 10
+    [int]$FFUFileLockRetryDelaySeconds = 10,
+    # DebugMode: When enabled, skips cleanup on failure to preserve state for troubleshooting.
+    # Can also be enabled via "debugMode": true in config.json.
+    # Dual activation: CLI parameter OR config.json - either enables debug behavior.
+    [Parameter(Mandatory = $false)]
+    [switch]$DebugMode
 )
 
 BEGIN {
@@ -881,6 +886,22 @@ if ($ConfigFile -and (Test-Path -Path $ConfigFile)) {
     }
 
     # Note: VMware REST API credentials removed in v1.7.0 - vmrun/vmxtoolkit used instead
+
+    # Load debug mode from config.json if present (dual activation: CLI OR config)
+    if (-not $DebugMode -and $configData.PSObject.Properties['debugMode'] -and $configData.debugMode -eq $true) {
+        WriteLog "Debug mode enabled via config.json (debugMode: true)"
+        $DebugMode = [switch]::Present
+    }
+}
+
+# Log debug mode status if enabled
+if ($DebugMode) {
+    WriteLog "=" * 80
+    WriteLog "DEBUG MODE ACTIVE"
+    WriteLog "=" * 80
+    WriteLog "Cleanup will be skipped on failure to preserve state for troubleshooting"
+    WriteLog "Manual cleanup will be required after troubleshooting session"
+    WriteLog "=" * 80
 }
 
 # Set BITS transfer priority from parameter or environment (Phase 36)
@@ -1115,7 +1136,19 @@ trap {
     # Defense-in-depth: Only invoke cleanup if module functions are available
     # This handles the edge case where an error occurs before modules are loaded
     # Uses InvokeCommand.GetCommand for ThreadJob compatibility (v1.8.10)
-    if ($ExecutionContext.InvokeCommand.GetCommand('Get-CleanupRegistry', 'Function')) {
+    if ($DebugMode) {
+        WriteLog "=" * 80
+        WriteLog "DEBUG MODE: Skipping ALL cleanup to preserve state for troubleshooting"
+        WriteLog "=" * 80
+        WriteLog "Manual cleanup instructions:"
+        WriteLog "  1. Dismount images: Get-WindowsImage -Mounted | ForEach-Object { Dismount-WindowsImage -Path `$_.Path -Discard }"
+        WriteLog "  2. Clean DISM mountpoints: dism.exe /Cleanup-Mountpoints"
+        WriteLog "  3. Remove VM (if applicable): Remove-VM -Name '<VMName>' -Force"
+        WriteLog "  4. Dismount VHD: Dismount-VHD -Path '<vhdx-path>'"
+        WriteLog "  5. Clean temp files: Remove-Item '<FFUDevelopmentPath>\Mount' -Recurse -Force"
+        WriteLog "=" * 80
+    }
+    elseif ($ExecutionContext.InvokeCommand.GetCommand('Get-CleanupRegistry', 'Function')) {
         $registry = Get-CleanupRegistry
         if ($registry -and $registry.Count -gt 0) {
             WriteLog "TRAP: Unhandled terminating error detected. Invoking failure cleanup for $($registry.Count) registered resource(s)..."
@@ -1137,13 +1170,136 @@ trap {
 $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
     # Defense-in-depth: Only invoke cleanup if module functions are available
     # Uses InvokeCommand.GetCommand for ThreadJob compatibility (v1.8.10)
-    if ($ExecutionContext.InvokeCommand.GetCommand('Get-CleanupRegistry', 'Function')) {
+    if ($DebugMode) {
+        Write-Host "`n" -ForegroundColor Yellow
+        Write-Host ("=" * 80) -ForegroundColor Yellow
+        Write-Host "DEBUG MODE: Skipping ALL cleanup on PowerShell exit" -ForegroundColor Yellow
+        Write-Host ("=" * 80) -ForegroundColor Yellow
+        Write-Host "State preserved for troubleshooting. See build log for manual cleanup instructions." -ForegroundColor Yellow
+    }
+    elseif ($ExecutionContext.InvokeCommand.GetCommand('Get-CleanupRegistry', 'Function')) {
         $registry = Get-CleanupRegistry
         if ($registry -and $registry.Count -gt 0) {
             # Use Write-Host directly since WriteLog may not be available during exit
             Write-Host "`nPowerShell exiting - invoking cleanup for $($registry.Count) registered resource(s)..." -ForegroundColor Yellow
             Invoke-FailureCleanup -Reason "PowerShell session exiting"
         }
+    }
+}
+
+# =============================================================================
+# Periodic DISM Health Monitoring (v1.10.4 - DISM-HEALTH-02)
+# Checks DISM health during long-running builds to detect degradation early
+# =============================================================================
+
+# Track last DISM health check time (script scope for persistence across phases)
+$script:LastDismHealthCheck = [DateTime]::Now
+$script:DismHealthCheckIntervalSeconds = 300  # 5 minutes
+
+function Test-PeriodicDismHealth {
+    <#
+    .SYNOPSIS
+    Performs periodic DISM health check during long-running builds.
+
+    .DESCRIPTION
+    Called before DISM-intensive operations (KB installs, WinPE mounts, FFU capture).
+    Checks if enough time has passed since last check (5 minutes default).
+    If health score falls below 70, logs warning and attempts auto-repair.
+    If score below 50, throws error (reboot required).
+
+    .PARAMETER Force
+    Forces health check regardless of time since last check.
+
+    .OUTPUTS
+    System.Boolean - $true if DISM is healthy, $false if degraded
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter()]
+        [switch]$Force
+    )
+
+    # Skip if Get-DismHealthScore not available (module not loaded)
+    if (-not ($ExecutionContext.InvokeCommand.GetCommand('Get-DismHealthScore', 'Function'))) {
+        return $true  # Assume healthy if we can't check
+    }
+
+    # Check if enough time has passed since last check
+    $elapsed = ([DateTime]::Now - $script:LastDismHealthCheck).TotalSeconds
+    if (-not $Force -and $elapsed -lt $script:DismHealthCheckIntervalSeconds) {
+        return $true  # Too soon, skip check
+    }
+
+    $script:LastDismHealthCheck = [DateTime]::Now
+
+    try {
+        $score = Get-DismHealthScore
+
+        if ($score -ge 90) {
+            # Healthy - continue without logging
+            return $true
+        }
+        elseif ($score -ge 70) {
+            # Warning - log but continue
+            if ($function:WriteLog) {
+                WriteLog "DISM Health Check: Score $score (warning threshold). Build will continue."
+            }
+            return $true
+        }
+        elseif ($score -ge 50) {
+            # Degraded - attempt repair
+            if ($function:WriteLog) {
+                WriteLog "WARNING: DISM health degraded (score: $score) - attempting recovery"
+            }
+
+            # Attempt repair
+            if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+                $repairResult = Test-DismReady -AttemptRepair $true
+                if ($repairResult) {
+                    if ($function:WriteLog) {
+                        WriteLog "DISM recovery succeeded after repair"
+                    }
+                    return $true
+                }
+            }
+
+            # Repair failed - warn but continue (operator discretion)
+            if ($function:WriteLog) {
+                $guidance = Get-DismRemediationGuidance -FailureType HealthDegraded
+                WriteLog "WARNING: DISM repair failed. $($guidance.Issue)"
+                WriteLog "Recommendation: $($guidance.LastResort)"
+            }
+            return $false
+        }
+        else {
+            # Critical - score below 50
+            if ($function:WriteLog) {
+                $guidance = Get-DismRemediationGuidance -FailureType ServiceHung
+                WriteLog "CRITICAL: DISM health failed (score: $score)"
+                WriteLog "Issue: $($guidance.Issue)"
+                WriteLog "Resolution: $($guidance.LastResort)"
+            }
+
+            # Attempt one final repair
+            if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+                if (Test-DismReady -AttemptRepair $true) {
+                    if ($function:WriteLog) {
+                        WriteLog "DISM recovered after critical repair attempt"
+                    }
+                    return $true
+                }
+            }
+
+            # Throw - build cannot continue with broken DISM
+            throw "DISM health critical (score: $score). Reboot required to continue build."
+        }
+    }
+    catch {
+        if ($function:WriteLog) {
+            WriteLog "WARNING: DISM health check failed: $($_.Exception.Message)"
+        }
+        return $false
     }
 }
 
@@ -3942,6 +4098,9 @@ DIAGNOSTIC: Run 'fltmc filters | Select-String WimMount' to verify WIMMount stat
                     throw "KB path validation failed: $($pathValidation.ErrorMessage)"
                 }
 
+                # Periodic DISM health check before KB install batch (DISM-HEALTH-02)
+                Test-PeriodicDismHealth -Force | Out-Null
+
                 # Initialize DISM service before applying packages
                 if (-not (Initialize-DISMService -MountPath $WindowsPartition)) {
                     throw "Failed to initialize DISM service for package application"
@@ -4968,6 +5127,9 @@ try {
         }
 
         # === CRITICAL PHASE: FFU Capture (INT-BUILD-01, INT-BUILD-03) ===
+        # Periodic DISM health check before FFU capture (DISM-HEALTH-02)
+        Test-PeriodicDismHealth | Out-Null
+
         $ffuCaptureResult = Invoke-BuildPhase -PhaseName 'FFU Capture' -Critical $true -Action {
             Set-Progress -Percentage 65 -Message "Optimizing VHDX before capture..."
             Optimize-FFUCaptureDrive -VhdxPath $VHDXPath
@@ -5003,6 +5165,9 @@ try {
     }
     else {
         # === CRITICAL PHASE: FFU Capture (non-InstallApps path) (INT-BUILD-01, INT-BUILD-03) ===
+        # Periodic DISM health check before FFU capture (DISM-HEALTH-02)
+        Test-PeriodicDismHealth | Out-Null
+
         $ffuCaptureResult = Invoke-BuildPhase -PhaseName 'FFU Capture' -Critical $true -Action {
             Set-Progress -Percentage 81 -Message "Starting FFU capture from VHDX..."
 
