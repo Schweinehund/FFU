@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 47 of 48 (Hypervisor Conditional Logic & Auto-Remediation)
-**Plan:** 1 of 4
+**Plan:** 2 of 4
 **Status:** In progress
-**Last activity:** 2026-02-06 — Completed 47-01-PLAN.md (Auto-Remediation Repair Functions)
+**Last activity:** 2026-02-06 — Completed 47-02-PLAN.md (Dashboard Remediation UI)
 
-Progress: [█████░░░░░] 52% (2.25/4 phases complete)
+Progress: [█████░░░░░] 53% (2.50/4 phases complete)
 
 ## Roadmap Summary
 
@@ -49,6 +49,9 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Scriptblock parameter click handler wiring | 47-02 | Fix/Copy buttons wired at creation time via OnFixClick/OnUnsafeFixClick/OnCopyClick params (no post-creation scanning) |
+| ADK excluded from auto-fix | 47-02 | ADK failures require manual installer - intentionally NOT in SafeRepairMap |
+| Duration precision 1 decimal | 47-02 | Format-CheckDuration uses 1 decimal (1.2s) for cleaner display |
 | Extracted repair logic to avoid circular deps | 47-01 | Repair-FFUWimMount copied from Test-FFUWimMount instead of calling it to avoid circular dependency |
 | Standardized repair return format | 47-01 | PSCustomObject with Succeeded/Message/DurationMs for consistent dashboard handling |
 | MINOR bump FFUUI.Core (0.0.20 -> 0.1.0) for dashboard | 46-05 | Dashboard adds 6 new functions and new UI submodule, warranting MINOR |
@@ -78,10 +81,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T16:32:45Z
-**Stopped at:** Completed 47-01-PLAN.md (Auto-Remediation Repair Functions)
+**Last session:** 2026-02-06T16:38:19Z
+**Stopped at:** Completed 47-02-PLAN.md (Dashboard Remediation UI)
 **Resume file:** None
-**Next action:** Continue Phase 47 - Plan 02 (Dashboard Fix Button Integration)
+**Next action:** Continue Phase 47 - Plan 03 (XAML + UI Wiring)
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
@@ -92,6 +95,7 @@ None.
 
 **Phase 47 Progress:**
 - ✅ 47-01: Auto-Remediation Repair Functions (4 min, 1 commit)
+- ✅ 47-02: Dashboard Remediation UI (8 min, 4 commits)
 
 ---
-*State updated: 2026-02-06 after 47-01-PLAN.md completed (2 tasks, 1 commit)*
+*State updated: 2026-02-06 after 47-02-PLAN.md completed (3 tasks, 4 commits)*
