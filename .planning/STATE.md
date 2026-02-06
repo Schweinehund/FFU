@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V — Phase 46: Dashboard Foundation
+**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V — Phase 46 complete, Phase 47 next
 
 ## Current Position
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 46 of 48 (Dashboard Foundation)
-**Plan:** 4 of 5
-**Status:** In progress
-**Last activity:** 2026-02-06 — Completed 46-04-PLAN.md (Dashboard Unit Tests)
+**Plan:** 5 of 5
+**Status:** Phase complete
+**Last activity:** 2026-02-06 — Completed 46-05-PLAN.md (Version Bump, Changelog, Verification)
 
-Progress: [██░░░░░░░░] 25% (1/4 phases complete)
+Progress: [█████░░░░░] 50% (2/4 phases complete)
 
 ## Roadmap Summary
 
 **v1.11.0 Phases:**
 - Phase 45: DISM Resilience Formalization (3 requirements) ✅
-- Phase 46: Dashboard Foundation (8 requirements) — Plan 4/5 complete
+- Phase 46: Dashboard Foundation (8 requirements) ✅
 - Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
 - Phase 48: Config-Aware Revalidation (3 requirements)
 
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| MINOR bump FFUUI.Core (0.0.20 -> 0.1.0) for dashboard | 46-05 | Dashboard adds 6 new functions and new UI submodule, warranting MINOR |
+| PATCH bump main version (1.11.0 -> 1.11.1) | 46-05 | Per versioning policy, subcomponent change requires minimum PATCH |
 | Mock PSCustomObject state for WPF-free testing | 46-04 | Test Update-BuildButtonState logic without WPF dispatcher using settable PSCustomObject properties |
 | Pipe-delimited message format for dashboard | 46-03 | Structured data within FFU.Messaging string messages using `\|` delimiter |
 | Separate dashboardPollTimer from build pollTimer | 46-03 | Independent operation of dashboard and build polling |
@@ -74,17 +76,17 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T14:46:50Z
-**Stopped at:** Completed 46-04-PLAN.md (Dashboard Unit Tests)
+**Last session:** 2026-02-06T15:08:21Z
+**Stopped at:** Completed 46-05-PLAN.md (Version Bump, Changelog, Verification)
 **Resume file:** None
-**Next action:** Execute 46-05-PLAN.md
+**Next action:** Execute Phase 47 (Hypervisor Conditional Logic & Auto-Remediation)
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
 - ✅ 46-02: Dashboard Helper Functions (6 min, 2 commits)
 - ✅ 46-03: Dashboard UI Wiring (6 min, 3 commits)
 - ✅ 46-04: Dashboard Unit Tests (3 min, 1 commit)
-- ⬜ 46-05: TBD
+- ✅ 46-05: Version Bump, Changelog, Verification (24 min, 1 commit)
 
 ---
-*State updated: 2026-02-06 after 46-04-PLAN.md completed (2 tasks, 1 commit)*
+*State updated: 2026-02-06 after 46-05-PLAN.md completed (2 tasks, 1 commit)*
