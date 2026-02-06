@@ -13,14 +13,14 @@
 
 ### Dashboard Foundation
 
-- [ ] **DASH-01**: Home tab displays grouped pre-flight check results organized by category (System, Hypervisor, Build Tools, Network, Optimization)
-- [ ] **DASH-02**: Each check displays visual status indicator (pass/fail/warning) with color coding (green/yellow/red)
-- [ ] **DASH-03**: Dashboard runs all checks automatically on application launch without blocking the UI
-- [ ] **DASH-04**: User can click a Refresh button to re-run all checks (button disabled during active builds)
-- [ ] **DASH-05**: Dashboard shows a summary status at top ("Ready to Build" or "3 Critical Issues, 2 Warnings")
-- [ ] **DASH-06**: Failed checks display actionable error messages with remediation guidance from FFU.Preflight
-- [ ] **DASH-07**: Dashboard shows progress indication while checks are running (indeterminate progress bar with current check name)
-- [ ] **DASH-08**: Build button is disabled when any critical check fails; non-critical warnings allow building with a warning dialog
+- [x] **DASH-01**: Home tab displays grouped pre-flight check results organized by category (System, Hypervisor, Build Tools, Network, Optimization) ✅
+- [x] **DASH-02**: Each check displays visual status indicator (pass/fail/warning) with color coding (green/yellow/red) ✅
+- [x] **DASH-03**: Dashboard runs all checks automatically on application launch without blocking the UI ✅
+- [x] **DASH-04**: User can click a Refresh button to re-run all checks (button disabled during active builds) ✅
+- [x] **DASH-05**: Dashboard shows a summary status at top ("Ready to Build" or "3 Critical Issues, 2 Warnings") ✅
+- [x] **DASH-06**: Failed checks display actionable error messages with remediation guidance from FFU.Preflight ✅
+- [x] **DASH-07**: Dashboard shows progress indication while checks are running (indeterminate progress bar with current check name) ✅
+- [x] **DASH-08**: Build button is disabled when any critical check fails; non-critical warnings allow building with a warning dialog ✅
 
 ### Hypervisor Conditional Logic
 
@@ -70,14 +70,14 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 | DISM-01 | Phase 45 | Complete |
 | DISM-02 | Phase 45 | Complete |
 | DISM-03 | Phase 45 | Complete |
-| DASH-01 | Phase 46 | Pending |
-| DASH-02 | Phase 46 | Pending |
-| DASH-03 | Phase 46 | Pending |
-| DASH-04 | Phase 46 | Pending |
-| DASH-05 | Phase 46 | Pending |
-| DASH-06 | Phase 46 | Pending |
-| DASH-07 | Phase 46 | Pending |
-| DASH-08 | Phase 46 | Pending |
+| DASH-01 | Phase 46 | Complete |
+| DASH-02 | Phase 46 | Complete |
+| DASH-03 | Phase 46 | Complete |
+| DASH-04 | Phase 46 | Complete |
+| DASH-05 | Phase 46 | Complete |
+| DASH-06 | Phase 46 | Complete |
+| DASH-07 | Phase 46 | Complete |
+| DASH-08 | Phase 46 | Complete |
 | HYP-01 | Phase 47 | Pending |
 | HYP-02 | Phase 47 | Pending |
 | HYP-03 | Phase 47 | Pending |
@@ -98,4 +98,4 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 — Phase 45 requirements complete*
+*Last updated: 2026-02-06 — Phase 46 requirements complete (DASH-01 through DASH-08)*
