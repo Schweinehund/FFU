@@ -7,9 +7,9 @@
 
 ### DISM Resilience
 
-- [ ] **DISM-01**: Build pipeline validates DISM service health (Test-DismReady) before all Mount-WindowsImage and Add-WindowsPackage operations
-- [ ] **DISM-02**: Build pipeline validates DISM functional state (Test-DismFunctional) after each KB install to detect degradation before cascading failures
-- [ ] **DISM-03**: Build pipeline skips non-critical DISM operations (WinSxS cleanup) when WIMMount service is broken rather than hanging
+- [x] **DISM-01**: Build pipeline validates DISM service health (Test-DismReady) before all Mount-WindowsImage and Add-WindowsPackage operations ✅
+- [x] **DISM-02**: Build pipeline validates DISM functional state (Test-DismFunctional) after each KB install to detect degradation before cascading failures ✅
+- [x] **DISM-03**: Build pipeline skips non-critical DISM operations (WinSxS cleanup) when WIMMount service is broken rather than hanging ✅
 
 ### Dashboard Foundation
 
@@ -67,9 +67,9 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISM-01 | Phase 45 | Pending |
-| DISM-02 | Phase 45 | Pending |
-| DISM-03 | Phase 45 | Pending |
+| DISM-01 | Phase 45 | Complete |
+| DISM-02 | Phase 45 | Complete |
+| DISM-03 | Phase 45 | Complete |
 | DASH-01 | Phase 46 | Pending |
 | DASH-02 | Phase 46 | Pending |
 | DASH-03 | Phase 46 | Pending |
@@ -98,4 +98,4 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 after roadmap creation*
+*Last updated: 2026-02-06 — Phase 45 requirements complete*

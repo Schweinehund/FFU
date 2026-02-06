@@ -47,7 +47,7 @@ Transform FFU Builder's Home tab from placeholder text into a live pre-flight re
 
 ---
 
-- [ ] **Phase 45: DISM Resilience Formalization** - Integrate Test-DismReady/Test-DismFunctional into build pipeline
+- [x] **Phase 45: DISM Resilience Formalization** - Integrate Test-DismReady/Test-DismFunctional into build pipeline ✅
 - [ ] **Phase 46: Dashboard Foundation** - Home tab with grouped pre-flight checks and auto-run on launch
 - [ ] **Phase 47: Hypervisor Conditional Logic & Auto-Remediation** - Optional Hyper-V with one-click fixes
 - [ ] **Phase 48: Config-Aware Revalidation** - Auto-refresh on hypervisor change with staleness detection
@@ -71,9 +71,9 @@ Transform FFU Builder's Home tab from placeholder text into a live pre-flight re
 **Plans:** 3 plans
 
 Plans:
-- [ ] 45-01-PLAN.md — Debug mode infrastructure + DISM startup gate in BuildFFUVM.ps1
-- [ ] 45-02-PLAN.md — Harden post-KB checks (hard stop) in FFU.Updates + add missing DISM checks in FFU.Media
-- [ ] 45-03-PLAN.md — Version bumps, Pester tests, changelog, and verify-app
+- [x] 45-01-PLAN.md — Debug mode infrastructure + DISM startup gate in BuildFFUVM.ps1
+- [x] 45-02-PLAN.md — Harden post-KB checks (hard stop) in FFU.Updates + add missing DISM checks in FFU.Media
+- [x] 45-03-PLAN.md — Version bumps, Pester tests, changelog, and verify-app
 
 ---
 
@@ -153,11 +153,11 @@ Phases execute in numeric order: 45 → 46 → 47 → 48
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 45. DISM Resilience Formalization | v1.11.0 | 0/3 | Planned | - |
+| 45. DISM Resilience Formalization | v1.11.0 | 3/3 | ✅ Complete | 2026-02-06 |
 | 46. Dashboard Foundation | v1.11.0 | 0/TBD | Not started | - |
 | 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 0/TBD | Not started | - |
 | 48. Config-Aware Revalidation | v1.11.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-06 for milestone v1.11.0*
-*Last updated: 2026-02-06*
+*Last updated: 2026-02-06 — Phase 45 complete*
