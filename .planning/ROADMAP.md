@@ -146,10 +146,13 @@ Plans:
 3. User can export all check results to a diagnostics text file for support scenarios
 4. Exported diagnostics include check results, timestamps, system information, and remediation actions taken
 
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 48-01: TBD during planning
+- [ ] 48-01-PLAN.md — Dashboard module functions (Export-DashboardDiagnostics, Get-HypervisorDependentChecks, Set-CategoryDimmed)
+- [ ] 48-02-PLAN.md — XAML layout (staleness banner, Export Diagnostics button, control registration)
+- [ ] 48-03-PLAN.md — UI wiring (SelectionChanged handler, Export handler, revalidation dimming, state management)
+- [ ] 48-04-PLAN.md — Pester tests, version bumps, changelog, verify-app
 
 ---
 
@@ -163,8 +166,8 @@ Phases execute in numeric order: 45 → 46 → 47 → 48
 | 45. DISM Resilience Formalization | v1.11.0 | 3/3 | ✅ Complete | 2026-02-06 |
 | 46. Dashboard Foundation | v1.11.0 | 5/5 | ✅ Complete | 2026-02-06 |
 | 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 4/4 | ✅ Complete | 2026-02-06 |
-| 48. Config-Aware Revalidation | v1.11.0 | 0/TBD | Not started | - |
+| 48. Config-Aware Revalidation | v1.11.0 | 0/4 | Planned | - |
 
 ---
 *Roadmap created: 2026-02-06 for milestone v1.11.0*
-*Last updated: 2026-02-06 — Phase 47 complete (4 plans, 3 waves, 13 commits)*
+*Last updated: 2026-02-06 — Phase 48 planned (4 plans, 3 waves)*
