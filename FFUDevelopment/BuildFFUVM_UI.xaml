@@ -20,10 +20,10 @@
                                         </Setter>
                                     </Style>
                                 </ToggleButton.Style>
-                                <!-- Text + Arrow side by side -->
+                                <!-- Header content + Arrow side by side -->
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Optional Features" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                    <!-- Default arrow = “▼” -->
+                                    <ContentPresenter Content="{Binding Header, RelativeSource={RelativeSource AncestorType=Expander}}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <!-- Default arrow = "▼" -->
                                     <TextBlock x:Name="ArrowText" Text="&#9660;" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </ToggleButton>
@@ -73,12 +73,86 @@
 
         <!-- TabControl with multiple tabs -->
         <TabControl x:Name="MainTabControl" TabStripPlacement="Left" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="14" Padding="10" Grid.Row="0">
-            <!-- TAB: Home -->
+            <!-- TAB: Home (Pre-flight Readiness Dashboard) -->
             <TabItem Header="Home" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="10">
-                        <TextBlock Text="Welcome to FFU Builder" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
+                    <StackPanel x:Name="stackDashboardContainer" Margin="10">
+
+                        <!-- Summary Status Banner -->
+                        <Border x:Name="borderSummaryStatus" Background="LightGray" Padding="12" CornerRadius="4" Margin="0,0,0,8">
+                            <TextBlock x:Name="txtSummaryStatus" Text="Checking system readiness..." FontSize="16" FontWeight="Bold"/>
+                        </Border>
+
+                        <!-- Progress Panel (hidden until checks run) -->
+                        <StackPanel x:Name="pnlDashboardProgress" Visibility="Collapsed" Margin="0,0,0,8">
+                            <ProgressBar x:Name="progressDashboard" Height="4" IsIndeterminate="True"/>
+                            <TextBlock x:Name="txtDashboardProgressStatus" Text="" Margin="0,4,0,0" FontSize="12" Foreground="Gray"/>
+                        </StackPanel>
+
+                        <!-- Refresh Button -->
+                        <Button x:Name="btnRefreshChecks" Content="Refresh Checks" Width="140" HorizontalAlignment="Left" Margin="0,0,0,10" Padding="8,4"/>
+
+                        <!-- Category: System -->
+                        <Expander x:Name="expSystem" Style="{StaticResource MinimalExpanderNoHighlightStyle}" IsExpanded="True" Margin="0,2">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtSystemIcon" Text="&#9675;" FontSize="14" Foreground="Gray" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="System" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="txtSystemSummary" Text="(checking...)" Foreground="Gray" FontStyle="Italic" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel x:Name="pnlSystemChecks" Margin="20,5,0,5"/>
+                        </Expander>
+
+                        <!-- Category: Hypervisor -->
+                        <Expander x:Name="expHypervisor" Style="{StaticResource MinimalExpanderNoHighlightStyle}" IsExpanded="False" Margin="0,2">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtHypervisorIcon" Text="&#9675;" FontSize="14" Foreground="Gray" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Hypervisor" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="txtHypervisorSummary" Text="(checking...)" Foreground="Gray" FontStyle="Italic" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel x:Name="pnlHypervisorChecks" Margin="20,5,0,5"/>
+                        </Expander>
+
+                        <!-- Category: Build Tools -->
+                        <Expander x:Name="expBuildTools" Style="{StaticResource MinimalExpanderNoHighlightStyle}" IsExpanded="False" Margin="0,2">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtBuildToolsIcon" Text="&#9675;" FontSize="14" Foreground="Gray" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Build Tools" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="txtBuildToolsSummary" Text="(checking...)" Foreground="Gray" FontStyle="Italic" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel x:Name="pnlBuildToolsChecks" Margin="20,5,0,5"/>
+                        </Expander>
+
+                        <!-- Category: Network -->
+                        <Expander x:Name="expNetwork" Style="{StaticResource MinimalExpanderNoHighlightStyle}" IsExpanded="False" Margin="0,2">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtNetworkIcon" Text="&#9675;" FontSize="14" Foreground="Gray" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Network" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="txtNetworkSummary" Text="(checking...)" Foreground="Gray" FontStyle="Italic" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel x:Name="pnlNetworkChecks" Margin="20,5,0,5"/>
+                        </Expander>
+
+                        <!-- Category: Optimization -->
+                        <Expander x:Name="expOptimization" Style="{StaticResource MinimalExpanderNoHighlightStyle}" IsExpanded="False" Margin="0,2">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtOptimizationIcon" Text="&#9675;" FontSize="14" Foreground="Gray" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Optimization" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="txtOptimizationSummary" Text="(checking...)" Foreground="Gray" FontStyle="Italic" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel x:Name="pnlOptimizationChecks" Margin="20,5,0,5"/>
+                        </Expander>
+
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
@@ -286,7 +360,7 @@
                         </StackPanel>
                         <TextBox x:Name="txtProductKey" Grid.Row="7" Grid.Column="1" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
                         <!-- (8) Expander for Optional Features -->
-                        <Expander x:Name="expOptionalFeatures" Style="{StaticResource MinimalExpanderNoHighlightStyle}" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" IsExpanded="False" Margin="0,5,0,0" ExpandDirection="Down">
+                        <Expander x:Name="expOptionalFeatures" Style="{StaticResource MinimalExpanderNoHighlightStyle}" Header="Optional Features" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" IsExpanded="False" Margin="0,5,0,0" ExpandDirection="Down">
                             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="0,5,0,0">
                                 <StackPanel x:Name="stackFeaturesContainer" Margin="15,5">
                                     <TextBlock Text="Selected features (semicolon):" Margin="0,10,0,5" FontStyle="Italic"/>
