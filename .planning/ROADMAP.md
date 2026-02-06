@@ -94,10 +94,14 @@ Plans:
 7. Dashboard shows progress indication while checks are running (indeterminate progress bar with current check name)
 8. Build button is disabled when any critical check fails; non-critical warnings show confirmation dialog
 
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 46-01: TBD during planning
+- [ ] 46-01-PLAN.md — Home tab XAML layout + control registration
+- [ ] 46-02-PLAN.md — Dashboard core functions module (FFUUI.Core.Dashboard.psm1)
+- [ ] 46-03-PLAN.md — Background execution, polling, event handlers, build gating wiring
+- [ ] 46-04-PLAN.md — Pester tests for dashboard functions
+- [ ] 46-05-PLAN.md — Version bumps, changelog, verify-app
 
 ---
 
@@ -154,7 +158,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 45. DISM Resilience Formalization | v1.11.0 | 3/3 | ✅ Complete | 2026-02-06 |
-| 46. Dashboard Foundation | v1.11.0 | 0/TBD | Not started | - |
+| 46. Dashboard Foundation | v1.11.0 | 0/5 | Not started | - |
 | 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 0/TBD | Not started | - |
 | 48. Config-Aware Revalidation | v1.11.0 | 0/TBD | Not started | - |
 
