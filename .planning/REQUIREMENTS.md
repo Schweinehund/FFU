@@ -39,9 +39,9 @@
 
 ### Config-Aware Revalidation
 
-- [ ] **CFG-01**: Dashboard automatically re-runs relevant checks when the hypervisor selection changes in VM Settings
-- [ ] **CFG-02**: Dashboard displays a stale data indicator ("Last checked: 2 minutes ago") when results are older than the last config change
-- [ ] **CFG-03**: User can export all check results to a diagnostics text file for support scenarios
+- [x] **CFG-01**: Dashboard automatically re-runs relevant checks when the hypervisor selection changes in VM Settings ✅
+- [x] **CFG-02**: Dashboard displays a stale data indicator ("Last checked: 2 minutes ago") when results are older than the last config change ✅
+- [x] **CFG-03**: User can export all check results to a diagnostics text file for support scenarios ✅
 
 ## Future Requirements
 
@@ -87,9 +87,9 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 | REM-02 | Phase 47 | Complete |
 | REM-03 | Phase 47 | Complete |
 | REM-04 | Phase 47 | Complete |
-| CFG-01 | Phase 48 | Pending |
-| CFG-02 | Phase 48 | Pending |
-| CFG-03 | Phase 48 | Pending |
+| CFG-01 | Phase 48 | Complete |
+| CFG-02 | Phase 48 | Complete |
+| CFG-03 | Phase 48 | Complete |
 
 **Coverage:**
 - v1.11.0 requirements: 23 total
@@ -98,4 +98,4 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 — Phase 46 requirements complete (DASH-01 through DASH-08)*
+*Last updated: 2026-02-06 — v1.11.0 milestone complete! All 23/23 requirements delivered*

@@ -8,7 +8,7 @@ Transform FFU Builder's Home tab from placeholder text into a live pre-flight re
 
 - ✅ **v1.10.0 Upstream Cherry-Pick** - Phases 34-43 (shipped 2026-02-02)
 - ✅ **Ad-hoc DISM Resilience** - Phase 44 (shipped 2026-02-02)
-- 🚧 **v1.11.0 Readiness Dashboard & Optional Hyper-V** - Phases 45-48 (in progress)
+- ✅ **v1.11.0 Readiness Dashboard & Optional Hyper-V** - Phases 45-48 (shipped 2026-02-06)
 
 ## Phases
 
@@ -37,7 +37,7 @@ Transform FFU Builder's Home tab from placeholder text into a live pre-flight re
 
 </details>
 
-### 🚧 v1.11.0 Readiness Dashboard & Optional Hyper-V (In Progress)
+### ✅ v1.11.0 Readiness Dashboard & Optional Hyper-V (Complete)
 
 **Milestone Goal:** Transform the Home tab into a pre-flight readiness dashboard and make Hyper-V optional when VMware is available.
 
@@ -50,7 +50,7 @@ Transform FFU Builder's Home tab from placeholder text into a live pre-flight re
 - [x] **Phase 45: DISM Resilience Formalization** - Integrate Test-DismReady/Test-DismFunctional into build pipeline ✅
 - [x] **Phase 46: Dashboard Foundation** - Home tab with grouped pre-flight checks and auto-run on launch ✅
 - [x] **Phase 47: Hypervisor Conditional Logic & Auto-Remediation** - Optional Hyper-V with one-click fixes ✅
-- [ ] **Phase 48: Config-Aware Revalidation** - Auto-refresh on hypervisor change with staleness detection
+- [x] **Phase 48: Config-Aware Revalidation** - Auto-refresh on hypervisor change with staleness detection ✅
 
 ## Phase Details
 
@@ -149,10 +149,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 48-01-PLAN.md — Dashboard module functions (Export-DashboardDiagnostics, Get-HypervisorDependentChecks, Set-CategoryDimmed)
-- [ ] 48-02-PLAN.md — XAML layout (staleness banner, Export Diagnostics button, control registration)
-- [ ] 48-03-PLAN.md — UI wiring (SelectionChanged handler, Export handler, revalidation dimming, state management)
-- [ ] 48-04-PLAN.md — Pester tests, version bumps, changelog, verify-app
+- [x] 48-01-PLAN.md — Dashboard module functions (Export-DashboardDiagnostics, Get-HypervisorDependentChecks, Set-CategoryDimmed)
+- [x] 48-02-PLAN.md — XAML layout (staleness banner, Export Diagnostics button, control registration)
+- [x] 48-03-PLAN.md — UI wiring (SelectionChanged handler, Export handler, revalidation dimming, state management)
+- [x] 48-04-PLAN.md — Pester tests, version bumps, changelog, verify-app
 
 ---
 
@@ -166,8 +166,8 @@ Phases execute in numeric order: 45 → 46 → 47 → 48
 | 45. DISM Resilience Formalization | v1.11.0 | 3/3 | ✅ Complete | 2026-02-06 |
 | 46. Dashboard Foundation | v1.11.0 | 5/5 | ✅ Complete | 2026-02-06 |
 | 47. Hypervisor Conditional Logic & Auto-Remediation | v1.11.0 | 4/4 | ✅ Complete | 2026-02-06 |
-| 48. Config-Aware Revalidation | v1.11.0 | 0/4 | Planned | - |
+| 48. Config-Aware Revalidation | v1.11.0 | 4/4 | ✅ Complete | 2026-02-06 |
 
 ---
 *Roadmap created: 2026-02-06 for milestone v1.11.0*
-*Last updated: 2026-02-06 — Phase 48 planned (4 plans, 3 waves)*
+*Last updated: 2026-02-06 — v1.11.0 milestone complete! 4 phases, 16 plans, 23 requirements shipped*
