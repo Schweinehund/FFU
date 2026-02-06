@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 47 of 48 (Hypervisor Conditional Logic & Auto-Remediation)
-**Plan:** 2 of 4
+**Plan:** 3 of 4
 **Status:** In progress
-**Last activity:** 2026-02-06 — Completed 47-02-PLAN.md (Dashboard Remediation UI)
+**Last activity:** 2026-02-06 — Completed 47-03-PLAN.md (XAML + UI Wiring)
 
-Progress: [█████░░░░░] 53% (2.50/4 phases complete)
+Progress: [█████░░░░░] 56% (2.75/4 phases complete)
 
 ## Roadmap Summary
 
@@ -49,6 +49,9 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Failed repair re-enables Fix button for retry | 47-03 | If Invoke-DashboardRemediation returns Succeeded=false, button resets to Fix state with error tooltip |
+| GetNewClosure() for scriptblock handlers | 47-03 | Handlers need .GetNewClosure() to capture $script: scope variables in closure |
+| Scriptblock handlers in BuildFFUVM_UI.ps1 not module | 47-03 | Handlers need access to $script:uiState, $script:FFUDevelopmentPath, and UI threading (DispatcherTimer, MessageBox) |
 | Scriptblock parameter click handler wiring | 47-02 | Fix/Copy buttons wired at creation time via OnFixClick/OnUnsafeFixClick/OnCopyClick params (no post-creation scanning) |
 | ADK excluded from auto-fix | 47-02 | ADK failures require manual installer - intentionally NOT in SafeRepairMap |
 | Duration precision 1 decimal | 47-02 | Format-CheckDuration uses 1 decimal (1.2s) for cleaner display |
@@ -81,10 +84,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T16:38:19Z
-**Stopped at:** Completed 47-02-PLAN.md (Dashboard Remediation UI)
+**Last session:** 2026-02-06T16:48:45Z
+**Stopped at:** Completed 47-03-PLAN.md (XAML + UI Wiring)
 **Resume file:** None
-**Next action:** Continue Phase 47 - Plan 03 (XAML + UI Wiring)
+**Next action:** Continue Phase 47 - Plan 04 (if exists, else Phase 48)
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
@@ -96,6 +99,7 @@ None.
 **Phase 47 Progress:**
 - ✅ 47-01: Auto-Remediation Repair Functions (4 min, 1 commit)
 - ✅ 47-02: Dashboard Remediation UI (8 min, 4 commits)
+- ✅ 47-03: XAML + UI Wiring (5 min, 2 commits)
 
 ---
-*State updated: 2026-02-06 after 47-02-PLAN.md completed (3 tasks, 4 commits)*
+*State updated: 2026-02-06 after 47-03-PLAN.md completed (2 tasks, 2 commits)*
