@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 46 of 48 (Dashboard Foundation)
-**Plan:** 1 of 5
+**Plan:** 2 of 5
 **Status:** In progress
-**Last activity:** 2026-02-06 — Completed 46-01-PLAN.md (Home Tab Dashboard XAML Layout)
+**Last activity:** 2026-02-06 — Completed 46-02-PLAN.md (Dashboard Helper Functions)
 
 Progress: [██░░░░░░░░] 25% (1/4 phases complete)
 
@@ -21,7 +21,7 @@ Progress: [██░░░░░░░░] 25% (1/4 phases complete)
 
 **v1.11.0 Phases:**
 - Phase 45: DISM Resilience Formalization (3 requirements) ✅
-- Phase 46: Dashboard Foundation (8 requirements) — Plan 1/5 complete
+- Phase 46: Dashboard Foundation (8 requirements) — Plan 2/5 complete
 - Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
 - Phase 48: Config-Aware Revalidation (3 requirements)
 
@@ -49,6 +49,9 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Used actual FFU.Preflight check names in category map | 46-02 | VMwareBridgeConfig not VMwareBridgeConfiguration, Configuration not ConfigurationFile |
+| Extended category map with 3 additional checks | 46-02 | AppsISODiskSpace, CaptureDiskSpace, DISMCleanup exist in FFU.Preflight |
+| Kept FunctionsToExport wildcard pattern | 46-02 | Consistent with existing FFUUI.Core manifest, avoids breaking exports |
 | Fixed MinimalExpanderNoHighlightStyle for Header binding | 46-01 | Style had hardcoded text; ContentPresenter needed for dashboard Expanders |
 | Dashboard container is StackPanel not Grid | 46-01 | Simpler vertical flow for banner, progress, button, categories |
 | Naming convention: exp/txt/pnl + Category + role | 46-01 | Consistent pattern for 5 dashboard categories |
@@ -72,17 +75,17 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T14:25:50Z
-**Stopped at:** Completed 46-01-PLAN.md (Home Tab Dashboard XAML Layout)
+**Last session:** 2026-02-06T14:29:45Z
+**Stopped at:** Completed 46-02-PLAN.md (Dashboard Helper Functions)
 **Resume file:** None
-**Next action:** Execute 46-02-PLAN.md
+**Next action:** Execute 46-03-PLAN.md
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
-- ⬜ 46-02: Check Engine
+- ✅ 46-02: Dashboard Helper Functions (6 min, 2 commits)
 - ⬜ 46-03: UI Wiring
 - ⬜ 46-04: TBD
 - ⬜ 46-05: TBD
 
 ---
-*State updated: 2026-02-06 after 46-01-PLAN.md completed (2 tasks, 2 commits)*
+*State updated: 2026-02-06 after 46-02-PLAN.md completed (2 tasks, 2 commits)*
