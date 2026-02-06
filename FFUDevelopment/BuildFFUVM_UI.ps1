@@ -1025,6 +1025,30 @@ function Start-DashboardChecks {
         Optimization = @{ Total = 0; Passed = 0; Failed = 0; Warning = 0 }
     }
 
+    # Phase 48: Check result storage for diagnostics export
+    if ($null -eq $script:uiState.Data.dashboardCheckResults) {
+        $script:uiState.Data.dashboardCheckResults = @{}
+    }
+
+    # Phase 48: Clear check results for new run
+    $script:uiState.Data.dashboardCheckResults = @{}
+
+    # Phase 48: Dim hypervisor category if this is a revalidation (not first run)
+    if ($script:uiState.Data.resultsStale -eq $true) {
+        $depChecks = Get-HypervisorDependentChecks
+        # Dim only the Hypervisor category (only category with hypervisor-dependent checks)
+        Set-CategoryDimmed -State $script:uiState -Category 'Hypervisor' -IsDimmed $true
+        # Update summary banner to "Rechecking..." state
+        $brushConverter = [System.Windows.Media.BrushConverter]::new()
+        $script:uiState.Controls.borderSummaryStatus.Background = $brushConverter.ConvertFromString('#E0E0E0')
+        $script:uiState.Controls.txtSummaryStatus.Text = 'Rechecking environment...'
+        $script:uiState.Controls.txtSummaryStatus.Foreground = $brushConverter.ConvertFromString('#616161')
+    }
+
+    # Phase 48: Disable build and export during revalidation (CFG-01 transition behavior)
+    $script:uiState.Controls.btnRun.IsEnabled = $false
+    $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $false
+
     # Gather feature selections from UI checkboxes
     $features = @{
         CreateVM              = $true  # Always check VM readiness
@@ -1169,6 +1193,17 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
                     -OnUnsafeFixClick $script:onUnsafeFixClickHandler `
                     -OnCopyClick $script:onCopyClickHandler
 
+                # Phase 48: Store check result for diagnostics export (CFG-03)
+                $script:uiState.Data.dashboardCheckResults[$name] = @{
+                    Status      = $status
+                    Severity    = $severity
+                    Message     = $message
+                    Remediation = $remediation
+                    DurationMs  = $durationMs
+                    Category    = $category
+                    Timestamp   = [DateTime]::Now
+                }
+
                 # Track category stats
                 $stats = $script:uiState.Data.dashboardCategoryStats[$category]
                 if ($null -ne $stats) {
@@ -1215,6 +1250,15 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
                 Update-BuildButtonState -State $script:uiState -CriticalCount $criticalCount `
                     -WarningCount $warningCount
 
+                # Phase 48: Restore dimmed categories and clear staleness (CFG-01, CFG-02)
+                Set-CategoryDimmed -State $script:uiState -Category 'Hypervisor' -IsDimmed $false
+                $script:uiState.Data.resultsStale = $false
+                $script:uiState.Controls.borderStaleResults.Visibility = 'Collapsed'
+                $script:uiState.Data.lastCheckCompletedAt = [DateTime]::Now
+
+                # Phase 48: Enable Export Diagnostics button after first successful check run (CFG-03)
+                $script:uiState.Controls.btnExportDiagnostics.IsEnabled = $true
+
                 # Reorder categories: failures first, then warnings, then passing
                 $container = $script:uiState.Controls.stackDashboardContainer
                 if ($null -ne $container) {
@@ -1258,6 +1302,12 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
             $script:uiState.Controls.borderSummaryStatus.Background = $brushConverter.ConvertFromString('#FFEBEE')
             $script:uiState.Controls.txtSummaryStatus.Text = "Error: $errorMsg"
             $script:uiState.Controls.txtSummaryStatus.Foreground = $brushConverter.ConvertFromString('#C62828')
+
+            # Phase 48: Restore dimmed categories on error
+            Set-CategoryDimmed -State $script:uiState -Category 'Hypervisor' -IsDimmed $false
+            $script:uiState.Data.resultsStale = $false
+            $script:uiState.Controls.borderStaleResults.Visibility = 'Collapsed'
+
             continue
         }
     }
