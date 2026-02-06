@@ -210,6 +210,35 @@ $script:uiState.Controls.btnRun.Add_Click({
         # Get a local reference to the button for convenience in this handler
         $btnRun = $script:uiState.Controls.btnRun
         try {
+            # Dashboard warning confirmation (DASH-08)
+            if (-not $script:uiState.Flags.isBuilding) {
+                # Check for critical failures first
+                $criticalCount = if ($script:uiState.Data.ContainsKey('dashboardCriticalCount')) { $script:uiState.Data.dashboardCriticalCount } else { 0 }
+                if ($criticalCount -gt 0) {
+                    [System.Windows.MessageBox]::Show(
+                        "$criticalCount critical pre-flight issue(s) must be resolved before building.`n`nGo to the Home tab and click Refresh to re-check after fixing issues.",
+                        "Build Blocked",
+                        [System.Windows.MessageBoxButton]::OK,
+                        [System.Windows.MessageBoxImage]::Error
+                    )
+                    return
+                }
+
+                # Check for warnings
+                $warningCount = if ($script:uiState.Data.ContainsKey('dashboardWarningCount')) { $script:uiState.Data.dashboardWarningCount } else { 0 }
+                if ($warningCount -gt 0) {
+                    $dialogResult = [System.Windows.MessageBox]::Show(
+                        "Pre-flight checks detected $warningCount warning(s) that may affect the build.`n`nDo you want to continue anyway?",
+                        "Build Warnings",
+                        [System.Windows.MessageBoxButton]::YesNo,
+                        [System.Windows.MessageBoxImage]::Warning
+                    )
+                    if ($dialogResult -ne [System.Windows.MessageBoxResult]::Yes) {
+                        return
+                    }
+                }
+            }
+
             # If a build is running and cleanup is not already running, treat this click as Cancel
             if ($script:uiState.Flags.isBuilding -and -not $script:uiState.Flags.isCleanupRunning) {
                 $btnRun.IsEnabled = $false
@@ -331,6 +360,9 @@ $script:uiState.Controls.btnRun.Add_Click({
                     $script:uiState.Flags.isCleanupRunning = $false
                     $btnRun.Content = "Build FFU"
                     $btnRun.IsEnabled = $true
+                    # Re-enable dashboard refresh after build
+                    $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+                    $script:uiState.Controls.btnRefreshChecks.ToolTip = $null
                     return
                 }
 
@@ -412,6 +444,9 @@ $script:uiState.Controls.btnRun.Add_Click({
                             $btn = $script:uiState.Controls.btnRun
                             $btn.Content = "Build FFU"
                             $btn.IsEnabled = $true
+                            # Re-enable dashboard refresh after cleanup
+                            $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+                            $script:uiState.Controls.btnRefreshChecks.ToolTip = $null
                         }
                     })
 
@@ -807,6 +842,9 @@ $script:uiState.Controls.btnRun.Add_Click({
 
                             # Use centralized UI reset (REL-UI-03)
                             Reset-FFUUIToIdle -State $script:uiState -StatusMessage "Build failed. Check log for details."
+                            # Re-enable dashboard refresh after build failure
+                            $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+                            $script:uiState.Controls.btnRefreshChecks.ToolTip = $null
                         }
                         else {
                             # Job completed successfully with no errors
@@ -826,6 +864,9 @@ $script:uiState.Controls.btnRun.Add_Click({
                             $script:uiState.Flags.isCleanupRunning = $false
                             $script:uiState.Controls.btnRun.Content = "Build FFU"
                             $script:uiState.Controls.btnRun.IsEnabled = $true
+                            # Re-enable dashboard refresh after successful build
+                            $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+                            $script:uiState.Controls.btnRefreshChecks.ToolTip = $null
                         }
                     }
                 })
@@ -837,6 +878,10 @@ $script:uiState.Controls.btnRun.Add_Click({
             $script:uiState.Flags.isBuilding = $true
             $btnRun.Content = "Cancel"
             $btnRun.IsEnabled = $true
+
+            # Disable dashboard refresh during active build
+            $script:uiState.Controls.btnRefreshChecks.IsEnabled = $false
+            $script:uiState.Controls.btnRefreshChecks.ToolTip = "Refresh disabled during active build"
         }
         catch {
             # This catch block handles errors during the setup of the job (e.g., Get-UIConfig fails)
@@ -847,6 +892,9 @@ $script:uiState.Controls.btnRun.Add_Click({
             # Use centralized UI reset (REL-UI-03)
             # Reset-FFUUIToIdle handles messaging context cleanup internally
             Reset-FFUUIToIdle -State $script:uiState -StatusMessage "Build failed to start."
+            # Re-enable dashboard refresh after build startup failure
+            $script:uiState.Controls.btnRefreshChecks.IsEnabled = $true
+            $script:uiState.Controls.btnRefreshChecks.ToolTip = $null
         }
     })
 
@@ -895,6 +943,22 @@ $window.Add_Closed({
             catch {
                 WriteLog "Error stopping or removing background job: $($_.Exception.Message)"
             }
+        }
+
+        # Stop dashboard poll timer and clean up dashboard job on close
+        if ($null -ne $script:uiState.Data.dashboardPollTimer) {
+            $script:uiState.Data.dashboardPollTimer.Stop()
+            $script:uiState.Data.dashboardPollTimer = $null
+        }
+        if ($null -ne $script:uiState.Data.currentDashboardJob) {
+            try {
+                Stop-Job -Job $script:uiState.Data.currentDashboardJob -ErrorAction SilentlyContinue
+                Remove-Job -Job $script:uiState.Data.currentDashboardJob -Force -ErrorAction SilentlyContinue
+            }
+            catch {
+                WriteLog "Error stopping dashboard job on close: $($_.Exception.Message)"
+            }
+            $script:uiState.Data.currentDashboardJob = $null
         }
 
         # Revert LongPathsEnabled registry setting if it was changed by this script
@@ -1202,5 +1266,21 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
 
 # Start the dashboard poll timer
 $script:uiState.Data.dashboardPollTimer.Start()
+
+# --------------------------------------------------------------------------
+# Refresh button handler: re-runs dashboard checks on click
+# --------------------------------------------------------------------------
+$script:uiState.Controls.btnRefreshChecks.Add_Click({
+    # Don't refresh during active builds
+    if ($script:uiState.Flags.isBuilding) {
+        return
+    }
+    Start-DashboardChecks
+})
+
+# --------------------------------------------------------------------------
+# Auto-run dashboard checks on launch (non-blocking via ThreadJob)
+# --------------------------------------------------------------------------
+Start-DashboardChecks
 
 [void]$window.ShowDialog()
