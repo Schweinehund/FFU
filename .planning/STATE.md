@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 46 of 48 (Dashboard Foundation)
-**Plan:** 2 of 5
+**Plan:** 3 of 5
 **Status:** In progress
-**Last activity:** 2026-02-06 — Completed 46-02-PLAN.md (Dashboard Helper Functions)
+**Last activity:** 2026-02-06 — Completed 46-03-PLAN.md (Dashboard UI Wiring)
 
 Progress: [██░░░░░░░░] 25% (1/4 phases complete)
 
@@ -21,7 +21,7 @@ Progress: [██░░░░░░░░] 25% (1/4 phases complete)
 
 **v1.11.0 Phases:**
 - Phase 45: DISM Resilience Formalization (3 requirements) ✅
-- Phase 46: Dashboard Foundation (8 requirements) — Plan 2/5 complete
+- Phase 46: Dashboard Foundation (8 requirements) — Plan 3/5 complete
 - Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
 - Phase 48: Config-Aware Revalidation (3 requirements)
 
@@ -49,6 +49,10 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Pipe-delimited message format for dashboard | 46-03 | Structured data within FFU.Messaging string messages using `\|` delimiter |
+| Separate dashboardPollTimer from build pollTimer | 46-03 | Independent operation of dashboard and build polling |
+| Live per-check category summary updates | 46-03 | Immediate visual feedback as each check completes rather than batch at end |
+| Five refresh re-enable code paths | 46-03 | Every build-completion path re-enables refresh button for robustness |
 | Used actual FFU.Preflight check names in category map | 46-02 | VMwareBridgeConfig not VMwareBridgeConfiguration, Configuration not ConfigurationFile |
 | Extended category map with 3 additional checks | 46-02 | AppsISODiskSpace, CaptureDiskSpace, DISMCleanup exist in FFU.Preflight |
 | Kept FunctionsToExport wildcard pattern | 46-02 | Consistent with existing FFUUI.Core manifest, avoids breaking exports |
@@ -57,14 +61,8 @@ Recent decisions affecting current work:
 | Naming convention: exp/txt/pnl + Category + role | 46-01 | Consistent pattern for 5 dashboard categories |
 | MINOR version bumps for both modules | 45-03 | Hard-stop behavior change and new WinPE validation features warrant MINOR bumps |
 | Main version 1.11.0 (MINOR bump) | 45-03 | First version of v1.11.0 milestone, significant DISM resilience feature set |
-| Hard-stop on post-KB DISM degradation | 45-02 | Mid-build degradation leads to cascading failures - fail fast with clear remediation |
-| Per-package DISM validation for WinPE | 45-02 | 12-package sequence needs per-package checks to identify failing package |
-| Use $DebugMode instead of $Debug | 45-01 | Avoid collision with PowerShell built-in -Debug common parameter |
-| DISM startup gate after pre-flight | 45-01 | Fail-fast before resource allocation, after ADK/DISM confirmed present |
-| Hypervisor-aware preflight | Pending | Hyper-V only checked when selected as hypervisor |
-| Readiness dashboard on Home tab | 46-01 | XAML layout established, controls registered |
-| Critical/non-critical check gating | Pending | Block on must-haves, warn on nice-to-haves |
-| Auto-check on launch + refresh | Pending | Immediate feedback without user action |
+| Critical/non-critical check gating | 46-03 | Block build on critical failures, confirm dialog on warnings, allow on all pass |
+| Auto-check on launch + refresh | 46-03 | Start-DashboardChecks called before ShowDialog for immediate feedback |
 | Auto-remediate safe fixes | Pending | Reduce friction for fixable issues |
 
 See PROJECT.md for full decision history.
@@ -75,17 +73,17 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T14:29:45Z
-**Stopped at:** Completed 46-02-PLAN.md (Dashboard Helper Functions)
+**Last session:** 2026-02-06T14:40:34Z
+**Stopped at:** Completed 46-03-PLAN.md (Dashboard UI Wiring)
 **Resume file:** None
-**Next action:** Execute 46-03-PLAN.md
+**Next action:** Execute 46-04-PLAN.md
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
 - ✅ 46-02: Dashboard Helper Functions (6 min, 2 commits)
-- ⬜ 46-03: UI Wiring
+- ✅ 46-03: Dashboard UI Wiring (6 min, 3 commits)
 - ⬜ 46-04: TBD
 - ⬜ 46-05: TBD
 
 ---
-*State updated: 2026-02-06 after 46-02-PLAN.md completed (2 tasks, 2 commits)*
+*State updated: 2026-02-06 after 46-03-PLAN.md completed (3 tasks, 3 commits)*
