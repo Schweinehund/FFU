@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 48 of 48 (Config-Aware Revalidation)
-**Plan:** 1 of 4
+**Plan:** 2 of 4
 **Status:** In progress
-**Last activity:** 2026-02-06 — Completed 48-01-PLAN.md (Dashboard Helper Functions)
+**Last activity:** 2026-02-06 — Completed 48-02-PLAN.md (XAML UI Elements)
 
-Progress: [███████░░░] 75% (3/4 phases complete, Phase 48: 1/4 plans)
+Progress: [███████░░░] 75% (3/4 phases complete, Phase 48: 2/4 plans)
 
 ## Roadmap Summary
 
@@ -49,6 +49,9 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Export button starts disabled, staleness banner starts collapsed | 48-02 | No diagnostics to export until checks run, no staleness until config changes |
+| Staleness banner between hypervisor info and progress panel | 48-02 | Top of dashboard area for high visibility without blocking results |
+| Amber/orange staleness banner colors | 48-02 | Consistent with dashboard warning color scheme (not critical, needs attention) |
 | Export-DashboardDiagnostics returns path not MessageBox | 48-01 | Separation of concerns for testability - function generates file, caller handles UI confirmation |
 | Get-HypervisorDependentChecks uses static mapping | 48-01 | Derived from FFU.Preflight conditional logic, simplifies revalidation scope (1 Hyper-V, 5 VMware, 14 independent) |
 | Set-CategoryDimmed uses 0.5 opacity | 48-01 | Standard WPF disabled state convention (50% opacity) with italic "(rechecking...)" text |
@@ -90,10 +93,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T18:31:26Z
-**Stopped at:** Completed 48-01-PLAN.md (Dashboard Helper Functions)
+**Last session:** 2026-02-06T18:32:37Z
+**Stopped at:** Completed 48-02-PLAN.md (XAML UI Elements)
 **Resume file:** None
-**Next action:** Continue Phase 48 - Plan 02 (XAML UI Elements)
+**Next action:** Continue Phase 48 - Plan 03 (Event Wiring & Behavior)
 
 **Phase 46 Progress (COMPLETE):**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
@@ -110,6 +113,7 @@ None.
 
 **Phase 48 Progress:**
 - ✅ 48-01: Dashboard Helper Functions (2 min, 1 commit)
+- ✅ 48-02: XAML UI Elements (3 min, 2 commits)
 
 ---
-*State updated: 2026-02-06 after Phase 48 Plan 01 (3 new dashboard functions for revalidation features)*
+*State updated: 2026-02-06 after Phase 48 Plan 02 (Staleness banner and Export Diagnostics button XAML added)*
