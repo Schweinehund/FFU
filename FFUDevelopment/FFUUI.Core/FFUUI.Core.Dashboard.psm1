@@ -282,17 +282,33 @@ function Update-DashboardCheckUI {
     .PARAMETER Remediation
         Optional remediation steps text for failed checks.
 
+    .PARAMETER DurationMs
+        Check execution duration in milliseconds. Displayed as "(X.Xs)" suffix
+        after the message text.
+
+    .PARAMETER OnFixClick
+        Scriptblock to execute when the Fix button is clicked for safe remediations.
+        The button's Tag property contains the CheckName.
+
+    .PARAMETER OnUnsafeFixClick
+        Scriptblock to execute when the Fix button is clicked for unsafe remediations
+        (requires reboot confirmation). The button's Tag property contains the CheckName.
+
+    .PARAMETER OnCopyClick
+        Scriptblock to execute when the Copy button is clicked in the Details expander.
+        The button's Tag property contains the CheckName.
+
     .OUTPUTS
         [void]
 
     .EXAMPLE
         Update-DashboardCheckUI -State $State -CheckName 'Administrator' -Status 'Passed' `
-            -Severity 'Critical' -Message 'Running with Administrator privileges'
+            -Severity 'Critical' -Message 'Running with Administrator privileges' -DurationMs 120
 
     .EXAMPLE
         Update-DashboardCheckUI -State $State -CheckName 'ADK' -Status 'Failed' `
             -Severity 'Critical' -Message 'Windows ADK not installed' `
-            -Remediation 'Download and install Windows ADK from Microsoft'
+            -Remediation 'Download and install Windows ADK from Microsoft' -DurationMs 350
     #>
     [CmdletBinding()]
     [OutputType([void])]
@@ -315,7 +331,19 @@ function Update-DashboardCheckUI {
         [string]$Message = '',
 
         [Parameter()]
-        [string]$Remediation = ''
+        [string]$Remediation = '',
+
+        [Parameter()]
+        [int]$DurationMs = 0,
+
+        [Parameter()]
+        [scriptblock]$OnFixClick,
+
+        [Parameter()]
+        [scriptblock]$OnUnsafeFixClick,
+
+        [Parameter()]
+        [scriptblock]$OnCopyClick
     )
 
     $category = Get-CheckCategory -CheckName $CheckName
@@ -382,10 +410,11 @@ function Update-DashboardCheckUI {
     $nameBlock.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     [void]$innerPanel.Children.Add($nameBlock)
 
-    # Brief message TextBlock
+    # Brief message TextBlock with duration
     if (-not [string]::IsNullOrWhiteSpace($Message)) {
         $messageBlock = [System.Windows.Controls.TextBlock]::new()
-        $messageBlock.Text = $Message
+        $durationSuffix = Format-CheckDuration -DurationMs $DurationMs
+        $messageBlock.Text = "$Message$durationSuffix"
         $messageBlock.Foreground = [System.Windows.Media.Brushes]::Gray
         $messageBlock.MaxWidth = 500
         $messageBlock.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
@@ -395,34 +424,126 @@ function Update-DashboardCheckUI {
 
     [void]$outerPanel.Children.Add($innerPanel)
 
-    # Add remediation Expander for failed checks
+    # Add Fix button for failed checks with mapped repair functions
+    if ($Status -eq 'Failed') {
+        $brushConverter = [System.Windows.Media.BrushConverter]::new()
+
+        # Check if user previously declined an unsafe fix
+        $fixDeclined = $false
+        if ($null -ne $State.Data -and $State.Data.ContainsKey("fixDeclined_$CheckName")) {
+            $fixDeclined = $State.Data["fixDeclined_$CheckName"] -eq $true
+        }
+
+        if ($fixDeclined) {
+            # Show "Fix available" indicator for declined fixes
+            $indicatorBlock = [System.Windows.Controls.TextBlock]::new()
+            $indicatorBlock.Text = 'Fix available'
+            $indicatorBlock.Foreground = $brushConverter.ConvertFromString('#1565C0')
+            $indicatorBlock.FontStyle = [System.Windows.FontStyles]::Italic
+            $indicatorBlock.Margin = [System.Windows.Thickness]::new(12, 0, 0, 0)
+            $indicatorBlock.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            [void]$innerPanel.Children.Add($indicatorBlock)
+        }
+        elseif ($script:SafeRepairMap.ContainsKey($CheckName)) {
+            # Safe repair - green Fix button
+            $btnFix = [System.Windows.Controls.Button]::new()
+            $btnFix.Content = 'Fix'
+            $btnFix.Padding = [System.Windows.Thickness]::new(8, 2)
+            $btnFix.Margin = [System.Windows.Thickness]::new(12, 0, 0, 0)
+            $btnFix.Background = $brushConverter.ConvertFromString('#C8E6C9')
+            $btnFix.Foreground = $brushConverter.ConvertFromString('#1B5E20')
+            $btnFix.Tag = $CheckName
+            $btnFix.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+
+            # Wire click handler via scriptblock parameter
+            if ($null -ne $OnFixClick) {
+                $btnFix.Add_Click($OnFixClick)
+            }
+
+            [void]$innerPanel.Children.Add($btnFix)
+        }
+        elseif ($script:UnsafeRemediationMap.ContainsKey($CheckName)) {
+            # Unsafe repair - amber Fix... button (ellipsis indicates confirmation)
+            $btnFix = [System.Windows.Controls.Button]::new()
+            $btnFix.Content = 'Fix...'
+            $btnFix.Padding = [System.Windows.Thickness]::new(8, 2)
+            $btnFix.Margin = [System.Windows.Thickness]::new(12, 0, 0, 0)
+            $btnFix.Background = $brushConverter.ConvertFromString('#FFE0B2')
+            $btnFix.Foreground = $brushConverter.ConvertFromString('#E65100')
+            $btnFix.Tag = $CheckName
+            $btnFix.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+
+            # Wire click handler via scriptblock parameter
+            if ($null -ne $OnUnsafeFixClick) {
+                $btnFix.Add_Click($OnUnsafeFixClick)
+            }
+
+            [void]$innerPanel.Children.Add($btnFix)
+        }
+    }
+
+    # Add Details expander for failed checks with remediation
     if ($Status -eq 'Failed' -and -not [string]::IsNullOrWhiteSpace($Remediation)) {
         $expander = [System.Windows.Controls.Expander]::new()
 
-        # Header with bold text
+        # Header with normal text
         $headerBlock = [System.Windows.Controls.TextBlock]::new()
-        $headerBlock.Text = 'Remediation Steps'
-        $headerBlock.FontWeight = [System.Windows.FontWeights]::Bold
-        $headerBlock.FontSize = 12
+        $headerBlock.Text = 'Details'
+        $headerBlock.FontWeight = [System.Windows.FontWeights]::Normal
+        $headerBlock.FontSize = 11
         $expander.Header = $headerBlock
 
-        # Content with remediation text
-        $remediationBlock = [System.Windows.Controls.TextBlock]::new()
-        $remediationBlock.Text = $Remediation
-        $remediationBlock.TextWrapping = [System.Windows.TextWrapping]::Wrap
-        $remediationBlock.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas')
-        $remediationBlock.Padding = [System.Windows.Thickness]::new(8)
-
-        # Background color based on severity
-        $bgColor = if ($Severity -eq 'Critical') { '#FFF3F3' } else { '#FFFBF0' }
-        $remediationBlock.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($bgColor)
-
-        $expander.Content = $remediationBlock
+        # Always collapsed by default
+        $expander.IsExpanded = $false
         $expander.Margin = [System.Windows.Thickness]::new(22, 2, 0, 4)
 
-        # Auto-expand for critical failures, collapsed for warnings
-        $expander.IsExpanded = ($Severity -eq 'Critical')
+        # Content: StackPanel with command TextBox + Copy button + optional full remediation
+        $contentPanel = [System.Windows.Controls.StackPanel]::new()
+        $contentPanel.Orientation = [System.Windows.Controls.Orientation]::Vertical
 
+        # Extract PowerShell commands from remediation text
+        $commands = Extract-PowerShellCommands -RemediationText $Remediation
+        $commandText = $commands -join "`n"
+
+        # Monospace TextBox for commands
+        $txtCommands = [System.Windows.Controls.TextBox]::new()
+        $txtCommands.Text = $commandText
+        $txtCommands.IsReadOnly = $true
+        $txtCommands.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas')
+        $txtCommands.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        $txtCommands.AcceptsReturn = $true
+        $txtCommands.Background = [System.Windows.Media.Brushes]::WhiteSmoke
+        $txtCommands.MaxHeight = 200
+        $txtCommands.Name = "txtRemediation_$CheckName"
+        [void]$contentPanel.Children.Add($txtCommands)
+
+        # Copy button
+        $btnCopy = [System.Windows.Controls.Button]::new()
+        $btnCopy.Content = 'Copy'
+        $btnCopy.Width = 60
+        $btnCopy.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
+        $btnCopy.Tag = $CheckName
+
+        # Wire click handler via scriptblock parameter
+        if ($null -ne $OnCopyClick) {
+            $btnCopy.Add_Click($OnCopyClick)
+        }
+
+        [void]$contentPanel.Children.Add($btnCopy)
+
+        # For Critical severity, also show full remediation text
+        if ($Severity -eq 'Critical') {
+            $fullRemediationBlock = [System.Windows.Controls.TextBlock]::new()
+            $fullRemediationBlock.Text = $Remediation
+            $fullRemediationBlock.TextWrapping = [System.Windows.TextWrapping]::Wrap
+            $fullRemediationBlock.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas')
+            $fullRemediationBlock.Padding = [System.Windows.Thickness]::new(8)
+            $fullRemediationBlock.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+            $fullRemediationBlock.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#FFF3F3')
+            [void]$contentPanel.Children.Add($fullRemediationBlock)
+        }
+
+        $expander.Content = $contentPanel
         [void]$outerPanel.Children.Add($expander)
     }
 
