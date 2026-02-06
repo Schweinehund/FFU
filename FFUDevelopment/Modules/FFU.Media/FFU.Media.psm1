@@ -756,6 +756,30 @@ function New-WinPEMediaNative {
             WriteLog "  Proceeding with mount operation without pre-validation..."
         }
 
+        # DISM-01 Phase 45: Validate DISM readiness before mount operation
+        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismReady', 'Function')) {
+            WriteLog "  Pre-mount: Validating DISM service health..."
+            if (-not (Test-DismReady -AttemptRepair $true -TimeoutSeconds 30)) {
+                $errorMsg = @"
+DISM PRE-CHECK FAILED before WinPE boot.wim mount
+===================================================
+Operation: New-WinPEMediaNative (Step 7)
+Image: $bootWimPath
+
+WIMMount service unavailable or not responding after repair attempt.
+Cannot mount boot.wim for WinPE media creation.
+
+Remediation Steps:
+1. Restart WIMMount service: Restart-Service wimmount -Force
+2. Run 'sfc /scannow' to repair system files
+3. Reboot system if service restart fails
+"@
+                WriteLog "ERROR: $errorMsg"
+                throw "DISM pre-check failed before WinPE mount. See log for remediation steps."
+            }
+            WriteLog "  DISM pre-mount validation PASSED - proceeding with boot.wim mount"
+        }
+
         # ============================================
         # Step 7: Mount boot.wim using native PowerShell cmdlet
         # ============================================
@@ -1122,6 +1146,7 @@ function New-PEMedia {
                   "DISM operations will fail with 'DismInitialize failed. Error code = 0x80004005'. " +
                   "Run 'Repair-WimMountService.ps1 -Force' or reboot, then retry."
         }
+        WriteLog "DISM pre-mount validation PASSED - WIMMount service ready for WinPE mount"
     }
 
     WriteLog 'Mounting WinPE media to add WinPE optional components'
@@ -1157,11 +1182,38 @@ function New-PEMedia {
     }
 
 
+    $packageCount = 0
+    $totalPackages = $Packages.Count
     foreach ($Package in $Packages) {
+        $packageCount++
         $PackagePath = Join-Path $PackagePathBase $Package
-        WriteLog "Adding Package $Package"
+        WriteLog "Adding WinPE package $packageCount of $totalPackages : $Package"
         Add-WindowsPackage -Path "$WinPEFFUPath\mount" -PackagePath $PackagePath | Out-Null
-        WriteLog "Adding package complete"
+        WriteLog "WinPE package $Package added successfully"
+
+        # DISM-02 Phase 45: Validate DISM functional after each WinPE package
+        if ($ExecutionContext.InvokeCommand.GetCommand('Test-DismFunctional', 'Function')) {
+            if (-not (Test-DismFunctional)) {
+                $errorMsg = @"
+DISM SERVICE DEGRADED during WinPE package installation
+=========================================================
+Package: $Package (package $packageCount of $totalPackages)
+Remaining packages: $($totalPackages - $packageCount)
+Operation: Copy-WinPEPackagesToWIM
+
+WIMMount service entered degraded state during WinPE component installation.
+Build halted to prevent corrupted WinPE media.
+
+Remediation Steps:
+1. Dismount WinPE image: Dismount-WindowsImage -Path "$WinPEFFUPath\mount" -Discard
+2. Clean DISM mountpoints: dism.exe /Cleanup-Mountpoints
+3. Restart WIMMount service: Restart-Service wimmount -Force
+4. Retry build
+"@
+                WriteLog "ERROR: $errorMsg"
+                throw "DISM degraded after WinPE package $Package (${packageCount}/${totalPackages}). Build halted."
+            }
+        }
     }
     If ($Capture) {
         WriteLog "Copying $FFUDevelopmentPath\WinPECaptureFFUFiles\* to WinPE capture media"
