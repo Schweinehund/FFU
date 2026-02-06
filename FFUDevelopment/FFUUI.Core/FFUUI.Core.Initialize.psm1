@@ -201,6 +201,40 @@ function Initialize-UIControls {
     $State.Controls.MonitorTab = $window.FindName('MonitorTab')
     $State.Controls.lstLogOutput = $window.FindName('lstLogOutput')
 
+    # ---------- Home Tab: Dashboard Controls ----------
+    # Summary and Progress
+    $State.Controls.borderSummaryStatus = $window.FindName('borderSummaryStatus')
+    $State.Controls.txtSummaryStatus = $window.FindName('txtSummaryStatus')
+    $State.Controls.pnlDashboardProgress = $window.FindName('pnlDashboardProgress')
+    $State.Controls.progressDashboard = $window.FindName('progressDashboard')
+    $State.Controls.txtDashboardProgressStatus = $window.FindName('txtDashboardProgressStatus')
+    $State.Controls.btnRefreshChecks = $window.FindName('btnRefreshChecks')
+    # Category: System
+    $State.Controls.expSystem = $window.FindName('expSystem')
+    $State.Controls.txtSystemIcon = $window.FindName('txtSystemIcon')
+    $State.Controls.txtSystemSummary = $window.FindName('txtSystemSummary')
+    $State.Controls.pnlSystemChecks = $window.FindName('pnlSystemChecks')
+    # Category: Hypervisor
+    $State.Controls.expHypervisor = $window.FindName('expHypervisor')
+    $State.Controls.txtHypervisorIcon = $window.FindName('txtHypervisorIcon')
+    $State.Controls.txtHypervisorSummary = $window.FindName('txtHypervisorSummary')
+    $State.Controls.pnlHypervisorChecks = $window.FindName('pnlHypervisorChecks')
+    # Category: BuildTools
+    $State.Controls.expBuildTools = $window.FindName('expBuildTools')
+    $State.Controls.txtBuildToolsIcon = $window.FindName('txtBuildToolsIcon')
+    $State.Controls.txtBuildToolsSummary = $window.FindName('txtBuildToolsSummary')
+    $State.Controls.pnlBuildToolsChecks = $window.FindName('pnlBuildToolsChecks')
+    # Category: Network
+    $State.Controls.expNetwork = $window.FindName('expNetwork')
+    $State.Controls.txtNetworkIcon = $window.FindName('txtNetworkIcon')
+    $State.Controls.txtNetworkSummary = $window.FindName('txtNetworkSummary')
+    $State.Controls.pnlNetworkChecks = $window.FindName('pnlNetworkChecks')
+    # Category: Optimization
+    $State.Controls.expOptimization = $window.FindName('expOptimization')
+    $State.Controls.txtOptimizationIcon = $window.FindName('txtOptimizationIcon')
+    $State.Controls.txtOptimizationSummary = $window.FindName('txtOptimizationSummary')
+    $State.Controls.pnlOptimizationChecks = $window.FindName('pnlOptimizationChecks')
+
     # Initialize and bind the log data collection
     $State.Data.logData = New-Object System.Collections.ObjectModel.ObservableCollection[string]
     $State.Controls.lstLogOutput.ItemsSource = $State.Data.logData
