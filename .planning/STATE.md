@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 45 of 48 (DISM Resilience Formalization)
-**Plan:** —
-**Status:** Ready to plan
-**Last activity:** 2026-02-06 — Roadmap created with 4 phases, 23 requirements mapped
+**Plan:** 01 of 03
+**Status:** In progress
+**Last activity:** 2026-02-06 — Completed 45-01-PLAN.md (Debug mode + DISM startup gate)
 
-Progress: [░░░░░░░░░░] 0% (0/4 phases complete)
+Progress: [██░░░░░░░░] 8% (1/12 plans complete)
 
 ## Roadmap Summary
 
@@ -47,11 +47,17 @@ Progress: [░░░░░░░░░░] 0% (0/4 phases complete)
 
 Recent decisions affecting current work:
 
-- **Hypervisor-aware preflight:** Hyper-V only checked when selected as hypervisor (pending)
-- **Readiness dashboard on Home tab:** Most impactful user-facing improvement for build confidence (pending)
-- **Critical/non-critical check gating:** Block on must-haves, warn on nice-to-haves (pending)
-- **Auto-check on launch + refresh:** Immediate feedback without user action (pending)
-- **Auto-remediate safe fixes:** Reduce friction for fixable issues (pending)
+| Decision | Phase | Rationale |
+|----------|-------|-----------|
+| Use $DebugMode instead of $Debug | 45-01 | Avoid collision with PowerShell built-in -Debug common parameter |
+| DISM startup gate after pre-flight | 45-01 | Fail-fast before resource allocation, after ADK/DISM confirmed present |
+| Debug mode as general-purpose | 45-01 | Not DISM-specific, extensible for future debug processes |
+| Dual activation (CLI + config.json) | 45-01 | CLI for ad-hoc debugging, config.json for persistent automation |
+| Hypervisor-aware preflight | Pending | Hyper-V only checked when selected as hypervisor |
+| Readiness dashboard on Home tab | Pending | Most impactful user-facing improvement for build confidence |
+| Critical/non-critical check gating | Pending | Block on must-haves, warn on nice-to-haves |
+| Auto-check on launch + refresh | Pending | Immediate feedback without user action |
+| Auto-remediate safe fixes | Pending | Reduce friction for fixable issues |
 
 See PROJECT.md for full decision history.
 
@@ -61,10 +67,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06
-**Stopped at:** Roadmap created for v1.11.0 milestone
+**Last session:** 2026-02-06T13:03:45Z
+**Stopped at:** Completed 45-01-PLAN.md (Debug mode + DISM startup gate)
 **Resume file:** None
-**Next action:** Plan Phase 45 — `/gsd:plan-phase 45`
+**Next action:** Execute 45-02 (Per-operation DISM checks) — `/gsd:execute-plan 45-02`
 
 ---
-*State updated: 2026-02-06 after roadmap creation*
+*State updated: 2026-02-06 after 45-01 completion*
