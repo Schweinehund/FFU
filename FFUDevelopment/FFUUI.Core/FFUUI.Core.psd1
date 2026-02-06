@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.20'
+ModuleVersion = '0.1.0'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -123,6 +123,8 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.1.0: Pre-flight readiness dashboard - 6 new functions for Home tab dashboard UI (Get-CheckCategory, Update-DashboardCheckUI, Update-CategorySummary, Update-SummaryStatus, Update-BuildButtonState, Clear-DashboardResults). Dashboard submodule FFUUI.Core.Dashboard.psm1.
+
 v0.0.20: BUG-WINGET-02 - Winget Source package registration for elevated admin
 - Fixed: Install-WingetComponents now also registers Microsoft.Winget.Source package
 - Root cause: Source package (winget repository index) also needs registration for elevated admin

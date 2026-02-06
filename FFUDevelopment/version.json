@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.11.0",
+    "version": "1.11.1",
     "buildDate": "2026-02-06",
 
     "versioningPolicy": {
@@ -24,9 +24,9 @@
             "description": "Structured logging with levels, JSON output, session correlation"
         },
         "FFUUI.Core": {
-            "version": "0.0.20",
+            "version": "0.1.0",
             "path": "FFUUI.Core/FFUUI.Core.psd1",
-            "description": "BUG-WINGET-02: Register Winget Source package + source initialization for elevated admin"
+            "description": "Pre-flight readiness dashboard - 6 dashboard helper functions for Home tab UI (Phase 46)"
         },
         "FFU.Core": {
             "version": "1.0.27",

@@ -8,6 +8,34 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.1 - Dashboard Foundation (Phase 46, 2026-02-06)
+
+### Phase 46: Dashboard Foundation (v1.11.1)
+**Date:** 2026-02-06
+
+**Features:**
+- **DASH-01:** Home tab displays grouped pre-flight check results organized by category (System, Hypervisor, Build Tools, Network, Optimization)
+- **DASH-02:** Each check displays visual status indicator (pass/fail/warning) with color coding (green/yellow/red)
+- **DASH-03:** Dashboard runs all checks automatically on application launch without blocking the UI
+- **DASH-04:** Refresh button re-runs all checks (disabled during active builds)
+- **DASH-05:** Summary status banner shows "Ready to Build" or "N Critical Issues, M Warnings"
+- **DASH-06:** Failed checks display actionable error messages with remediation guidance from FFU.Preflight
+- **DASH-07:** Progress indicator shows "Running check N of M: CheckName..." while checks execute
+- **DASH-08:** Build button disabled on critical failures; warnings show confirmation dialog
+
+**Files Modified:**
+- `BuildFFUVM_UI.xaml` -- Home tab XAML layout with dashboard controls
+- `BuildFFUVM_UI.ps1` -- Background execution, polling, event handlers, build gating
+- `FFUUI.Core/FFUUI.Core.Dashboard.psm1` -- NEW: 6 dashboard helper functions
+- `FFUUI.Core/FFUUI.Core.psd1` -- Dashboard submodule registration, version 0.1.0
+- `Tests/Unit/FFUUI.Core.Dashboard.Tests.ps1` -- NEW: Pester tests for dashboard functions
+
+**Module Versions:**
+- FFUUI.Core: 0.0.20 -> 0.1.0 (MINOR - new user-facing dashboard capability)
+- Main version: 1.11.0 -> 1.11.1 (PATCH - subcomponent version change)
+
+---
+
 ## v1.11.0 - DISM Resilience Formalization (Phase 45, 2026-02-06)
 
 ### DISM Pipeline Integration (DISM-01, DISM-02, DISM-03)
