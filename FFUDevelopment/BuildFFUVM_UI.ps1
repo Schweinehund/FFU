@@ -1005,6 +1005,9 @@ function Start-DashboardChecks {
     # Clear previous results
     Clear-DashboardResults -State $script:uiState
 
+    # Hide hypervisor info banner (will be shown again after determining hypervisor type)
+    $script:uiState.Controls.borderHypervisorInfo.Visibility = 'Collapsed'
+
     # Set summary banner to loading state
     $script:uiState.Controls.txtSummaryStatus.Text = 'Checking system readiness...'
 
@@ -1039,6 +1042,9 @@ function Start-DashboardChecks {
         2 { 'Auto' }
         default { 'HyperV' }
     }
+
+    # Update hypervisor info banner (Phase 47: HYP-04, HYP-05)
+    Update-HypervisorCategoryVisibility -State $script:uiState -HypervisorType $hypervisorType
 
     # Launch background job via Start-ThreadJob
     $script:uiState.Data.currentDashboardJob = Start-ThreadJob -ScriptBlock {
@@ -1079,15 +1085,16 @@ function Start-DashboardChecks {
                     Write-FFUMessage -Context $context `
                         -Message "DASHBOARD_PROGRESS|$checkNum|$totalChecks|$checkName" -Level Info
 
-                    # Send check result (pipe-delimited format)
+                    # Send check result (pipe-delimited format with DurationMs - Phase 47: REM-04)
                     $severity = if ($check.PSObject.Properties['Severity']) { $check.Severity } else { 'Info' }
                     $remediation = if ($check.PSObject.Properties['Remediation']) { $check.Remediation } else { '' }
+                    $durationMs = if ($check.PSObject.Properties['DurationMs']) { $check.DurationMs } else { 0 }
                     # Replace pipes in message/remediation to avoid delimiter collision
                     $safeMsg = ($check.Message -replace '\|', ' - ')
                     $safeRemed = ($remediation -replace '\|', ' - ')
 
                     Write-FFUMessage -Context $context `
-                        -Message "DASHBOARD_CHECK|$checkName|$($check.Status)|$severity|$safeMsg|$safeRemed" -Level Info
+                        -Message "DASHBOARD_CHECK|$checkName|$($check.Status)|$severity|$safeMsg|$safeRemed|$durationMs" -Level Info
                 }
             }
 
@@ -1143,19 +1150,21 @@ $script:uiState.Data.dashboardPollTimer.Add_Tick({
         }
 
         if ($msgText -like 'DASHBOARD_CHECK|*') {
-            # Format: DASHBOARD_CHECK|{name}|{status}|{severity}|{message}|{remediation}
-            $parts = $msgText -split '\|', 6
+            # Format: DASHBOARD_CHECK|{name}|{status}|{severity}|{message}|{remediation}|{durationMs} (Phase 47: REM-04)
+            $parts = $msgText -split '\|', 7
             if ($parts.Count -ge 5) {
                 $name = $parts[1]
                 $status = $parts[2]
                 $severity = $parts[3]
                 $message = $parts[4]
                 $remediation = if ($parts.Count -ge 6) { $parts[5] } else { '' }
+                $durationMs = if ($parts.Count -ge 7) { [int]$parts[6] } else { 0 }
 
-                # Resolve category and update UI
+                # Resolve category and update UI (Phase 47: REM-04 - pass DurationMs)
                 $category = Get-CheckCategory -CheckName $name
                 Update-DashboardCheckUI -State $script:uiState -CheckName $name `
-                    -Status $status -Severity $severity -Message $message -Remediation $remediation
+                    -Status $status -Severity $severity -Message $message -Remediation $remediation `
+                    -DurationMs $durationMs
 
                 # Track category stats
                 $stats = $script:uiState.Data.dashboardCategoryStats[$category]

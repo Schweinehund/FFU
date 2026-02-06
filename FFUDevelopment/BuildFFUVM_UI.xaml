@@ -83,6 +83,14 @@
                             <TextBlock x:Name="txtSummaryStatus" Text="Checking system readiness..." FontSize="16" FontWeight="Bold"/>
                         </Border>
 
+                        <!-- Hypervisor Info Banner (Phase 47: HYP-05) -->
+                        <Border x:Name="borderHypervisorInfo" Background="#E3F2FD" Padding="8" CornerRadius="3" Margin="0,4,0,4" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x2139;" FontSize="14" Foreground="#1976D2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtHypervisorInfo" Text="" Foreground="#1565C0" FontSize="12" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Progress Panel (hidden until checks run) -->
                         <StackPanel x:Name="pnlDashboardProgress" Visibility="Collapsed" Margin="0,0,0,8">
                             <ProgressBar x:Name="progressDashboard" Height="4" IsIndeterminate="True"/>

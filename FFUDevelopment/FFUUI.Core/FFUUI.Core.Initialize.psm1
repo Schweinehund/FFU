@@ -205,6 +205,8 @@ function Initialize-UIControls {
     # Summary and Progress
     $State.Controls.borderSummaryStatus = $window.FindName('borderSummaryStatus')
     $State.Controls.txtSummaryStatus = $window.FindName('txtSummaryStatus')
+    $State.Controls.borderHypervisorInfo = $window.FindName('borderHypervisorInfo')
+    $State.Controls.txtHypervisorInfo = $window.FindName('txtHypervisorInfo')
     $State.Controls.pnlDashboardProgress = $window.FindName('pnlDashboardProgress')
     $State.Controls.progressDashboard = $window.FindName('progressDashboard')
     $State.Controls.txtDashboardProgressStatus = $window.FindName('txtDashboardProgressStatus')
