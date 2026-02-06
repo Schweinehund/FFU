@@ -207,6 +207,10 @@ function Initialize-UIControls {
     $State.Controls.txtSummaryStatus = $window.FindName('txtSummaryStatus')
     $State.Controls.borderHypervisorInfo = $window.FindName('borderHypervisorInfo')
     $State.Controls.txtHypervisorInfo = $window.FindName('txtHypervisorInfo')
+    # ---------- Phase 48: Config-Aware Revalidation Controls ----------
+    $State.Controls.borderStaleResults = $window.FindName('borderStaleResults')
+    $State.Controls.txtStaleResults = $window.FindName('txtStaleResults')
+    $State.Controls.btnExportDiagnostics = $window.FindName('btnExportDiagnostics')
     $State.Controls.pnlDashboardProgress = $window.FindName('pnlDashboardProgress')
     $State.Controls.progressDashboard = $window.FindName('progressDashboard')
     $State.Controls.txtDashboardProgressStatus = $window.FindName('txtDashboardProgressStatus')
