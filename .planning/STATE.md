@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
 **Phase:** 47 of 48 (Hypervisor Conditional Logic & Auto-Remediation)
-**Plan:** 3 of 4
-**Status:** In progress
-**Last activity:** 2026-02-06 — Completed 47-03-PLAN.md (XAML + UI Wiring)
+**Plan:** 4 of 4
+**Status:** Phase complete
+**Last activity:** 2026-02-06 — Completed 47-04-PLAN.md (Testing, Versioning, Documentation)
 
-Progress: [█████░░░░░] 56% (2.75/4 phases complete)
+Progress: [██████░░░░] 75% (3/4 phases complete)
 
 ## Roadmap Summary
 
 **v1.11.0 Phases:**
 - Phase 45: DISM Resilience Formalization (3 requirements) ✅
 - Phase 46: Dashboard Foundation (8 requirements) ✅
-- Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements)
+- Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements) ✅
 - Phase 48: Config-Aware Revalidation (3 requirements)
 
 **Coverage:** 23/23 requirements mapped ✓
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Test coverage strategy for Phase 47 | 47-04 | Focus on testable business logic (maps, parsing, formatting), skip WPF-dependent UI tests, validate logic via underlying function tests |
+| Version bump strategy Phase 47 | 47-04 | MINOR bumps for FFU.Preflight (1.7.0) and FFUUI.Core (0.2.0) due to new user-facing functions, PATCH bump for main (1.11.2) per versioning policy |
 | Failed repair re-enables Fix button for retry | 47-03 | If Invoke-DashboardRemediation returns Succeeded=false, button resets to Fix state with error tooltip |
 | GetNewClosure() for scriptblock handlers | 47-03 | Handlers need .GetNewClosure() to capture $script: scope variables in closure |
 | Scriptblock handlers in BuildFFUVM_UI.ps1 not module | 47-03 | Handlers need access to $script:uiState, $script:FFUDevelopmentPath, and UI threading (DispatcherTimer, MessageBox) |
@@ -84,10 +86,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T16:48:45Z
-**Stopped at:** Completed 47-03-PLAN.md (XAML + UI Wiring)
+**Last session:** 2026-02-06T17:34:08Z
+**Stopped at:** Completed 47-04-PLAN.md (Testing, Versioning, Documentation)
 **Resume file:** None
-**Next action:** Continue Phase 47 - Plan 04 (if exists, else Phase 48)
+**Next action:** Phase 47 complete - ready for Phase 48 (Config-Aware Revalidation)
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
@@ -96,8 +98,11 @@ None.
 - ✅ 46-04: Dashboard Unit Tests (3 min, 1 commit)
 - ✅ 46-05: Version Bump, Changelog, Verification (24 min, 1 commit)
 
-**Phase 47 Progress:**
+**Phase 47 Progress (COMPLETE):**
 - ✅ 47-01: Auto-Remediation Repair Functions (4 min, 1 commit)
+- ✅ 47-02: Dashboard Remediation UI (8 min, 5 commits)
+- ✅ 47-03: XAML + UI Wiring (5 min, 3 commits)
+- ✅ 47-04: Testing, Versioning, Documentation (21 min, 2 commits)
 - ✅ 47-02: Dashboard Remediation UI (8 min, 4 commits)
 - ✅ 47-03: XAML + UI Wiring (5 min, 2 commits)
 
