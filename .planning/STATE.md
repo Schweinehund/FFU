@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V — Phase 46 complete, Phase 47 next
+**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V — Phase 47 complete, Phase 48 next
 
 ## Current Position
 
@@ -76,7 +76,7 @@ Recent decisions affecting current work:
 | Main version 1.11.0 (MINOR bump) | 45-03 | First version of v1.11.0 milestone, significant DISM resilience feature set |
 | Critical/non-critical check gating | 46-03 | Block build on critical failures, confirm dialog on warnings, allow on all pass |
 | Auto-check on launch + refresh | 46-03 | Start-DashboardChecks called before ShowDialog for immediate feedback |
-| Auto-remediate safe fixes | Pending | Reduce friction for fixable issues |
+| Auto-remediate safe fixes | 47 | Reduce friction for fixable issues — implemented via Fix button + Invoke-DashboardRemediation |
 
 See PROJECT.md for full decision history.
 
@@ -99,12 +99,10 @@ None.
 - ✅ 46-05: Version Bump, Changelog, Verification (24 min, 1 commit)
 
 **Phase 47 Progress (COMPLETE):**
-- ✅ 47-01: Auto-Remediation Repair Functions (4 min, 1 commit)
+- ✅ 47-01: Auto-Remediation Repair Functions (4 min, 2 commits)
 - ✅ 47-02: Dashboard Remediation UI (8 min, 5 commits)
 - ✅ 47-03: XAML + UI Wiring (5 min, 3 commits)
-- ✅ 47-04: Testing, Versioning, Documentation (21 min, 2 commits)
-- ✅ 47-02: Dashboard Remediation UI (8 min, 4 commits)
-- ✅ 47-03: XAML + UI Wiring (5 min, 2 commits)
+- ✅ 47-04: Testing, Versioning, Documentation (21 min, 3 commits)
 
 ---
-*State updated: 2026-02-06 after 47-03-PLAN.md completed (2 tasks, 2 commits)*
+*State updated: 2026-02-06 after Phase 47 verified (9/9 must-haves, 4 plans, 13 commits)*

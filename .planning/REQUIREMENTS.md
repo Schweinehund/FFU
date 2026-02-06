@@ -24,18 +24,18 @@
 
 ### Hypervisor Conditional Logic
 
-- [ ] **HYP-01**: Hyper-V pre-flight checks only execute when Hyper-V is the selected hypervisor in VM Settings
-- [ ] **HYP-02**: VMware pre-flight checks only execute when VMware is the selected hypervisor in VM Settings
-- [ ] **HYP-03**: Build is not blocked by missing Hyper-V when VMware is selected as the hypervisor
-- [ ] **HYP-04**: Dashboard visually hides irrelevant hypervisor checks (shows only selected hypervisor's category)
-- [ ] **HYP-05**: Dashboard displays clear skip message for non-selected hypervisor ("Hyper-V checks skipped — using VMware")
+- [x] **HYP-01**: Hyper-V pre-flight checks only execute when Hyper-V is the selected hypervisor in VM Settings
+- [x] **HYP-02**: VMware pre-flight checks only execute when VMware is the selected hypervisor in VM Settings
+- [x] **HYP-03**: Build is not blocked by missing Hyper-V when VMware is selected as the hypervisor
+- [x] **HYP-04**: Dashboard visually hides irrelevant hypervisor checks (shows only selected hypervisor's category)
+- [x] **HYP-05**: Dashboard displays clear skip message for non-selected hypervisor ("Hyper-V checks skipped — using VMware")
 
 ### Auto-Remediation
 
-- [ ] **REM-01**: User can click a one-click fix button for safe issues (WIMMount repair, DISM cleanup, service restart)
-- [ ] **REM-02**: Unsafe remediations (e.g., Enable Hyper-V) show a reboot confirmation dialog before executing
-- [ ] **REM-03**: Failed checks display copy-paste PowerShell commands in a selectable textbox for manual remediation
-- [ ] **REM-04**: Each completed check displays its duration ("Completed in 1.2s") for transparency
+- [x] **REM-01**: User can click a one-click fix button for safe issues (WIMMount repair, DISM cleanup, service restart)
+- [x] **REM-02**: Unsafe remediations (e.g., Enable Hyper-V) show a reboot confirmation dialog before executing
+- [x] **REM-03**: Failed checks display copy-paste PowerShell commands in a selectable textbox for manual remediation
+- [x] **REM-04**: Each completed check displays its duration ("Completed in 1.2s") for transparency
 
 ### Config-Aware Revalidation
 
@@ -78,15 +78,15 @@ Deferred to v1.12+. Tracked but not in current roadmap.
 | DASH-06 | Phase 46 | Complete |
 | DASH-07 | Phase 46 | Complete |
 | DASH-08 | Phase 46 | Complete |
-| HYP-01 | Phase 47 | Pending |
-| HYP-02 | Phase 47 | Pending |
-| HYP-03 | Phase 47 | Pending |
-| HYP-04 | Phase 47 | Pending |
-| HYP-05 | Phase 47 | Pending |
-| REM-01 | Phase 47 | Pending |
-| REM-02 | Phase 47 | Pending |
-| REM-03 | Phase 47 | Pending |
-| REM-04 | Phase 47 | Pending |
+| HYP-01 | Phase 47 | Complete |
+| HYP-02 | Phase 47 | Complete |
+| HYP-03 | Phase 47 | Complete |
+| HYP-04 | Phase 47 | Complete |
+| HYP-05 | Phase 47 | Complete |
+| REM-01 | Phase 47 | Complete |
+| REM-02 | Phase 47 | Complete |
+| REM-03 | Phase 47 | Complete |
+| REM-04 | Phase 47 | Complete |
 | CFG-01 | Phase 48 | Pending |
 | CFG-02 | Phase 48 | Pending |
 | CFG-03 | Phase 48 | Pending |
