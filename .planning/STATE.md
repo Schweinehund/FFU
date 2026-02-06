@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 **Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V
-**Phase:** 46 of 48 (Dashboard Foundation)
-**Plan:** 5 of 5
-**Status:** Phase complete
-**Last activity:** 2026-02-06 — Completed 46-05-PLAN.md (Version Bump, Changelog, Verification)
+**Phase:** 47 of 48 (Hypervisor Conditional Logic & Auto-Remediation)
+**Plan:** 1 of 4
+**Status:** In progress
+**Last activity:** 2026-02-06 — Completed 47-01-PLAN.md (Auto-Remediation Repair Functions)
 
-Progress: [█████░░░░░] 50% (2/4 phases complete)
+Progress: [█████░░░░░] 52% (2.25/4 phases complete)
 
 ## Roadmap Summary
 
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| Extracted repair logic to avoid circular deps | 47-01 | Repair-FFUWimMount copied from Test-FFUWimMount instead of calling it to avoid circular dependency |
+| Standardized repair return format | 47-01 | PSCustomObject with Succeeded/Message/DurationMs for consistent dashboard handling |
 | MINOR bump FFUUI.Core (0.0.20 -> 0.1.0) for dashboard | 46-05 | Dashboard adds 6 new functions and new UI submodule, warranting MINOR |
 | PATCH bump main version (1.11.0 -> 1.11.1) | 46-05 | Per versioning policy, subcomponent change requires minimum PATCH |
 | Mock PSCustomObject state for WPF-free testing | 46-04 | Test Update-BuildButtonState logic without WPF dispatcher using settable PSCustomObject properties |
@@ -76,10 +78,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T15:08:21Z
-**Stopped at:** Completed 46-05-PLAN.md (Version Bump, Changelog, Verification)
+**Last session:** 2026-02-06T16:32:45Z
+**Stopped at:** Completed 47-01-PLAN.md (Auto-Remediation Repair Functions)
 **Resume file:** None
-**Next action:** Execute Phase 47 (Hypervisor Conditional Logic & Auto-Remediation)
+**Next action:** Continue Phase 47 - Plan 02 (Dashboard Fix Button Integration)
 
 **Phase 46 Progress:**
 - ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
@@ -88,5 +90,8 @@ None.
 - ✅ 46-04: Dashboard Unit Tests (3 min, 1 commit)
 - ✅ 46-05: Version Bump, Changelog, Verification (24 min, 1 commit)
 
+**Phase 47 Progress:**
+- ✅ 47-01: Auto-Remediation Repair Functions (4 min, 1 commit)
+
 ---
-*State updated: 2026-02-06 after 46-05-PLAN.md completed (2 tasks, 1 commit)*
+*State updated: 2026-02-06 after 47-01-PLAN.md completed (2 tasks, 1 commit)*
