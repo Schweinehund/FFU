@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.7.0'
+    ModuleVersion = '1.8.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -99,7 +99,23 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.7.0
+# Release Notes - FFU.Preflight v1.8.0
+
+## v1.8.0 (2026-02-07)
+### Realistic Disk Estimates + Warning Tier
+- **IMPROVED**: Get-FFURequirements uses realistic estimates (67GB vs 145GB for all features)
+  - VHDX: 40% of nominal (thin provisioning) instead of full capacity
+  - WinPE media: 2GB (actual) instead of 15GB
+  - Apps ISO: 5GB (Office ~4GB + apps) instead of 10GB
+  - FFU output: 40% of VHDX (compressed) instead of full capacity
+- **ENHANCED**: Test-FFUDiskSpace now uses 3-tier system (Pass/Warning/Critical)
+  - Pass: available >= 1.2x required (20% comfortable buffer)
+  - Warning: available >= required but < 1.2x (tight but workable)
+  - Critical: available < required (genuinely insufficient)
+- **PATTERN**: Consistent with Test-FFUCaptureDiskSpace 3-tier model
+- **REMEDIATION**: Critical tier uses New-FFURemediationBlock for structured guidance
+
+---
 
 ## v1.7.0 (2026-02-06)
 ### Phase 47: Auto-Remediation Repair Functions

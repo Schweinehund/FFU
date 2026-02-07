@@ -272,8 +272,8 @@ Describe 'Get-FFURequirements' -Tag 'Helper', 'Preflight' {
 
             $requirements = Get-FFURequirements -Features $features -VHDXSizeGB 50
 
-            # Base: 50GB VHDX + 10GB scratch = 60GB minimum
-            $requirements.RequiredDiskSpaceGB | Should -BeGreaterOrEqual 60
+            # Base: 20GB VHDX (50*0.4) + 10GB scratch = 30GB minimum
+            $requirements.RequiredDiskSpaceGB | Should -BeGreaterOrEqual 30
         }
 
         It 'Should add space for WinPE media creation' {
@@ -317,7 +317,7 @@ Describe 'Get-FFURequirements' -Tag 'Helper', 'Preflight' {
             $requirements = Get-FFURequirements -Features $features -VHDXSizeGB 50
 
             # Should include Apps ISO space
-            $requirements.RequiredDiskSpaceGB | Should -BeGreaterOrEqual 70  # 60 base + 10 apps
+            $requirements.RequiredDiskSpaceGB | Should -BeGreaterOrEqual 35  # 30 base + 5 apps
         }
 
         It 'Should list required features' {
@@ -367,6 +367,64 @@ Describe 'Test-FFUDiskSpace' -Tag 'Tier2', 'Preflight' {
             $result = Test-FFUDiskSpace -FFUDevelopmentPath $env:TEMP -Features $features -VHDXSizeGB 100000
 
             $result.Status | Should -Be 'Failed'
+            $result.Remediation | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Should include pass and warning thresholds in details' {
+            $features = @{ CreateVM = $true }
+            $result = Test-FFUDiskSpace -FFUDevelopmentPath $env:TEMP -Features $features -VHDXSizeGB 50
+
+            $result.Details.PassThresholdGB | Should -Not -BeNullOrEmpty
+            $result.Details.WarningThresholdGB | Should -Not -BeNullOrEmpty
+            $result.Details.PassThresholdGB | Should -BeGreaterThan $result.Details.WarningThresholdGB
+        }
+
+        It 'Should return Warning when space is tight but sufficient' {
+            # Base requirement for CreateVM only with 50GB VHDX: 30GB (20 VHDX + 10 scratch)
+            # Warning threshold: 30GB, Pass threshold: 36GB (30 * 1.2)
+            # So 32GB free should trigger Warning
+            Mock Get-PSDrive -ModuleName FFU.Preflight {
+                [PSCustomObject]@{
+                    Name = 'C'
+                    Free = 32GB
+                }
+            }
+
+            $features = @{ CreateVM = $true }
+            $result = Test-FFUDiskSpace -FFUDevelopmentPath 'C:\FFUDevelopment' -Features $features -VHDXSizeGB 50
+
+            $result.Status | Should -Be 'Warning'
+            $result.Severity | Should -Be 'Warning'
+            $result.Message | Should -Match 'tight'
+        }
+
+        It 'Should return Passed when space comfortably exceeds requirements' {
+            Mock Get-PSDrive -ModuleName FFU.Preflight {
+                [PSCustomObject]@{
+                    Name = 'C'
+                    Free = 200GB
+                }
+            }
+
+            $features = @{ CreateVM = $true }
+            $result = Test-FFUDiskSpace -FFUDevelopmentPath 'C:\FFUDevelopment' -Features $features -VHDXSizeGB 50
+
+            $result.Status | Should -Be 'Passed'
+        }
+
+        It 'Should return Failed when space is below requirements' {
+            Mock Get-PSDrive -ModuleName FFU.Preflight {
+                [PSCustomObject]@{
+                    Name = 'C'
+                    Free = 10GB
+                }
+            }
+
+            $features = @{ CreateVM = $true }
+            $result = Test-FFUDiskSpace -FFUDevelopmentPath 'C:\FFUDevelopment' -Features $features -VHDXSizeGB 50
+
+            $result.Status | Should -Be 'Failed'
+            $result.Severity | Should -Be 'Critical'
             $result.Remediation | Should -Not -BeNullOrEmpty
         }
     }

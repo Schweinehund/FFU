@@ -255,8 +255,10 @@ function Get-FFURequirements {
     $requiredFeatures = [System.Collections.Generic.List[string]]::new()
 
     # Base requirements (always needed)
-    $requiredGB += $VHDXSizeGB  # VHDX file
-    $breakdown['VHDX file'] = $VHDXSizeGB
+    # Thin-provisioned VHDX uses ~40% of nominal capacity during build
+    $vhdxEstimateGB = [Math]::Ceiling($VHDXSizeGB * 0.4)
+    $requiredGB += $vhdxEstimateGB
+    $breakdown['VHDX file'] = $vhdxEstimateGB
     $requiredGB += 10           # Scratch space
     $breakdown['Scratch space'] = 10
 
@@ -267,23 +269,24 @@ function Get-FFURequirements {
 
     # WinPE media creation
     if ($Features.CreateCaptureMedia -or $Features.CreateDeploymentMedia) {
-        $requiredGB += 15       # WinPE media
-        $breakdown['WinPE media'] = 15
+        $requiredGB += 2        # WinPE media (base ~500MB, loaded max ~2GB)
+        $breakdown['WinPE media'] = 2
         $requiredFeatures.Add('Windows ADK')
         $requiredFeatures.Add('WinPE add-on')
     }
 
     # Apps ISO
     if ($Features.InstallApps) {
-        $requiredGB += 10       # Apps ISO
-        $breakdown['Apps ISO'] = 10
+        $requiredGB += 5        # Apps ISO (Office ~4GB + other apps ~1GB)
+        $breakdown['Apps ISO'] = 5
         $requiredFeatures.Add('Network connectivity')
     }
 
-    # FFU output (capture)
+    # FFU output (capture) - compressed FFU matches thin-provisioned actual usage
     if ($Features.CaptureFFU -or $Features.CreateCaptureMedia) {
-        $requiredGB += $VHDXSizeGB  # FFU output (similar size to VHDX)
-        $breakdown['FFU output'] = $VHDXSizeGB
+        $ffuEstimateGB = [Math]::Ceiling($VHDXSizeGB * 0.4)
+        $requiredGB += $ffuEstimateGB
+        $breakdown['FFU output'] = $ffuEstimateGB
     }
 
     # KB downloads
@@ -1252,8 +1255,9 @@ function Test-FFUDiskSpace {
         $requirements = Get-FFURequirements -Features $Features -VHDXSizeGB $VHDXSizeGB
         $requiredGB = $requirements.RequiredDiskSpaceGB
 
-        # Add 10% safety margin
-        $requiredWithMargin = [Math]::Ceiling($requiredGB * 1.1)
+        # 3-tier thresholds: Pass (>=1.2x), Warning (>=1x but <1.2x), Critical (<1x)
+        $passThresholdGB = [Math]::Ceiling($requiredGB * 1.2)
+        $warningThresholdGB = $requiredGB
 
         # Get available space on the drive
         $driveLetter = (Resolve-Path $FFUDevelopmentPath -ErrorAction SilentlyContinue)?.Drive.Name
@@ -1268,50 +1272,51 @@ function Test-FFUDiskSpace {
         $stopwatch.Stop()
 
         $details = @{
-            DriveLetter       = $driveLetter
-            RequiredGB        = $requiredGB
-            RequiredWithMargin = $requiredWithMargin
-            AvailableGB       = $availableGB
-            SpaceBreakdown    = $requirements.SpaceBreakdown
-            VHDXSizeGB        = $VHDXSizeGB
+            DriveLetter        = $driveLetter
+            RequiredGB         = $requiredGB
+            PassThresholdGB    = $passThresholdGB
+            WarningThresholdGB = $warningThresholdGB
+            AvailableGB        = $availableGB
+            SpaceBreakdown     = $requirements.SpaceBreakdown
+            VHDXSizeGB         = $VHDXSizeGB
         }
 
-        if ($availableGB -ge $requiredWithMargin) {
-            $surplusGB = [Math]::Round($availableGB - $requiredWithMargin, 2)
+        if ($availableGB -ge $passThresholdGB) {
+            $surplusGB = [Math]::Round($availableGB - $requiredGB, 2)
             New-FFUCheckResult -CheckName 'DiskSpace' -Status 'Passed' `
-                -Message "Sufficient disk space available: ${availableGB}GB free, ${requiredWithMargin}GB required (${surplusGB}GB surplus)" `
+                -Message "Sufficient disk space available: ${availableGB}GB free, ${requiredGB}GB required (${surplusGB}GB surplus)" `
                 -Details $details `
                 -DurationMs $stopwatch.ElapsedMilliseconds
         }
+        elseif ($availableGB -ge $warningThresholdGB) {
+            $marginGB = [Math]::Round($availableGB - $requiredGB, 2)
+            New-FFUCheckResult -CheckName 'DiskSpace' -Status 'Warning' `
+                -Severity 'Warning' `
+                -Message "Disk space is tight: ${availableGB}GB free, ${requiredGB}GB required (only ${marginGB}GB margin)" `
+                -Details $details `
+                -Remediation "Consider freeing space on ${driveLetter}: drive. Build may succeed but has little headroom for unexpected growth." `
+                -DurationMs $stopwatch.ElapsedMilliseconds
+        }
         else {
-            $shortfallGB = [Math]::Round($requiredWithMargin - $availableGB, 2)
+            $shortfallGB = [Math]::Round($requiredGB - $availableGB, 2)
 
-            # Build breakdown message
-            $breakdownMsg = ($requirements.SpaceBreakdown.GetEnumerator() | ForEach-Object {
-                "  - $($_.Key): $($_.Value)GB"
-            }) -join "`n"
+            $remediation = New-FFURemediationBlock -Issue "Insufficient disk space for FFU build" `
+                -Impact "Build will likely fail due to insufficient disk space" `
+                -ManualSteps @(
+                    "Free up at least ${shortfallGB}GB on drive ${driveLetter}:"
+                    "Delete unnecessary files from ${driveLetter}: drive"
+                    "Move FFUDevelopment folder to a drive with more space"
+                    "Reduce VHDX size (currently ${VHDXSizeGB}GB)"
+                    "Disable features that require additional space"
+                    "Run Disk Cleanup: cleanmgr /d ${driveLetter}"
+                ) `
+                -VerifyCommand "Get-PSDrive $driveLetter | Select-Object @{N='FreeGB';E={[Math]::Round(`$_.Free/1GB,2)}}"
 
             New-FFUCheckResult -CheckName 'DiskSpace' -Status 'Failed' `
                 -Severity 'Critical' `
-                -Message "Insufficient disk space: ${availableGB}GB free, ${requiredWithMargin}GB required (${shortfallGB}GB short)" `
+                -Message "Insufficient disk space: ${availableGB}GB free, ${requiredGB}GB required (${shortfallGB}GB short)" `
                 -Details $details `
-                -Remediation @"
-Free up ${shortfallGB}GB or more on drive ${driveLetter}:
-
-Space breakdown:
-$breakdownMsg
-  - Safety margin (10%): $([Math]::Ceiling($requiredGB * 0.1))GB
-  - Total required: ${requiredWithMargin}GB
-
-Options:
-1. Delete unnecessary files from ${driveLetter}: drive
-2. Move FFUDevelopment folder to a drive with more space
-3. Reduce VHDX size (currently ${VHDXSizeGB}GB)
-4. Disable features that require additional space
-
-Run Disk Cleanup:
-  cleanmgr /d ${driveLetter}
-"@ `
+                -Remediation $remediation `
                 -DurationMs $stopwatch.ElapsedMilliseconds
         }
     }

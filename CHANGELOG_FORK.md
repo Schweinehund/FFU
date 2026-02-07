@@ -8,6 +8,27 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.5 - Realistic Disk Space Estimates + Warning Tier (2026-02-07)
+
+### Improved: Disk Space Pre-flight
+- **FFU.Preflight v1.8.0:** Realistic disk estimates reduce total from 145GB to ~67GB (all features, 50GB VHDX)
+- VHDX and FFU output now estimated at 40% of nominal (thin provisioning)
+- WinPE media reduced from 15GB to 2GB (actual usage)
+- Apps ISO reduced from 10GB to 5GB (Office ~4GB + apps ~1GB)
+- **Test-FFUDiskSpace** now uses 3-tier system matching Test-FFUCaptureDiskSpace:
+  - **Pass:** available >= 1.2x required (comfortable buffer)
+  - **Warning:** available >= required but tight (amber triangle in dashboard)
+  - **Critical:** available < required (fail with remediation)
+- Critical tier uses `New-FFURemediationBlock` for structured guidance
+
+### Files Changed
+- `Modules/FFU.Preflight/FFU.Preflight.psm1`: Get-FFURequirements + Test-FFUDiskSpace
+- `Modules/FFU.Preflight/FFU.Preflight.psd1`: Version 1.7.0 → 1.8.0
+- `Tests/Unit/FFU.Preflight.Tests.ps1`: Updated assertions + 4 new warning tier tests
+- `version.json`: Main version 1.11.4 → 1.11.5, FFU.Preflight 1.7.0 → 1.8.0
+
+---
+
 ## v1.11.4 - VMware Capture Boot Hang Fix (2026-02-07)
 
 ### Bug Fix: vmrun gui Blocking
