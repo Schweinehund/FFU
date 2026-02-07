@@ -5,22 +5,28 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Planning next milestone
+**Current focus:** v2.0.0-alpha C# WPF Application
 
 ## Current Position
 
-**Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V — COMPLETE (archived)
-**Phase:** Between milestones
-**Status:** Ready for next milestone
-**Last activity:** 2026-02-06 — v1.11.0 archived, Jira epics updated
+**Milestone:** v2.0.0-alpha — C# WPF Application
+**Phase:** 49-53 ALL COMPLETE
+**Status:** All 5 phases implemented, milestone complete
+**Last activity:** 2026-02-07 — Phase 53 implemented (Polish, Testing & Versioning)
 
-Progress: [██████████] 100% — All milestones through v1.11.0 shipped
+Progress: [██████████] 100% — 5/5 phases complete
 
 ## Roadmap Summary
 
-**v1.11.0 Archived:** See `.planning/milestones/v1.11.0-ROADMAP.md`
+See: `.planning/ROADMAP.md`
 
-No active roadmap — run `/gsd:new-milestone` to start next cycle.
+| Phase | Name | Status |
+|-------|------|--------|
+| 49 | Project Foundation & PowerShell SDK | COMPLETE |
+| 50 | Dashboard & Preflight Integration | COMPLETE |
+| 51 | Settings & Configuration | COMPLETE |
+| 52 | Build Execution & Monitor | COMPLETE |
+| 53 | Polish, Testing & Versioning | COMPLETE |
 
 ## Shipped Milestones
 
@@ -41,7 +47,14 @@ No active roadmap — run `/gsd:new-milestone` to start next cycle.
 
 ## Decisions Log
 
-All milestone decisions archived in `.planning/milestones/` and `PROJECT.md`.
+- C# WPF app uses .NET 8.0-windows LTS
+- PowerShell SDK 7.4.7 for in-process module loading
+- CommunityToolkit.Mvvm 8.3.2 for MVVM source generators
+- Newtonsoft.Json for config.json compatibility with PowerShell UI
+- Serilog for file logging
+- xUnit + FluentAssertions + Moq for testing
+- Admin manifest (requireAdministrator) — same as PowerShell UI
+- Fault-tolerant module loading (skip modules requiring elevation)
 
 ## Blockers
 
@@ -49,10 +62,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06
-**Stopped at:** v1.11.0 milestone archived, Jira updated (RTS-108, RTS-117 → Done, RTS-155 created + Done)
-**Resume file:** None
-**Next action:** `/gsd:new-milestone` to start next improvement cycle
+**Last session:** 2026-02-07
+**Stopped at:** All 5 phases complete — v2.0.0-alpha milestone fully implemented
+**Next action:** Commit all changes, then decide on next milestone
 
 ---
-*State updated: 2026-02-06 — v1.11.0 milestone archived*
+*State updated: 2026-02-07 — v2.0.0-alpha milestone complete*

@@ -76,3 +76,42 @@ public class InverseBoolConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+public class LogLevelToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value switch
+        {
+            Models.LogLevel.Error => new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),   // red
+            Models.LogLevel.Warning => new SolidColorBrush(Color.FromRgb(0xF5, 0x7F, 0x17)), // amber
+            Models.LogLevel.Information => new SolidColorBrush(Color.FromRgb(0x21, 0x21, 0x21)), // dark
+            Models.LogLevel.Verbose => new SolidColorBrush(Color.FromRgb(0x75, 0x75, 0x75)),  // gray
+            _ => new SolidColorBrush(Color.FromRgb(0x21, 0x21, 0x21))
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+public class BuildStateToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is Models.BuildState state && parameter is string target)
+        {
+            return target switch
+            {
+                "Running" => state == Models.BuildState.Running || state == Models.BuildState.Cancelling
+                    ? Visibility.Visible : Visibility.Collapsed,
+                "Idle" => state == Models.BuildState.Idle ? Visibility.Visible : Visibility.Collapsed,
+                _ => Visibility.Collapsed
+            };
+        }
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}

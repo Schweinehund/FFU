@@ -115,7 +115,7 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 No active milestone. Next milestone TBD.
 
 **Deferred bugs (carry forward):**
-- expand.exe fails on large MSU files (fallback works — explicitly out of scope)
+- None — expand.exe MSU fallback resolved and working well
 
 ### Out of Scope
 

@@ -6,4 +6,6 @@ public interface IConfigurationService
 {
     Task<BuildConfiguration> LoadAsync(string configPath, CancellationToken cancellationToken = default);
     Task SaveAsync(string configPath, BuildConfiguration config, CancellationToken cancellationToken = default);
+    BuildConfiguration CreateDefaults();
+    string GetDefaultConfigPath(string ffuDevelopmentPath);
 }

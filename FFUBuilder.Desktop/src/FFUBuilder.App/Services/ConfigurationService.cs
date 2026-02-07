@@ -24,7 +24,13 @@ public class ConfigurationService : IConfigurationService
 
     public async Task SaveAsync(string configPath, BuildConfiguration config, CancellationToken cancellationToken = default)
     {
-        var json = JsonConvert.SerializeObject(config, Formatting.Indented);
+        var settings = new JsonSerializerSettings
+        {
+            Formatting = Formatting.Indented,
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
+        var json = JsonConvert.SerializeObject(config, settings);
         var directory = Path.GetDirectoryName(configPath);
         if (directory is not null && !Directory.Exists(directory))
         {
@@ -34,4 +40,9 @@ public class ConfigurationService : IConfigurationService
         await File.WriteAllTextAsync(configPath, json, cancellationToken);
         Log.Information("Saved configuration to {Path}", configPath);
     }
+
+    public BuildConfiguration CreateDefaults() => BuildConfiguration.CreateDefaults();
+
+    public string GetDefaultConfigPath(string ffuDevelopmentPath)
+        => Path.Combine(ffuDevelopmentPath, "config", "FFUConfig.json");
 }

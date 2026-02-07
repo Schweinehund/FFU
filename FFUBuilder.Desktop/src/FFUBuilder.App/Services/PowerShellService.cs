@@ -209,6 +209,108 @@ if ($env:PSModulePath -notlike ""*$modulesPath*"") {{
         }
     }
 
+    public async Task InvokeScriptWithStreamingAsync(
+        string script,
+        IDictionary<string, object>? parameters = null,
+        Action<ProgressRecord>? onProgress = null,
+        Action<string>? onVerbose = null,
+        Action<string>? onWarning = null,
+        Action<ErrorRecord>? onError = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!IsInitialized)
+            throw new InvalidOperationException("PowerShell service not initialized. Call InitializeAsync first.");
+
+        await _semaphore.WaitAsync(cancellationToken);
+        PowerShell? ps = null;
+        try
+        {
+            ps = PowerShell.Create();
+            ps.Runspace = _runspace;
+            ps.AddScript(script);
+
+            if (parameters is not null)
+            {
+                foreach (var kvp in parameters)
+                {
+                    ps.AddParameter(kvp.Key, kvp.Value);
+                }
+            }
+
+            // Wire up stream handlers
+            if (onProgress is not null)
+            {
+                ps.Streams.Progress.DataAdded += (_, e) =>
+                {
+                    var record = ps.Streams.Progress[e.Index];
+                    onProgress(record);
+                };
+            }
+
+            if (onVerbose is not null)
+            {
+                ps.Streams.Verbose.DataAdded += (_, e) =>
+                {
+                    var msg = ps.Streams.Verbose[e.Index];
+                    onVerbose(msg.ToString());
+                };
+            }
+
+            if (onWarning is not null)
+            {
+                ps.Streams.Warning.DataAdded += (_, e) =>
+                {
+                    var msg = ps.Streams.Warning[e.Index];
+                    onWarning(msg.ToString());
+                };
+            }
+
+            if (onError is not null)
+            {
+                ps.Streams.Error.DataAdded += (_, e) =>
+                {
+                    var err = ps.Streams.Error[e.Index];
+                    onError(err);
+                };
+            }
+
+            // Register cancellation
+            var registration = cancellationToken.Register(() =>
+            {
+                try { ps.Stop(); }
+                catch { /* ignore stop errors */ }
+            });
+
+            try
+            {
+                await Task.Run(() => ps.Invoke(), CancellationToken.None);
+            }
+            finally
+            {
+                await registration.DisposeAsync();
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            if (ps.HadErrors && !cancellationToken.IsCancellationRequested)
+            {
+                var errors = string.Join(Environment.NewLine,
+                    ps.Streams.Error.Select(e => e.ToString()));
+                throw new InvalidOperationException(
+                    $"PowerShell script completed with errors:\n{errors}");
+            }
+        }
+        finally
+        {
+            ps?.Dispose();
+            _semaphore.Release();
+        }
+    }
+
     private Task<IReadOnlyCollection<PSObject>> InvokeInternalAsync(
         string script,
         IDictionary<string, object>? parameters = null)

@@ -19,4 +19,13 @@ public interface IPowerShellService : IAsyncDisposable
         IDictionary<string, object>? parameters = null,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default);
+
+    Task InvokeScriptWithStreamingAsync(
+        string script,
+        IDictionary<string, object>? parameters = null,
+        Action<System.Management.Automation.ProgressRecord>? onProgress = null,
+        Action<string>? onVerbose = null,
+        Action<string>? onWarning = null,
+        Action<System.Management.Automation.ErrorRecord>? onError = null,
+        CancellationToken cancellationToken = default);
 }

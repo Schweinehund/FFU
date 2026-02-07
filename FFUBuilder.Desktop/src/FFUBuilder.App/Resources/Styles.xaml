@@ -16,4 +16,28 @@
     <SolidColorBrush x:Key="StatusWarningBrush" Color="#F57F17" />
     <SolidColorBrush x:Key="StatusPendingBrush" Color="#757575" />
 
+    <!-- Validation error template for TextBox -->
+    <Style x:Key="ValidatedTextBox" TargetType="TextBox">
+        <Setter Property="Margin" Value="0,2,0,2" />
+        <Style.Triggers>
+            <Trigger Property="Validation.HasError" Value="True">
+                <Setter Property="BorderBrush" Value="#C62828" />
+                <Setter Property="BorderThickness" Value="2" />
+                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- GroupBox header style for settings sections -->
+    <Style x:Key="SettingsGroupBox" TargetType="GroupBox">
+        <Setter Property="Margin" Value="0,0,0,12" />
+        <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <!-- Settings label style -->
+    <Style x:Key="SettingsLabel" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,4,8,4" />
+    </Style>
+
 </ResourceDictionary>

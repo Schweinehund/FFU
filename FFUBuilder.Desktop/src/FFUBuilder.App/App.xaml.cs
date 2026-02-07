@@ -71,6 +71,7 @@ public partial class App : Application
         services.AddSingleton<IPowerShellService, PowerShellService>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IPreflightService, PreflightService>();
+        services.AddSingleton<IBuildService, BuildService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();

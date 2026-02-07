@@ -1,29 +1,590 @@
 <UserControl x:Class="FFUBuilder.App.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:FFUBuilder.App.Converters">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- Header -->
         <StackPanel Grid.Row="0">
             <TextBlock Text="Build Settings"
                        FontSize="24" FontWeight="SemiBold"
-                       Margin="0,0,0,8" />
+                       Margin="0,0,0,4" />
             <TextBlock Text="Configure VM, Windows, drivers, and application options"
                        FontSize="14" Foreground="Gray"
-                       Margin="0,0,0,16" />
+                       Margin="0,0,0,12" />
         </StackPanel>
 
-        <Border Grid.Row="1"
-                BorderBrush="#E0E0E0" BorderThickness="1"
-                CornerRadius="4" Padding="16">
-            <TextBlock Text="{Binding StatusMessage}"
-                       VerticalAlignment="Center"
-                       HorizontalAlignment="Center"
-                       FontSize="16" Foreground="Gray" />
-        </Border>
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Content="Load Config" Command="{Binding LoadConfigCommand}"
+                    Padding="12,6" Margin="0,0,8,0" />
+            <Button Content="Save Config" Command="{Binding SaveConfigCommand}"
+                    Padding="12,6" Margin="0,0,8,0" />
+            <Button Content="Reset Defaults" Command="{Binding ResetToDefaultsCommand}"
+                    Padding="12,6" Margin="0,0,16,0" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center"
+                       Foreground="Gray" FontSize="12" />
+            <TextBlock Text=" *" Foreground="#C62828" FontWeight="Bold"
+                       VerticalAlignment="Center" FontSize="14"
+                       Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+
+        <!-- Config file path -->
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Config File:" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding ConfigFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Path to the config JSON file to load/save" />
+        </Grid>
+
+        <!-- Scrollable settings sections -->
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+
+                <!-- 1. Windows Settings -->
+                <GroupBox Header="Windows Settings" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Windows Release:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.WindowsRelease, Mode=TwoWay}"
+                                      ItemsSource="{Binding WindowsReleaseOptions}"
+                                      ToolTip="Windows release version (10, 11, or server year)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Windows SKU:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.WindowsSKU, Mode=TwoWay}"
+                                      ItemsSource="{Binding WindowsSKUOptions}"
+                                      ToolTip="Edition of Windows to install" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Windows Version:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.WindowsVersion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Version string (e.g., 24H2, 23H2, LTSC)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Architecture:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.WindowsArch, Mode=TwoWay}"
+                                      ItemsSource="{Binding WindowsArchOptions}"
+                                      ToolTip="CPU architecture (x64, x86, arm64)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Language:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.WindowsLang, Mode=TwoWay}"
+                                      ItemsSource="{Binding WindowsLangOptions}"
+                                      ToolTip="Windows language (e.g., en-us, fr-fr)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Media Type:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.MediaType, Mode=TwoWay}"
+                                      ItemsSource="{Binding MediaTypeOptions}"
+                                      ToolTip="Consumer (retail) or business (volume license)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Product Key:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.ProductKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Product key for MAK or KMS activation" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="ISO Path:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.ISOPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Path to Windows ISO file" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Optional Features:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.OptionalFeatures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Semicolon-separated optional features (e.g., netfx3;TFTP)" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 2. VM Settings -->
+                <GroupBox Header="VM Settings" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VM Name:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.VMName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"
+                                     Style="{StaticResource ValidatedTextBox}"
+                                     ToolTip="Name of the VM (letters, numbers, underscores, hyphens only)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Memory (GB):" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding MemoryGB, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F0, ValidatesOnNotifyDataErrors=True}"
+                                     Style="{StaticResource ValidatedTextBox}"
+                                     ToolTip="VM memory in GB (2-128)" />
+                            <TextBlock Grid.Column="2" Text="GB" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="Gray" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Disk Size (GB):" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding DisksizeGB, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F0, ValidatesOnNotifyDataErrors=True}"
+                                     Style="{StaticResource ValidatedTextBox}"
+                                     ToolTip="Virtual disk size in GB (25-2048)" />
+                            <TextBlock Grid.Column="2" Text="GB" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="Gray" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Processors:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.Processors, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"
+                                     Style="{StaticResource ValidatedTextBox}"
+                                     ToolTip="Number of virtual processors (1-64)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VM Location:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.VMLocation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Location of the VHDX for Windows installation" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VM Switch Name:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.VMSwitchName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Hyper-V virtual switch name for FFU capture" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VM Host IP:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.VMHostIPAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="IP address of Hyper-V host (auto-detected if empty)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Sector Size:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.LogicalSectorSizeBytes, Mode=TwoWay}"
+                                      ItemsSource="{Binding LogicalSectorSizeOptions}"
+                                      ToolTip="Logical sector size (512 or 4096 for 4Kn drives)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Shutdown Timeout:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.VMShutdownTimeoutMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"
+                                     Style="{StaticResource ValidatedTextBox}"
+                                     ToolTip="Max minutes to wait for VM shutdown (5-120)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Hypervisor:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.HypervisorType, Mode=TwoWay}"
+                                      ItemsSource="{Binding HypervisorTypeOptions}"
+                                      ToolTip="Hypervisor platform (HyperV, VMware, or Auto)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Virtual Disk Format:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.VirtualDiskFormat, Mode=TwoWay}"
+                                      ItemsSource="{Binding VirtualDiskFormatOptions}"
+                                      ToolTip="VHD (universal) or VHDX (Hyper-V only)" />
+                        </Grid>
+                        <CheckBox Content="Show VM Console"
+                                  IsChecked="{Binding Configuration.ShowVMConsole, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Display VM window during build (VMware only)" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 3. Paths & Capture -->
+                <GroupBox Header="Paths &amp; Capture" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="FFU Dev Path:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.FFUDevelopmentPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="FFU development folder (empty = auto-detect)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Capture Location:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.FFUCaptureLocation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Folder where captured FFU will be stored" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="FFU Prefix:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.FFUPrefix, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Prefix for generated FFU file name" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Name Template:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.CustomFFUNameTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Custom FFU name with placeholders ({WindowsRelease}, {SKU}, {yyyy}, etc.)" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Share Name:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.ShareName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Shared folder name for FFU capture" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Username:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Temp user for share access (auto-created/removed)" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 4. Applications & Office -->
+                <GroupBox Header="Applications &amp; Office" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <CheckBox Content="Install Apps"
+                                  IsChecked="{Binding Configuration.InstallApps, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Create Apps ISO, install apps via VM" />
+                        <CheckBox Content="Install Office"
+                                  IsChecked="{Binding Configuration.InstallOffice, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download and install Microsoft Office" />
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="App List Path:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.AppListPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Path to WinGet app list JSON" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Office Config XML:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.OfficeConfigXMLFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Custom Office configuration XML file path" />
+                        </Grid>
+                        <CheckBox Content="Copy Office Config XML"
+                                  IsChecked="{Binding Configuration.CopyOfficeConfigXML, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Copy custom Office config XML for M365 Apps deployment" />
+                        <CheckBox Content="Inject Unattend"
+                                  IsChecked="{Binding Configuration.InjectUnattend, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Copy unattend XML for sysprep inside VM" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 5. Drivers -->
+                <GroupBox Header="Drivers" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <CheckBox Content="Install Drivers"
+                                  IsChecked="{Binding Configuration.InstallDrivers, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Install device drivers from Drivers folder" />
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Make:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.Make, Mode=TwoWay}"
+                                      ItemsSource="{Binding MakeOptions}"
+                                      ToolTip="Device manufacturer for automatic driver download" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Model:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.Model, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Device model for automatic driver download" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Drivers Folder:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.DriversFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Path to drivers folder" />
+                        </Grid>
+                        <CheckBox Content="Copy Drivers to USB"
+                                  IsChecked="{Binding Configuration.CopyDrivers, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Copy drivers to USB deploy partition" />
+                        <CheckBox Content="Copy PE Drivers"
+                                  IsChecked="{Binding Configuration.CopyPEDrivers, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Add WinPE drivers to deployment media" />
+                        <CheckBox Content="Use Drivers as PE Drivers"
+                                  IsChecked="{Binding Configuration.UseDriversAsPEDrivers, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Build WinPE drivers from DriversFolder" />
+                        <CheckBox Content="Compress Drivers to WIM"
+                                  IsChecked="{Binding Configuration.CompressDownloadedDriversToWim, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Compress downloaded drivers into WIM file" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 6. Updates -->
+                <GroupBox Header="Updates" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <CheckBox Content="Latest Cumulative Update"
+                                  IsChecked="{Binding Configuration.UpdateLatestCU, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download and install latest CU" />
+                        <CheckBox Content="Latest .NET Framework"
+                                  IsChecked="{Binding Configuration.UpdateLatestNet, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download and install latest .NET Framework" />
+                        <CheckBox Content="Latest .NET 4.8"
+                                  IsChecked="{Binding Configuration.UpdateLatestNet48, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download and install latest .NET Framework 4.8" />
+                        <CheckBox Content="Latest Defender"
+                                  IsChecked="{Binding Configuration.UpdateLatestDefender, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download latest Defender definitions and platform update" />
+                        <CheckBox Content="Latest Edge"
+                                  IsChecked="{Binding Configuration.UpdateEdge, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download and install latest Microsoft Edge" />
+                        <CheckBox Content="Latest OneDrive"
+                                  IsChecked="{Binding Configuration.UpdateOneDrive, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download and install latest OneDrive (per-machine)" />
+                        <CheckBox Content="Latest MSRT"
+                                  IsChecked="{Binding Configuration.UpdateLatestMSRT, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download latest Malicious Software Removal Tool" />
+                        <CheckBox Content="Latest Microcode"
+                                  IsChecked="{Binding Configuration.UpdateLatestMicrocode, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Download latest microcode updates (for applicable releases)" />
+                        <CheckBox Content="Preview CU"
+                                  IsChecked="{Binding Configuration.UpdatePreviewCU, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Install preview CU instead of stable release" />
+                        <CheckBox Content="Include Preview Updates"
+                                  IsChecked="{Binding Configuration.IncludePreviewUpdates, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Allow preview/optional updates in update searches" />
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="BITS Priority:" Style="{StaticResource SettingsLabel}" />
+                            <ComboBox Grid.Column="1"
+                                      SelectedItem="{Binding Configuration.BitsPriority, Mode=TwoWay}"
+                                      ItemsSource="{Binding BitsPriorityOptions}"
+                                      ToolTip="Download priority for BITS transfers" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 7. Build Options -->
+                <GroupBox Header="Build Options" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <CheckBox Content="Compact OS"
+                                  IsChecked="{Binding Configuration.CompactOS, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Compact OS for smaller image size" />
+                        <CheckBox Content="Optimize"
+                                  IsChecked="{Binding Configuration.Optimize, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Optimize FFU for smaller size and faster deployment" />
+                        <CheckBox Content="Create Capture Media"
+                                  IsChecked="{Binding Configuration.CreateCaptureMedia, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Create WinPE capture media for app-based builds" />
+                        <CheckBox Content="Create Deployment Media"
+                                  IsChecked="{Binding Configuration.CreateDeploymentMedia, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Create WinPE deployment media for physical devices" />
+                        <CheckBox Content="Update ADK"
+                                  IsChecked="{Binding Configuration.UpdateADK, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Check for and install latest Windows ADK" />
+                        <CheckBox Content="Allow VHDX Caching"
+                                  IsChecked="{Binding Configuration.AllowVHDXCaching, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Cache VHDX file for faster subsequent builds" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 8. USB & Deployment -->
+                <GroupBox Header="USB &amp; Deployment" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <CheckBox Content="Build USB Drive"
+                                  IsChecked="{Binding Configuration.BuildUSBDrive, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Partition, format, and copy FFU to USB drive" />
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Max USB Drives:" Style="{StaticResource SettingsLabel}" />
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding Configuration.MaxUSBDrives, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"
+                                     Style="{StaticResource ValidatedTextBox}"
+                                     ToolTip="Max USB drives to build in parallel (0 = all)" />
+                        </Grid>
+                        <CheckBox Content="Allow External Hard Disks"
+                                  IsChecked="{Binding Configuration.AllowExternalHardDiskMedia, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Allow external hard disk media for deployment" />
+                        <CheckBox Content="Prompt for External Disks"
+                                  IsChecked="{Binding Configuration.PromptExternalHardDiskMedia, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Confirm before using external hard disk media" />
+                        <CheckBox Content="Copy Autopilot"
+                                  IsChecked="{Binding Configuration.CopyAutopilot, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Copy Autopilot folder to USB deploy partition" />
+                        <CheckBox Content="Copy Unattend"
+                                  IsChecked="{Binding Configuration.CopyUnattend, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Copy Unattend folder to USB deploy partition" />
+                        <CheckBox Content="Copy PPKG"
+                                  IsChecked="{Binding Configuration.CopyPPKG, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Copy provisioning package to USB deploy partition" />
+                        <CheckBox Content="Remove FFU After Copy"
+                                  IsChecked="{Binding Configuration.RemoveFFU, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove FFU file after copying to USB" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 9. Cleanup -->
+                <GroupBox Header="Cleanup" Style="{StaticResource SettingsGroupBox}">
+                    <StackPanel>
+                        <CheckBox Content="Cleanup Apps ISO"
+                                  IsChecked="{Binding Configuration.CleanupAppsISO, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove Apps ISO after capture" />
+                        <CheckBox Content="Cleanup Capture ISO"
+                                  IsChecked="{Binding Configuration.CleanupCaptureISO, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove WinPE capture ISO after capture" />
+                        <CheckBox Content="Cleanup Capture VM"
+                                  IsChecked="{Binding Configuration.CleanupCaptureVM, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove capture VM after successful capture" />
+                        <CheckBox Content="Cleanup Deploy ISO"
+                                  IsChecked="{Binding Configuration.CleanupDeployISO, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove WinPE deployment ISO after capture" />
+                        <CheckBox Content="Cleanup Drivers"
+                                  IsChecked="{Binding Configuration.CleanupDrivers, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove drivers folder after capture" />
+                        <CheckBox Content="Cleanup Current Run Downloads"
+                                  IsChecked="{Binding Configuration.CleanupCurrentRunDownloads, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove downloads from current build run" />
+                        <CheckBox Content="Remove Apps"
+                                  IsChecked="{Binding Configuration.RemoveApps, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove app content in Apps folder after capture" />
+                        <CheckBox Content="Remove Updates"
+                                  IsChecked="{Binding Configuration.RemoveUpdates, Mode=TwoWay}"
+                                  Margin="0,4" ToolTip="Remove downloaded update files" />
+                    </StackPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

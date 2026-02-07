@@ -23,8 +23,8 @@ public class ConfigurationServiceTests : IDisposable
         var config = await service.LoadAsync(Path.Combine(_tempDir, "nonexistent.json"));
 
         config.Should().NotBeNull();
-        config.WindowsRelease.Should().Be("24H2");
-        config.VMName.Should().Be("FFU_Build_VM");
+        config.WindowsRelease.Should().Be(11);
+        config.VMName.Should().Be("YOURPC");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class ConfigurationServiceTests : IDisposable
 
         var original = new BuildConfiguration
         {
-            WindowsRelease = "23H2",
+            WindowsRelease = 10,
             WindowsSKU = "Enterprise",
             VMName = "Test_VM",
             Processors = 8,
@@ -45,7 +45,7 @@ public class ConfigurationServiceTests : IDisposable
         await service.SaveAsync(configPath, original);
         var loaded = await service.LoadAsync(configPath);
 
-        loaded.WindowsRelease.Should().Be("23H2");
+        loaded.WindowsRelease.Should().Be(10);
         loaded.WindowsSKU.Should().Be("Enterprise");
         loaded.VMName.Should().Be("Test_VM");
         loaded.Processors.Should().Be(8);
