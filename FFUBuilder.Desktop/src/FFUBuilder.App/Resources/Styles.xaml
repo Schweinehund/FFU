@@ -1,0 +1,19 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Tab item style for left-side navigation -->
+    <Style x:Key="NavTabItem" TargetType="TabItem">
+        <Setter Property="MinWidth" Value="120" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+
+    <!-- Status colors -->
+    <SolidColorBrush x:Key="StatusPassBrush" Color="#2E7D32" />
+    <SolidColorBrush x:Key="StatusFailBrush" Color="#C62828" />
+    <SolidColorBrush x:Key="StatusWarningBrush" Color="#F57F17" />
+    <SolidColorBrush x:Key="StatusPendingBrush" Color="#757575" />
+
+</ResourceDictionary>

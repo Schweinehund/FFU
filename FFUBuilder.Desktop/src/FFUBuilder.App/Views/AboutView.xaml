@@ -1,0 +1,38 @@
+<UserControl x:Class="FFUBuilder.App.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Margin="16">
+        <StackPanel VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    MaxWidth="500">
+
+            <TextBlock Text="FFU Builder"
+                       FontSize="32" FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,8" />
+
+            <TextBlock Text="{Binding AppVersion}"
+                       FontSize="18" Foreground="Gray"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,16" />
+
+            <TextBlock Text="{Binding Description}"
+                       FontSize="14"
+                       HorizontalAlignment="Center"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       Margin="0,0,0,24" />
+
+            <TextBlock FontSize="12" Foreground="Gray"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center">
+                <Run Text="Native C# WPF application" />
+                <LineBreak />
+                <Run Text="PowerShell modules loaded via SDK" />
+                <LineBreak />
+                <Run Text="MIT License" />
+            </TextBlock>
+        </StackPanel>
+    </Grid>
+</UserControl>
