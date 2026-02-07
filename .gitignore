@@ -1,0 +1,21 @@
+# Build outputs
+bin/
+obj/
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# NuGet
+packages/
+
+# Logs
+*.log
+
+# Playwright MCP
+.playwright-mcp/
+
+# OS artifacts
+nul
+Thumbs.db
