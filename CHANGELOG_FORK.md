@@ -8,6 +8,24 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.4 - VMware Capture Boot Hang Fix (2026-02-07)
+
+### Bug Fix: vmrun gui Blocking
+- **FFU.Imaging v1.3.6:** Fixed VMware capture boot hang in New-FFU function
+- **Root cause:** ShowVMConsole parameter defaulted to $true, causing `vmrun gui` to block indefinitely
+- **Symptom:** Build hangs after "Pre-flight checks" log entry when starting VM for FFU capture
+- **Fix:** Changed ShowVMConsole default from $true to $false (line 2297 in FFU.Imaging.psm1)
+- **Impact:** vmrun now uses nogui mode, returns immediately after VM start, allows polling loop to detect hung VMs and timeout gracefully
+- **Related:** VMware builds require `-HypervisorType 'VMware'` parameter to inject e1000e network drivers into WinPE capture media
+- **Debug session:** `.planning/debug/vmware-capture-boot-failure.md`
+
+### Files Changed
+- `Modules/FFU.Imaging/FFU.Imaging.psm1`: ShowVMConsole default $true → $false
+- `Modules/FFU.Imaging/FFU.Imaging.psd1`: Version 1.3.5 → 1.3.6
+- `version.json`: Main version 1.11.3 → 1.11.4, FFU.Imaging 1.3.5 → 1.3.6
+
+---
+
 ## v1.11.3 - Config-Aware Revalidation (Phase 48, 2026-02-06) — v1.11.0 Milestone Complete
 
 ### Phase 48: Config-Aware Revalidation (v1.11.3)

@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.5'
+    ModuleVersion = '1.3.6'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -93,6 +93,13 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.3.6 - Fix VMware capture boot hang (vmrun gui blocking)
+- New-FFU: Changed ShowVMConsole parameter default from $true to $false (line 2297)
+- BUG FIX: When ShowVMConsole=$true with VMware, vmrun gui blocks indefinitely if VM doesn't shut down
+- With nogui mode, vmrun returns immediately, allowing polling loop to detect hung VMs and timeout gracefully
+- Root cause: WinPE capture ISO may be missing VMware e1000e drivers if HypervisorType parameter not set to 'VMware'
+- User action: Pass -HypervisorType 'VMware' when building on VMware Workstation Pro to inject network drivers into capture media
+
 v1.3.5 - DISM-HEALTH-COVERAGE: Complete DISM readiness coverage in Add-FFUDrivers
 - Add-FFUDrivers: Added Test-DismReady gate before Mount-WindowsImage (both initial and retry attempts)
 - Completes DISM protection coverage - closes last remaining gap after Enable-WindowsFeaturesByName fix

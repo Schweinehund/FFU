@@ -2294,7 +2294,10 @@ function New-FFU {
         [int]$VMShutdownTimeoutMinutes = 60,
 
         [Parameter(Mandatory = $false)]
-        [bool]$ShowVMConsole = $true,
+        [bool]$ShowVMConsole = $false,  # BUG FIX: Changed from $true to $false (vmware-capture-boot-failure debug)
+                                         # When $true with VMware, vmrun gui blocks indefinitely if VM doesn't shut down
+                                         # When $false, vmrun nogui returns immediately, allowing polling loop to timeout
+                                         # Root cause: WinPE capture ISO may be missing VMware drivers, causing VM to hang at pause prompt
 
         [Parameter(Mandatory = $false)]
         [int]$FFUFileLockWaitSeconds = 120,

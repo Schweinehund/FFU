@@ -1308,17 +1308,71 @@ Remediation Steps:
                 if ($infFiles.Count -gt 0) {
                     WriteLog "Adding VMware network drivers ($($infFiles.Count) INF files) to WinPE capture media..."
                     WriteLog "Injecting drivers from: $vmwareDriversPath"
-                    foreach ($inf in $infFiles) {
-                        WriteLog "  - $($inf.FullName)"
+                    $mountPath = "$WinPEFFUPath\mount"
+                    WriteLog "Target WinPE mount: $mountPath"
+
+                    # Log all source driver files with sizes
+                    $allDriverFiles = Get-ChildItem -Path $vmwareDriversPath -Recurse -ErrorAction SilentlyContinue
+                    WriteLog "Driver source contents ($($allDriverFiles.Count) files):"
+                    foreach ($file in $allDriverFiles) {
+                        $sizeKB = [math]::Round($file.Length / 1024, 1)
+                        WriteLog "  [$($sizeKB) KB] $($file.FullName)"
                     }
-                    WriteLog "Target WinPE mount: $WinPEFFUPath\mount"
+
+                    # Inject each INF individually for granular error reporting
+                    $injectedCount = 0
+                    $failedCount = 0
+                    foreach ($inf in $infFiles) {
+                        $infDir = $inf.DirectoryName
+                        WriteLog "Injecting driver: $($inf.Name) from $infDir"
+                        try {
+                            $result = Add-WindowsDriver -Path $mountPath -Driver $infDir -Recurse -ErrorAction Stop -WarningAction Continue
+                            if ($result) {
+                                foreach ($drv in $result) {
+                                    WriteLog "  Injected: Driver=$($drv.Driver) Version=$($drv.Version) ClassName=$($drv.ClassName) ProviderName=$($drv.ProviderName)"
+                                }
+                            }
+                            else {
+                                WriteLog "  WARNING: Add-WindowsDriver returned no output for $($inf.Name)"
+                            }
+                            $injectedCount++
+                        }
+                        catch {
+                            $failedCount++
+                            WriteLog "  FAILED: $($inf.Name) - $($_.Exception.Message)"
+                            if ($_.Exception.InnerException) {
+                                WriteLog "  Inner exception: $($_.Exception.InnerException.Message)"
+                            }
+                            WriteLog "  HRESULT: 0x$('{0:X8}' -f $_.Exception.HResult)"
+                        }
+                    }
+                    WriteLog "Driver injection complete: $injectedCount succeeded, $failedCount failed out of $($infFiles.Count) INF files"
+
+                    # Post-injection verification: list drivers in mounted WinPE image
+                    WriteLog "Post-injection verification - enumerating drivers in mounted WinPE..."
                     try {
-                        Add-WindowsDriver -Path "$WinPEFFUPath\mount" -Driver $vmwareDriversPath -Recurse -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Out-Null
-                        WriteLog "VMware network drivers injected successfully into capture media"
+                        $mountedDrivers = Get-WindowsDriver -Path $mountPath -ErrorAction Stop
+                        WriteLog "Total drivers in WinPE image: $($mountedDrivers.Count)"
+                        $oemDrivers = $mountedDrivers | Where-Object { $_.Driver -like 'oem*' }
+                        WriteLog "Third-party (OEM) drivers: $($oemDrivers.Count)"
+                        foreach ($drv in $oemDrivers) {
+                            WriteLog "  OEM: $($drv.Driver) ClassName=$($drv.ClassName) Version=$($drv.Version) Provider=$($drv.ProviderName) OriginalFileName=$($drv.OriginalFileName)"
+                        }
+                        # Check specifically for network class drivers
+                        $netDrivers = $mountedDrivers | Where-Object { $_.ClassName -eq 'Net' }
+                        WriteLog "Network class drivers in WinPE: $($netDrivers.Count)"
+                        if ($netDrivers.Count -eq 0) {
+                            WriteLog "WARNING: No network class drivers found in WinPE image after injection!"
+                            WriteLog "WinPE capture will likely fail - no network adapters will be available"
+                        }
+                        else {
+                            foreach ($net in $netDrivers) {
+                                WriteLog "  Net driver: $($net.Driver) Version=$($net.Version) Provider=$($net.ProviderName)"
+                            }
+                        }
                     }
                     catch {
-                        WriteLog "WARNING: Some VMware drivers failed to inject: $($_.Exception.Message)"
-                        WriteLog "Capture network connectivity may be affected"
+                        WriteLog "WARNING: Failed to enumerate drivers in mounted WinPE: $($_.Exception.Message)"
                     }
                 }
                 else {
