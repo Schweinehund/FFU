@@ -6,7 +6,7 @@
 # NOTE: FFU.Constants module is imported at RUNTIME via Import-Module (see module import section).
 #
 # The param block defaults below use HARDCODED values that MUST match FFU.Constants:
-# - DEFAULT_VM_MEMORY = 4GB (4294967296 bytes)
+# - DEFAULT_VM_MEMORY = 2GB (2147483648 bytes)
 # - DEFAULT_VHDX_SIZE = 50GB (53687091200 bytes)
 # - DEFAULT_VM_PROCESSORS = 4
 #
@@ -346,7 +346,7 @@ param(
     [bool]$InstallDrivers,
     [Parameter(Mandatory = $false)]
     [ValidateRange(2GB, 128GB)]
-    [uint64]$Memory = 4GB,  # Must match [FFUConstants]::DEFAULT_VM_MEMORY
+    [uint64]$Memory = 2GB,  # Must match [FFUConstants]::DEFAULT_VM_MEMORY
     [Parameter(Mandatory = $false)]
     [ValidateRange(25GB, 2TB)]
     [uint64]$Disksize = 50GB,  # Must match [FFUConstants]::DEFAULT_VHDX_SIZE

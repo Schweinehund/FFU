@@ -4307,7 +4307,7 @@ function Test-FFUVMResources {
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
-        [int64]$RequiredMemoryMB = 4096,
+        [int64]$RequiredMemoryMB = 2048,
 
         [Parameter()]
         [ValidateSet('HyperV', 'VMware', 'Auto')]

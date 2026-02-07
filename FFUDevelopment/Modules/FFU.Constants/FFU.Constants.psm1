@@ -262,10 +262,10 @@ class FFUConstants {
 
     #region VM Configuration Defaults
 
-    # Default VM memory allocation (4GB)
+    # Default VM memory allocation (2GB)
     # Minimum required for Windows 10/11 installation and updates
     # Balance between performance and host resource availability
-    static [uint64] $DEFAULT_VM_MEMORY = 4GB
+    static [uint64] $DEFAULT_VM_MEMORY = 2GB
 
     # Default VM processor count (4)
     # Balances build performance with host system availability
