@@ -2,31 +2,25 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-05)
+See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.11.0 Readiness Dashboard & Optional Hyper-V — COMPLETE!
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-**Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V — COMPLETE
-**Phase:** 48 of 48 (Config-Aware Revalidation) — COMPLETE
-**Plan:** 4 of 4 (all plans complete)
-**Status:** Milestone complete
-**Last activity:** 2026-02-06 — Completed 48-04-PLAN.md (Testing, Versioning, Documentation)
+**Milestone:** v1.11.0 Readiness Dashboard & Optional Hyper-V — COMPLETE (archived)
+**Phase:** Between milestones
+**Status:** Ready for next milestone
+**Last activity:** 2026-02-06 — v1.11.0 archived, Jira epics updated
 
-Progress: [██████████] 100% (4/4 phases complete, all 16 plans shipped)
+Progress: [██████████] 100% — All milestones through v1.11.0 shipped
 
 ## Roadmap Summary
 
-**v1.11.0 Phases (ALL COMPLETE):**
-- Phase 45: DISM Resilience Formalization (3 requirements) ✅
-- Phase 46: Dashboard Foundation (8 requirements) ✅
-- Phase 47: Hypervisor Conditional Logic & Auto-Remediation (9 requirements) ✅
-- Phase 48: Config-Aware Revalidation (3 requirements) ✅
+**v1.11.0 Archived:** See `.planning/milestones/v1.11.0-ROADMAP.md`
 
-**Coverage:** 23/23 requirements delivered ✅
-**Milestone Summary:** 4 phases, 16 plans, 23 requirements — v1.11.0 complete!
+No active roadmap — run `/gsd:new-milestone` to start next cycle.
 
 ## Shipped Milestones
 
@@ -47,53 +41,7 @@ Progress: [██████████] 100% (4/4 phases complete, all 16 pla
 
 ## Decisions Log
 
-Recent decisions affecting current work:
-
-| Decision | Phase | Rationale |
-|----------|-------|-----------|
-| Test pattern for array validation | 48-04 | Use @($result).Count instead of -BeOfType [System.Array] for PowerShell single-element arrays |
-| Version bump strategy Phase 48 | 48-04 | MINOR for FFUUI.Core (0.3.0 - 3 new functions), PATCH for main (1.11.3 - subcomponent change) |
-| Cancel-and-restart for hypervisor changes | 48-03 | Stop in-progress job before launching new check run, clear job reference to prevent accumulation |
-| SelectionChanged initialization guard | 48-03 | Null check on lastHypervisorSelection prevents unwanted revalidation at app startup |
-| Build guard tracks staleness but delays revalidation | 48-03 | User sees config changed banner but checks don't run until build completes |
-| Export button disabled during export | 48-03 | Prevent double-click race conditions, always re-enable in finally block |
-| Export button starts disabled, staleness banner starts collapsed | 48-02 | No diagnostics to export until checks run, no staleness until config changes |
-| Staleness banner between hypervisor info and progress panel | 48-02 | Top of dashboard area for high visibility without blocking results |
-| Amber/orange staleness banner colors | 48-02 | Consistent with dashboard warning color scheme (not critical, needs attention) |
-| Export-DashboardDiagnostics returns path not MessageBox | 48-01 | Separation of concerns for testability - function generates file, caller handles UI confirmation |
-| Get-HypervisorDependentChecks uses static mapping | 48-01 | Derived from FFU.Preflight conditional logic, simplifies revalidation scope (1 Hyper-V, 5 VMware, 14 independent) |
-| Set-CategoryDimmed uses 0.5 opacity | 48-01 | Standard WPF disabled state convention (50% opacity) with italic "(rechecking...)" text |
-| FFUUI.Core.psd1 uses wildcard exports | 48-01 | FunctionsToExport='*' automatically exports new functions, no manifest changes needed |
-| Test coverage strategy for Phase 47 | 47-04 | Focus on testable business logic (maps, parsing, formatting), skip WPF-dependent UI tests, validate logic via underlying function tests |
-| Version bump strategy Phase 47 | 47-04 | MINOR bumps for FFU.Preflight (1.7.0) and FFUUI.Core (0.2.0) due to new user-facing functions, PATCH bump for main (1.11.2) per versioning policy |
-| Failed repair re-enables Fix button for retry | 47-03 | If Invoke-DashboardRemediation returns Succeeded=false, button resets to Fix state with error tooltip |
-| GetNewClosure() for scriptblock handlers | 47-03 | Handlers need .GetNewClosure() to capture $script: scope variables in closure |
-| Scriptblock handlers in BuildFFUVM_UI.ps1 not module | 47-03 | Handlers need access to $script:uiState, $script:FFUDevelopmentPath, and UI threading (DispatcherTimer, MessageBox) |
-| Scriptblock parameter click handler wiring | 47-02 | Fix/Copy buttons wired at creation time via OnFixClick/OnUnsafeFixClick/OnCopyClick params (no post-creation scanning) |
-| ADK excluded from auto-fix | 47-02 | ADK failures require manual installer - intentionally NOT in SafeRepairMap |
-| Duration precision 1 decimal | 47-02 | Format-CheckDuration uses 1 decimal (1.2s) for cleaner display |
-| Extracted repair logic to avoid circular deps | 47-01 | Repair-FFUWimMount copied from Test-FFUWimMount instead of calling it to avoid circular dependency |
-| Standardized repair return format | 47-01 | PSCustomObject with Succeeded/Message/DurationMs for consistent dashboard handling |
-| MINOR bump FFUUI.Core (0.0.20 -> 0.1.0) for dashboard | 46-05 | Dashboard adds 6 new functions and new UI submodule, warranting MINOR |
-| PATCH bump main version (1.11.0 -> 1.11.1) | 46-05 | Per versioning policy, subcomponent change requires minimum PATCH |
-| Mock PSCustomObject state for WPF-free testing | 46-04 | Test Update-BuildButtonState logic without WPF dispatcher using settable PSCustomObject properties |
-| Pipe-delimited message format for dashboard | 46-03 | Structured data within FFU.Messaging string messages using `\|` delimiter |
-| Separate dashboardPollTimer from build pollTimer | 46-03 | Independent operation of dashboard and build polling |
-| Live per-check category summary updates | 46-03 | Immediate visual feedback as each check completes rather than batch at end |
-| Five refresh re-enable code paths | 46-03 | Every build-completion path re-enables refresh button for robustness |
-| Used actual FFU.Preflight check names in category map | 46-02 | VMwareBridgeConfig not VMwareBridgeConfiguration, Configuration not ConfigurationFile |
-| Extended category map with 3 additional checks | 46-02 | AppsISODiskSpace, CaptureDiskSpace, DISMCleanup exist in FFU.Preflight |
-| Kept FunctionsToExport wildcard pattern | 46-02 | Consistent with existing FFUUI.Core manifest, avoids breaking exports |
-| Fixed MinimalExpanderNoHighlightStyle for Header binding | 46-01 | Style had hardcoded text; ContentPresenter needed for dashboard Expanders |
-| Dashboard container is StackPanel not Grid | 46-01 | Simpler vertical flow for banner, progress, button, categories |
-| Naming convention: exp/txt/pnl + Category + role | 46-01 | Consistent pattern for 5 dashboard categories |
-| MINOR version bumps for both modules | 45-03 | Hard-stop behavior change and new WinPE validation features warrant MINOR bumps |
-| Main version 1.11.0 (MINOR bump) | 45-03 | First version of v1.11.0 milestone, significant DISM resilience feature set |
-| Critical/non-critical check gating | 46-03 | Block build on critical failures, confirm dialog on warnings, allow on all pass |
-| Auto-check on launch + refresh | 46-03 | Start-DashboardChecks called before ShowDialog for immediate feedback |
-| Auto-remediate safe fixes | 47 | Reduce friction for fixable issues — implemented via Fix button + Invoke-DashboardRemediation |
-
-See PROJECT.md for full decision history.
+All milestone decisions archived in `.planning/milestones/` and `PROJECT.md`.
 
 ## Blockers
 
@@ -101,40 +49,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-06T18:59:25Z
-**Stopped at:** Completed Phase 48 Plan 04 — v1.11.0 MILESTONE COMPLETE!
+**Last session:** 2026-02-06
+**Stopped at:** v1.11.0 milestone archived, Jira updated (RTS-108, RTS-117 → Done, RTS-155 created + Done)
 **Resume file:** None
-**Next action:** Begin next milestone planning or project review
-
-**Phase 45 Progress (COMPLETE):**
-- ✅ 45-01: DISM Startup Gate (3 min, 1 commit)
-- ✅ 45-02: DISM Pipeline Integration (6 min, 2 commits)
-- ✅ 45-03: Version Bump & Documentation (4 min, 2 commits)
-
-**Phase 46 Progress (COMPLETE):**
-- ✅ 46-01: Home Tab Dashboard XAML Layout (4 min, 2 commits)
-- ✅ 46-02: Dashboard Helper Functions (6 min, 2 commits)
-- ✅ 46-03: Dashboard UI Wiring (6 min, 3 commits)
-- ✅ 46-04: Dashboard Unit Tests (3 min, 1 commit)
-- ✅ 46-05: Version Bump, Changelog, Verification (24 min, 1 commit)
-
-**Phase 47 Progress (COMPLETE):**
-- ✅ 47-01: Auto-Remediation Repair Functions (4 min, 2 commits)
-- ✅ 47-02: Dashboard Remediation UI (8 min, 5 commits)
-- ✅ 47-03: XAML + UI Wiring (5 min, 3 commits)
-- ✅ 47-04: Testing, Versioning, Documentation (21 min, 3 commits)
-
-**Phase 48 Progress (COMPLETE):**
-- ✅ 48-01: Dashboard Helper Functions (2 min, 1 commit)
-- ✅ 48-02: XAML UI Elements (3 min, 2 commits)
-- ✅ 48-03: Event Wiring & State Management (4 min, 2 commits)
-- ✅ 48-04: Testing, Versioning, Documentation (6 min, 2 commits)
-
-**v1.11.0 Milestone Complete:**
-- 4 phases (45, 46, 47, 48)
-- 16 plans total
-- 23 requirements delivered
-- Version: 1.11.3 (FFUUI.Core 0.3.0)
+**Next action:** `/gsd:new-milestone` to start next improvement cycle
 
 ---
-*State updated: 2026-02-06 after Phase 48 completion — v1.11.0 Readiness Dashboard & Optional Hyper-V milestone shipped!*
+*State updated: 2026-02-06 — v1.11.0 milestone archived*

@@ -101,19 +101,18 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Empty driver folder auto-skip during deployment
   - 30-second Security Platform delay in audit mode
   - USB UniqueId identification and skip-driver option
+- **Readiness Dashboard & Optional Hyper-V** — v1.11.0
+  - DISM resilience formalization (startup gate, post-KB validation, graceful degradation)
+  - Live pre-flight readiness dashboard on Home tab with 5 grouped categories
+  - Hypervisor-conditional checks (Hyper-V optional when VMware selected)
+  - One-click auto-remediation for safe issues with reboot confirmation for unsafe
+  - Config-aware revalidation on hypervisor change with staleness detection
+  - Diagnostics export for support scenarios
+  - 48 new Pester tests, 23/23 requirements delivered
 
 ### Active
 
-**Current Milestone: v1.11.0 — Readiness Dashboard & Optional Hyper-V**
-
-**Goal:** Transform the Home tab into a pre-flight readiness dashboard and make Hyper-V optional when VMware is available.
-
-**Target features:**
-- DISM resilience formalization (in-flight Test-DismReady/Test-DismFunctional work)
-- Hypervisor-aware preflight — Hyper-V only required when selected, VMware checks when VMware selected
-- Pre-Flight Readiness Dashboard on Home tab — grouped category checks, auto-run on launch with refresh button
-- Auto-remediation where safe, remediation guidance for manual fixes
-- Critical check failures block builds, non-critical failures warn but allow
+No active milestone. Next milestone TBD.
 
 **Deferred bugs (carry forward):**
 - expand.exe fails on large MSU files (fallback works — explicitly out of scope)
@@ -127,7 +126,7 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ## Context
 
-FFU Builder is a mature codebase with 98.8% PowerShell, 13 modules (11 original + FFU.Checkpoint + FFU.ConfigMigration) totaling ~90,000+ lines of code. Through 8 milestones (v1.8.0 → v1.10.0), the project has shipped 133 plans across 43 phases. The v1.10.0 milestone selectively ported 60 upstream commits, adding 8 new OEM manufacturers, Dell CatalogIndexPC optimization, SUBST long-path support, and deployment UX improvements.
+FFU Builder is a mature codebase with 98.8% PowerShell, 13 modules (11 original + FFU.Checkpoint + FFU.ConfigMigration) totaling ~108,000+ lines of code. Through 10 milestones (v1.0.x → v1.11.0), the project has shipped 150 plans across 48 phases. The v1.11.0 milestone added a live pre-flight readiness dashboard, hypervisor-conditional checks, one-click auto-remediation, and config-aware revalidation with diagnostics export.
 
 Key files:
 - `BuildFFUVM.ps1` — Core build orchestrator
@@ -175,11 +174,16 @@ Key files:
 | Security Platform delay in Orchestrator | More maintainable than unattend.xml approach | ✓ Good |
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
-| Hypervisor-aware preflight | Hyper-V only checked when selected as hypervisor | — Pending |
-| Readiness dashboard on Home tab | Most impactful user-facing improvement for build confidence | — Pending |
-| Critical/non-critical check gating | Block on must-haves, warn on nice-to-haves | — Pending |
-| Auto-check on launch + refresh | Immediate feedback without user action | — Pending |
-| Auto-remediate safe fixes | Reduce friction for fixable issues | — Pending |
+| Hypervisor-aware preflight | Hyper-V only checked when selected as hypervisor | ✓ Good |
+| Readiness dashboard on Home tab | Most impactful user-facing improvement for build confidence | ✓ Good |
+| Critical/non-critical check gating | Block on must-haves, warn on nice-to-haves | ✓ Good |
+| Auto-check on launch + refresh | Immediate feedback without user action | ✓ Good |
+| Auto-remediate safe fixes | Reduce friction for fixable issues | ✓ Good |
+| Pipe-delimited dashboard messages | Structured data within FFU.Messaging strings | ✓ Good |
+| Separate dashboard poll timer | Independent operation from build poll timer | ✓ Good |
+| Cancel-and-restart for hypervisor changes | Stop in-progress job before launching new check run | ✓ Good |
+| Static hypervisor-dependent check mapping | 1 Hyper-V, 5 VMware, 14 independent checks | ✓ Good |
+| Export returns path not MessageBox | Separation of concerns for testability | ✓ Good |
 
 ---
-*Last updated: 2026-02-05 after v1.11.0 milestone started*
+*Last updated: 2026-02-06 after v1.11.0 milestone shipped*

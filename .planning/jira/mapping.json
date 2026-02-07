@@ -135,23 +135,54 @@
     },
     "v1.9.3": {
       "epicKey": "RTS-108",
-      "status": "In Progress",
+      "status": "Done",
       "summary": "FFU Builder v1.9.3 - OEM Driver Bug Fixes",
       "created": "2026-01-25",
       "started": "2026-01-26",
+      "shipped": "2026-01-27",
       "phases": "31-33",
-      "requirements": 14
+      "requirements": 14,
+      "deliverables": {
+        "phases": 3,
+        "plans": 5,
+        "pesterTests": "static analysis tests"
+      }
     },
     "v1.10.0": {
       "epicKey": "RTS-117",
-      "status": "In Progress",
+      "status": "Done",
       "summary": "FFU Builder v1.10.0 - Upstream Cherry-Pick",
       "created": "2026-01-29",
       "started": "2026-01-29",
+      "shipped": "2026-02-02",
       "phases": "34-43",
-      "requirements": 20
+      "requirements": 20,
+      "deliverables": {
+        "phases": 10,
+        "plans": 31,
+        "filesModified": 121,
+        "linesAdded": 28748,
+        "upstreamCommits": 60,
+        "newOEMs": 8
+      }
+    },
+    "v1.11.0": {
+      "epicKey": "RTS-155",
+      "status": "Done",
+      "summary": "FFU Builder v1.11.0 - Readiness Dashboard & Optional Hyper-V",
+      "created": "2026-02-06",
+      "started": "2026-02-05",
+      "shipped": "2026-02-06",
+      "phases": "45-48",
+      "requirements": 23,
+      "deliverables": {
+        "phases": 4,
+        "plans": 16,
+        "pesterTests": 48,
+        "requirementsDelivered": "23/23"
+      }
     }
   },
-  "lastAudit": "2026-01-25",
-  "notes": "v1.10.0 epic RTS-117 created on 2026-01-29 - Upstream Cherry-Pick (10 phases, 20 requirements)"
+  "lastAudit": "2026-02-06",
+  "notes": "v1.11.0 epic RTS-155 created on 2026-02-06 - Readiness Dashboard & Optional Hyper-V (4 phases, 23 requirements). Audit caught v1.9.3 and v1.10.0 still In Progress - both transitioned to Done."
 }

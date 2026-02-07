@@ -1,5 +1,33 @@
 # Project Milestones: FFU Builder
 
+## v1.11.0 Readiness Dashboard & Optional Hyper-V (Shipped: 2026-02-06)
+
+**Delivered:** Live pre-flight readiness dashboard on Home tab with hypervisor-conditional checks, one-click auto-remediation, config-aware revalidation, and diagnostics export.
+
+**Phases completed:** 45-48 (16 plans total)
+
+**Key accomplishments:**
+
+- DISM resilience formalization with startup gate, post-KB validation, and graceful degradation for broken WIMMount
+- Live dashboard with 5 grouped categories, auto-run on launch, color-coded status, and summary banner
+- Hypervisor-conditional logic making Hyper-V optional when VMware is selected
+- One-click auto-remediation for safe issues (WIMMount repair, DISM cleanup, service restart) with reboot confirmation for unsafe fixes
+- Config-aware revalidation that auto-re-runs checks when hypervisor selection changes
+- Diagnostics export with timestamps, system info, and remediation history
+
+**Stats:**
+
+- 72 files created/modified
+- +17,931 / -164 lines of PowerShell
+- 4 phases, 16 plans, 23 requirements
+- 1 day (2026-02-05 to 2026-02-06)
+
+**Git range:** `a8d7a63` to `df7893f`
+
+**What's next:** Define requirements for next improvement cycle
+
+---
+
 ## v1.10.0 Upstream Cherry-Pick (Shipped: 2026-02-02)
 
 **Delivered:** Selectively ported 60 upstream commits into modular architecture — critical bug fixes, 8 new OEM manufacturers, Dell CatalogIndexPC optimization, SUBST long-path reliability, and deployment UX improvements.
