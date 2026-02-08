@@ -41,6 +41,7 @@ $ShareName = 'FFUCaptureShare'
 $UserName = 'ffu_user'
 $Password = '23202eb4-10c3-47e9-b389-f0c462663a23'
 $CustomFFUNameTemplate = '{WindowsRelease}_{WindowsVersion}_{SKU}_{yyyy}-{MM}-{dd}_{HH}{mm}'
+$VMwareNetworkType = 'unknown'
 
 # Solution C: Automatic Network Wait + Retry + Diagnostics
 
@@ -1076,10 +1077,63 @@ try {
     Write-Host "  Host IP: $VMHostIPAddress"
     Write-Host "  Share: \\$VMHostIPAddress\$ShareName"
     Write-Host "  User: $UserName"
+    Write-Host "  Network Type: $VMwareNetworkType"
+    Write-Host ""
+
+    # Diagnostic: Warn if VMware network type is bridged (NAT is more reliable)
+    if ($VMwareNetworkType -eq 'bridged') {
+        Write-Host "[WARNING] VMware network type is 'bridged'" -ForegroundColor Yellow
+        Write-Host "  Bridged networking requires the host to have a wired Ethernet adapter." -ForegroundColor Yellow
+        Write-Host "  If the host only has Wi-Fi, bridged mode may fail to provide connectivity." -ForegroundColor Yellow
+        Write-Host "  Consider setting VMwareSettings.DefaultNetworkType = 'nat' in your config." -ForegroundColor Yellow
+        Write-Host ""
+    }
+
+    # Diagnostic: Raw WMI dump - show ALL network adapters before filtering
+    Write-Host "Raw WMI Network Adapter Dump (unfiltered):" -ForegroundColor Cyan
+    try {
+        $allWmiAdapters = Get-CimInstance -ClassName Win32_NetworkAdapter -ErrorAction Stop
+        if ($null -eq $allWmiAdapters -or @($allWmiAdapters).Count -eq 0) {
+            Write-Host "  [CRITICAL] WMI returned ZERO Win32_NetworkAdapter instances" -ForegroundColor Red
+        }
+        else {
+            Write-Host "  Total adapters in WMI: $(@($allWmiAdapters).Count)" -ForegroundColor White
+            foreach ($wmiAdapter in $allWmiAdapters) {
+                $connId = if ($wmiAdapter.NetConnectionID) { $wmiAdapter.NetConnectionID } else { '(null)' }
+                $connStatus = if ($null -ne $wmiAdapter.NetConnectionStatus) { $wmiAdapter.NetConnectionStatus } else { '(null)' }
+                $adapterType = if ($wmiAdapter.AdapterType) { $wmiAdapter.AdapterType } else { '(null)' }
+                $mac = if ($wmiAdapter.MACAddress) { $wmiAdapter.MACAddress } else { '(null)' }
+                Write-Host "  [$($wmiAdapter.DeviceID)] $($wmiAdapter.Name)" -ForegroundColor Gray
+                Write-Host "       AdapterType=$adapterType  NetConnectionID=$connId  Status=$connStatus  MAC=$mac" -ForegroundColor DarkGray
+            }
+        }
+    }
+    catch {
+        Write-Host "  [ERROR] Failed to query Win32_NetworkAdapter: $_" -ForegroundColor Red
+    }
+    Write-Host ""
+
+    # Diagnostic: Driver store enumeration - show loaded network drivers
+    Write-Host "WinPE Driver Store (network-related):" -ForegroundColor Cyan
+    try {
+        $driverOutput = pnputil /enum-drivers 2>&1
+        $networkDrivers = $driverOutput | Select-String -Pattern "e1000|intel|network|ethernet|vmxnet" -CaseSensitive:$false
+        if ($networkDrivers.Count -gt 0) {
+            foreach ($driver in $networkDrivers) {
+                Write-Host "  $driver" -ForegroundColor Gray
+            }
+        }
+        else {
+            Write-Host "  No network-related drivers found in driver store" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "  [ERROR] pnputil enumeration failed: $_" -ForegroundColor Red
+    }
     Write-Host ""
 
     # Early diagnostic: Check for network adapters BEFORE attempting connection
-    Write-Host "Network Adapter Pre-Check:" -ForegroundColor Cyan
+    Write-Host "Network Adapter Pre-Check (filtered):" -ForegroundColor Cyan
     $earlyAdapters = Get-WmiNetworkAdapter
     if ($earlyAdapters.Count -eq 0 -or $null -eq $earlyAdapters) {
         Write-Host "  [CRITICAL] No network adapters found!" -ForegroundColor Red

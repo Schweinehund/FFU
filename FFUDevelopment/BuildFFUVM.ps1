@@ -4731,6 +4731,7 @@ if ($InstallApps) {
                     Username              = $Username
                     Password              = $capturePasswordSecure  # SecureString - converted internally
                     FFUDevelopmentPath    = $FFUDevelopmentPath
+                    VMwareNetworkType     = $VMwareNetworkType
                 }
 
                 # Add CustomFFUNameTemplate if provided

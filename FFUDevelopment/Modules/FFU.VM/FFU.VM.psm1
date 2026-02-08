@@ -1963,7 +1963,10 @@ function Update-CaptureFFUScript {
         [string]$FFUDevelopmentPath,
 
         [Parameter(Mandatory = $false)]
-        [string]$CustomFFUNameTemplate
+        [string]$CustomFFUNameTemplate,
+
+        [Parameter(Mandatory = $false)]
+        [string]$VMwareNetworkType
     )
 
     WriteLog "Updating CaptureFFU.ps1 script with runtime configuration"
@@ -2042,6 +2045,12 @@ function Update-CaptureFFUScript {
         if (![string]::IsNullOrEmpty($CustomFFUNameTemplate)) {
             WriteLog "  CustomFFUNameTemplate: $CustomFFUNameTemplate"
             $scriptContent = $scriptContent -replace '(\$CustomFFUNameTemplate\s*=\s*)[''"].*?[''"]', "`$1'$CustomFFUNameTemplate'"
+        }
+
+        # Update VMwareNetworkType if provided (for diagnostics inside WinPE)
+        if (![string]::IsNullOrEmpty($VMwareNetworkType)) {
+            WriteLog "  VMwareNetworkType: $VMwareNetworkType"
+            $scriptContent = $scriptContent -replace '(\$VMwareNetworkType\s*=\s*)[''"].*?[''"]', "`$1'$VMwareNetworkType'"
         }
 
         # Write updated content back to script file
