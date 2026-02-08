@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.8.0'
+    ModuleVersion = '1.8.1'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -99,7 +99,15 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Preflight v1.8.0
+# Release Notes - FFU.Preflight v1.8.1
+
+## v1.8.1 (2026-02-08)
+### Fix: UI dashboard shows correct failed/warning counts
+- CriticalCount and WarningCount never incremented in Invoke-FFUPreflight check handlers
+- UI computed passedChecks = total - 0 - 0, always showing "All checks passed"
+- Added CriticalCount++ to all 18 Failed-status handlers
+- Added WarningCount++ to all 11 Warning-status handlers
+- Test-FFUVMResources memory failure now uses -Severity Critical (was Warning)
 
 ## v1.8.0 (2026-02-07)
 ### Realistic Disk Estimates + Warning Tier

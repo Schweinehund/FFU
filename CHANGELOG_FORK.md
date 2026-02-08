@@ -8,6 +8,23 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.7 - Fix UI Dashboard Preflight Counter Bug (2026-02-08)
+
+### Fixed: UI dashboard always showing "All checks passed"
+- **FFU.Preflight v1.8.1:** `CriticalCount` and `WarningCount` counters in `Invoke-FFUPreflight` were never incremented
+- UI computed `passedChecks = totalChecks - 0 - 0`, always displaying all checks as passed
+- Added `CriticalCount++` to all 18 Failed-status handlers
+- Added `WarningCount++` to all 11 Warning-status handlers
+- `Test-FFUVMResources` memory failure now uses `-Severity 'Critical'` (was defaulting to `'Warning'`)
+- Build script (`BuildFFUVM.ps1`) was unaffected — it uses `$result.IsValid` which worked correctly
+
+### Files Changed
+- `Modules/FFU.Preflight/FFU.Preflight.psm1`: Counter increments in all check handlers
+- `Modules/FFU.Preflight/FFU.Preflight.psd1`: Version 1.8.0 → 1.8.1
+- `version.json`: Main version 1.11.6 → 1.11.7, FFU.Preflight 1.8.0 → 1.8.1
+
+---
+
 ## v1.11.6 - WinPE Diagnostics + WriteLog ThreadJob Resilience (2026-02-07)
 
 ### Fixed: WriteLog crash in ThreadJob during MSU extraction

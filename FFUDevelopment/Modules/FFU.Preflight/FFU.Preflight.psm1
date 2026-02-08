@@ -3646,6 +3646,7 @@ function Invoke-FFUPreflight {
     else {
         Write-Information "  Checking Administrator privileges... FAILED"
         $result.IsValid = $false
+        $result.CriticalCount++
         $result.Errors.Add("Administrator: $($adminResult.Message)")
         $result.RemediationSteps.Add($adminResult.Remediation)
     }
@@ -3660,6 +3661,7 @@ function Invoke-FFUPreflight {
     else {
         Write-Information "  Checking PowerShell version... FAILED"
         $result.IsValid = $false
+        $result.CriticalCount++
         $result.Errors.Add("PowerShell: $($psResult.Message)")
         $result.RemediationSteps.Add($psResult.Remediation)
     }
@@ -3675,6 +3677,7 @@ function Invoke-FFUPreflight {
         else {
             Write-Information "  Checking Hyper-V feature... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("Hyper-V: $($hvResult.Message)")
             $result.RemediationSteps.Add($hvResult.Remediation)
         }
@@ -3701,11 +3704,13 @@ function Invoke-FFUPreflight {
         elseif ($vmResourcesResult.Status -eq 'Warning') {
             Write-Warning "  Checking VM resources... WARNING"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("VMResources: $($vmResourcesResult.Message)")
         }
         else {
             Write-Information "  Checking VM resources... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("VMResources: $($vmResourcesResult.Message)")
             $result.RemediationSteps.Add($vmResourcesResult.Remediation)
         }
@@ -3733,6 +3738,7 @@ function Invoke-FFUPreflight {
         else {
             Write-Information "  Checking Windows ADK... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("ADK: $($adkResult.Message)")
             $result.RemediationSteps.Add($adkResult.Remediation)
         }
@@ -3756,6 +3762,7 @@ function Invoke-FFUPreflight {
             # v1.3.8: WIMMount failures are BLOCKING - both ADK dism.exe AND PowerShell DISM cmdlets require WIMMount
             Write-Information "  Checking WIM mount capability... FAILED (BLOCKING)"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("WimMount: $($wimMountResult.Message)")
             $result.RemediationSteps.Add($wimMountResult.Remediation)
         }
@@ -3763,6 +3770,7 @@ function Invoke-FFUPreflight {
             # Unexpected status (Warning or other - should not happen in v1.3.8+)
             Write-Warning "  Checking WIM mount capability... $($wimMountResult.Status.ToUpper())"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("WimMount: $($wimMountResult.Message)")
         }
     }
@@ -3786,6 +3794,7 @@ function Invoke-FFUPreflight {
             # vmxtoolkit is optional - treat as non-blocking warning
             Write-Warning "  Checking vmxtoolkit module... WARNING (optional - using vmrun.exe fallback)"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("VmxToolkit: $($vmxToolkitResult.Message)")
             # Don't add to RemediationSteps - it's informational only
         }
@@ -3793,6 +3802,7 @@ function Invoke-FFUPreflight {
             # Only fail for actual errors (e.g., exception during check)
             Write-Information "  Checking vmxtoolkit module... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("VmxToolkit: $($vmxToolkitResult.Message)")
             $result.RemediationSteps.Add($vmxToolkitResult.Remediation)
         }
@@ -3814,6 +3824,7 @@ function Invoke-FFUPreflight {
         elseif ($switchConflictResult.Status -eq 'Failed') {
             Write-Information "  Checking for Hyper-V switch conflicts... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("Hyper-V Switch Conflict: $($switchConflictResult.Message)")
             if ($switchConflictResult.Remediation) {
                 $result.RemediationSteps.Add($switchConflictResult.Remediation)
@@ -3837,6 +3848,7 @@ function Invoke-FFUPreflight {
         elseif ($bridgeConfigResult.Status -eq 'Warning') {
             Write-Warning "  Checking VMware bridge configuration... WARNING"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("VMware Bridge: $($bridgeConfigResult.Message)")
             # Store remediation for display (non-blocking warning)
             if ($bridgeConfigResult.Remediation) {
@@ -3846,6 +3858,7 @@ function Invoke-FFUPreflight {
         elseif ($bridgeConfigResult.Status -eq 'Failed') {
             Write-Information "  Checking VMware bridge configuration... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("VMware Bridge: $($bridgeConfigResult.Message)")
             if ($bridgeConfigResult.Remediation) {
                 $result.RemediationSteps.Add($bridgeConfigResult.Remediation)
@@ -3880,6 +3893,7 @@ function Invoke-FFUPreflight {
         else {
             Write-Information "  Checking host IP address... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("HostIPAddress: $($hostIPResult.Message)")
             if ($hostIPResult.Remediation) {
                 $result.RemediationSteps.Add($hostIPResult.Remediation)
@@ -3905,6 +3919,7 @@ function Invoke-FFUPreflight {
     else {
         Write-Information "  Checking disk space... FAILED"
         $result.IsValid = $false
+        $result.CriticalCount++
         $result.Errors.Add("DiskSpace: $($diskResult.Message)")
         $result.RemediationSteps.Add($diskResult.Remediation)
     }
@@ -3920,6 +3935,7 @@ function Invoke-FFUPreflight {
         else {
             Write-Information "  Checking Apps.iso disk space... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("AppsISODiskSpace: $($appsISODiskResult.Message)")
             $result.RemediationSteps.Add($appsISODiskResult.Remediation)
         }
@@ -3941,11 +3957,13 @@ function Invoke-FFUPreflight {
     elseif ($captureSpaceResult.Status -eq 'Warning') {
         Write-Warning "  Checking capture location disk space... WARNING"
         $result.HasWarnings = $true
+        $result.WarningCount++
         $result.Warnings.Add("CaptureDiskSpace: $($captureSpaceResult.Message)")
     }
     else {
         Write-Information "  Checking capture location disk space... FAILED"
         $result.IsValid = $false
+        $result.CriticalCount++
         $result.Errors.Add("CaptureDiskSpace: $($captureSpaceResult.Message)")
         $result.RemediationSteps.Add($captureSpaceResult.Remediation)
     }
@@ -3960,11 +3978,13 @@ function Invoke-FFUPreflight {
     elseif ($scratchResult.Status -eq 'Warning') {
         Write-Warning "  Checking scratch space usability... WARNING"
         $result.HasWarnings = $true
+        $result.WarningCount++
         $result.Warnings.Add("ScratchSpace: $($scratchResult.Message)")
     }
     else {
         Write-Information "  Checking scratch space usability... FAILED"
         $result.IsValid = $false
+        $result.CriticalCount++
         $result.Errors.Add("ScratchSpace: $($scratchResult.Message)")
         $result.RemediationSteps.Add($scratchResult.Remediation)
     }
@@ -3981,11 +4001,13 @@ function Invoke-FFUPreflight {
         elseif ($dismStateResult.Status -eq 'Warning') {
             Write-Warning "  Checking DISM state... WARNING"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("DISMState: $($dismStateResult.Message)")
         }
         else {
             Write-Information "  Checking DISM state... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("DISMState: $($dismStateResult.Message)")
             $result.RemediationSteps.Add($dismStateResult.Remediation)
         }
@@ -4007,15 +4029,18 @@ function Invoke-FFUPreflight {
         elseif ($netResult.Status -eq 'Warning') {
             Write-Warning "  Checking network connectivity... WARNING"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("Network: $($netResult.Message)")
             if ($WarningsAsErrors) {
                 $result.IsValid = $false
+                $result.CriticalCount++
                 $result.Errors.Add("Network (as error): $($netResult.Message)")
             }
         }
         else {
             Write-Information "  Checking network connectivity... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("Network: $($netResult.Message)")
             $result.RemediationSteps.Add($netResult.Remediation)
         }
@@ -4040,6 +4065,7 @@ function Invoke-FFUPreflight {
         else {
             Write-Information "  Validating configuration file... FAILED"
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("Configuration: $($configResult.Message)")
             $result.RemediationSteps.Add($configResult.Remediation)
         }
@@ -4069,9 +4095,11 @@ function Invoke-FFUPreflight {
     elseif ($avResult.Status -eq 'Warning') {
         Write-Warning "  Checking antivirus exclusions... WARNING"
         $result.HasWarnings = $true
+        $result.WarningCount++
         $result.Warnings.Add("Antivirus: $($avResult.Message)")
         if ($WarningsAsErrors) {
             $result.IsValid = $false
+            $result.CriticalCount++
             $result.Errors.Add("Antivirus (as error): $($avResult.Message)")
             $result.RemediationSteps.Add($avResult.Remediation)
         }
@@ -4104,6 +4132,7 @@ function Invoke-FFUPreflight {
         else {
             Write-Warning "  Performing DISM cleanup... WARNING"
             $result.HasWarnings = $true
+            $result.WarningCount++
             $result.Warnings.Add("Cleanup: $($cleanupResult.Message)")
         }
     }
@@ -4369,6 +4398,7 @@ function Test-FFUVMResources {
                 -Message "Insufficient available memory: ${freeMemoryMB}MB free, ${totalRequiredMB}MB required (VM: ${RequiredMemoryMB}MB + Host: ${hostOverheadMB}MB)" `
                 -Details $details `
                 -Remediation "Close applications to free up ${shortfallMB}MB of memory, reduce VM memory in configuration, or add more physical RAM." `
+                -Severity 'Critical' `
                 -DurationMs $stopwatch.ElapsedMilliseconds
         }
 

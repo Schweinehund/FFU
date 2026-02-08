@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.11.6",
-    "buildDate": "2026-02-07",
+    "version": "1.11.7",
+    "buildDate": "2026-02-08",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -79,9 +79,9 @@
             "description": "Thread-safe messaging for UI/background job communication"
         },
         "FFU.Preflight": {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "path": "Modules/FFU.Preflight/FFU.Preflight.psd1",
-            "description": "Realistic disk estimates (67GB vs 145GB) + 3-tier warning system (Pass/Warning/Critical)"
+            "description": "Fix UI dashboard always showing all checks passed (CriticalCount/WarningCount never incremented)"
         },
         "FFU.Hypervisor": {
             "version": "1.3.8",
