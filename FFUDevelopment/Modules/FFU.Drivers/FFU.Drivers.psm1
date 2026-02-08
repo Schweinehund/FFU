@@ -1900,6 +1900,8 @@ function Get-HPDrivers {
         WriteLog "[HP][$ProductName][Extract] Extracting driver: $Name"
         try {
             $extractProcess = Start-Process -FilePath $DriverFilePath -ArgumentList $arguments -PassThru -Wait -NoNewWindow
+            # ThreadJob resilience: Re-validate WriteLog after long-running -Wait (v1.11.5)
+            if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
             $extractionResult = Get-DriverExtractionResult -Vendor 'HP' -ExitCode $extractProcess.ExitCode -DriverName $Name
 
             if ($extractionResult.Action -eq 'Warn') {
@@ -2269,6 +2271,8 @@ function Get-LenovoDrivers {
         WriteLog "Extracting driver: $driverFilePath to $extractFolder"
         try {
             $extractProcess = Start-Process -FilePath $driverFilePath -ArgumentList $modifiedExtractCommand -PassThru -Wait -NoNewWindow
+            # ThreadJob resilience: Re-validate WriteLog after long-running -Wait (v1.11.5)
+            if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
             $extractionResult = Get-DriverExtractionResult -Vendor 'Lenovo' -ExitCode $extractProcess.ExitCode -DriverName $packageTitle
 
             if ($extractionResult.Action -eq 'Warn') {
@@ -2662,6 +2666,8 @@ function Get-DellDrivers {
                     # Wait with timeout - WaitForExit returns $true if process exited, $false if timed out
                     $timeoutSeconds = [FFUConstants]::DRIVER_EXTRACTION_TIMEOUT_SECONDS
                     $completed = $process.WaitForExit($timeoutSeconds * 1000)
+                    # ThreadJob resilience: Re-validate WriteLog after long-running WaitForExit (v1.11.5)
+                    if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
 
                     if (-not $completed) {
                         WriteLog "WARNING: [Dell][$Model][Extract] Chipset driver extraction timed out after ${timeoutSeconds}s - killing process tree"
@@ -2700,6 +2706,8 @@ function Get-DellDrivers {
                     # Wait with timeout
                     $timeoutSeconds = [FFUConstants]::DRIVER_EXTRACTION_TIMEOUT_SECONDS
                     $completed = $process.WaitForExit($timeoutSeconds * 1000)
+                    # ThreadJob resilience: Re-validate WriteLog after long-running WaitForExit (v1.11.5)
+                    if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
 
                     if (-not $completed) {
                         WriteLog "WARNING: [Dell][$Model][Extract] Network driver extraction timed out after ${timeoutSeconds}s - killing process tree"
@@ -2735,6 +2743,8 @@ function Get-DellDrivers {
                 else {
                     # Other Dell drivers - use Invoke-Process with exit code classification (REL-DRV-02)
                     $dellProcess = Start-Process -FilePath $driverFilePath -ArgumentList $arguments -PassThru -Wait -NoNewWindow
+                    # ThreadJob resilience: Re-validate WriteLog after long-running -Wait (v1.11.5)
+                    if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
                     $extractionResult = Get-DriverExtractionResult -Vendor 'Dell' -ExitCode $dellProcess.ExitCode -DriverName $driver.Name
                     if ($extractionResult.Action -eq 'Warn') {
                         WriteLog "WARNING: $($extractionResult.Message)"
@@ -3611,6 +3621,8 @@ function Get-FujitsuDrivers {
             try {
                 $extractArgs = "/extract `"$extractFolder`""
                 $extractProcess = Start-Process -FilePath $filePath -ArgumentList $extractArgs -PassThru -Wait -NoNewWindow
+                # ThreadJob resilience: Re-validate WriteLog after long-running -Wait (v1.11.5)
+                if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
                 $extractionResult = Get-DriverExtractionResult -Vendor 'Fujitsu' -ExitCode $extractProcess.ExitCode -DriverName $fileName
 
                 if ($extractionResult.Action -eq 'Warn') {
@@ -3634,6 +3646,8 @@ function Get-FujitsuDrivers {
                 try {
                     $extractArgs = "/s /e=`"$extractFolder`""
                     $extractProcess = Start-Process -FilePath $filePath -ArgumentList $extractArgs -PassThru -Wait -NoNewWindow
+                    # ThreadJob resilience: Re-validate WriteLog after long-running -Wait (v1.11.5)
+                    if (-not $function:WriteLog) { try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { } }
                     $extractionResult = Get-DriverExtractionResult -Vendor 'Fujitsu' -ExitCode $extractProcess.ExitCode -DriverName $fileName
 
                     if ($extractionResult.Action -eq 'Warn') {

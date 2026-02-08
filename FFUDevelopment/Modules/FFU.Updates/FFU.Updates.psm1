@@ -1795,6 +1795,12 @@ function Add-WindowsPackageWithUnattend {
 
             $expandProcess = Start-Process -FilePath $expandExe -ArgumentList "-F:*", $quotedPackagePath, $quotedExtractPath -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
 
+            # ThreadJob resilience: Re-validate WriteLog after long-running -Wait operation
+            # The ThreadJob runspace can lose module functions during extended blocking calls
+            if (-not $function:WriteLog) {
+                try { Import-Module FFU.Core -Force -ErrorAction SilentlyContinue } catch { }
+            }
+
             $expandExitCode = $expandProcess.ExitCode
             $expandStdout = if (Test-Path $stdoutFile) { Get-Content $stdoutFile -Raw } else { "" }
             $expandStderr = if (Test-Path $stderrFile) { Get-Content $stderrFile -Raw } else { "" }
