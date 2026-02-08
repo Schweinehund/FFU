@@ -8,6 +8,20 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.8 - Fix Refresh Checks and Export Diagnostics Buttons (2026-02-08)
+
+### Fixed: Dashboard buttons unresponsive on Home tab
+- **Refresh Checks** and **Export Diagnostics** buttons did nothing when clicked
+- Root cause: event handler registration ran before `Initialize-UIControls` populated control references
+- `$script:uiState.Controls.*` was `$null` at registration time; null-check guards silently skipped wiring
+- Fix: moved all three handler registrations (btnRefreshChecks, cmbHypervisorType, btnExportDiagnostics) into the `Add_Loaded` callback after `Initialize-UIControls` completes
+
+### Files Changed
+- `BuildFFUVM_UI.ps1`: Handler registration moved into Add_Loaded callback
+- `version.json`: Main version 1.11.7 → 1.11.8
+
+---
+
 ## v1.11.7 - Fix UI Dashboard Preflight Counter Bug (2026-02-08)
 
 ### Fixed: UI dashboard always showing "All checks passed"
