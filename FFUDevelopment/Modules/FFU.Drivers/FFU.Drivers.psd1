@@ -3,7 +3,7 @@
     RootModule = 'FFU.Drivers.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.6.0'
+    ModuleVersion = '1.6.1'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -118,6 +118,11 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.6.1: WriteLog ThreadJob Resilience (2026-02-07)
+- Defensive FFU.Core re-import after all Start-Process -Wait and WaitForExit calls
+- Covers HP, Lenovo, Dell, Fujitsu extraction + Dell chipset/network timeout waits (7 sites)
+- Prevents "WriteLog not recognized" crash in ThreadJob runspace during driver extraction
+
 v1.6.0: Phase 42 Dynabook Driver Support
 - Added Get-DynabookDrivers: CAB-to-XML catalog download, model matching, driver extraction
 - Dynabook catalog cached with 7-day TTL via Get-CachedOEMCatalog

@@ -557,7 +557,7 @@ $LogFile = $USBDrive + $LogFilename
 # This version must be kept in sync with FFUDevelopment/version.json manually.
 # When bumping the main version in version.json, update this value as well.
 # See also: BuildFFUVM.ps1 which reads version.json dynamically at runtime.
-$version = '1.10.0'
+$version = '1.11.6'
 WriteLog 'Begin Logging'
 WriteLog "Script version: $version"
 

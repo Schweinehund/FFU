@@ -8,6 +8,31 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.11.6 - WinPE Diagnostics + WriteLog ThreadJob Resilience (2026-02-07)
+
+### Fixed: WriteLog crash in ThreadJob during MSU extraction
+- **FFU.Updates v1.3.1:** Defensive FFU.Core re-import after `expand.exe -Wait` prevents "WriteLog not recognized" terminal error
+- **FFU.Drivers v1.6.1:** Same resilience pattern applied to all 7 `Start-Process -Wait` and `WaitForExit` sites (HP, Lenovo, Dell, Fujitsu)
+- Root cause: ThreadJob runspace loses module functions during extended blocking operations
+
+### Added: WinPE network capture diagnostics
+- **CaptureFFU.ps1:** Raw WMI adapter dump (unfiltered), pnputil driver store listing, bridged network type warning
+- **FFU.VM v1.0.14:** `Update-CaptureFFUScript` injects `VMwareNetworkType` for in-VM diagnostic output
+- **BuildFFUVM.ps1:** Passes `$VMwareNetworkType` through to capture script
+
+### Files Changed
+- `Modules/FFU.Updates/FFU.Updates.psd1`: Version 1.3.0 → 1.3.1
+- `Modules/FFU.Updates/FFU.Updates.psm1`: WriteLog resilience checkpoint
+- `Modules/FFU.Drivers/FFU.Drivers.psd1`: Version 1.6.0 → 1.6.1
+- `Modules/FFU.Drivers/FFU.Drivers.psm1`: WriteLog resilience (7 sites)
+- `Modules/FFU.VM/FFU.VM.psd1`: Version 1.0.13 → 1.0.14
+- `Modules/FFU.VM/FFU.VM.psm1`: VMwareNetworkType parameter
+- `WinPECaptureFFUFiles/CaptureFFU.ps1`: 3 diagnostic sections
+- `BuildFFUVM.ps1`: VMwareNetworkType passthrough
+- `version.json`: Main version 1.11.5 → 1.11.6
+
+---
+
 ## v1.11.5 - Realistic Disk Space Estimates + Warning Tier (2026-02-07)
 
 ### Improved: Disk Space Pre-flight

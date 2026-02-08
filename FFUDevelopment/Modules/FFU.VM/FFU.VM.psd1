@@ -4,7 +4,7 @@
 
 @{
     RootModule = 'FFU.VM.psm1'
-    ModuleVersion = '1.0.13'
+    ModuleVersion = '1.0.14'
     GUID = 'c8f3a942-7e6d-4c1a-9b85-1f4e8d2c5a76'
     Author = 'FFU Builder Team'
     CompanyName = 'Community'
@@ -46,6 +46,10 @@
             LicenseUri = 'https://github.com/Schweinehund/FFU/blob/feature/improvements-and-fixes/LICENSE'
             ProjectUri = 'https://github.com/Schweinehund/FFU'
             ReleaseNotes = @'
+v1.0.14: VMwareNetworkType injection for WinPE diagnostics (2026-02-07)
+- Update-CaptureFFUScript gains VMwareNetworkType parameter
+- Injects network type into CaptureFFU.ps1 for bridged vs NAT diagnostic warning
+
 v1.0.13: Checkpoint-aware selective cleanup
 - Get-FFUEnvironment: Added -ResumeCheckpoint parameter for checkpoint-aware cleanup
 - When resuming from checkpoint, preserves VM, VHDX, VM folder, drivers folder, and .session

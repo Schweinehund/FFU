@@ -7,7 +7,7 @@
     RootModule = 'FFU.Updates.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.0'
+    ModuleVersion = '1.3.1'
 
     # ID used to uniquely identify this module
     GUID = 'e3b9c4a1-5f7d-4e2b-8c9a-1d6f3e8b2a5c'
@@ -80,7 +80,12 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Release Notes - FFU.Updates v1.3.0
+# Release Notes - FFU.Updates v1.3.1
+
+## v1.3.1 - WriteLog ThreadJob Resilience (2026-02-07)
+- **FIX:** Defensive FFU.Core re-import after expand.exe -Wait to prevent "WriteLog not recognized" crash
+- ThreadJob runspace can lose module functions during long-running blocking operations
+- Zero overhead in normal case (only re-imports when WriteLog is actually missing)
 
 ## v1.3.0 - DISM Resilience Formalization (Phase 45, 2026-02-06)
 - **BREAKING BEHAVIOR:** Post-KB DISM degradation now causes immediate hard stop (throw) instead of warning
