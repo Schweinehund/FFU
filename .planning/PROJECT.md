@@ -104,6 +104,19 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ### Active
 
+## Current Milestone: v1.11.0 USB from Existing Components
+
+**Goal:** Enable USB deployment media creation from pre-existing build artifacts without running a full build pipeline.
+
+**Target features:**
+- UI mode toggle switching between "Full Build" and "USB Mode"
+- Artifact scanner detecting all deployable components (FFU, boot ISO, drivers, PPKG, unattend, Autopilot, Apps.iso)
+- Dual source support: auto-detect from FFUDevelopment folder or browse to arbitrary paths
+- Metadata extraction and cross-validation (architecture, Windows version compatibility)
+- Selective rebuild: user marks each artifact as reuse, rebuild, or skip
+- Selective pipeline execution — only rebuild phases that are needed
+- USB assembly from reused + rebuilt artifacts
+
 **Deferred bugs (carry forward):**
 - expand.exe fails on large MSU files (fallback works — explicitly out of scope)
 
@@ -165,4 +178,4 @@ Key files:
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
 ---
-*Last updated: 2026-02-02 after v1.10.0 milestone complete*
+*Last updated: 2026-03-12 after v1.11.0 milestone started*

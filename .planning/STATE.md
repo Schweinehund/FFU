@@ -2,20 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-02)
+See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Planning next milestone
+**Current focus:** v1.11.0 USB from Existing Components
 
 ## Current Position
 
-**Milestone:** Ad-hoc fixes
-**Phase:** 44 of N/A (DISM Resilience Updates)
-**Plan:** 1 of 1 in phase
-**Status:** Phase 44 complete
-**Last activity:** 2026-02-02 — Completed 44-01-PLAN.md
-
-Progress: 44-01 complete (ad-hoc work outside milestone)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-12 — Milestone v1.11.0 started
 
 ## Shipped Milestones
 
@@ -32,13 +29,10 @@ Progress: 44-01 complete (ad-hoc work outside milestone)
 
 **Total:** 43 phases, 133 plans shipped across 8 milestones
 
-## Decisions Log
+## Accumulated Context
 
-| ID | Phase | Decision | Impact |
-|----|-------|----------|--------|
-| DISM-RES-01 | 44-01 | Add Test-DismReady gates before ALL Add-WindowsPackage calls in FFU.Updates | Eliminates 30+ min hangs when WIMMount breaks |
-| DISM-RES-02 | 44-01 | Guard retry refresh DISM call with Test-DismReady | Prevents DISM-to-check-DISM anti-pattern |
-| DISM-RES-03 | 44-01 | Skip WinSxS cleanup when WIMMount broken | Non-critical operation, safe to skip |
+- Phase 44 (DISM Resilience Updates) completed as ad-hoc work outside milestone
+- Decisions DISM-RES-01 through DISM-RES-03 logged for DISM readiness gates
 
 ## Blockers
 
@@ -46,10 +40,10 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-02
-**Stopped at:** Completed 44-01-PLAN.md (Phase 44 complete)
+**Last session:** 2026-03-12
+**Stopped at:** Defining requirements for v1.11.0
 **Resume file:** None
-**Next action:** Phase 44 complete. Ready for next phase or milestone planning.
+**Next action:** Complete requirements definition and roadmap creation
 
 ---
-*State updated: 2026-02-02 after Phase 44-01 complete*
+*State updated: 2026-03-12 after v1.11.0 milestone started*
