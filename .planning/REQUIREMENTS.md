@@ -67,31 +67,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UIMODE-01 | — | Pending |
-| UIMODE-02 | — | Pending |
-| UIMODE-03 | — | Pending |
-| DISC-01 | — | Pending |
-| DISC-02 | — | Pending |
-| DISC-03 | — | Pending |
-| VALID-01 | — | Pending |
-| VALID-02 | — | Pending |
-| VALID-03 | — | Pending |
-| VALID-04 | — | Pending |
-| USB-01 | — | Pending |
-| USB-02 | — | Pending |
-| USB-03 | — | Pending |
-| USB-04 | — | Pending |
-| REBUILD-01 | — | Pending |
-| REBUILD-02 | — | Pending |
-| REBUILD-03 | — | Pending |
-| CONFIG-01 | — | Pending |
-| CONFIG-02 | — | Pending |
+| UIMODE-01 | Phase 48 | Pending |
+| UIMODE-02 | Phase 48 | Pending |
+| UIMODE-03 | Phase 48 | Pending |
+| DISC-01 | Phase 46 | Pending |
+| DISC-02 | Phase 49 | Pending |
+| DISC-03 | Phase 49 | Pending |
+| VALID-01 | Phase 46 | Pending |
+| VALID-02 | Phase 46 | Pending |
+| VALID-03 | Phase 46 | Pending |
+| VALID-04 | Phase 46 | Pending |
+| USB-01 | Phase 47 | Pending |
+| USB-02 | Phase 49 | Pending |
+| USB-03 | Phase 49 | Pending |
+| USB-04 | Phase 47 | Pending |
+| REBUILD-01 | Phase 50 | Pending |
+| REBUILD-02 | Phase 50 | Pending |
+| REBUILD-03 | Phase 50 | Pending |
+| CONFIG-01 | Phase 45 | Pending |
+| CONFIG-02 | Phase 45 | Pending |
 
 **Coverage:**
 - v1.11.0 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 after initial definition*
+*Last updated: 2026-03-12 after roadmap creation — all 19 requirements mapped*
