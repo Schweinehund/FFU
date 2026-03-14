@@ -176,7 +176,8 @@ All version information is stored in `version.json` in the FFUDevelopment folder
    - Update `buildDate` to current date
    - Update the module version in the `modules` section
 3. Add release notes to the affected module's `.psd1` manifest
-4. The UI automatically reads from `version.json` on startup
+4. Update `$version` in `WinPEDeployFFUFiles/ApplyFFU.ps1` (hardcoded — runs in WinPE without access to version.json)
+5. The UI and BuildFFUVM.ps1 automatically read from `version.json` at runtime
 
 ### Helper Functions
 ```powershell
@@ -198,6 +199,7 @@ Update-FFUBuilderVersion -FFUDevelopmentPath "C:\FFUDevelopment" -BumpType Patch
 
 | Version | Date | Type | Description |
 |---------|------|------|-------------|
+| 1.10.1 | 2026-03-14 | PATCH | FFU.ArtifactScanner module - data contract classes + Get-ArtifactMetadata with DISM/filename fallback |
 | 1.6.0 | 2026-01-07 | MINOR | VMware Workstation Pro integration - UI hypervisor selection, config schema, auto-detection |
 | 1.5.0 | 2026-01-07 | MINOR | Full VMware provider - REST API, VM lifecycle, diskpart-based disk ops |
 | 1.4.0 | 2026-01-06 | MINOR | FFU.Hypervisor module - Provider pattern, IHypervisorProvider interface |
@@ -236,7 +238,8 @@ BuildFFUVM_UI.ps1 (WPF UI Host)
         ├── FFU.Updates (Windows Update handling - 8 functions for KB downloads and MSU processing)
         ├── FFU.Imaging (DISM and FFU operations - 15 functions for partitioning, imaging, FFU creation)
         ├── FFU.Preflight (Pre-flight validation - 12 functions for tiered environment checks with remediation)
-        └── FFU.Messaging (Thread-safe UI/job communication - 14 functions for queue-based messaging, progress, cancellation)
+        ├── FFU.Messaging (Thread-safe UI/job communication - 14 functions for queue-based messaging, progress, cancellation)
+        └── FFU.ArtifactScanner (USB Mode artifact discovery - data contract classes + Get-ArtifactMetadata, Find-FFUArtifacts)
 ```
 
 ### Modularization Status (Completed)
@@ -344,6 +347,7 @@ Invoke-Pester -Path 'Tests/Unit/Module.Dependencies.Tests.ps1' -Output Detailed
 | FFU.Imaging | DISM/FFU operations | Partitioning, imaging |
 | FFU.Drivers | OEM driver management | Dell, HP, Lenovo, Microsoft |
 | FFU.Preflight | Pre-flight validation | Environment checks, WIMMount |
+| FFU.ArtifactScanner | USB Mode artifact discovery | Get-ArtifactMetadata, Find-FFUArtifacts, New-ArtifactManifest |
 
 > **Detailed Reference:** See [docs/MODULE_REFERENCE.md](docs/MODULE_REFERENCE.md) for complete function lists and parameters.
 
