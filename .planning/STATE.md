@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: milestone
 status: planning
-stopped_at: Completed 46-01-PLAN.md
-last_updated: "2026-03-14T13:24:46.416Z"
+stopped_at: Completed 46-02-PLAN.md
+last_updated: "2026-03-14T14:15:24.466Z"
 last_activity: 2026-03-12 — Roadmap created for v1.11.0 (6 phases, 19 requirements mapped)
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -59,6 +59,8 @@ Progress: [░░░░░░░░░░] 0% (v1.11.0)
 - v1.11.0: Selective rebuild (Phase 50) deferred until end — highest complexity, depends on all prior phases
 - [Phase 46]: InModuleScope required for all PowerShell class/enum assertions in Pester — module types not exported to caller scope (Pitfall 4 from 46-RESEARCH.md)
 - [Phase 46]: Architecture regex uses (?:^|[^a-z]) anchors not \b word boundary — underscore is a word character so \b fails with FFU filename patterns like Windows11_23H2_x64_Pro.ffu
+- [Phase 46]: Get-Command try/catch used for hyphenated function availability (Test-FFUWimMount) — $function: drive syntax invalid for hyphenated names
+- [Phase 46]: @($result | Where-Object) null-filter pattern required before typed array assignment to prevent @($null) coercion in typed PowerShell class properties
 
 ### Research Flags for Planning
 
@@ -71,8 +73,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-14T13:24:46.411Z
-Stopped at: Completed 46-01-PLAN.md
+Last session: 2026-03-14T14:15:24.460Z
+Stopped at: Completed 46-02-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`
 

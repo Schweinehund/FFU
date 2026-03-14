@@ -27,7 +27,7 @@ Phases 1-44 complete. See MILESTONES.md for details.
 **Milestone Goal:** Enable USB deployment media creation from pre-existing build artifacts without running the full 40+ minute build pipeline.
 
 - [ ] **Phase 45: Config Schema Extension** - Extend config schema with USB Mode fields and migration for existing configs
-- [ ] **Phase 46: FFU.ArtifactScanner Module** - New module for artifact discovery, metadata extraction, and compatibility validation
+- [x] **Phase 46: FFU.ArtifactScanner Module** - New module for artifact discovery, metadata extraction, and compatibility validation (completed 2026-03-14)
 - [ ] **Phase 47: USB Mode Pipeline Entry** - Add `-USBOnlyMode` switch and artifact manifest reading block to BuildFFUVM.ps1
 - [ ] **Phase 48: XAML Mode Toggle and USB Tab** - Add mode toggle RadioButton group and USB Mode TabItem to BuildFFUVM_UI.xaml
 - [ ] **Phase 49: UI Event Wiring and Artifact Integration** - Wire scanner into UI with browse dialogs, per-artifact controls, and USB drive selection
@@ -121,7 +121,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 |-------|-----------|----------------|--------|-----------|
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45. Config Schema Extension | v1.11.0 | 0/TBD | Not started | - |
-| 46. FFU.ArtifactScanner Module | 1/2 | In Progress|  | - |
+| 46. FFU.ArtifactScanner Module | 2/2 | Complete   | 2026-03-14 | - |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 0/TBD | Not started | - |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/TBD | Not started | - |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 0/TBD | Not started | - |
