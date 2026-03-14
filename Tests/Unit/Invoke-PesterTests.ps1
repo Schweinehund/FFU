@@ -56,7 +56,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [ValidateSet('FFU.Core', 'FFU.ADK', 'FFU.Apps', 'FFU.Drivers', 'FFU.Imaging', 'FFU.Media', 'FFU.Updates', 'FFU.VM')]
+    [ValidateSet('FFU.Core', 'FFU.ADK', 'FFU.Apps', 'FFU.ArtifactScanner', 'FFU.Drivers', 'FFU.Imaging', 'FFU.Media', 'FFU.Updates', 'FFU.VM')]
     [string]$Module,
 
     [Parameter(Mandatory = $false)]
