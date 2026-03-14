@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.10.0",
-    "buildDate": "2026-02-02",
+    "version": "1.10.1",
+    "buildDate": "2026-03-14",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -97,6 +97,11 @@
             "version": "1.1.1",
             "path": "Modules/FFU.ConfigMigration/FFU.ConfigMigration.psd1",
             "description": "Configuration file migration and schema versioning, ThreadJob compatible ($function: instead of Get-Command)"
+        },
+        "FFU.ArtifactScanner": {
+            "version": "1.0.0",
+            "path": "Modules/FFU.ArtifactScanner/FFU.ArtifactScanner.psd1",
+            "description": "Phase 46: Artifact discovery, validation, and cross-compatibility checking for USB Mode. Data contract (ArtifactManifest, ArtifactResult, FFUMetadata) for Phase 47-49."
         }
     },
 

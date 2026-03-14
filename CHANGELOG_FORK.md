@@ -8,6 +8,36 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.10.1] - 2026-03-14
+
+### Phase 46-01: FFU.ArtifactScanner Module - Data Contract and Get-ArtifactMetadata
+
+**Context:** First plan of Phase 46 (FFU.ArtifactScanner Module), which establishes the typed data contract for USB Mode artifact discovery. This module defines the data model consumed by Phase 47 (pipeline), Phase 48 (UI columns), and Phase 49 (controls).
+
+**New module:** `FFU.ArtifactScanner` at `FFUDevelopment/Modules/FFU.ArtifactScanner/`
+
+#### Changes
+
+- **FFU.ArtifactScanner module scaffold:**
+  - `Classes/ArtifactScanner.Classes.ps1` — enums and data classes following FFU.Hypervisor/Classes/ pattern
+  - `FFU.ArtifactScanner.psm1` — module root with dot-sourced classes and public functions
+  - `FFU.ArtifactScanner.psd1` — manifest with RequiredModules (FFU.Core, FFU.Preflight)
+- **Data contract enums:** `ArtifactStatus` (Found/Missing/Error/Degraded), `ArtifactType` (FFU/DeployISO/Drivers/PPKG/Unattend/Autopilot/AppsISO)
+- **Data contract classes:** `ArtifactFileEntry`, `FFUMetadata`, `ArtifactResult` (constructor initializes Files list), `CompatibilityWarning`, `ArtifactManifest`
+- **Get-ArtifactMetadata:** DISM primary via `Get-WindowsImage -ImagePath <ffu>`, filename-parsing fallback when DISM fails or WIMMount unavailable
+- **Architecture mapping:** integer 0→x86, 9→x64, 12→arm64 (DISM PE encoding)
+- **Factory functions:** `New-ArtifactManifest`, `New-ArtifactResult` for cross-scope class instantiation (Pitfall 4 pattern from FFU.Hypervisor v1.1.4)
+- **Stub functions:** `Find-FFUArtifacts`, `Test-ArtifactCompatibility` (full implementation in Plan 46-02)
+- **79 Pester tests passing** (`InModuleScope` pattern for PowerShell class/enum tests)
+- **Invoke-PesterTests.ps1:** Added `FFU.ArtifactScanner` to `-Module` ValidateSet
+
+#### ThreadJob Compatibility
+- `[DateTime]::Now` instead of `Get-Date`
+- Safe WriteLog pattern (`if ($function:WriteLog) { WriteLog $msg } else { Write-Verbose $msg }`)
+- `[Console]::Error.WriteLine()` in module init catch blocks
+
+---
+
 ## [1.9.12] - 2026-02-02
 
 ### Phase 44-01: DISM Resilience in FFU.Updates (v1.9.12)
