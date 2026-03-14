@@ -255,8 +255,6 @@ function Get-ArtifactMetadata {
     Returns a single [ArtifactManifest] object with per-artifact results, cross-artifact
     compatibility warnings, and readiness summary (FoundCount, MissingCount, IsReady).
 
-    IMPORTANT: This function is a stub in Plan 46. Full implementation in Plan 46-02.
-
 .PARAMETER FFUDevelopmentPath
     Root development path containing all artifact subfolders (FFU\, Drivers\, PPKG\, etc.)
 
@@ -268,14 +266,44 @@ function Find-FFUArtifacts {
     [OutputType([ArtifactManifest])]
     param(
         [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string] $FFUDevelopmentPath
     )
 
-    $msg = "ArtifactScanner: Find-FFUArtifacts called for '$FFUDevelopmentPath' — stub implementation (Plan 46-02)"
+    $msg = "ArtifactScanner: Find-FFUArtifacts scanning '$FFUDevelopmentPath'"
     if ($function:WriteLog) { WriteLog $msg } else { Write-Verbose $msg }
 
-    # Stub: return empty manifest. Full implementation in Plan 46-02.
-    $manifest = [ArtifactManifest]::new()
+    # --- WIMMount gate ---
+    # Call once at start; cache result for all FFU metadata extractions.
+    # Function names with hyphens cannot use $function:Name drive syntax directly;
+    # use Get-Command within try/catch as a safe check (ThreadJob compatible per context).
+    $wimMountAvailable = $false
+    $wimMountFnAvailable = $false
+    try {
+        $null = Get-Command -Name 'Test-FFUWimMount' -ErrorAction Stop
+        $wimMountFnAvailable = $true
+    }
+    catch {
+        # Test-FFUWimMount not loaded — expected when FFU.Preflight is not imported
+    }
+
+    if ($wimMountFnAvailable) {
+        try {
+            $wimResult = Test-FFUWimMount -AttemptRemediation:$true
+            $wimMountAvailable = ($wimResult.Status -eq 'Passed')
+        }
+        catch {
+            $wmMsg = "ArtifactScanner: Test-FFUWimMount threw during WIMMount gate: $($_.Exception.Message). Defaulting WIMMount to unavailable."
+            if ($function:WriteLog) { WriteLog $wmMsg } else { Write-Verbose $wmMsg }
+        }
+    }
+    else {
+        $wmMsg = 'ArtifactScanner: Test-FFUWimMount not available (FFU.Preflight not loaded). WIMMount defaulting to unavailable.'
+        if ($function:WriteLog) { WriteLog $wmMsg } else { Write-Verbose $wmMsg }
+    }
+
+    # --- Create manifest ---
+    $manifest               = [ArtifactManifest]::new()
     $manifest.BasePath      = $FFUDevelopmentPath
     $manifest.ScanTimestamp = [DateTime]::Now
     $manifest.FFUFiles      = @()
@@ -283,6 +311,306 @@ function Find-FFUArtifacts {
     $manifest.UnattendFiles = @()
     $manifest.AutopilotFiles = @()
     $manifest.Warnings      = @()
+
+    # --- Private scanner: FFU files ---
+    try {
+        $ffuDir   = Join-Path $FFUDevelopmentPath 'FFU'
+        $ffuFiles = Get-ChildItem -Path $ffuDir -Filter '*.ffu' -ErrorAction SilentlyContinue |
+                    Sort-Object LastWriteTime -Descending
+
+        if ($ffuFiles -and @($ffuFiles).Count -gt 0) {
+            $ffuResults = @()
+            $isFirst    = $true
+            foreach ($file in $ffuFiles) {
+                $ffuResult              = [ArtifactResult]::new()
+                $ffuResult.ArtifactType = [ArtifactType]::FFU
+                $ffuResult.Status       = [ArtifactStatus]::Found
+                $ffuResult.FilePath     = $file.FullName
+                $ffuResult.FileSizeBytes = $file.Length
+                $ffuResult.LastWriteTime = $file.LastWriteTime
+                $ffuResult.AgeDays      = [int][Math]::Floor(([DateTime]::Now - $file.LastWriteTime).TotalDays)
+                $ffuResult.IsPrimary    = $isFirst
+                $isFirst                = $false
+
+                # Call Get-ArtifactMetadata for each FFU — wrapped in try/catch for graceful degradation
+                try {
+                    $ffuResult.Metadata = Get-ArtifactMetadata -FFUPath $file.FullName -WimMountAvailable $wimMountAvailable
+                }
+                catch {
+                    $metaMsg = "ArtifactScanner: Get-ArtifactMetadata failed for '$($file.Name)': $($_.Exception.Message)"
+                    if ($function:WriteLog) { WriteLog $metaMsg } else { Write-Verbose $metaMsg }
+                    # Metadata remains null — result still valid
+                }
+                $ffuResults += $ffuResult
+            }
+            $manifest.FFUFiles = $ffuResults
+        }
+        else {
+            # No .ffu files — return single Missing result
+            $missing              = [ArtifactResult]::new()
+            $missing.ArtifactType = [ArtifactType]::FFU
+            $missing.Status       = [ArtifactStatus]::Missing
+            $manifest.FFUFiles    = @($missing)
+        }
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning FFU folder: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult              = [ArtifactResult]::new()
+        $errResult.ArtifactType = [ArtifactType]::FFU
+        $errResult.Status       = [ArtifactStatus]::Error
+        $errResult.ErrorMessage = $_.Exception.Message
+        $manifest.FFUFiles      = @($errResult)
+    }
+
+    # --- Private scanner: Deploy ISO ---
+    try {
+        $isoResult              = [ArtifactResult]::new()
+        $isoResult.ArtifactType = [ArtifactType]::DeployISO
+        $isoResult.Status       = [ArtifactStatus]::Missing
+
+        $isoNames = @('WinPE_FFU_Deploy_x64.iso', 'WinPE_FFU_Deploy_arm64.iso')
+        foreach ($isoName in $isoNames) {
+            $isoPath = Join-Path $FFUDevelopmentPath $isoName
+            $isoFile = [System.IO.FileInfo]::new($isoPath)
+            if ($isoFile.Exists) {
+                $isoResult.Status        = [ArtifactStatus]::Found
+                $isoResult.FilePath      = $isoFile.FullName
+                $isoResult.FileSizeBytes = $isoFile.Length
+                $isoResult.LastWriteTime = $isoFile.LastWriteTime
+                $isoResult.AgeDays       = [int][Math]::Floor(([DateTime]::Now - $isoFile.LastWriteTime).TotalDays)
+                break
+            }
+        }
+        $manifest.DeployISO = $isoResult
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning Deploy ISO: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult              = [ArtifactResult]::new()
+        $errResult.ArtifactType = [ArtifactType]::DeployISO
+        $errResult.Status       = [ArtifactStatus]::Error
+        $errResult.ErrorMessage = $_.Exception.Message
+        $manifest.DeployISO     = $errResult
+    }
+
+    # --- Private scanner: Drivers folder ---
+    try {
+        $driversResult              = [ArtifactResult]::new()
+        $driversResult.ArtifactType = [ArtifactType]::Drivers
+
+        $driversDir = Join-Path $FFUDevelopmentPath 'Drivers'
+        $driverDirInfo = [System.IO.DirectoryInfo]::new($driversDir)
+        if ($driverDirInfo.Exists) {
+            $driverFiles = Get-ChildItem -Path $driversDir -Recurse -File -ErrorAction SilentlyContinue
+            if ($driverFiles -and @($driverFiles).Count -gt 0) {
+                $driversResult.Status        = [ArtifactStatus]::Found
+                $driversResult.FileCount     = @($driverFiles).Count
+                $driversResult.TotalSizeBytes = ($driverFiles | Measure-Object -Property Length -Sum).Sum
+                # AgeDays from newest file LastWriteTime, not folder timestamp (per Pitfall 6)
+                $newestFile = $driverFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                $driversResult.AgeDays = [int][Math]::Floor(([DateTime]::Now - $newestFile.LastWriteTime).TotalDays)
+                $driversResult.FilePath = $driversDir
+            }
+            else {
+                $driversResult.Status = [ArtifactStatus]::Missing
+            }
+        }
+        else {
+            $driversResult.Status = [ArtifactStatus]::Missing
+        }
+        $manifest.Drivers = $driversResult
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning Drivers folder: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult              = [ArtifactResult]::new()
+        $errResult.ArtifactType = [ArtifactType]::Drivers
+        $errResult.Status       = [ArtifactStatus]::Error
+        $errResult.ErrorMessage = $_.Exception.Message
+        $manifest.Drivers       = $errResult
+    }
+
+    # --- Private scanner: PPKG files ---
+    try {
+        $ppkgDir   = Join-Path $FFUDevelopmentPath 'PPKG'
+        $ppkgFiles = Get-ChildItem -Path $ppkgDir -Filter '*.ppkg' -ErrorAction SilentlyContinue
+
+        if ($ppkgFiles -and @($ppkgFiles).Count -gt 0) {
+            $ppkgResults = @()
+            foreach ($file in $ppkgFiles) {
+                $ppkgResult              = [ArtifactResult]::new()
+                $ppkgResult.ArtifactType = [ArtifactType]::PPKG
+                $ppkgResult.Status       = [ArtifactStatus]::Found
+                $ppkgResult.FilePath     = $file.FullName
+                $ppkgResult.FileSizeBytes = $file.Length
+                $ppkgResult.LastWriteTime = $file.LastWriteTime
+                $ppkgResult.AgeDays      = [int][Math]::Floor(([DateTime]::Now - $file.LastWriteTime).TotalDays)
+                $ppkgResults += $ppkgResult
+            }
+            $manifest.PPKGFiles = $ppkgResults
+        }
+        else {
+            $missing              = [ArtifactResult]::new()
+            $missing.ArtifactType = [ArtifactType]::PPKG
+            $missing.Status       = [ArtifactStatus]::Missing
+            $manifest.PPKGFiles   = @($missing)
+        }
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning PPKG folder: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult              = [ArtifactResult]::new()
+        $errResult.ArtifactType = [ArtifactType]::PPKG
+        $errResult.Status       = [ArtifactStatus]::Error
+        $errResult.ErrorMessage = $_.Exception.Message
+        $manifest.PPKGFiles     = @($errResult)
+    }
+
+    # --- Private scanner: Unattend files ---
+    # Scans specifically for unattend_x64.xml and unattend_arm64.xml per BuildFFUVM.ps1 lines 1504-1515
+    try {
+        $unattendDir   = Join-Path $FFUDevelopmentPath 'Unattend'
+        $unattendNames = @('unattend_x64.xml', 'unattend_arm64.xml')
+        $unattendResults = @()
+
+        foreach ($name in $unattendNames) {
+            $unattendPath = Join-Path $unattendDir $name
+            $unattendFile = [System.IO.FileInfo]::new($unattendPath)
+            if ($unattendFile.Exists) {
+                $uResult              = [ArtifactResult]::new()
+                $uResult.ArtifactType = [ArtifactType]::Unattend
+                $uResult.Status       = [ArtifactStatus]::Found
+                $uResult.FilePath     = $unattendFile.FullName
+                $uResult.FileSizeBytes = $unattendFile.Length
+                $uResult.LastWriteTime = $unattendFile.LastWriteTime
+                $uResult.AgeDays      = [int][Math]::Floor(([DateTime]::Now - $unattendFile.LastWriteTime).TotalDays)
+                $unattendResults     += $uResult
+            }
+        }
+
+        if ($unattendResults.Count -eq 0) {
+            $missing              = [ArtifactResult]::new()
+            $missing.ArtifactType = [ArtifactType]::Unattend
+            $missing.Status       = [ArtifactStatus]::Missing
+            $manifest.UnattendFiles = @($missing)
+        }
+        else {
+            $manifest.UnattendFiles = $unattendResults
+        }
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning Unattend folder: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult              = [ArtifactResult]::new()
+        $errResult.ArtifactType = [ArtifactType]::Unattend
+        $errResult.Status       = [ArtifactStatus]::Error
+        $errResult.ErrorMessage = $_.Exception.Message
+        $manifest.UnattendFiles = @($errResult)
+    }
+
+    # --- Private scanner: Autopilot files ---
+    # Scans for *.json in Autopilot folder per BuildFFUVM.ps1 line 2107
+    try {
+        $autopilotDir   = Join-Path $FFUDevelopmentPath 'Autopilot'
+        $autopilotFiles = Get-ChildItem -Path $autopilotDir -Filter '*.json' -ErrorAction SilentlyContinue
+
+        if ($autopilotFiles -and @($autopilotFiles).Count -gt 0) {
+            $autopilotResults = @()
+            foreach ($file in $autopilotFiles) {
+                $aResult              = [ArtifactResult]::new()
+                $aResult.ArtifactType = [ArtifactType]::Autopilot
+                $aResult.Status       = [ArtifactStatus]::Found
+                $aResult.FilePath     = $file.FullName
+                $aResult.FileSizeBytes = $file.Length
+                $aResult.LastWriteTime = $file.LastWriteTime
+                $aResult.AgeDays      = [int][Math]::Floor(([DateTime]::Now - $file.LastWriteTime).TotalDays)
+                $autopilotResults    += $aResult
+            }
+            $manifest.AutopilotFiles = $autopilotResults
+        }
+        else {
+            $missing               = [ArtifactResult]::new()
+            $missing.ArtifactType  = [ArtifactType]::Autopilot
+            $missing.Status        = [ArtifactStatus]::Missing
+            $manifest.AutopilotFiles = @($missing)
+        }
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning Autopilot folder: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult               = [ArtifactResult]::new()
+        $errResult.ArtifactType  = [ArtifactType]::Autopilot
+        $errResult.Status        = [ArtifactStatus]::Error
+        $errResult.ErrorMessage  = $_.Exception.Message
+        $manifest.AutopilotFiles = @($errResult)
+    }
+
+    # --- Private scanner: Apps.iso ---
+    try {
+        $appsIsoPath   = Join-Path $FFUDevelopmentPath 'Apps' | Join-Path -ChildPath 'Apps.iso'
+        $appsIsoFile   = [System.IO.FileInfo]::new($appsIsoPath)
+        $appsResult              = [ArtifactResult]::new()
+        $appsResult.ArtifactType = [ArtifactType]::AppsISO
+
+        if ($appsIsoFile.Exists) {
+            $appsResult.Status        = [ArtifactStatus]::Found
+            $appsResult.FilePath      = $appsIsoFile.FullName
+            $appsResult.FileSizeBytes = $appsIsoFile.Length
+            $appsResult.LastWriteTime = $appsIsoFile.LastWriteTime
+            $appsResult.AgeDays       = [int][Math]::Floor(([DateTime]::Now - $appsIsoFile.LastWriteTime).TotalDays)
+        }
+        else {
+            $appsResult.Status = [ArtifactStatus]::Missing
+        }
+        $manifest.AppsISO = $appsResult
+    }
+    catch {
+        $errMsg = "ArtifactScanner: Error scanning Apps.iso: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $errMsg } else { Write-Verbose $errMsg }
+        $errResult              = [ArtifactResult]::new()
+        $errResult.ArtifactType = [ArtifactType]::AppsISO
+        $errResult.Status       = [ArtifactStatus]::Error
+        $errResult.ErrorMessage = $_.Exception.Message
+        $manifest.AppsISO       = $errResult
+    }
+
+    # --- Readiness summary ---
+    # Collect all results into a flat list for counting
+    $allResults = @()
+    $allResults += $manifest.FFUFiles
+    if ($null -ne $manifest.DeployISO)  { $allResults += $manifest.DeployISO }
+    if ($null -ne $manifest.Drivers)    { $allResults += $manifest.Drivers }
+    $allResults += $manifest.PPKGFiles
+    $allResults += $manifest.UnattendFiles
+    $allResults += $manifest.AutopilotFiles
+    if ($null -ne $manifest.AppsISO)    { $allResults += $manifest.AppsISO }
+
+    $manifest.FoundCount   = ($allResults | Where-Object { $_.Status.ToString() -eq 'Found' }).Count
+    $manifest.MissingCount = ($allResults | Where-Object { $_.Status.ToString() -eq 'Missing' }).Count
+    $manifest.ErrorCount   = ($allResults | Where-Object { $_.Status.ToString() -eq 'Error' }).Count
+
+    # IsReady: at least one FFU found AND DeployISO found AND no errors
+    $ffuFound    = $manifest.FFUFiles | Where-Object { $_.Status.ToString() -eq 'Found' }
+    $isoFound    = $manifest.DeployISO -and ($manifest.DeployISO.Status.ToString() -eq 'Found')
+    $manifest.IsReady = ($null -ne $ffuFound -and @($ffuFound).Count -gt 0 -and $isoFound -and $manifest.ErrorCount -eq 0)
+
+    # --- Automatic compatibility check ---
+    try {
+        $rawWarnings = Test-ArtifactCompatibility -Manifest $manifest
+        # Filter nulls and use explicit array to prevent @($null) coercion issue with typed properties.
+        # When Where-Object has nothing to return it produces $null; wrap in @() to get empty array.
+        $filteredWarnings = @($rawWarnings | Where-Object { $null -ne $_ })
+        $manifest.Warnings = $filteredWarnings
+    }
+    catch {
+        $cwMsg = "ArtifactScanner: Test-ArtifactCompatibility threw: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $cwMsg } else { Write-Verbose $cwMsg }
+        $manifest.Warnings = @()
+    }
+
+    $summaryMsg = "ArtifactScanner: Scan complete — Found=$($manifest.FoundCount) Missing=$($manifest.MissingCount) Errors=$($manifest.ErrorCount) IsReady=$($manifest.IsReady)"
+    if ($function:WriteLog) { WriteLog $summaryMsg } else { Write-Verbose $summaryMsg }
 
     return $manifest
 }
@@ -309,14 +637,61 @@ function Test-ArtifactCompatibility {
     [OutputType([CompatibilityWarning[]])]
     param(
         [Parameter(Mandatory)]
-        [object] $Manifest   # Use [object] to avoid cross-scope type resolution issues
+        [object] $Manifest   # Use [object] to avoid cross-scope type resolution issues (Pitfall 4)
     )
 
-    $msg = 'ArtifactScanner: Test-ArtifactCompatibility called — stub implementation (Plan 46-02)'
-    if ($function:WriteLog) { WriteLog $msg } else { Write-Verbose $msg }
+    [CompatibilityWarning[]]$warnings = @()
 
-    # Stub: return empty array. Full implementation in Plan 46-02.
-    return @()
+    # --- Extract FFU architecture ---
+    # Find primary FFU result with metadata, or first with metadata
+    $ffuArch = $null
+    try {
+        if ($null -ne $Manifest.FFUFiles -and @($Manifest.FFUFiles).Count -gt 0) {
+            $primaryFfu = $Manifest.FFUFiles | Where-Object { $_.IsPrimary -eq $true -and $null -ne $_.Metadata -and $_.Metadata.Architecture -ne '' -and $_.Metadata.Architecture -ne 'Unknown' } | Select-Object -First 1
+            if ($null -eq $primaryFfu) {
+                $primaryFfu = $Manifest.FFUFiles | Where-Object { $null -ne $_.Metadata -and $_.Metadata.Architecture -ne '' -and $_.Metadata.Architecture -ne 'Unknown' } | Select-Object -First 1
+            }
+            if ($null -ne $primaryFfu -and $null -ne $primaryFfu.Metadata) {
+                $ffuArch = $primaryFfu.Metadata.Architecture
+            }
+        }
+    }
+    catch {
+        $msg = "ArtifactScanner: Test-ArtifactCompatibility could not read FFU architecture: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $msg } else { Write-Verbose $msg }
+    }
+
+    # --- Extract Deploy ISO architecture from filename ---
+    $isoArch = $null
+    try {
+        if ($null -ne $Manifest.DeployISO -and $Manifest.DeployISO.Status.ToString() -eq 'Found' -and -not [string]::IsNullOrEmpty($Manifest.DeployISO.FilePath)) {
+            $isoFileName = [System.IO.Path]::GetFileName($Manifest.DeployISO.FilePath)
+            # Pattern: WinPE_FFU_Deploy_x64.iso or WinPE_FFU_Deploy_arm64.iso
+            if ($isoFileName -match 'WinPE_FFU_Deploy_(.+)\.iso') {
+                $isoArch = $Matches[1]
+            }
+        }
+    }
+    catch {
+        $msg = "ArtifactScanner: Test-ArtifactCompatibility could not read ISO architecture: $($_.Exception.Message)"
+        if ($function:WriteLog) { WriteLog $msg } else { Write-Verbose $msg }
+    }
+
+    # --- Compare architectures ---
+    if (-not [string]::IsNullOrEmpty($ffuArch) -and -not [string]::IsNullOrEmpty($isoArch)) {
+        if ($ffuArch -ne $isoArch) {
+            $warning = [CompatibilityWarning]::new()
+            $warning.Severity          = 'Warning'
+            $warning.Message           = "FFU architecture ($ffuArch) does not match Deploy ISO architecture ($isoArch). Deployment may fail if architectures are incompatible."
+            $warning.AffectedArtifacts = @('FFU', 'DeployISO')
+            $warnings += $warning
+
+            $warnMsg = "ArtifactScanner: Architecture mismatch — FFU=$ffuArch ISO=$isoArch"
+            if ($function:WriteLog) { WriteLog $warnMsg } else { Write-Verbose $warnMsg }
+        }
+    }
+
+    return $warnings
 }
 
 #endregion
