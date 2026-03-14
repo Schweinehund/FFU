@@ -58,7 +58,10 @@ Phases 1-44 complete. See MILESTONES.md for details.
   4. Each artifact result includes found/missing status, file path, and file size
   5. Each artifact result includes a staleness indicator (age in days from file last-write time)
   6. All DISM calls run with explicit `Import-Module DISM` and WIMMount filter service validation
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 46-01-PLAN.md — Module scaffold, data contract classes, Get-ArtifactMetadata
+- [ ] 46-02-PLAN.md — Find-FFUArtifacts scanner, Test-ArtifactCompatibility, integration tests
 
 ### Phase 47: USB Mode Pipeline Entry
 **Goal**: BuildFFUVM.ps1 accepts a USB-only invocation that reads an artifact manifest, sets skip flags for all build phases, and runs only USB assembly
@@ -118,7 +121,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 |-------|-----------|----------------|--------|-----------|
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45. Config Schema Extension | v1.11.0 | 0/TBD | Not started | - |
-| 46. FFU.ArtifactScanner Module | v1.11.0 | 0/TBD | Not started | - |
+| 46. FFU.ArtifactScanner Module | v1.11.0 | 0/2 | Planned | - |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 0/TBD | Not started | - |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/TBD | Not started | - |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 0/TBD | Not started | - |
@@ -126,4 +129,4 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*
-*Last updated: 2026-03-12*
+*Last updated: 2026-03-14*
