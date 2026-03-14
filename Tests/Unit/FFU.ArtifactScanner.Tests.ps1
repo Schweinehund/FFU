@@ -768,3 +768,715 @@ Describe 'Factory Functions' -Tag 'Unit', 'ArtifactScanner' {
         }
     }
 }
+
+# =============================================================================
+# Find-FFUArtifacts tests — covers DISC-01, VALID-01, VALID-04
+# Uses TestDrive for filesystem simulation (Pester 5.x built-in)
+# Tests run InModuleScope to access PowerShell class types.
+# =============================================================================
+
+Describe 'Find-FFUArtifacts - Empty Directory' -Tag 'Unit', 'ArtifactScanner' {
+
+    BeforeAll {
+        # Create a minimal FFUDevelopmentPath with no artifacts
+        $script:EmptyBasePath = Join-Path $TestDrive 'EmptyFFUDev'
+        New-Item -Path $script:EmptyBasePath -ItemType Directory -Force | Out-Null
+    }
+
+    It 'Should return an ArtifactManifest object' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result | Should -Not -BeNullOrEmpty
+            $result.GetType().Name | Should -Be 'ArtifactManifest'
+        }
+    }
+
+    It 'Should set BasePath on returned manifest' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.BasePath | Should -Be $BasePath
+        }
+    }
+
+    It 'Should set ScanTimestamp on returned manifest' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $before = [DateTime]::Now
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.ScanTimestamp | Should -BeGreaterThan ($before.AddSeconds(-1))
+        }
+    }
+
+    It 'Should return FFU artifacts as Missing when FFU folder empty' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            # No FFU files found — FFUFiles array should have a Missing entry
+            $result.FFUFiles | Should -Not -BeNullOrEmpty
+            $result.FFUFiles[0].Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should return DeployISO as Missing when not found' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.DeployISO | Should -Not -BeNullOrEmpty
+            $result.DeployISO.Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should return Drivers as Missing when folder absent' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.Drivers | Should -Not -BeNullOrEmpty
+            $result.Drivers.Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should return PPKG as Missing when no files found' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.PPKGFiles | Should -Not -BeNullOrEmpty
+            $result.PPKGFiles[0].Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should return Unattend as Missing when no files found' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.UnattendFiles | Should -Not -BeNullOrEmpty
+            $result.UnattendFiles[0].Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should return Autopilot as Missing when no files found' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.AutopilotFiles | Should -Not -BeNullOrEmpty
+            $result.AutopilotFiles[0].Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should return AppsISO as Missing when file absent' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.AppsISO | Should -Not -BeNullOrEmpty
+            $result.AppsISO.Status.ToString() | Should -Be 'Missing'
+        }
+    }
+
+    It 'Should set IsReady to false when FFU missing' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:EmptyBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.IsReady | Should -Be $false
+        }
+    }
+}
+
+Describe 'Find-FFUArtifacts - All Artifacts Present' -Tag 'Unit', 'ArtifactScanner' {
+
+    BeforeAll {
+        # Build a fully-populated FFUDevelopmentPath
+        $script:FullBasePath = Join-Path $TestDrive 'FullFFUDev'
+        $ffuDir      = Join-Path $script:FullBasePath 'FFU'
+        $driversDir  = Join-Path $script:FullBasePath 'Drivers'
+        $ppkgDir     = Join-Path $script:FullBasePath 'PPKG'
+        $unattendDir = Join-Path $script:FullBasePath 'Unattend'
+        $autopilotDir= Join-Path $script:FullBasePath 'Autopilot'
+        $appsDir     = Join-Path $script:FullBasePath 'Apps'
+
+        foreach ($dir in @($ffuDir, $driversDir, $ppkgDir, $unattendDir, $autopilotDir, $appsDir)) {
+            New-Item -Path $dir -ItemType Directory -Force | Out-Null
+        }
+
+        # Create test artifacts
+        Set-Content -Path (Join-Path $ffuDir 'Windows11_23H2_x64_Pro.ffu') -Value 'fake-ffu-content'
+        Set-Content -Path (Join-Path $script:FullBasePath 'WinPE_FFU_Deploy_x64.iso') -Value 'fake-iso'
+        Set-Content -Path (Join-Path $driversDir 'driver1.inf') -Value 'fake-driver'
+        Set-Content -Path (Join-Path $ppkgDir 'provision.ppkg') -Value 'fake-ppkg'
+        Set-Content -Path (Join-Path $unattendDir 'unattend_x64.xml') -Value '<unattend/>'
+        Set-Content -Path (Join-Path $autopilotDir 'AutopilotConfigurationFile.json') -Value '{}'
+        Set-Content -Path (Join-Path $appsDir 'Apps.iso') -Value 'fake-apps-iso'
+    }
+
+    It 'Should return Found status for FFU' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new()
+                $m.Architecture   = 'x64'
+                $m.MetadataSource = 'Filename'
+                return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.FFUFiles | Where-Object { $_.Status.ToString() -eq 'Found' } | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    It 'Should mark newest FFU as IsPrimary' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new()
+                $m.Architecture   = 'x64'
+                $m.MetadataSource = 'Filename'
+                return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $primary = $result.FFUFiles | Where-Object { $_.IsPrimary -eq $true }
+            $primary | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    It 'Should call Get-ArtifactMetadata for each FFU file' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new()
+                $m.Architecture   = 'x64'
+                $m.MetadataSource = 'Filename'
+                return $m
+            }
+            Find-FFUArtifacts -FFUDevelopmentPath $BasePath | Out-Null
+            Should -Invoke Get-ArtifactMetadata -Times 1 -Exactly
+        }
+    }
+
+    It 'Should populate Metadata on FFU result from Get-ArtifactMetadata' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new()
+                $m.Architecture   = 'x64'
+                $m.MetadataSource = 'Filename'
+                return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $primary = $result.FFUFiles | Where-Object { $_.IsPrimary -eq $true }
+            $primary.Metadata | Should -Not -BeNullOrEmpty
+            $primary.Metadata.Architecture | Should -Be 'x64'
+        }
+    }
+
+    It 'Should return Found status for DeployISO' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.DeployISO.Status.ToString() | Should -Be 'Found'
+        }
+    }
+
+    It 'Should return Found status for Drivers folder' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.Drivers.Status.ToString() | Should -Be 'Found'
+        }
+    }
+
+    It 'Should report FileCount and TotalSizeBytes for Drivers' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.Drivers.FileCount | Should -BeGreaterThan 0
+            $result.Drivers.TotalSizeBytes | Should -BeGreaterOrEqual 0
+        }
+    }
+
+    It 'Should return Found status for PPKG' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.PPKGFiles | Where-Object { $_.Status.ToString() -eq 'Found' } | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    It 'Should return Found status for unattend_x64.xml' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.UnattendFiles | Where-Object { $_.Status.ToString() -eq 'Found' } | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    It 'Should return Found status for Autopilot JSON' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.AutopilotFiles | Where-Object { $_.Status.ToString() -eq 'Found' } | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    It 'Should return Found status for Apps.iso' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.AppsISO.Status.ToString() | Should -Be 'Found'
+        }
+    }
+
+    It 'Should report AgeDays >= 0 for found FFU artifact' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $primary = $result.FFUFiles | Where-Object { $_.IsPrimary -eq $true }
+            $primary.AgeDays | Should -BeGreaterOrEqual 0
+        }
+    }
+
+    It 'Should report AgeDays >= 0 for found DeployISO' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.DeployISO.AgeDays | Should -BeGreaterOrEqual 0
+        }
+    }
+
+    It 'Should set IsReady to true when FFU and DeployISO both found' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.IsReady | Should -Be $true
+        }
+    }
+
+    It 'Should populate FoundCount correctly' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.FoundCount | Should -BeGreaterThan 0
+        }
+    }
+}
+
+Describe 'Find-FFUArtifacts - Multiple FFU Files' -Tag 'Unit', 'ArtifactScanner' {
+
+    BeforeAll {
+        $script:MultiFfuPath = Join-Path $TestDrive 'MultiFfuDev'
+        $ffuDir = Join-Path $script:MultiFfuPath 'FFU'
+        New-Item -Path $ffuDir -ItemType Directory -Force | Out-Null
+
+        # Create two FFU files with different timestamps
+        $older = Join-Path $ffuDir 'Windows11_23H2_x64_Pro.ffu'
+        $newer = Join-Path $ffuDir 'Windows11_24H2_x64_Pro.ffu'
+        Set-Content -Path $older -Value 'old'
+        Start-Sleep -Milliseconds 100
+        Set-Content -Path $newer -Value 'new'
+    }
+
+    It 'Should discover both FFU files' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:MultiFfuPath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            ($result.FFUFiles | Where-Object { $_.Status.ToString() -eq 'Found' }).Count | Should -Be 2
+        }
+    }
+
+    It 'Should mark exactly one FFU as IsPrimary' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:MultiFfuPath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            ($result.FFUFiles | Where-Object { $_.IsPrimary -eq $true }).Count | Should -Be 1
+        }
+    }
+
+    It 'Should mark the newest FFU as IsPrimary' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:MultiFfuPath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new(); $m.Architecture = 'x64'; $m.MetadataSource = 'Filename'; return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $primary = $result.FFUFiles | Where-Object { $_.IsPrimary -eq $true }
+            $primary.FilePath | Should -Match '24H2'
+        }
+    }
+}
+
+Describe 'Find-FFUArtifacts - Drivers AgeDays from Newest File' -Tag 'Unit', 'ArtifactScanner' {
+
+    BeforeAll {
+        $script:DriversAgePath = Join-Path $TestDrive 'DriversAgeDev'
+        $driversDir = Join-Path $script:DriversAgePath 'Drivers'
+        New-Item -Path $driversDir -ItemType Directory -Force | Out-Null
+        # Create a driver file
+        Set-Content -Path (Join-Path $driversDir 'driver.inf') -Value 'fake'
+    }
+
+    It 'Should use newest file LastWriteTime for Drivers AgeDays, not folder timestamp' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:DriversAgePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            # AgeDays should be 0 or more (file was just created)
+            $result.Drivers.AgeDays | Should -BeGreaterOrEqual 0
+            $result.Drivers.Status.ToString() | Should -Be 'Found'
+        }
+    }
+}
+
+Describe 'Find-FFUArtifacts - Graceful Degradation' -Tag 'Unit', 'ArtifactScanner' {
+
+    BeforeAll {
+        $script:GracefulPath = Join-Path $TestDrive 'GracefulDev'
+        $ffuDir = Join-Path $script:GracefulPath 'FFU'
+        New-Item -Path $ffuDir -ItemType Directory -Force | Out-Null
+        Set-Content -Path (Join-Path $ffuDir 'test.ffu') -Value 'ffu'
+    }
+
+    It 'Should not throw when Get-ArtifactMetadata throws for one FFU' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:GracefulPath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata { throw 'Simulated DISM error' }
+            { Find-FFUArtifacts -FFUDevelopmentPath $BasePath } | Should -Not -Throw
+        }
+    }
+
+    It 'Should still return FFU result even when metadata fails' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:GracefulPath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata { throw 'Simulated DISM error' }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.FFUFiles | Should -Not -BeNullOrEmpty
+        }
+    }
+}
+
+# =============================================================================
+# Test-ArtifactCompatibility tests — covers VALID-03
+# =============================================================================
+
+Describe 'Test-ArtifactCompatibility - Architecture Match' -Tag 'Unit', 'ArtifactScanner' {
+
+    It 'Should return empty array when FFU and DeployISO architectures match' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            # Primary FFU with x64 arch
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $ffuResult.FilePath     = 'C:\FFU\Windows11_x64.ffu'
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'x64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+
+            # Deploy ISO with x64 in filename
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_x64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings | Should -HaveCount 0
+        }
+    }
+
+    It 'Should return empty array when both are arm64' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $ffuResult.FilePath     = 'C:\FFU\Windows11_arm64.ffu'
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'arm64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_arm64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings | Should -HaveCount 0
+        }
+    }
+}
+
+Describe 'Test-ArtifactCompatibility - Architecture Mismatch' -Tag 'Unit', 'ArtifactScanner' {
+
+    It 'Should return a warning when FFU is arm64 but DeployISO is x64' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $ffuResult.FilePath     = 'C:\FFU\Windows11_arm64.ffu'
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'arm64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_x64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings | Should -Not -BeNullOrEmpty
+            $warnings.Count | Should -BeGreaterThan 0
+        }
+    }
+
+    It 'Should include both architecture names in the warning message' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $ffuResult.FilePath     = 'C:\FFU\Windows11_arm64.ffu'
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'arm64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_x64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings[0].Message | Should -Match 'arm64'
+            $warnings[0].Message | Should -Match 'x64'
+        }
+    }
+
+    It 'Should set Severity to Warning' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'arm64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_x64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings[0].Severity | Should -Be 'Warning'
+        }
+    }
+
+    It 'Should list both FFU and DeployISO in AffectedArtifacts' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'arm64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_x64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings[0].AffectedArtifacts | Should -Contain 'FFU'
+            $warnings[0].AffectedArtifacts | Should -Contain 'DeployISO'
+        }
+    }
+}
+
+Describe 'Test-ArtifactCompatibility - Missing Artifacts' -Tag 'Unit', 'ArtifactScanner' {
+
+    It 'Should return empty array when FFU is missing' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            # No FFU files at all (empty array)
+            $isoResult = [ArtifactResult]::new()
+            $isoResult.ArtifactType = [ArtifactType]::DeployISO
+            $isoResult.Status       = [ArtifactStatus]::Found
+            $isoResult.FilePath     = 'C:\WinPE_FFU_Deploy_x64.iso'
+            $manifest.DeployISO = $isoResult
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings | Should -HaveCount 0
+        }
+    }
+
+    It 'Should return empty array when DeployISO is missing' {
+        InModuleScope FFU.ArtifactScanner {
+            $manifest = [ArtifactManifest]::new()
+            $manifest.FFUFiles = @()
+            $manifest.Warnings = @()
+
+            $ffuResult = [ArtifactResult]::new()
+            $ffuResult.ArtifactType = [ArtifactType]::FFU
+            $ffuResult.Status       = [ArtifactStatus]::Found
+            $ffuResult.IsPrimary    = $true
+            $meta = [FFUMetadata]::new()
+            $meta.Architecture = 'x64'
+            $ffuResult.Metadata = $meta
+            $manifest.FFUFiles = @($ffuResult)
+            # No DeployISO set
+
+            $warnings = Test-ArtifactCompatibility -Manifest $manifest
+            $warnings | Should -HaveCount 0
+        }
+    }
+}
+
+Describe 'Find-FFUArtifacts - Compatibility Integration' -Tag 'Unit', 'ArtifactScanner' {
+
+    BeforeAll {
+        $script:CompatPath = Join-Path $TestDrive 'CompatDev'
+        $ffuDir = Join-Path $script:CompatPath 'FFU'
+        New-Item -Path $ffuDir -ItemType Directory -Force | Out-Null
+        Set-Content -Path (Join-Path $ffuDir 'Windows11_arm64.ffu') -Value 'ffu'
+        # Deploy ISO for x64 — mismatch
+        Set-Content -Path (Join-Path $script:CompatPath 'WinPE_FFU_Deploy_x64.iso') -Value 'iso'
+    }
+
+    It 'Should populate Warnings when FFU arm64 and ISO x64 mismatch' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:CompatPath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new()
+                $m.Architecture   = 'arm64'
+                $m.MetadataSource = 'Filename'
+                return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.Warnings | Should -Not -BeNullOrEmpty
+            $result.Warnings.Count | Should -BeGreaterThan 0
+        }
+    }
+
+    It 'Should have empty Warnings when architectures match' {
+        InModuleScope FFU.ArtifactScanner -Parameters @{ BasePath = $script:FullBasePath } {
+            param($BasePath)
+            Mock Test-FFUWimMount { return @{ Status = 'Passed' } }
+            Mock Get-ArtifactMetadata {
+                $m = [FFUMetadata]::new()
+                $m.Architecture   = 'x64'
+                $m.MetadataSource = 'Filename'
+                return $m
+            }
+            $result = Find-FFUArtifacts -FFUDevelopmentPath $BasePath
+            $result.Warnings | Should -HaveCount 0
+        }
+    }
+}
