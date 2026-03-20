@@ -64,7 +64,7 @@ Describe 'End-to-End Migration Tests' {
         $result = Invoke-FFUConfigMigration -Config $configHashtable -CreateBackup -ConfigPath $configPath
 
         # Assert
-        $result.Config.configSchemaVersion | Should -Be '1.0'
+        $result.Config.configSchemaVersion | Should -Be '1.3'
         $result.Config.ContainsKey('AppsPath') | Should -BeFalse
         $result.Config.ContainsKey('OfficePath') | Should -BeFalse
         $result.Config.ContainsKey('Verbose') | Should -BeFalse
@@ -100,7 +100,7 @@ Describe 'End-to-End Migration Tests' {
         $result = Invoke-FFUConfigMigration -Config $testConfig
 
         # Assert
-        $result.Config.configSchemaVersion | Should -Be '1.0'
+        $result.Config.configSchemaVersion | Should -Be '1.3'
     }
 
     It 'All deprecated properties removed from migrated file' {
@@ -204,7 +204,7 @@ Describe 'End-to-End Migration Tests' {
         $migratedHashtable.ContainsKey('AppsPath') | Should -BeFalse
 
         # Assert: Version set
-        $migratedHashtable.configSchemaVersion | Should -Be '1.0'
+        $migratedHashtable.configSchemaVersion | Should -Be '1.3'
     }
 }
 
@@ -217,8 +217,8 @@ Describe 'Version Comparison Tests' {
         $result.NeedsMigration | Should -BeTrue
     }
 
-    It 'Current version config does not need migration (1.0 = 1.0)' {
-        $config = @{ configSchemaVersion = '1.0'; FFUDevelopmentPath = 'C:\FFU' }
+    It 'Current version config does not need migration (1.3 = 1.3)' {
+        $config = @{ configSchemaVersion = '1.3'; FFUDevelopmentPath = 'C:\FFU' }
         $result = Test-FFUConfigVersion -Config $config
         $result.NeedsMigration | Should -BeFalse
     }
@@ -248,7 +248,7 @@ Describe 'Version Comparison Tests' {
     }
 
     It 'Version difference is zero for current config' {
-        $config = @{ configSchemaVersion = '1.0' }
+        $config = @{ configSchemaVersion = '1.3' }
         $result = Test-FFUConfigVersion -Config $config
         $result.VersionDifference | Should -Be 0
     }
@@ -273,7 +273,7 @@ Describe 'UI Flow Tests (Mock WPF)' {
 
             # The migration result has FromVersion and ToVersion
             $result.FromVersion | Should -Be '0.0'
-            $result.ToVersion | Should -Be '1.0'
+            $result.ToVersion | Should -Be '1.3'
         }
 
         It 'Change descriptions contain property-specific details' {
@@ -370,7 +370,7 @@ Describe 'CLI Flow Tests (Mock Read-Host)' {
             # Simulate Y response - would write config
             $migratedJson = $result.Config | ConvertTo-Json -Depth 10
             { $migratedJson | ConvertFrom-Json } | Should -Not -Throw
-            $result.Config.configSchemaVersion | Should -Be '1.0'
+            $result.Config.configSchemaVersion | Should -Be '1.3'
         }
 
         It 'N response would skip save - original config unchanged' {
@@ -396,12 +396,28 @@ Describe 'CLI Flow Tests (Mock Read-Host)' {
 Describe 'Error Handling Tests' {
 
     It 'Handles already-migrated config gracefully' {
-        $config = @{ configSchemaVersion = '1.0'; FFUDevelopmentPath = 'C:\FFU' }
+        $config = @{
+            configSchemaVersion = '1.3'
+            FFUDevelopmentPath = 'C:\FFU'
+            ActiveMode = 'FullBuild'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+            USBMode = @{
+                Artifacts = @{
+                    FFU = @{ Path = $null; Disposition = 'Reuse' }
+                    DeployISO = @{ Path = $null; Disposition = 'Reuse' }
+                    Drivers = @{ Path = $null; Disposition = 'Reuse' }
+                    PPKG = @{ Path = $null; Disposition = 'Reuse' }
+                    Unattend = @{ Path = $null; Disposition = 'Reuse' }
+                    Autopilot = @{ Path = $null; Disposition = 'Reuse' }
+                    AppsISO = @{ Path = $null; Disposition = 'Reuse' }
+                }
+            }
+        }
         $result = Invoke-FFUConfigMigration -Config $config
 
         $result.Changes.Count | Should -Be 0
-        $result.FromVersion | Should -Be '1.0'
-        $result.Config.configSchemaVersion | Should -Be '1.0'
+        $result.FromVersion | Should -Be '1.3'
+        $result.Config.configSchemaVersion | Should -Be '1.3'
     }
 
     It 'Handles future version config gracefully' {
@@ -422,7 +438,7 @@ Describe 'Error Handling Tests' {
         $result = Invoke-FFUConfigMigration -Config $config
 
         $result.Config.Count | Should -BeGreaterOrEqual 1  # At least configSchemaVersion
-        $result.Config.configSchemaVersion | Should -Be '1.0'
+        $result.Config.configSchemaVersion | Should -Be '1.3'
     }
 
     It 'Backup directory created if missing' {
@@ -448,11 +464,11 @@ Describe 'Error Handling Tests' {
         $result = Invoke-FFUConfigMigration -Config $config
 
         $result.Config | Should -Not -BeNull
-        # Changes is an array (may be empty when no deprecated properties)
+        # Changes is an array with additive defaults (IncludePreviewUpdates, VMwareSettings, ActiveMode, USBMode)
         $result.Changes.GetType().BaseType.Name | Should -Be 'Array'
-        $result.Changes.Count | Should -Be 0
+        $result.Changes.Count | Should -BeGreaterThan 0
         $result.FromVersion | Should -Be '0.0'
-        $result.ToVersion | Should -Be '1.0'
+        $result.ToVersion | Should -Be '1.3'
     }
 }
 
@@ -573,7 +589,7 @@ Describe 'File-Based Migration Tests' {
         # Step 4: Verify no longer needs migration
         $postCheck = Test-FFUConfigVersion -ConfigPath $configPath
         $postCheck.NeedsMigration | Should -BeFalse
-        $postCheck.ConfigVersion | Should -Be '1.0'
+        $postCheck.ConfigVersion | Should -Be '1.3'
     }
 }
 

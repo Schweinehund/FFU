@@ -66,9 +66,9 @@ Describe 'Get-FFUConfigSchemaVersion' {
         $result | Should -BeOfType [string]
     }
 
-    It 'returns "1.2" as current version' {
+    It 'returns "1.3" as current version' {
         $result = Get-FFUConfigSchemaVersion
-        $result | Should -Be '1.2'
+        $result | Should -Be '1.3'
     }
 
     It 'returns same value on multiple calls (consistent)' {
@@ -99,12 +99,12 @@ Describe 'Test-FFUConfigVersion' {
 
         It 'detects current version config as NeedsMigration=$false' {
             $config = @{
-                configSchemaVersion = '1.2'
+                configSchemaVersion = '1.3'
                 FFUDevelopmentPath = 'C:\FFU'
             }
             $result = Test-FFUConfigVersion -Config $config
             $result.NeedsMigration | Should -BeFalse
-            $result.ConfigVersion | Should -Be '1.2'
+            $result.ConfigVersion | Should -Be '1.3'
         }
 
         It 'detects older version config as NeedsMigration=$true' {
@@ -140,7 +140,7 @@ Describe 'Test-FFUConfigVersion' {
         }
 
         It 'returns correct VersionDifference for current config' {
-            $config = @{ configSchemaVersion = '1.2' }
+            $config = @{ configSchemaVersion = '1.3' }
             $result = Test-FFUConfigVersion -Config $config
             $result.VersionDifference | Should -Be 0
         }
@@ -271,11 +271,23 @@ Describe 'Invoke-FFUConfigMigration' {
 
         It 'returns unchanged config when already at target version' {
             $config = @{
-                configSchemaVersion = '1.2'
+                configSchemaVersion = '1.3'
                 FFUDevelopmentPath = 'C:\FFU'
                 InstallApps = $true
                 IncludePreviewUpdates = $false
+                ActiveMode = 'FullBuild'
                 VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+                USBMode = @{
+                    Artifacts = @{
+                        FFU = @{ Path = $null; Disposition = 'Reuse' }
+                        DeployISO = @{ Path = $null; Disposition = 'Reuse' }
+                        Drivers = @{ Path = $null; Disposition = 'Reuse' }
+                        PPKG = @{ Path = $null; Disposition = 'Reuse' }
+                        Unattend = @{ Path = $null; Disposition = 'Reuse' }
+                        Autopilot = @{ Path = $null; Disposition = 'Reuse' }
+                        AppsISO = @{ Path = $null; Disposition = 'Reuse' }
+                    }
+                }
             }
             $result = Invoke-FFUConfigMigration -Config $config
             $result.Config.FFUDevelopmentPath | Should -Be 'C:\FFU'
@@ -302,13 +314,13 @@ Describe 'Invoke-FFUConfigMigration' {
         It 'sets ToVersion to target version' {
             $config = @{ FFUDevelopmentPath = 'C:\FFU' }
             $result = Invoke-FFUConfigMigration -Config $config
-            $result.ToVersion | Should -Be '1.2'
+            $result.ToVersion | Should -Be '1.3'
         }
 
         It 'sets configSchemaVersion in migrated config' {
             $config = @{ FFUDevelopmentPath = 'C:\FFU' }
             $result = Invoke-FFUConfigMigration -Config $config
-            $result.Config.configSchemaVersion | Should -Be '1.2'
+            $result.Config.configSchemaVersion | Should -Be '1.3'
         }
     }
 
@@ -578,10 +590,22 @@ Describe 'Invoke-FFUConfigMigration' {
 
         It 'returns empty changes array when no migration needed' {
             $config = @{
-                configSchemaVersion = '1.2'
+                configSchemaVersion = '1.3'
                 FFUDevelopmentPath = 'C:\FFU'
                 IncludePreviewUpdates = $false
+                ActiveMode = 'FullBuild'
                 VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+                USBMode = @{
+                    Artifacts = @{
+                        FFU = @{ Path = $null; Disposition = 'Reuse' }
+                        DeployISO = @{ Path = $null; Disposition = 'Reuse' }
+                        Drivers = @{ Path = $null; Disposition = 'Reuse' }
+                        PPKG = @{ Path = $null; Disposition = 'Reuse' }
+                        Unattend = @{ Path = $null; Disposition = 'Reuse' }
+                        Autopilot = @{ Path = $null; Disposition = 'Reuse' }
+                        AppsISO = @{ Path = $null; Disposition = 'Reuse' }
+                    }
+                }
             }
             $result = Invoke-FFUConfigMigration -Config $config
             $result.Changes | Should -HaveCount 0
@@ -596,8 +620,8 @@ Describe 'Invoke-FFUConfigMigration' {
                 Threads = 4
             }
             $result = Invoke-FFUConfigMigration -Config $config
-            # 4 deprecated properties + IncludePreviewUpdates default + VMwareSettings default = 6
-            $result.Changes | Should -HaveCount 6
+            # 4 deprecated properties + IncludePreviewUpdates default + VMwareSettings default + ActiveMode default + USBMode default = 8
+            $result.Changes | Should -HaveCount 8
         }
 
         It 'WARNING prefix for properties requiring manual action' {
@@ -654,18 +678,164 @@ Describe 'Invoke-FFUConfigMigration' {
             $result.Config.CustomProperty | Should -Be 'preserved'
 
             # Verify version set
-            $result.Config.configSchemaVersion | Should -Be '1.2'
+            $result.Config.configSchemaVersion | Should -Be '1.3'
             $result.FromVersion | Should -Be '0.0'
-            $result.ToVersion | Should -Be '1.2'
+            $result.ToVersion | Should -Be '1.3'
 
             # Verify new defaults added
             $result.Config.IncludePreviewUpdates | Should -BeFalse
             $result.Config.VMwareSettings | Should -Not -BeNullOrEmpty
             $result.Config.VMwareSettings.NetworkType | Should -Be 'nat'
             $result.Config.VMwareSettings.NicType | Should -Be 'e1000e'
+            $result.Config.ActiveMode | Should -Be 'FullBuild'
+            $result.Config.ContainsKey('USBMode') | Should -BeTrue
 
-            # Verify change count (5 removed + 1 migrated + 1 IncludePreviewUpdates + 1 VMwareSettings = 8)
-            $result.Changes.Count | Should -Be 8
+            # Verify change count (5 removed + 1 migrated + 1 IncludePreviewUpdates + 1 VMwareSettings + 1 ActiveMode + 1 USBMode = 10)
+            $result.Changes.Count | Should -Be 10
         }
+    }
+}
+
+Describe 'v1.3 Migration' {
+
+    It 'Migrates v1.2 config to v1.3 with ActiveMode default' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $result.Config.ActiveMode | Should -Be 'FullBuild'
+    }
+
+    It 'Migrates v1.2 config to v1.3 with USBMode.Artifacts section' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $result.Config.ContainsKey('USBMode') | Should -BeTrue
+        $result.Config.USBMode.ContainsKey('Artifacts') | Should -BeTrue
+    }
+
+    It 'USBMode.Artifacts contains all 7 artifact types' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $artifacts = $result.Config.USBMode.Artifacts
+        $artifacts.ContainsKey('FFU') | Should -BeTrue
+        $artifacts.ContainsKey('DeployISO') | Should -BeTrue
+        $artifacts.ContainsKey('Drivers') | Should -BeTrue
+        $artifacts.ContainsKey('PPKG') | Should -BeTrue
+        $artifacts.ContainsKey('Unattend') | Should -BeTrue
+        $artifacts.ContainsKey('Autopilot') | Should -BeTrue
+        $artifacts.ContainsKey('AppsISO') | Should -BeTrue
+    }
+
+    It 'Each artifact entry has null Path and Reuse Disposition' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $artifactTypes = @('FFU', 'DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')
+        foreach ($type in $artifactTypes) {
+            $result.Config.USBMode.Artifacts[$type].Disposition | Should -Be 'Reuse'
+            $result.Config.USBMode.Artifacts[$type].Path | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'Preserves existing VMwareSettings after migration' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $result.Config.VMwareSettings.NetworkType | Should -Be 'nat'
+    }
+
+    It 'Does not re-migrate already v1.3 config' {
+        $config = @{
+            configSchemaVersion = '1.3'
+            FFUDevelopmentPath = 'C:\FFU'
+            ActiveMode = 'FullBuild'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+            USBMode = @{
+                Artifacts = @{
+                    FFU = @{ Path = $null; Disposition = 'Reuse' }
+                    DeployISO = @{ Path = $null; Disposition = 'Reuse' }
+                    Drivers = @{ Path = $null; Disposition = 'Reuse' }
+                    PPKG = @{ Path = $null; Disposition = 'Reuse' }
+                    Unattend = @{ Path = $null; Disposition = 'Reuse' }
+                    Autopilot = @{ Path = $null; Disposition = 'Reuse' }
+                    AppsISO = @{ Path = $null; Disposition = 'Reuse' }
+                }
+            }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $result.Changes.Count | Should -Be 0
+    }
+
+    It 'Fills in missing Artifacts key in partial USBMode' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+            USBMode = @{}
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $result.Config.USBMode.ContainsKey('Artifacts') | Should -BeTrue
+        $artifactTypes = @('FFU', 'DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')
+        foreach ($type in $artifactTypes) {
+            $result.Config.USBMode.Artifacts.ContainsKey($type) | Should -BeTrue
+        }
+    }
+
+    It 'Fills in missing artifact type in partial USBMode.Artifacts' {
+        $config = @{
+            configSchemaVersion = '1.2'
+            FFUDevelopmentPath = 'C:\FFU'
+            VMwareSettings = @{ NetworkType = 'nat'; NicType = 'e1000e' }
+            USBMode = @{
+                Artifacts = @{
+                    FFU = @{ Path = $null; Disposition = 'Reuse' }
+                }
+            }
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $missingTypes = @('DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')
+        foreach ($type in $missingTypes) {
+            $result.Config.USBMode.Artifacts.ContainsKey($type) | Should -BeTrue
+        }
+    }
+
+    It 'Legacy (no version) config reaches v1.3 with USBMode present' {
+        $config = @{
+            FFUDevelopmentPath = 'C:\FFU'
+            AppsPath = 'C:\FFU\Apps'
+            InstallWingetApps = $true
+        }
+        $result = Invoke-FFUConfigMigration -Config $config
+        $result.Config.configSchemaVersion | Should -Be '1.3'
+        $result.Config.ContainsKey('USBMode') | Should -BeTrue
+    }
+
+    It 'Creates backup file before migration' {
+        $configPath = Join-Path $script:TestBasePath 'backup-v13-test.json'
+        $config = @{
+            FFUDevelopmentPath = 'C:\FFU'
+            configSchemaVersion = '1.2'
+        }
+        $config | ConvertTo-Json | Set-Content -Path $configPath
+
+        $result = Invoke-FFUConfigMigration -Config $config -CreateBackup -ConfigPath $configPath
+        Test-Path "$($script:TestBasePath)\backup-v13-test.json.backup-*" | Should -BeTrue
+        $result.BackupPath | Should -Not -BeNullOrEmpty
     }
 }
