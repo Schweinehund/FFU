@@ -178,4 +178,4 @@ Key files:
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
 ---
-*Last updated: 2026-03-20 after Phase 45 (config-schema-extension) complete — config.json schema extended with ActiveMode, USBMode, ArtifactEntry definitions; migration logic v1.3 in place*
+*Last updated: 2026-03-20 after Phase 47 (usb-mode-pipeline-entry) complete — -USBOnlyMode switch added to BuildFFUVM.ps1, short-circuiting build pipeline for USB-only assembly from pre-existing artifacts via FFU.ArtifactScanner*
