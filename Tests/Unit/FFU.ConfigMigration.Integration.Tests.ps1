@@ -113,20 +113,19 @@ Describe 'End-to-End Migration Tests' {
             Threads = 8
             InstallWingetApps = $true
             DownloadDrivers = $false
-            CopyOfficeConfigXML = $false
         }
 
         # Act
         $result = Invoke-FFUConfigMigration -Config $testConfig
 
-        # Assert: All deprecated properties removed
+        # Assert: Deprecated properties removed
         $result.Config.ContainsKey('AppsPath') | Should -BeFalse
         $result.Config.ContainsKey('OfficePath') | Should -BeFalse
         $result.Config.ContainsKey('Verbose') | Should -BeFalse
         $result.Config.ContainsKey('Threads') | Should -BeFalse
         $result.Config.ContainsKey('InstallWingetApps') | Should -BeFalse
         $result.Config.ContainsKey('DownloadDrivers') | Should -BeFalse
-        $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeFalse
+        # Note: CopyOfficeConfigXML is preserved (still actively used for M365 config)
     }
 
     It 'Unknown properties preserved in migrated file (forward compatibility)' {
@@ -292,12 +291,12 @@ Describe 'UI Flow Tests (Mock WPF)' {
             $config = @{
                 FFUDevelopmentPath = 'C:\FFU'
                 DownloadDrivers = $true
-                CopyOfficeConfigXML = $true
             }
             $result = Invoke-FFUConfigMigration -Config $config
 
             $warnings = $result.Changes | Where-Object { $_ -like "WARNING:*" }
-            $warnings | Should -HaveCount 2
+            # Only DownloadDrivers generates WARNING - CopyOfficeConfigXML is preserved (not deprecated)
+            $warnings | Should -HaveCount 1
         }
 
         It 'Can format changes for UI display' {
@@ -340,7 +339,8 @@ Describe 'CLI Flow Tests (Mock Read-Host)' {
                 }
             }
 
-            $formattedOutput | Should -HaveCount 2
+            # 2 deprecated removed + 4 additive defaults (IncludePreviewUpdates, VMwareSettings, ActiveMode, USBMode)
+            $formattedOutput | Should -HaveCount 6
             $formattedOutput | ForEach-Object { $_ | Should -Match '^\s+[-\[]' }
         }
 
@@ -524,12 +524,13 @@ Describe 'Deprecated Property Migration Tests' {
         $warnings | Should -Not -BeNullOrEmpty
     }
 
-    It 'CopyOfficeConfigXML without OfficeConfigXMLFile generates WARNING' {
+    It 'CopyOfficeConfigXML is preserved (still actively used for M365 configuration)' {
         $config = @{ CopyOfficeConfigXML = $true }
         $result = Invoke-FFUConfigMigration -Config $config
-        $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeFalse
-        $warnings = $result.Changes | Where-Object { $_ -like "WARNING:*OfficeConfigXMLFile*" }
-        $warnings | Should -Not -BeNullOrEmpty
+        # CopyOfficeConfigXML is preserved - not deprecated
+        $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeTrue
+        $result.Config.CopyOfficeConfigXML | Should -BeTrue
+        $result.Changes | Where-Object { $_ -like "*CopyOfficeConfigXML*" } | Should -BeNullOrEmpty
     }
 }
 

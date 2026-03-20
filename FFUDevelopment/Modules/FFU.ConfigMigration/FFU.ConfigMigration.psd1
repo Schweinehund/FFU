@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule = 'FFU.ConfigMigration.psm1'
-    ModuleVersion = '1.1.1'
+    ModuleVersion = '1.2.0'
     GUID = '9a3eab81-2f9c-44dc-a26e-bbb11086668b'
 
     # Author information
@@ -66,6 +66,11 @@
 
             # Release notes
             ReleaseNotes = @'
+Version 1.2.0
+- Added v1.3 schema migration - ActiveMode field and USBMode.Artifacts section with 7 artifact types (FFU, DeployISO, Drivers, PPKG, Unattend, Autopilot, AppsISO)
+- Default ActiveMode=FullBuild preserves existing behavior for configs without USB Mode
+- Handles partial USBMode (missing Artifacts key) and partial USBMode.Artifacts (missing individual type keys)
+
 Version 1.1.0
 - Added v1.2 schema migration for VMwareSettings (NetworkType=nat, NicType=e1000e)
 - Configs without VMwareSettings now get default values for VMware Workstation Pro support

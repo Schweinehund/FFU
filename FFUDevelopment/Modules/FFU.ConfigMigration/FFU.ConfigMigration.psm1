@@ -24,7 +24,7 @@
 #region Version Constant
 
 # Single source of truth for current schema version
-$script:CurrentConfigSchemaVersion = "1.2"
+$script:CurrentConfigSchemaVersion = "1.3"
 
 #endregion Version Constant
 
@@ -447,6 +447,45 @@ function Invoke-FFUConfigMigration {
         if (-not $migrated['VMwareSettings'].ContainsKey('NicType')) {
             $migrated['VMwareSettings']['NicType'] = 'e1000e'
             $changes += "Added missing 'VMwareSettings.NicType=e1000e'"
+        }
+    }
+    #endregion
+
+    #region Migration: Add ActiveMode default (v1.3)
+    if (-not $migrated.ContainsKey('ActiveMode')) {
+        $migrated['ActiveMode'] = 'FullBuild'
+        $changes += "Added default 'ActiveMode=FullBuild' (USB Mode support)"
+    }
+    #endregion
+
+    #region Migration: Add USBMode defaults (v1.3)
+    $artifactTypes = @('FFU', 'DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')
+    if (-not $migrated.ContainsKey('USBMode')) {
+        $artifacts = @{}
+        foreach ($type in $artifactTypes) {
+            $artifacts[$type] = @{ Path = $null; Disposition = 'Reuse' }
+        }
+        $migrated['USBMode'] = @{ Artifacts = $artifacts }
+        $changes += "Added default 'USBMode.Artifacts' with null paths and Reuse dispositions"
+    }
+    elseif ($migrated['USBMode'] -is [hashtable]) {
+        # Handle partial USBMode - ensure Artifacts key exists
+        if (-not $migrated['USBMode'].ContainsKey('Artifacts')) {
+            $artifacts = @{}
+            foreach ($type in $artifactTypes) {
+                $artifacts[$type] = @{ Path = $null; Disposition = 'Reuse' }
+            }
+            $migrated['USBMode']['Artifacts'] = $artifacts
+            $changes += "Added missing 'USBMode.Artifacts' section"
+        }
+        else {
+            # Ensure all 7 artifact types exist
+            foreach ($type in $artifactTypes) {
+                if (-not $migrated['USBMode']['Artifacts'].ContainsKey($type)) {
+                    $migrated['USBMode']['Artifacts'][$type] = @{ Path = $null; Disposition = 'Reuse' }
+                    $changes += "Added missing USBMode artifact entry '$type'"
+                }
+            }
         }
     }
     #endregion

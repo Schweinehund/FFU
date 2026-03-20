@@ -479,35 +479,27 @@ Describe 'Invoke-FFUConfigMigration' {
 
     Context 'Deprecated property: CopyOfficeConfigXML' {
 
-        It 'removes CopyOfficeConfigXML and adds warning when OfficeConfigXMLFile not set' {
+        It 'preserves CopyOfficeConfigXML (still actively used for M365 configuration)' {
             $config = @{
                 FFUDevelopmentPath = 'C:\FFU'
                 CopyOfficeConfigXML = $true
             }
             $result = Invoke-FFUConfigMigration -Config $config
-            $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeFalse
-            $result.Changes | Where-Object { $_ -like "WARNING:*OfficeConfigXMLFile*" } | Should -Not -BeNullOrEmpty
+            # CopyOfficeConfigXML is preserved — it controls Office config XML copy behavior
+            $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeTrue
+            $result.Config.CopyOfficeConfigXML | Should -BeTrue
         }
 
-        It 'removes CopyOfficeConfigXML without warning when OfficeConfigXMLFile is set' {
-            $config = @{
-                FFUDevelopmentPath = 'C:\FFU'
-                CopyOfficeConfigXML = $true
-                OfficeConfigXMLFile = 'C:\FFU\Office\config.xml'
-            }
-            $result = Invoke-FFUConfigMigration -Config $config
-            $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeFalse
-            $result.Changes | Where-Object { $_ -like "WARNING:*OfficeConfigXMLFile*" } | Should -BeNullOrEmpty
-        }
-
-        It 'removes CopyOfficeConfigXML=false without warning' {
+        It 'preserves CopyOfficeConfigXML=false without change description' {
             $config = @{
                 FFUDevelopmentPath = 'C:\FFU'
                 CopyOfficeConfigXML = $false
             }
             $result = Invoke-FFUConfigMigration -Config $config
-            $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeFalse
-            $result.Changes | Should -Contain "Removed deprecated property 'CopyOfficeConfigXML' (was false)"
+            # CopyOfficeConfigXML is preserved — not deprecated
+            $result.Config.ContainsKey('CopyOfficeConfigXML') | Should -BeTrue
+            $result.Config.CopyOfficeConfigXML | Should -BeFalse
+            $result.Changes | Where-Object { $_ -like "*CopyOfficeConfigXML*" } | Should -BeNullOrEmpty
         }
     }
 
@@ -628,11 +620,11 @@ Describe 'Invoke-FFUConfigMigration' {
             $config = @{
                 FFUDevelopmentPath = 'C:\FFU'
                 DownloadDrivers = $true
-                CopyOfficeConfigXML = $true
             }
             $result = Invoke-FFUConfigMigration -Config $config
             $warnings = $result.Changes | Where-Object { $_ -like "WARNING:*" }
-            $warnings | Should -HaveCount 2
+            # Only DownloadDrivers generates WARNING - CopyOfficeConfigXML is preserved (not deprecated)
+            $warnings | Should -HaveCount 1
         }
     }
 
