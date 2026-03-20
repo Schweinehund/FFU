@@ -2,7 +2,7 @@
 phase: 45
 slug: config-schema-extension
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-03-20
 ---
@@ -38,20 +38,21 @@ created: 2026-03-20
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 45-01-01 | 01 | 1 | CONFIG-01 | unit | `Invoke-Pester -Path Tests/Unit/FFU.ConfigMigration.Tests.ps1 -Tag 'SchemaVersion'` | ✅ | ⬜ pending |
-| 45-01-02 | 01 | 1 | CONFIG-01 | unit | `Invoke-Pester -Path Tests/Unit/FFU.ConfigMigration.Tests.ps1 -Tag 'Migration'` | ✅ | ⬜ pending |
-| 45-02-01 | 02 | 1 | CONFIG-01 | schema | `node -e "JSON.parse(require('fs').readFileSync('FFUDevelopment/config/ffubuilder-config.schema.json'))"` | ✅ | ⬜ pending |
-| 45-03-01 | 03 | 2 | CONFIG-02 | unit | `Invoke-Pester -Path Tests/Unit/FFUUI.Core.Config.Tests.ps1 -Tag 'USBMode'` | ❌ W0 | ⬜ pending |
+| 45-01-01 | 01 | 1 | CONFIG-02 | unit | `Invoke-Pester -Path Tests/Unit/FFU.ConfigMigration.Tests.ps1 -Tag 'SchemaVersion'` | Yes | pending |
+| 45-01-02 | 01 | 1 | CONFIG-02 | unit | `Invoke-Pester -Path Tests/Unit/FFU.ConfigMigration.Tests.ps1 -Tag 'Migration'` | Yes | pending |
+| 45-01-03 | 01 | 1 | CONFIG-02 | unit | `Invoke-Pester -Path Tests/Unit/FFU.ConfigMigration.Tests.ps1` (backup test per D-16) | Yes | pending |
+| 45-02-01 | 02 | 2 | CONFIG-01 | schema | `powershell -Command "Get-Content 'FFUDevelopment/config/ffubuilder-config.schema.json' -Raw \| ConvertFrom-Json \| Out-Null"` | Yes | pending |
+| 45-02-02 | 02 | 2 | CONFIG-01 | source | `powershell -Command "Import-Module .\FFUDevelopment\FFUUI.Core -Force -ErrorAction Stop"` + source grep for ActiveMode/USBMode keys | Yes | pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: pending / green / red / flaky*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `Tests/Unit/FFU.ConfigMigration.Tests.ps1` — update existing version assertions (1.2→1.3)
-- [ ] `Tests/Unit/Fixtures/config-v1.2.json` — pre-migration fixture file
-- [ ] `Tests/Unit/Fixtures/config-v1.3-expected.json` — post-migration expected output
+- [ ] `Tests/Unit/FFU.ConfigMigration.Tests.ps1` — update existing version assertions (1.2 to 1.3), add v1.3 migration tests + backup test
+
+*No fixture files needed — tests use in-memory hashtables per RESEARCH.md recommendation.*
 
 *Existing Pester infrastructure covers framework needs.*
 
@@ -67,11 +68,11 @@ created: 2026-03-20
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
