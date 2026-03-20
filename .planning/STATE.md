@@ -1,17 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.8
-milestone_name: milestone
-status: planning
-stopped_at: Completed 46-02-PLAN.md
-last_updated: "2026-03-14T14:22:33.038Z"
-last_activity: 2026-03-12 — Roadmap created for v1.11.0 (6 phases, 19 requirements mapped)
+milestone: v1.11.0
+milestone_name: USB from Existing Components
+status: unknown
+stopped_at: Completed 45-01-PLAN.md
+last_updated: "2026-03-20T19:23:08.322Z"
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 0
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State: FFU Builder
@@ -21,16 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.11.0 USB from Existing Components — Phase 45 ready to plan
+**Current focus:** Phase 45 — config-schema-extension
 
 ## Current Position
 
-Phase: 45 of 50 (Config Schema Extension)
-Plan: — (not started)
-Status: Ready to plan
-Last activity: 2026-03-12 — Roadmap created for v1.11.0 (6 phases, 19 requirements mapped)
-
-Progress: [░░░░░░░░░░] 0% (v1.11.0)
+Phase: 45 (config-schema-extension) — EXECUTING
+Plan: 2 of 2
 
 ## Shipped Milestones
 
@@ -61,6 +55,7 @@ Progress: [░░░░░░░░░░] 0% (v1.11.0)
 - [Phase 46]: Architecture regex uses (?:^|[^a-z]) anchors not \b word boundary — underscore is a word character so \b fails with FFU filename patterns like Windows11_23H2_x64_Pro.ffu
 - [Phase 46]: Get-Command try/catch used for hyphenated function availability (Test-FFUWimMount) — $function: drive syntax invalid for hyphenated names
 - [Phase 46]: @($result | Where-Object) null-filter pattern required before typed array assignment to prevent @($null) coercion in typed PowerShell class properties
+- [Phase 45]: v1.3 migration is purely additive - ActiveMode=FullBuild and USBMode.Artifacts with 7 types injected via #region blocks
 
 ### Research Flags for Planning
 
@@ -73,8 +68,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-14T14:15:24.460Z
-Stopped at: Completed 46-02-PLAN.md
+Last session: 2026-03-20T19:23:08.315Z
+Stopped at: Completed 45-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`
 

@@ -42,7 +42,7 @@ Requirements for USB from Existing Components milestone. Each maps to roadmap ph
 ### Configuration
 
 - [ ] **CONFIG-01**: Config schema extended with USB Mode fields (artifact paths, dispositions)
-- [ ] **CONFIG-02**: Config migration adds USB Mode defaults for existing configs
+- [x] **CONFIG-02**: Config migration adds USB Mode defaults for existing configs
 
 ## Future Requirements
 
@@ -85,7 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REBUILD-02 | Phase 50 | Pending |
 | REBUILD-03 | Phase 50 | Pending |
 | CONFIG-01 | Phase 45 | Pending |
-| CONFIG-02 | Phase 45 | Pending |
+| CONFIG-02 | Phase 45 | Complete |
 
 **Coverage:**
 - v1.11.0 requirements: 19 total
