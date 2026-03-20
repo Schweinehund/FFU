@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 45-02-PLAN.md
-last_updated: "2026-03-20T19:37:08.835Z"
+stopped_at: Completed 47-01-PLAN.md
+last_updated: "2026-03-20T21:40:33.511Z"
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State: FFU Builder
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 45 — config-schema-extension
+**Current focus:** Phase 47 — usb-mode-pipeline-entry
 
 ## Current Position
 
-Phase: 46
-Plan: Not started
+Phase: 47 (usb-mode-pipeline-entry) — EXECUTING
+Plan: 1 of 1
 
 ## Shipped Milestones
 
@@ -57,6 +57,7 @@ Plan: Not started
 - [Phase 46]: @($result | Where-Object) null-filter pattern required before typed array assignment to prevent @($null) coercion in typed PowerShell class properties
 - [Phase 45]: v1.3 migration is purely additive - ActiveMode=FullBuild and USBMode.Artifacts with 7 types injected via #region blocks
 - [Phase 45]: ActiveMode and USBMode added to JSON schema root properties with ArtifactEntry definition; stubs in FFUUI.Core.Config.psm1 ensure config round-trip; fallback version updated to 1.3
+- [Phase 47-usb-mode-pipeline-entry]: Get-USBDrive (not Get-FFUUSBDrives) is the correct function — returns tuple ($USBDrives, $USBDrivesCount)
 
 ### Research Flags for Planning
 
@@ -69,10 +70,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:30:15.556Z
-Stopped at: Completed 45-02-PLAN.md
+Last session: 2026-03-20T21:40:33.502Z
+Stopped at: Completed 47-01-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 45`
+Next action: `/gsd:discuss-phase 47`
 
 ---
-*State updated: 2026-03-12 after roadmap creation*
+*State updated: 2026-03-20 — corrected position after phases 45+46 completed (46 shipped 2026-03-14, 45 shipped 2026-03-20)*

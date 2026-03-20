@@ -28,7 +28,7 @@ Phases 1-44 complete. See MILESTONES.md for details.
 
 - [x] **Phase 45: Config Schema Extension** - Extend config schema with USB Mode fields and migration for existing configs (completed 2026-03-20)
 - [x] **Phase 46: FFU.ArtifactScanner Module** - New module for artifact discovery, metadata extraction, and compatibility validation (completed 2026-03-14)
-- [ ] **Phase 47: USB Mode Pipeline Entry** - Add `-USBOnlyMode` switch and artifact manifest reading block to BuildFFUVM.ps1
+- [x] **Phase 47: USB Mode Pipeline Entry** - Add `-USBOnlyMode` switch and artifact manifest reading block to BuildFFUVM.ps1 (completed 2026-03-20)
 - [ ] **Phase 48: XAML Mode Toggle and USB Tab** - Add mode toggle RadioButton group and USB Mode TabItem to BuildFFUVM_UI.xaml
 - [ ] **Phase 49: UI Event Wiring and Artifact Integration** - Wire scanner into UI with browse dialogs, per-artifact controls, and USB drive selection
 - [ ] **Phase 50: Selective Rebuild Pipeline** - User-controlled per-artifact rebuild disposition with selective phase execution
@@ -78,7 +78,7 @@ Plans:
   5. No new param block defaults use `[FFUConstants]::` expressions
 **Plans**: 1 plan
 Plans:
-- [ ] 47-01-PLAN.md — Pester test scaffold, -USBOnlyMode switch, ArtifactScanner import, short-circuit block (USB-01, USB-04)
+- [x] 47-01-PLAN.md — Pester test scaffold, -USBOnlyMode switch, ArtifactScanner import, short-circuit block (USB-01, USB-04)
 
 ### Phase 48: XAML Mode Toggle and USB Tab
 **Goal**: The UI has a mode toggle that switches between Full Build and USB Mode views, and a USB Mode tab with artifact display structure
@@ -127,7 +127,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45. Config Schema Extension | v1.11.0 | 2/2 | Complete    | 2026-03-20 |
 | 46. FFU.ArtifactScanner Module | v1.11.0 | 2/2 | Complete | 2026-03-14 |
-| 47. USB Mode Pipeline Entry | v1.11.0 | 0/1 | Not started | - |
+| 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete   | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/TBD | Not started | - |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 0/TBD | Not started | - |
 | 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
