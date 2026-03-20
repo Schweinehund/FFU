@@ -649,6 +649,54 @@
         "_description": {
             "type": "string",
             "description": "Optional description field for documentation purposes"
+        },
+        "ActiveMode": {
+            "type": "string",
+            "enum": ["FullBuild", "USBMode"],
+            "default": "FullBuild",
+            "description": "Active operational mode. 'FullBuild' = standard FFU build pipeline. 'USBMode' = assemble USB from existing artifacts without rebuilding."
+        },
+        "USBMode": {
+            "type": "object",
+            "description": "USB Mode configuration - artifact paths and dispositions for USB assembly from existing artifacts.",
+            "properties": {
+                "Artifacts": {
+                    "type": "object",
+                    "description": "Per-artifact-type path overrides and dispositions. Keys match ArtifactType enum.",
+                    "properties": {
+                        "FFU":       { "$ref": "#/definitions/ArtifactEntry" },
+                        "DeployISO": { "$ref": "#/definitions/ArtifactEntry" },
+                        "Drivers":   { "$ref": "#/definitions/ArtifactEntry" },
+                        "PPKG":      { "$ref": "#/definitions/ArtifactEntry" },
+                        "Unattend":  { "$ref": "#/definitions/ArtifactEntry" },
+                        "Autopilot": { "$ref": "#/definitions/ArtifactEntry" },
+                        "AppsISO":   { "$ref": "#/definitions/ArtifactEntry" }
+                    }
+                }
+            },
+            "required": ["Artifacts"]
+        }
+    },
+    "definitions": {
+        "ArtifactEntry": {
+            "type": "object",
+            "properties": {
+                "Path": {
+                    "oneOf": [
+                        { "type": "string" },
+                        { "type": "null" }
+                    ],
+                    "default": null,
+                    "description": "Override path for this artifact. Null = use default discovery from FFUDevelopmentPath."
+                },
+                "Disposition": {
+                    "type": "string",
+                    "enum": ["Reuse", "Rebuild", "Skip"],
+                    "default": "Reuse",
+                    "description": "Build disposition: 'Reuse' = use existing artifact as-is, 'Rebuild' = regenerate this artifact, 'Skip' = exclude from USB."
+                }
+            },
+            "required": ["Disposition"]
         }
     },
     "additionalProperties": false
