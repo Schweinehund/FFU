@@ -178,4 +178,4 @@ Key files:
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
 ---
-*Last updated: 2026-03-12 after v1.11.0 milestone started*
+*Last updated: 2026-03-20 after Phase 45 (config-schema-extension) complete — config.json schema extended with ActiveMode, USBMode, ArtifactEntry definitions; migration logic v1.3 in place*
