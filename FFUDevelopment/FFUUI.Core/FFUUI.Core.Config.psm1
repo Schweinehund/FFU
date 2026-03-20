@@ -24,7 +24,7 @@ function Get-UIConfig {
         Get-FFUConfigSchemaVersion
     }
     else {
-        "1.2"  # Fallback to current version
+        "1.3"  # Fallback to current version
     }
 
     $config = [ordered]@{
@@ -161,6 +161,22 @@ function Get-UIConfig {
         WindowsRelease                 = [int]$State.Controls.cmbWindowsRelease.SelectedItem.Value
         WindowsSKU                     = $State.Controls.cmbWindowsSKU.SelectedItem
         WindowsVersion                 = $State.Controls.cmbWindowsVersion.SelectedItem
+    }
+
+    # USB Mode fields — Phase 48 will write ActiveMode from mode toggle,
+    # Phase 49 will populate artifact paths from browse dialogs.
+    # Stubs write defaults so config round-trips without error.
+    $config.ActiveMode = 'FullBuild'
+    $config.USBMode = @{
+        Artifacts = @{
+            FFU       = @{ Path = $null; Disposition = 'Reuse' }
+            DeployISO = @{ Path = $null; Disposition = 'Reuse' }
+            Drivers   = @{ Path = $null; Disposition = 'Reuse' }
+            PPKG      = @{ Path = $null; Disposition = 'Reuse' }
+            Unattend  = @{ Path = $null; Disposition = 'Reuse' }
+            Autopilot = @{ Path = $null; Disposition = 'Reuse' }
+            AppsISO   = @{ Path = $null; Disposition = 'Reuse' }
+        }
     }
 
     # Add VMShutdownTimeoutMinutes from UI control
@@ -601,6 +617,15 @@ function Update-UIFromConfig {
                 WriteLog "LoadConfig: Set VMwareNicType to '$vmwareNicType'."
             }
         }
+    }
+
+    # USB Mode fields - controls added in Phase 48/49
+    # Stub: read and log for now; Phase 48 will apply ActiveMode to mode toggle
+    if ($ConfigContent.PSObject.Properties.Match('ActiveMode').Count -gt 0) {
+        WriteLog "LoadConfig: ActiveMode='$($ConfigContent.ActiveMode)' (Phase 48 will apply to toggle)."
+    }
+    if ($ConfigContent.PSObject.Properties.Match('USBMode').Count -gt 0) {
+        WriteLog "LoadConfig: USBMode section present (Phase 49 will apply to artifact controls)."
     }
 
     Select-VMSwitchFromConfig -State $State -ConfigContent $ConfigContent
