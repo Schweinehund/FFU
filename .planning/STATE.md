@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 45-01-PLAN.md
-last_updated: "2026-03-20T19:23:08.322Z"
+stopped_at: Completed 45-02-PLAN.md
+last_updated: "2026-03-20T19:30:15.564Z"
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State: FFU Builder
@@ -56,6 +56,7 @@ Plan: 2 of 2
 - [Phase 46]: Get-Command try/catch used for hyphenated function availability (Test-FFUWimMount) — $function: drive syntax invalid for hyphenated names
 - [Phase 46]: @($result | Where-Object) null-filter pattern required before typed array assignment to prevent @($null) coercion in typed PowerShell class properties
 - [Phase 45]: v1.3 migration is purely additive - ActiveMode=FullBuild and USBMode.Artifacts with 7 types injected via #region blocks
+- [Phase 45]: ActiveMode and USBMode added to JSON schema root properties with ArtifactEntry definition; stubs in FFUUI.Core.Config.psm1 ensure config round-trip; fallback version updated to 1.3
 
 ### Research Flags for Planning
 
@@ -68,8 +69,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:23:08.315Z
-Stopped at: Completed 45-01-PLAN.md
+Last session: 2026-03-20T19:30:15.556Z
+Stopped at: Completed 45-02-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`
 
