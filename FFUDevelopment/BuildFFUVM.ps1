@@ -578,7 +578,14 @@ param(
     # Default is 10 seconds
     [Parameter(Mandatory = $false)]
     [ValidateRange(5, 60)]
-    [int]$FFUFileLockRetryDelaySeconds = 10
+    [int]$FFUFileLockRetryDelaySeconds = 10,
+    # USBOnlyMode: When set, bypasses the entire build pipeline and assembles
+    # a USB deployment drive from pre-existing artifacts in FFUDevelopmentPath.
+    # Requires PowerShell 7.0+ (FFU.ArtifactScanner dependency).
+    # Uses Find-FFUArtifacts to discover FFU, DeployISO, drivers, PPKG, unattend,
+    # Autopilot, and Apps.iso — then calls New-DeploymentUSB directly.
+    [Parameter(Mandatory = $false)]
+    [switch]$USBOnlyMode
 )
 
 BEGIN {
@@ -997,6 +1004,12 @@ Import-Module "FFU.Imaging" -Force -Global -ErrorAction Stop -WarningAction Sile
 Import-Module "FFU.Media" -Force -Global -ErrorAction Stop -WarningAction SilentlyContinue
 Import-Module "FFU.Apps" -Force -Global -ErrorAction Stop -WarningAction SilentlyContinue
 Import-Module "FFU.Preflight" -Force -Global -ErrorAction Stop -WarningAction SilentlyContinue
+
+# Import artifact scanner module for USBOnlyMode (requires PS7 — graceful fallback for PS5.1)
+$artifactScannerPath = Join-Path $ModulePath 'FFU.ArtifactScanner'
+if (Test-Path $artifactScannerPath) {
+    Import-Module (Join-Path $artifactScannerPath 'FFU.ArtifactScanner.psd1') -Force -ErrorAction SilentlyContinue
+}
 
 # Import config migration module for version handling (optional - graceful fallback)
 $migrationModulePath = Join-Path $ModulePath 'FFU.ConfigMigration'
@@ -1702,6 +1715,118 @@ if (-not $Cleanup) {
             Remove-FFUBuildCheckpoint -FFUDevelopmentPath $FFUDevelopmentPath -ErrorAction SilentlyContinue
         }
     }
+}
+
+# =============================================================================
+# USB-ONLY MODE SHORT-CIRCUIT
+# When -USBOnlyMode is set, bypass all build phases and assemble USB directly
+# from pre-existing artifacts. Scans via FFU.ArtifactScanner, validates, and
+# calls New-DeploymentUSB. Returns immediately after USB assembly.
+# =============================================================================
+if ($USBOnlyMode) {
+    # Verify FFU.ArtifactScanner is available (requires PS7)
+    try {
+        Get-Command -Name 'Find-FFUArtifacts' -ErrorAction Stop | Out-Null
+    }
+    catch {
+        throw "USBOnlyMode requires PowerShell 7.0 or later. Current version: $($PSVersionTable.PSVersion). FFU.ArtifactScanner module could not be loaded."
+    }
+
+    WriteLog "USBOnlyMode: Starting USB-only assembly from pre-existing artifacts"
+    WriteLog "USBOnlyMode: Scanning artifacts in $FFUDevelopmentPath"
+    Set-Progress -Percentage 5 -Message "Scanning for deployment artifacts..."
+
+    # Step 1: Live scan artifacts (per D-02)
+    $manifest = Find-FFUArtifacts -FFUDevelopmentPath $FFUDevelopmentPath
+
+    # Step 2: Validate readiness — FFU + DeployISO must be Found (per D-10 step 1)
+    if (-not $manifest.IsReady) {
+        $missingTypes = @()
+        $ffuFound = @($manifest.FFUFiles | Where-Object { $_.Status.ToString() -eq 'Found' })
+        if ($ffuFound.Count -eq 0) { $missingTypes += 'FFU file' }
+        if ($manifest.DeployISO.Status.ToString() -ne 'Found') { $missingTypes += 'WinPE deployment ISO' }
+        throw "USBOnlyMode cannot proceed: missing required artifacts: $($missingTypes -join ', '). Run a full build first to generate these artifacts."
+    }
+
+    # Step 3: Log manifest warnings — architecture mismatches, staleness (per D-10 step 3, D-11)
+    foreach ($warning in $manifest.Warnings) {
+        WriteLog "WARNING: $($warning.Message)"
+    }
+
+    # Step 4: ISO mountability pre-validation (per D-10 step 2, D-12, USB-01)
+    $deployISOPath = $manifest.DeployISO.FilePath
+    WriteLog "USBOnlyMode: Verifying deployment ISO is mountable: $deployISOPath"
+    $testMounted = $false
+    try {
+        $testMount = Mount-DiskImage -ImagePath $deployISOPath -PassThru -ErrorAction Stop
+        $testMounted = $true
+        Dismount-DiskImage -ImagePath $deployISOPath -ErrorAction SilentlyContinue | Out-Null
+        $testMounted = $false
+        WriteLog "USBOnlyMode: ISO mountability verified"
+    }
+    catch {
+        if ($testMounted) {
+            Dismount-DiskImage -ImagePath $deployISOPath -ErrorAction SilentlyContinue | Out-Null
+        }
+        throw "USBOnlyMode: WinPE deployment ISO cannot be mounted: $deployISOPath. Error: $($_.Exception.Message). Run a full build to recreate the ISO."
+    }
+    Set-Progress -Percentage 10 -Message "Artifacts validated. Preparing USB assembly..."
+
+    # Step 5: Populate $using: variables from manifest (per D-04, D-05, D-07, D-08, D-09)
+    # All 14 variables read by New-DeploymentUSB's ForEach-Object -Parallel block must be set.
+    # $PSScriptRoot — automatic variable, always populated
+    # $LogFile — already set earlier in this script
+
+    # FFU files (per D-09): all Found FFU file paths
+    $SelectedFFUFile = @($manifest.FFUFiles | Where-Object { $_.Status.ToString() -eq 'Found' } | Select-Object -ExpandProperty FilePath)
+    WriteLog "USBOnlyMode: Found $($SelectedFFUFile.Count) FFU file(s)"
+
+    # Architecture (per D-08): from primary FFU metadata, fallback to 'x64'
+    $primaryFFU = $manifest.FFUFiles | Where-Object { $_.IsPrimary } | Select-Object -First 1
+    if ($primaryFFU -and $primaryFFU.Metadata -and $primaryFFU.Metadata.Architecture -and $primaryFFU.Metadata.Architecture -ne 'Unknown') {
+        $WindowsArch = $primaryFFU.Metadata.Architecture
+    }
+    else {
+        $WindowsArch = 'x64'
+        WriteLog "WARNING: Could not determine architecture from FFU metadata. Defaulting to x64."
+    }
+    WriteLog "USBOnlyMode: Using architecture: $WindowsArch"
+
+    # Copy gates (per D-05): Found -> $true, Missing -> $false
+    $CopyDrivers = ($manifest.Drivers.Status.ToString() -eq 'Found')
+    $CopyPPKG = (@($manifest.PPKGFiles | Where-Object { $_.Status.ToString() -eq 'Found' }).Count -gt 0)
+    $CopyUnattend = (@($manifest.UnattendFiles | Where-Object { $_.Status.ToString() -eq 'Found' }).Count -gt 0)
+    $CopyAutopilot = (@($manifest.AutopilotFiles | Where-Object { $_.Status.ToString() -eq 'Found' }).Count -gt 0)
+
+    # Log skipped optional artifacts (per D-07)
+    if (-not $CopyDrivers) { WriteLog "WARNING: Skipping Drivers - not found at $FFUDevelopmentPath\Drivers" }
+    if (-not $CopyPPKG) { WriteLog "WARNING: Skipping PPKG - not found at $FFUDevelopmentPath\PPKG" }
+    if (-not $CopyUnattend) { WriteLog "WARNING: Skipping Unattend - not found at $FFUDevelopmentPath\Unattend" }
+    if (-not $CopyAutopilot) { WriteLog "WARNING: Skipping Autopilot - not found at $FFUDevelopmentPath\Autopilot" }
+
+    # Folder paths — MUST be set even when copy gates are $false (Pitfall 1 from RESEARCH)
+    # The ForEach-Object -Parallel block resolves $using: before evaluating if guards
+    if (-not $DriversFolder) { $DriversFolder = "$FFUDevelopmentPath\Drivers" }
+    if (-not $PPKGFolder) { $PPKGFolder = "$FFUDevelopmentPath\PPKG" }
+    if (-not $UnattendFolder) { $UnattendFolder = "$FFUDevelopmentPath\Unattend" }
+    if (-not $AutopilotFolder) { $AutopilotFolder = "$FFUDevelopmentPath\Autopilot" }
+
+    # Deploy ISO path and USB build gate
+    $DeployISO = $deployISOPath
+    $BuildUSBDrive = $true
+
+    # Step 6: Detect USB drives (same function used by normal build at line 2303)
+    WriteLog "USBOnlyMode: Detecting USB drives..."
+    $USBDrives, $USBDrivesCount = Get-USBDrive
+
+    # Step 7: Call New-DeploymentUSB (per D-04 — direct call, no wrapper)
+    Set-Progress -Percentage 15 -Message "Assembling USB drive(s)..."
+    WriteLog "USBOnlyMode: Starting USB assembly with $($SelectedFFUFile.Count) FFU file(s)"
+    New-DeploymentUSB -CopyFFU -FFUFilesToCopy $SelectedFFUFile
+
+    Set-Progress -Percentage 100 -Message "USB assembly complete."
+    WriteLog "USBOnlyMode: USB assembly complete."
+    return
 }
 
 # =============================================================================
