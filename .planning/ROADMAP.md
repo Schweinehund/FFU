@@ -63,8 +63,8 @@ Plans:
   6. All DISM calls run with explicit `Import-Module DISM` and WIMMount filter service validation
 **Plans**: 2 plans
 Plans:
-- [ ] 46-01-PLAN.md — Module scaffold, data contract classes, Get-ArtifactMetadata
-- [ ] 46-02-PLAN.md — Find-FFUArtifacts scanner, Test-ArtifactCompatibility, integration tests
+- [x] 46-01-PLAN.md — Module scaffold, data contract classes, Get-ArtifactMetadata
+- [x] 46-02-PLAN.md — Find-FFUArtifacts scanner, Test-ArtifactCompatibility, integration tests
 
 ### Phase 47: USB Mode Pipeline Entry
 **Goal**: BuildFFUVM.ps1 accepts a USB-only invocation that reads an artifact manifest, sets skip flags for all build phases, and runs only USB assembly
@@ -76,7 +76,9 @@ Plans:
   3. All `$using:` variable names required by `New-DeploymentUSB` are correctly populated from the manifest-reading block
   4. A Pester test launches `BuildFFUVM.ps1 -USBOnlyMode` via `Start-ThreadJob` and verifies no parse-time failures
   5. No new param block defaults use `[FFUConstants]::` expressions
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 47-01-PLAN.md — Pester test scaffold, -USBOnlyMode switch, ArtifactScanner import, short-circuit block (USB-01, USB-04)
 
 ### Phase 48: XAML Mode Toggle and USB Tab
 **Goal**: The UI has a mode toggle that switches between Full Build and USB Mode views, and a USB Mode tab with artifact display structure
@@ -124,8 +126,8 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 |-------|-----------|----------------|--------|-----------|
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45. Config Schema Extension | v1.11.0 | 2/2 | Complete    | 2026-03-20 |
-| 46. FFU.ArtifactScanner Module | 2/2 | Complete    | 2026-03-14 | - |
-| 47. USB Mode Pipeline Entry | v1.11.0 | 0/TBD | Not started | - |
+| 46. FFU.ArtifactScanner Module | v1.11.0 | 2/2 | Complete | 2026-03-14 |
+| 47. USB Mode Pipeline Entry | v1.11.0 | 0/1 | Not started | - |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/TBD | Not started | - |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 0/TBD | Not started | - |
 | 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
