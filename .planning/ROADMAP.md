@@ -45,7 +45,10 @@ Phases 1-44 complete. See MILESTONES.md for details.
   3. USB Mode artifact paths saved in one session are present when the UI is reloaded
   4. `Get-UIConfig` and `Set-UIConfig` read and write USB Mode fields without error
   5. Pester migration test passes with before/after config fixture files
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 45-01-PLAN.md — v1.3 migration logic, Pester tests, version bumps (CONFIG-02)
+- [ ] 45-02-PLAN.md — JSON schema definitions, UI config I/O stubs, fallback version (CONFIG-01)
 
 ### Phase 46: FFU.ArtifactScanner Module
 **Goal**: A tested, isolated module that discovers all deployable artifacts, extracts metadata, and validates cross-artifact compatibility
@@ -120,7 +123,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
-| 45. Config Schema Extension | v1.11.0 | 0/TBD | Not started | - |
+| 45. Config Schema Extension | v1.11.0 | 0/2 | Planned | - |
 | 46. FFU.ArtifactScanner Module | 2/2 | Complete    | 2026-03-14 | - |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 0/TBD | Not started | - |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/TBD | Not started | - |
@@ -129,4 +132,4 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-20*
