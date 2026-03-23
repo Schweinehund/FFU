@@ -90,7 +90,10 @@ Plans:
   3. Selecting USB Mode makes the USB Mode tab and artifact-focused controls visible
   4. Selecting Full Build restores the standard tab layout with no USB Mode controls visible
   5. The XAML file passes a `[Windows.Markup.XamlReader]::Load()` parse test with no exceptions
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 48-01-PLAN.md — Mode toggle RadioButton group, x:Name on all Full Build tabs (UIMODE-01, UIMODE-02)
+- [ ] 48-02-PLAN.md — USB Mode TabItem with artifact card layout (UIMODE-03)
 
 ### Phase 49: UI Event Wiring and Artifact Integration
 **Goal**: USB Mode is fully interactive — users can browse to artifact paths, see artifact status, select per-artifact inclusions, and initiate USB creation
@@ -128,10 +131,10 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 45. Config Schema Extension | v1.11.0 | 2/2 | Complete    | 2026-03-20 |
 | 46. FFU.ArtifactScanner Module | v1.11.0 | 2/2 | Complete | 2026-03-14 |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
-| 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/TBD | Not started | - |
+| 48. XAML Mode Toggle and USB Tab | v1.11.0 | 0/2 | Not started | - |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 0/TBD | Not started | - |
 | 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*
-*Last updated: 2026-03-20*
+*Last updated: 2026-03-23*
