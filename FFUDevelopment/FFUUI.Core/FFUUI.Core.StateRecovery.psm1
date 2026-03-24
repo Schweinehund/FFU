@@ -136,11 +136,12 @@ function Reset-FFUUIToIdle {
                 }
             }
 
-            # Reset build button
+            # Reset build button (mode-aware label: 'Create USB' in USB Mode, 'Build FFU' otherwise)
             if ($null -ne $State.Controls.btnRun) {
                 try {
                     $State.Controls.btnRun.IsEnabled = $true
-                    $State.Controls.btnRun.Content = "Build FFU"
+                    $isUSBMode = $null -ne $State.Controls.rbUSBMode -and $State.Controls.rbUSBMode.IsChecked
+                    $State.Controls.btnRun.Content = if ($isUSBMode) { 'Create USB' } else { 'Build FFU' }
                 }
                 catch {
                     if ($logAvailable) {
