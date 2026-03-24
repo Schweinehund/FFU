@@ -68,7 +68,16 @@ $script:uiState = [PSCustomObject]@{
         lastConfigFilePath          = $null;
         messagingContext            = $null;   # Synchronized queue for real-time UI updates
         configValidationResult      = $null;   # REL-UI-05: Stores validation result from config loading
-        hasValidationErrors         = $false   # REL-UI-05: Quick flag for build-time check
+        hasValidationErrors         = $false;  # REL-UI-05: Quick flag for build-time check
+        usbArtifactState            = @{
+            FFU       = [PSCustomObject]@{ path = $null; source = 'auto' }
+            DeployISO = [PSCustomObject]@{ path = $null; source = 'auto' }
+            Drivers   = [PSCustomObject]@{ path = $null; source = 'auto' }
+            PPKG      = [PSCustomObject]@{ path = $null; source = 'auto' }
+            Unattend  = [PSCustomObject]@{ path = $null; source = 'auto' }
+            Autopilot = [PSCustomObject]@{ path = $null; source = 'auto' }
+            AppsISO   = [PSCustomObject]@{ path = $null; source = 'auto' }
+        }
     };
     Flags              = @{
         installAppsForcedByUpdates        = $false;
@@ -77,7 +86,8 @@ $script:uiState = [PSCustomObject]@{
         lastSortProperty                  = $null;
         lastSortAscending                 = $true;
         isBuilding                        = $false;
-        isCleanupRunning                  = $false
+        isCleanupRunning                  = $false;
+        isLoadingConfig                   = $false
     };
     Defaults           = @{};
     LogFilePath        = "$FFUDevelopmentPath\FFUDevelopment_UI.log";
@@ -104,6 +114,11 @@ Import-Module "$PSScriptRoot\FFUUI.Core" -Force
 # Import FFU.Messaging for real-time UI updates via synchronized queue
 # This provides ~20x faster updates (50ms vs 1000ms) compared to file polling
 Import-Module "$PSScriptRoot\Modules\FFU.Messaging" -Force -DisableNameChecking
+# Import FFU.ArtifactScanner for USB Mode artifact scanning on UI thread
+$artifactScannerPath = "$PSScriptRoot\Modules\FFU.ArtifactScanner"
+if (Test-Path -LiteralPath $artifactScannerPath) {
+    Import-Module $artifactScannerPath -Force -ErrorAction Stop
+}
 
 # Set the log path IMMEDIATELY after module imports, BEFORE any WriteLog calls
 # This prevents "CommonCoreLogFilePath not set" warnings during ThreadJob handling

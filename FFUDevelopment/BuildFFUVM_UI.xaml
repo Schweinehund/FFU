@@ -936,6 +936,10 @@
                         <TextBlock Text="USB from Existing Artifacts" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
                         <TextBlock Text="Create deployment USB media from pre-built artifacts without running the full build pipeline." TextWrapping="Wrap" Foreground="#666666" Margin="0,0,0,15"/>
 
+                        <!-- Rescan button -->
+                        <Button x:Name="usbRescanArtifacts" Content="Rescan Artifacts" HorizontalAlignment="Left"
+                                Width="140" Margin="0,0,0,16" FontSize="13"/>
+
                         <!-- Required Artifacts GroupBox -->
                         <GroupBox Header="Required Artifacts" Margin="0,0,0,15" Padding="10">
                             <StackPanel>
@@ -1235,6 +1239,18 @@
                                     </StackPanel>
                                 </Grid>
 
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Target USB Drive GroupBox -->
+                        <GroupBox Header="Target USB Drive" Margin="0,0,0,16" Padding="8">
+                            <StackPanel>
+                                <Button x:Name="usbCheckUSBDrives" Content="Check for USB Drives"
+                                        HorizontalAlignment="Left" Width="160" Margin="0,0,0,8" FontSize="13"/>
+                                <ListBox x:Name="usbUSBDriveList" Height="80" Margin="0,0,0,8" FontSize="13"
+                                         SelectionMode="Multiple"/>
+                                <CheckBox x:Name="usbSelectAllDrives" Content="Select All Drives"
+                                          Margin="0,0,0,4" FontSize="13"/>
                             </StackPanel>
                         </GroupBox>
 
