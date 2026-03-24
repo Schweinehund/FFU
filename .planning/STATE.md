@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 48-02-PLAN.md
-last_updated: "2026-03-24T12:45:11.489Z"
+stopped_at: Completed 49-01-PLAN.md
+last_updated: "2026-03-24T21:30:45.463Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 11
+  completed_plans: 8
 ---
 
 # Project State: FFU Builder
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 49 — ui-event-wiring
+**Current focus:** Phase 49 — ui-event-wiring-and-artifact-integration
 
 ## Current Position
 
-Phase: 49
-Plan: Not started
+Phase: 49 (ui-event-wiring-and-artifact-integration) — EXECUTING
+Plan: 2 of 4
 
 ## Shipped Milestones
 
@@ -60,6 +60,8 @@ Plan: Not started
 - [Phase 47-usb-mode-pipeline-entry]: Get-USBDrive (not Get-FFUUSBDrives) is the correct function — returns tuple ($USBDrives, $USBDrivesCount)
 - [Phase 48]: RadioButton GroupName=ActiveMode aligns with config schema field from Phase 45; rbFullBuild IsChecked=True matches FullBuild default
 - [Phase 48-02]: usbModeTab Visibility=Collapsed by default; required artifact CheckBoxes IsChecked=True (FFU, DeployISO); optional CheckBoxes IsChecked=False; all 46 named controls use usb{ArtifactType}{Property} convention for Phase 49 wiring
+- [Phase 49]: Typed WPF Brushes/FontStyles used exclusively in Invoke-USBArtifactScan — no bare strings to avoid WPF type conversion failures
+- [Phase 49]: isLoadingConfig flag added to uiState.Flags to guard Invoke-USBArtifactScan from premature scan during config load
 
 ### Research Flags for Planning
 
@@ -72,8 +74,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T12:43:00Z
-Stopped at: Completed 48-02-PLAN.md
+Last session: 2026-03-24T21:30:45.455Z
+Stopped at: Completed 49-01-PLAN.md
 Resume file: None
 Next action: Phase 49 — UI Event Wiring
 

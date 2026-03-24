@@ -108,7 +108,7 @@ Plans:
   6. User-specified artifact paths survive a session restart (persisted via config)
 **Plans**: 4 plans
 Plans:
-- [ ] 49-01-PLAN.md — XAML additions, state init, mode switch handlers, artifact scan function (DISC-02)
+- [x] 49-01-PLAN.md — XAML additions, state init, mode switch handlers, artifact scan function (DISC-02)
 - [ ] 49-02-PLAN.md — Browse handlers, USB drive detection and select-all wiring (DISC-02, USB-02)
 - [ ] 49-03-PLAN.md — Config persistence stubs replacement, mode-aware button labels (DISC-03)
 - [ ] 49-04-PLAN.md — btnRun USB Mode launch, pre-launch validation, Pester tests (USB-02, USB-03)
@@ -137,7 +137,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 46. FFU.ArtifactScanner Module | v1.11.0 | 2/2 | Complete | 2026-03-14 |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
-| 49. UI Event Wiring and Artifact Integration | v1.11.0 | 0/4 | Not started | - |
+| 49. UI Event Wiring and Artifact Integration | v1.11.0 | 1/4 | In Progress|  |
 | 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
 
 ---
