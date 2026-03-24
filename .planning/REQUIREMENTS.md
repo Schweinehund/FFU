@@ -17,7 +17,7 @@ Requirements for USB from Existing Components milestone. Each maps to roadmap ph
 
 - [ ] **DISC-01**: USB Mode auto-detects all deployable artifacts from FFUDevelopmentPath on activation (FFU, boot ISO, drivers, PPKG, unattend, Autopilot, Apps.iso)
 - [x] **DISC-02**: User can browse to arbitrary file/folder paths for each artifact type
-- [ ] **DISC-03**: User-specified artifact paths persist across sessions via config
+- [x] **DISC-03**: User-specified artifact paths persist across sessions via config
 
 ### Artifact Validation
 
@@ -72,7 +72,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UIMODE-03 | Phase 48 | Complete |
 | DISC-01 | Phase 46 | Pending |
 | DISC-02 | Phase 49 | Complete |
-| DISC-03 | Phase 49 | Pending |
+| DISC-03 | Phase 49 | Complete |
 | VALID-01 | Phase 46 | Pending |
 | VALID-02 | Phase 46 | Pending |
 | VALID-03 | Phase 46 | Pending |
