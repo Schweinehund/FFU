@@ -178,4 +178,4 @@ Key files:
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
 
 ---
-*Last updated: 2026-03-20 after Phase 47 (usb-mode-pipeline-entry) complete — -USBOnlyMode switch added to BuildFFUVM.ps1, short-circuiting build pipeline for USB-only assembly from pre-existing artifacts via FFU.ArtifactScanner*
+*Last updated: 2026-03-24 after Phase 48 (xaml-mode-toggle-usb-tab) complete — XAML structure for UI mode toggle (Full Build / USB Mode RadioButtons), x:Name on all Full Build tabs, and USB Mode TabItem with 7 artifact cards (46 named controls). Code-behind wiring deferred to Phase 49.*
