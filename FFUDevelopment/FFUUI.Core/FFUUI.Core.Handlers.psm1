@@ -5,6 +5,162 @@
     This module is dedicated to managing user interactions within the FFU Builder UI. It contains the Register-EventHandlers function, which connects UI controls defined in the XAML to their corresponding actions in the PowerShell backend. This includes handling button clicks, text input validation, checkbox state changes, and list view interactions across all tabs, effectively wiring up the application's front-end to its core logic.
 #>
 
+function Invoke-USBArtifactScan {
+    [CmdletBinding()]
+    param([PSCustomObject]$State)
+
+    # Pre-condition: FFUDevelopmentPath must be set and exist
+    $ffuDevPath = $State.Controls.txtFFUDevPath.Text
+    if ([string]::IsNullOrWhiteSpace($ffuDevPath) -or -not (Test-Path -LiteralPath $ffuDevPath)) {
+        if ($function:WriteLog) { WriteLog 'USBArtifactScan: FFUDevelopmentPath not set or does not exist. Skipping scan.' }
+        return
+    }
+
+    # Guard: skip scan during config loading (Pitfall 2)
+    if ($State.Flags.isLoadingConfig) {
+        if ($function:WriteLog) { WriteLog 'USBArtifactScan: Config loading in progress. Deferring scan.' }
+        return
+    }
+
+    # Artifact type to control name prefix mapping
+    $artifactMap = @{
+        FFU       = @{ statusCtrl = 'usbFFUStatus'; pathCtrl = 'usbFFUPath'; sizeCtrl = 'usbFFUSize'; ageCtrl = 'usbFFUAge'; browseCtrl = 'usbFFUBrowse'; includeCtrl = 'usbFFUInclude'; hasMetadata = $true }
+        DeployISO = @{ statusCtrl = 'usbDeployISOStatus'; pathCtrl = 'usbDeployISOPath'; sizeCtrl = 'usbDeployISOSize'; ageCtrl = 'usbDeployISOAge'; browseCtrl = 'usbDeployISOBrowse'; includeCtrl = 'usbDeployISOInclude'; hasMetadata = $false }
+        Drivers   = @{ statusCtrl = 'usbDriversStatus'; pathCtrl = 'usbDriversPath'; sizeCtrl = 'usbDriversSize'; ageCtrl = 'usbDriversAge'; browseCtrl = 'usbDriversBrowse'; includeCtrl = 'usbDriversInclude'; hasMetadata = $false }
+        PPKG      = @{ statusCtrl = 'usbPPKGStatus'; pathCtrl = 'usbPPKGPath'; sizeCtrl = 'usbPPKGSize'; ageCtrl = 'usbPPKGAge'; browseCtrl = 'usbPPKGBrowse'; includeCtrl = 'usbPPKGInclude'; hasMetadata = $false }
+        Unattend  = @{ statusCtrl = 'usbUnattendStatus'; pathCtrl = 'usbUnattendPath'; sizeCtrl = 'usbUnattendSize'; ageCtrl = 'usbUnattendAge'; browseCtrl = 'usbUnattendBrowse'; includeCtrl = 'usbUnattendInclude'; hasMetadata = $false }
+        Autopilot = @{ statusCtrl = 'usbAutopilotStatus'; pathCtrl = 'usbAutopilotPath'; sizeCtrl = 'usbAutopilotSize'; ageCtrl = 'usbAutopilotAge'; browseCtrl = 'usbAutopilotBrowse'; includeCtrl = 'usbAutopilotInclude'; hasMetadata = $false }
+        AppsISO   = @{ statusCtrl = 'usbAppsISOStatus'; pathCtrl = 'usbAppsISOPath'; sizeCtrl = 'usbAppsISOSize'; ageCtrl = 'usbAppsISOAge'; browseCtrl = 'usbAppsISOBrowse'; includeCtrl = 'usbAppsISOInclude'; hasMetadata = $false }
+    }
+
+    # Set (scanning...) on auto-detect cards only
+    foreach ($type in $artifactMap.Keys) {
+        if ($State.Data.usbArtifactState[$type].source -ne 'user') {
+            $statusCtrl = $State.Controls[$artifactMap[$type].statusCtrl]
+            if ($null -ne $statusCtrl) {
+                $statusCtrl.Text = '(scanning...)'
+                $statusCtrl.Foreground = [System.Windows.Media.Brushes]::Gray
+                $statusCtrl.FontStyle = [System.Windows.FontStyles]::Italic
+            }
+        }
+    }
+
+    # Run synchronous scan (D-02 -- filesystem only, <2s)
+    # Wrapped in try/catch (Issue #16) -- on error, show error state on all cards
+    try {
+        $manifest = Find-FFUArtifacts -FFUDevelopmentPath $ffuDevPath
+    }
+    catch {
+        if ($function:WriteLog) { WriteLog "USBArtifactScan: Find-FFUArtifacts failed: $_" }
+        foreach ($type in $artifactMap.Keys) {
+            $statusCtrl = $State.Controls[$artifactMap[$type].statusCtrl]
+            if ($null -ne $statusCtrl) {
+                $statusCtrl.Text = 'Scan error'
+                $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+                $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+            }
+            if ($null -ne $State.Controls[$artifactMap[$type].browseCtrl]) {
+                $State.Controls[$artifactMap[$type].browseCtrl].IsEnabled = $true
+            }
+        }
+        return
+    }
+
+    # Map manifest properties to artifact types
+    $manifestMap = @{
+        FFU       = if ($manifest.FFUFiles.Count -gt 0) { ($manifest.FFUFiles | Where-Object { $_.IsPrimary }) ?? $manifest.FFUFiles[0] } else { $null }
+        DeployISO = $manifest.DeployISO
+        Drivers   = $manifest.Drivers
+        PPKG      = if ($manifest.PPKGFiles.Count -gt 0) { $manifest.PPKGFiles[0] } else { $null }
+        Unattend  = if ($manifest.UnattendFiles.Count -gt 0) { $manifest.UnattendFiles[0] } else { $null }
+        Autopilot = if ($manifest.AutopilotFiles.Count -gt 0) { $manifest.AutopilotFiles[0] } else { $null }
+        AppsISO   = $manifest.AppsISO
+    }
+
+    foreach ($type in $artifactMap.Keys) {
+        $map = $artifactMap[$type]
+        $result = $manifestMap[$type]
+        $artState = $State.Data.usbArtifactState[$type]
+
+        if ($artState.source -eq 'user') {
+            # Re-verify user-overridden paths still exist
+            $userExists = (-not [string]::IsNullOrWhiteSpace($artState.path)) -and (Test-Path -LiteralPath $artState.path)
+            $statusCtrl = $State.Controls[$map.statusCtrl]
+            if ($null -ne $statusCtrl) {
+                if ($userExists) {
+                    $statusCtrl.Text = 'Found (user path)'
+                    $statusCtrl.Foreground = [System.Windows.Media.Brushes]::Green
+                    $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+                    if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $true }
+                } else {
+                    $statusCtrl.Text = 'Missing (user path)'
+                    $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+                    $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+                    if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $false }
+                }
+            }
+            # Enable browse button regardless
+            if ($null -ne $State.Controls[$map.browseCtrl]) { $State.Controls[$map.browseCtrl].IsEnabled = $true }
+            continue
+        }
+
+        # Auto-detect path: update from scan results
+        $statusCtrl = $State.Controls[$map.statusCtrl]
+        $pathCtrl = $State.Controls[$map.pathCtrl]
+        $sizeCtrl = $State.Controls[$map.sizeCtrl]
+        $ageCtrl = $State.Controls[$map.ageCtrl]
+
+        if ($null -ne $result -and $result.Status.ToString() -eq 'Found') {
+            $artState.path = $result.FilePath
+            if ($null -ne $statusCtrl) {
+                $statusCtrl.Text = 'Found'
+                $statusCtrl.Foreground = [System.Windows.Media.Brushes]::Green
+                $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+            }
+            if ($null -ne $pathCtrl) { $pathCtrl.Text = $result.FilePath }
+            if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '{0:F2} GB' -f ($result.FileSizeBytes / 1GB) }
+            if ($null -ne $ageCtrl) {
+                $ageCtrl.Text = if ($result.AgeDays -eq 0) { 'Today' } elseif ($result.AgeDays -eq 1) { '1 day ago' } else { "$($result.AgeDays) days ago" }
+            }
+            if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $true }
+
+            # FFU-specific metadata (Issue #3 fix: WindowsSKU not SKU)
+            if ($map.hasMetadata -and $null -ne $result.Metadata) {
+                # Null guards on metadata controls (Issue #13)
+                if ($null -ne $State.Controls.usbFFUVersion) {
+                    $State.Controls.usbFFUVersion.Text = if ($result.Metadata.WindowsVersion) { $result.Metadata.WindowsVersion } else { '--' }
+                }
+                if ($null -ne $State.Controls.usbFFUSKU) {
+                    $State.Controls.usbFFUSKU.Text = if ($result.Metadata.WindowsSKU) { $result.Metadata.WindowsSKU } else { '--' }
+                }
+                if ($null -ne $State.Controls.usbFFUArch) {
+                    $State.Controls.usbFFUArch.Text = if ($result.Metadata.Architecture) { $result.Metadata.Architecture } else { '--' }
+                }
+            }
+        } else {
+            $artState.path = $null
+            if ($null -ne $statusCtrl) {
+                $statusCtrl.Text = 'Missing'
+                $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+                $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+            }
+            if ($null -ne $pathCtrl) { $pathCtrl.Text = '(not found)' }
+            if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '--' }
+            if ($null -ne $ageCtrl) { $ageCtrl.Text = '--' }
+            if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $false }
+
+            if ($map.hasMetadata) {
+                if ($null -ne $State.Controls.usbFFUVersion) { $State.Controls.usbFFUVersion.Text = '--' }
+                if ($null -ne $State.Controls.usbFFUSKU) { $State.Controls.usbFFUSKU.Text = '--' }
+                if ($null -ne $State.Controls.usbFFUArch) { $State.Controls.usbFFUArch.Text = '--' }
+            }
+        }
+
+        # Enable browse button after scan completes (D-05)
+        if ($null -ne $State.Controls[$map.browseCtrl]) { $State.Controls[$map.browseCtrl].IsEnabled = $true }
+    }
+}
+
 function Register-EventHandlers {
     param([PSCustomObject]$State)
     WriteLog "Registering UI event handlers..."
@@ -1080,6 +1236,71 @@ function Register-EventHandlers {
                 }
                 $keyEventArgs.Handled = $true
             }
+        })
+
+    # --------------------------------------------------------------------------
+    # SECTION: USB Mode Event Handlers
+    # --------------------------------------------------------------------------
+
+    # rbUSBMode.Checked: collapse Full Build tabs, show USB tab, run artifact scan (D-25)
+    $State.Controls.rbUSBMode.Add_Checked({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+
+            # (1) Collapse Full Build tabs
+            $fullBuildTabNames = @('tabVMSettings', 'tabWindowsSettings', 'tabUpdates',
+                'tabApplications', 'tabM365AppsOffice', 'tabDrivers', 'tabBuild')
+            foreach ($name in $fullBuildTabNames) {
+                if ($null -ne $localState.Controls[$name]) {
+                    $localState.Controls[$name].Visibility = 'Collapsed'
+                }
+            }
+
+            # (2) Show usbModeTab
+            $localState.Controls.usbModeTab.Visibility = 'Visible'
+
+            # (3) Select usbModeTab
+            $localState.Controls.MainTabControl.SelectedItem = $localState.Controls.usbModeTab
+
+            # (4) Run artifact scan (synchronous -- <2s filesystem scan per D-02)
+            Invoke-USBArtifactScan -State $localState
+
+            # (5) Update button label (D-14)
+            $localState.Controls.btnRun.Content = 'Create USB'
+        })
+
+    # rbFullBuild.Checked: show Full Build tabs, collapse USB tab (D-26)
+    $State.Controls.rbFullBuild.Add_Checked({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+
+            # (1) Show Full Build tabs
+            $fullBuildTabNames = @('tabVMSettings', 'tabWindowsSettings', 'tabUpdates',
+                'tabApplications', 'tabM365AppsOffice', 'tabDrivers', 'tabBuild')
+            foreach ($name in $fullBuildTabNames) {
+                if ($null -ne $localState.Controls[$name]) {
+                    $localState.Controls[$name].Visibility = 'Visible'
+                }
+            }
+
+            # (2) Collapse usbModeTab
+            $localState.Controls.usbModeTab.Visibility = 'Collapsed'
+
+            # (3) Select first Full Build tab
+            $localState.Controls.MainTabControl.SelectedItem = $localState.Controls.tabVMSettings
+
+            # (4) Update button label (D-14)
+            $localState.Controls.btnRun.Content = 'Build FFU'
+        })
+
+    # usbRescanArtifacts.Click: re-run artifact scan without clearing user-overridden paths (D-04, D-07)
+    $State.Controls.usbRescanArtifacts.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            Invoke-USBArtifactScan -State $localState
         })
 
     $State.Controls.lstLogOutput.Add_SelectionChanged({
