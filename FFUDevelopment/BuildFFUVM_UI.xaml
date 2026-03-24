@@ -928,6 +928,320 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- TAB: USB Mode -->
+            <TabItem Header="USB Mode" x:Name="usbModeTab" Padding="20" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <!-- Header -->
+                        <TextBlock Text="USB from Existing Artifacts" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <TextBlock Text="Create deployment USB media from pre-built artifacts without running the full build pipeline." TextWrapping="Wrap" Foreground="#666666" Margin="0,0,0,15"/>
+
+                        <!-- Required Artifacts GroupBox -->
+                        <GroupBox Header="Required Artifacts" Margin="0,0,0,15" Padding="10">
+                            <StackPanel>
+
+                                <!-- FFU Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Row 0: Label + Include checkbox -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbFFUInclude" Content="FFU Image" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="True" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Row 1: Status -->
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbFFUStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <!-- Row 2: Path + Browse button -->
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbFFUPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbFFUBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <!-- Row 3: Size + Age -->
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbFFUSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbFFUAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+
+                                    <!-- Row 4: FFU-specific metadata -->
+                                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,3,0,0">
+                                        <TextBlock Text="Version: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbFFUVersion" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,10,0"/>
+                                        <TextBlock Text="SKU: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbFFUSKU" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,10,0"/>
+                                        <TextBlock Text="Arch: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbFFUArch" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Separator Margin="0,10"/>
+
+                                <!-- Deploy ISO Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Row 0: Label + Include checkbox -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbDeployISOInclude" Content="WinPE Deploy ISO" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="True" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Row 1: Status -->
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbDeployISOStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <!-- Row 2: Path + Browse button -->
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbDeployISOPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbDeployISOBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <!-- Row 3: Size + Age -->
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbDeployISOSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbDeployISOAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Optional Artifacts GroupBox -->
+                        <GroupBox Header="Optional Artifacts" Margin="0,0,0,15" Padding="10">
+                            <StackPanel>
+
+                                <!-- Drivers Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbDriversInclude" Content="Drivers" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbDriversStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbDriversPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbDriversBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbDriversSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbDriversAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Separator Margin="0,10"/>
+
+                                <!-- PPKG Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbPPKGInclude" Content="Provisioning Package" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbPPKGStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbPPKGPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbPPKGBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbPPKGSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbPPKGAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Separator Margin="0,10"/>
+
+                                <!-- Unattend Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbUnattendInclude" Content="Unattend.xml" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbUnattendStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbUnattendPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbUnattendBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbUnattendSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbUnattendAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Separator Margin="0,10"/>
+
+                                <!-- Autopilot Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbAutopilotInclude" Content="Autopilot Profile" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbAutopilotStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbAutopilotPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbAutopilotBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbAutopilotSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbAutopilotAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Separator Margin="0,10"/>
+
+                                <!-- AppsISO Artifact Card -->
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <CheckBox x:Name="usbAppsISOInclude" Content="Applications ISO" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbAppsISOStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Path: " Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="usbAppsISOPath" Grid.Column="1" Text="(not scanned)" FontSize="11" Foreground="#888888" FontStyle="Italic" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button x:Name="usbAppsISOBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                        <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbAppsISOSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
+                                        <TextBlock x:Name="usbAppsISOAge" Text="--" FontSize="11" Foreground="#888888"/>
+                                    </StackPanel>
+                                </Grid>
+
+                            </StackPanel>
+                        </GroupBox>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <!-- TAB: Monitor -->
             <TabItem Header="Monitor" x:Name="MonitorTab" Padding="20">
                 <Grid Margin="10">
