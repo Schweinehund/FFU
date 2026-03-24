@@ -1303,6 +1303,201 @@ function Register-EventHandlers {
             Invoke-USBArtifactScan -State $localState
         })
 
+    # --------------------------------------------------------------------------
+    # SECTION: USB Mode — Browse Button Handlers (DISC-02)
+    # --------------------------------------------------------------------------
+    # Each handler opens a type-specific dialog, updates usbArtifactState with
+    # source='user', refreshes the card TextBlocks, and enables the include CheckBox.
+
+    # FFU browse — also extracts metadata from the selected file
+    $State.Controls.usbFFUBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'OpenFile' -Title 'Select FFU Image' -Filter 'FFU files (*.ffu)|*.ffu'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.FFU.path   = $selectedPath
+                $localState.Data.usbArtifactState.FFU.source = 'user'
+                $localState.Controls.usbFFUPath.Text         = $selectedPath
+                $localState.Controls.usbFFUStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbFFUStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbFFUStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbFFUInclude) { $localState.Controls.usbFFUInclude.IsEnabled = $true }
+
+                # Re-extract metadata from the user-selected FFU file (Issue #3: WindowsSKU not SKU)
+                try {
+                    $metadata = Get-ArtifactMetadata -FFUPath $selectedPath
+                    if ($null -ne $metadata) {
+                        if ($null -ne $localState.Controls.usbFFUVersion) {
+                            $localState.Controls.usbFFUVersion.Text = if ($metadata.WindowsVersion) { $metadata.WindowsVersion } else { '--' }
+                        }
+                        if ($null -ne $localState.Controls.usbFFUSKU) {
+                            $localState.Controls.usbFFUSKU.Text = if ($metadata.WindowsSKU) { $metadata.WindowsSKU } else { '--' }
+                        }
+                        if ($null -ne $localState.Controls.usbFFUArch) {
+                            $localState.Controls.usbFFUArch.Text = if ($metadata.Architecture) { $metadata.Architecture } else { '--' }
+                        }
+                    }
+                }
+                catch {
+                    if ($function:WriteLog) { WriteLog "USBBrowse: Failed to extract FFU metadata: $_" }
+                }
+            }
+        })
+
+    # DeployISO browse
+    $State.Controls.usbDeployISOBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'OpenFile' -Title 'Select WinPE Deploy ISO' -Filter 'ISO files (*.iso)|*.iso'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.DeployISO.path   = $selectedPath
+                $localState.Data.usbArtifactState.DeployISO.source = 'user'
+                $localState.Controls.usbDeployISOPath.Text         = $selectedPath
+                $localState.Controls.usbDeployISOStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbDeployISOStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbDeployISOStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbDeployISOInclude) { $localState.Controls.usbDeployISOInclude.IsEnabled = $true }
+            }
+        })
+
+    # Drivers browse — uses Type='Folder', no -Filter parameter
+    $State.Controls.usbDriversBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'Folder' -Title 'Select Drivers Folder'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.Drivers.path   = $selectedPath
+                $localState.Data.usbArtifactState.Drivers.source = 'user'
+                $localState.Controls.usbDriversPath.Text         = $selectedPath
+                $localState.Controls.usbDriversStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbDriversStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbDriversStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbDriversInclude) { $localState.Controls.usbDriversInclude.IsEnabled = $true }
+            }
+        })
+
+    # PPKG browse
+    $State.Controls.usbPPKGBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'OpenFile' -Title 'Select Provisioning Package' -Filter 'PPKG files (*.ppkg)|*.ppkg'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.PPKG.path   = $selectedPath
+                $localState.Data.usbArtifactState.PPKG.source = 'user'
+                $localState.Controls.usbPPKGPath.Text         = $selectedPath
+                $localState.Controls.usbPPKGStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbPPKGStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbPPKGStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbPPKGInclude) { $localState.Controls.usbPPKGInclude.IsEnabled = $true }
+            }
+        })
+
+    # Unattend browse
+    $State.Controls.usbUnattendBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'OpenFile' -Title 'Select Unattend.xml' -Filter 'XML files (*.xml)|*.xml'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.Unattend.path   = $selectedPath
+                $localState.Data.usbArtifactState.Unattend.source = 'user'
+                $localState.Controls.usbUnattendPath.Text         = $selectedPath
+                $localState.Controls.usbUnattendStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbUnattendStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbUnattendStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbUnattendInclude) { $localState.Controls.usbUnattendInclude.IsEnabled = $true }
+            }
+        })
+
+    # Autopilot browse
+    $State.Controls.usbAutopilotBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'OpenFile' -Title 'Select Autopilot Profile' -Filter 'JSON files (*.json)|*.json'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.Autopilot.path   = $selectedPath
+                $localState.Data.usbArtifactState.Autopilot.source = 'user'
+                $localState.Controls.usbAutopilotPath.Text         = $selectedPath
+                $localState.Controls.usbAutopilotStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbAutopilotStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbAutopilotStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbAutopilotInclude) { $localState.Controls.usbAutopilotInclude.IsEnabled = $true }
+            }
+        })
+
+    # AppsISO browse
+    $State.Controls.usbAppsISOBrowse.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $selectedPath = Invoke-BrowseAction -Type 'OpenFile' -Title 'Select Applications ISO' -Filter 'ISO files (*.iso)|*.iso'
+            if ($selectedPath) {
+                $localState.Data.usbArtifactState.AppsISO.path   = $selectedPath
+                $localState.Data.usbArtifactState.AppsISO.source = 'user'
+                $localState.Controls.usbAppsISOPath.Text         = $selectedPath
+                $localState.Controls.usbAppsISOStatus.Text       = 'Found (user path)'
+                $localState.Controls.usbAppsISOStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $localState.Controls.usbAppsISOStatus.FontStyle  = [System.Windows.FontStyles]::Normal
+                if ($null -ne $localState.Controls.usbAppsISOInclude) { $localState.Controls.usbAppsISOInclude.IsEnabled = $true }
+            }
+        })
+
+    # --------------------------------------------------------------------------
+    # SECTION: USB Mode — Drive Detection Handlers (USB-02)
+    # --------------------------------------------------------------------------
+
+    # usbCheckUSBDrives.Click: populate usbUSBDriveList using Get-USBDrives (flat array -- Issue #4)
+    # Drive objects stored in usbDriveObjects for later retrieval at USB creation time.
+    # ListBox shows formatted strings to avoid "System.Collections.Hashtable" display (Issue #12).
+    $State.Controls.usbCheckUSBDrives.Add_Click({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+
+            $localState.Controls.usbUSBDriveList.Items.Clear()
+            # Store drive objects for later retrieval at USB creation time
+            $localState.Data.usbDriveObjects = @()
+
+            $usbDrives = Get-USBDrives
+            foreach ($drive in $usbDrives) {
+                $driveObject = [PSCustomObject]$drive
+                $driveObject | Add-Member -MemberType NoteProperty -Name 'IsSelected' -Value $false -Force
+                $localState.Data.usbDriveObjects += $driveObject
+                # Format display string for ListBox (ListBox uses .ToString() -- Issue #12)
+                $displayText = "$($driveObject.Model) - $($driveObject.Size) GB (S/N: $($driveObject.SerialNumber))"
+                $localState.Controls.usbUSBDriveList.Items.Add($displayText) | Out-Null
+            }
+            if ($localState.Controls.usbUSBDriveList.Items.Count -gt 0) {
+                if ($function:WriteLog) { WriteLog "USB Mode: Found $($localState.Controls.usbUSBDriveList.Items.Count) USB drive(s)." }
+            }
+            else {
+                if ($function:WriteLog) { WriteLog 'USB Mode: No USB drives found.' }
+            }
+        })
+
+    # usbSelectAllDrives.Checked/Unchecked: toggle selection of all items in usbUSBDriveList
+    $State.Controls.usbSelectAllDrives.Add_Checked({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            for ($i = 0; $i -lt $localState.Controls.usbUSBDriveList.Items.Count; $i++) {
+                $localState.Controls.usbUSBDriveList.SelectedItems.Add(
+                    $localState.Controls.usbUSBDriveList.Items[$i]) | Out-Null
+            }
+        })
+
+    $State.Controls.usbSelectAllDrives.Add_Unchecked({
+            param($eventSource, $routedEventArgs)
+            $window = [System.Windows.Window]::GetWindow($eventSource)
+            $localState = $window.Tag
+            $localState.Controls.usbUSBDriveList.UnselectAll()
+        })
+
     $State.Controls.lstLogOutput.Add_SelectionChanged({
             param($eventSource, $selectionChangedEventArgs)
             $listBox = $eventSource
