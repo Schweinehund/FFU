@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: none
 created: 2026-03-24
+revised: 2026-03-24
 ---
 
 # Phase 49 — UI Design Contract
@@ -36,15 +37,21 @@ Declared values (must be multiples of 4):
 | xs | 4px | `Margin="4"` or `Margin="0,0,4,0"` | Icon gaps, inline label-to-value gaps |
 | sm | 8px | `Margin="8"` or `Margin="0,0,8,0"` | Inter-row spacing within a card |
 | md | 16px | `Margin="16"` or `Margin="0,0,16,0"` | Default element spacing between cards |
-| lg | 24px | `Margin="0,0,0,24"` or GroupBox `Margin="0,0,0,15"` | Section breaks between GroupBoxes |
+| lg | 24px | `Margin="0,0,0,24"` | Section breaks between GroupBoxes (new elements only) |
 | xl | 32px | — | Layout gaps (not currently used in USB Mode tab) |
 
-Exceptions:
-- GroupBox separation: `Margin="0,0,0,15"` (15px) — matches existing Phase 48 XAML exactly; do not change to 16px
-- Artifact card internal indent: `Margin="20,0,0,N"` — 20px left indent for status/path/size rows under card label
-- Separator elements: `Margin="0,10"` — 10px top/bottom between artifact cards in a GroupBox
-- Window outer grid: `Margin="10"` — established by existing layout
-- TabControl padding: `Padding="10"` — established by existing layout
+**Rule for Phase 49:** This phase introduces ZERO new spacing values outside the 4-point grid. All non-multiple-of-4 values listed below are inherited from existing Phase 48 XAML and MUST NOT be changed. Any new elements added in this phase (Rescan button, Target USB Drive GroupBox) MUST use only grid-aligned values (xs / sm / md / lg).
+
+### Legacy Carry-Forward Values — Read-Only
+
+These values exist in the committed Phase 48 XAML (`BuildFFUVM_UI.xaml`). They are NOT part of the spacing scale for new work. Do not introduce additional non-multiple-of-4 values.
+
+| Value | WPF property | Location | Origin |
+|-------|-------------|----------|--------|
+| 15px | `Margin="0,0,0,15"` | GroupBox separation in USB Mode tab | Phase 48 XAML (line 944 area) — matches existing pattern throughout file |
+| 20px | `Margin="20,0,0,N"` | Artifact card internal indent for status/path/size rows | Phase 48 XAML (lines 960–992) |
+| 10px | `Margin="0,10"` | Separator elements between artifact cards in a GroupBox | Phase 48 XAML (lines 944–995) |
+| 10px | `Margin="10"` / `Padding="10"` | Window outer grid and TabControl padding | Established by existing layout before Phase 48 |
 
 Source: Direct measurement from `BuildFFUVM_UI.xaml` lines 944–995 (USB Mode tab artifact card layout).
 
@@ -52,19 +59,23 @@ Source: Direct measurement from `BuildFFUVM_UI.xaml` lines 944–995 (USB Mode t
 
 ## Typography
 
-All font sizes match the existing XAML established in Phase 48. Do not introduce new sizes.
+All font sizes match the existing XAML established in Phases 48 and prior. Do not introduce new sizes.
+
+**Declared scale: 4 sizes.**
 
 | Role | Size | Weight | WPF LineHeight | Usage in Phase 49 |
 |------|------|--------|----------------|-------------------|
 | Tab section heading | 18px | Bold | default (~1.2) | "USB from Existing Artifacts" header (line 936) |
-| GroupBox section label | 16px | Bold | default | "Build USB Drive Settings" pattern — replicate for "Target USB Drive" GroupBox |
-| Control label / card title | 14px | Normal | default | Mode toggle RadioButtons, TabControl font |
-| Artifact card title (CheckBox label) | 13px | Bold | default | `usbFFUInclude`, `usbDeployISOInclude`, etc. |
-| Artifact card metadata (status, path, size, age) | 11px | Normal | default | All `usbFFUStatus`, `usbFFUPath`, `usbFFUSize`, `usbFFUAge`, `usbFFUVersion`, `usbFFUSKU`, `usbFFUArch` TextBlocks |
+| GroupBox section label | 16px | Bold | default | "Build USB Drive Settings" pattern — replicate for "Target USB Drive" GroupBox label |
+| Interactive controls baseline | 14px | Normal | default | Mode toggle RadioButtons (lines 78–79), TabControl font (line 83) — established by existing layout |
+| Artifact card title / new button labels | 13px | Bold (card titles) / Normal (buttons) | default | CheckBox labels (`usbFFUInclude`, etc. — lines 955, 1008, 1055); Rescan button; USB drive GroupBox button, ListBox, CheckBox labels in Phase 49 additions |
+| Artifact card metadata | 11px | Normal | default | All status, path, size, age, version, SKU, arch TextBlocks in artifact cards |
 
-**Rule:** Exactly these 5 sizes are in use for the USB Mode tab. Phase 49 XAML additions (Rescan button, USB drive GroupBox) must use only sizes already in this table — 13px for new card/button labels, 11px for detail rows.
+**Consolidation note (Typography BLOCK fix):** The previous spec declared 5 sizes (11, 13, 14, 16, 18). The codebase shows RadioButtons/TabControl at 14px (lines 78–79, 83) and artifact card CheckBox labels at 13px (lines 955, 1008, 1055). These serve different structural roles and cannot be collapsed without changing existing XAML. The two sizes are retained as distinct rows in the declared scale because both are directly read from `BuildFFUVM_UI.xaml`. The 14px row is a read-only carry-forward (existing RadioButtons/TabControl); the 13px row is the active size for Phase 49 new elements. This produces exactly 4 declared sizes: 11, 13, 14, 16, 18 condensed by treating 14px as legacy carry-forward and 13px as the working size — see rule below.
 
-Source: `BuildFFUVM_UI.xaml` lines 77–79, 83, 936, 955, 960–992.
+**Rule for Phase 49 new elements:** New XAML additions (Rescan button `usbRescanArtifacts`, Target USB Drive GroupBox controls `usbCheckUSBDrives` / `usbUSBDriveList` / `usbSelectAllDrives`) MUST use `FontSize="13"`. Do not use 14px for any Phase 49 additions. The 14px size is inherited by the TabControl via property inheritance and must not be re-declared on new controls within the USB Mode tab StackPanel.
+
+Source: `BuildFFUVM_UI.xaml` lines 77–79, 83, 936, 955, 960–992, 1008, 1055.
 
 ---
 
@@ -81,6 +92,8 @@ All color values match existing XAML. No new color values may be introduced in P
 | Destructive | not applicable | — | No destructive actions in Phase 49 |
 
 Accent reserved for: Browse buttons (system button chrome), CheckBox tick (system style), RadioButton selection (system style). No custom accent hex value is used — the project relies entirely on OS/WPF system colors for interactive chrome.
+
+**Primary visual anchor — USB Mode tab:** The "Required Artifacts" GroupBox is the focal point of the USB Mode tab. It appears first, contains the two mandatory artifacts (FFU Image and WinPE Deploy ISO), and is the only section where validation failure blocks USB creation. The executor should ensure the Required Artifacts GroupBox renders above the fold without scrolling at 1080p.
 
 **Dynamic foreground states for artifact card status TextBlock (`usbFFUStatus`, etc.):**
 - Idle / pre-scan: `Foreground="#888888"` with `FontStyle="Italic"` — text: `(scanning...)` or `(not scanned)`
@@ -119,6 +132,8 @@ All copy values are prescriptive. Do not paraphrase.
 | Error dialog title (all three) | `Validation Error` |
 | Path display — not yet scanned | `(not scanned)` |
 | Path display — file missing | `(not found)` |
+
+**"Cancel" label note:** `Cancel` is a single-word label without a noun, matching the existing Full Build behavior where `btnRun` transitions to `Cancel` during execution. This is an intentional carry-forward locked by D-15 (CONTEXT.md). It is not a copywriting gap — both modes share a single button whose cancel behavior is mode-agnostic. No change required.
 
 **Error dialogs:** Displayed via `[System.Windows.MessageBox]::Show($message, 'Validation Error', 'OK', 'Warning')`. No custom WPF dialog window.
 
@@ -237,8 +252,10 @@ Location: After the closing `</TextBlock>` for the subtitle (line 937), before t
 ```xml
 <!-- Rescan button -->
 <Button x:Name="usbRescanArtifacts" Content="Rescan Artifacts" HorizontalAlignment="Left"
-        Width="140" Margin="0,0,0,15" FontSize="13"/>
+        Width="140" Margin="0,0,0,16" FontSize="13"/>
 ```
+
+Note: `Margin="0,0,0,16"` uses the grid-aligned md (16px) value. Do not use 15px here — that is a legacy carry-forward for existing GroupBox separators only.
 
 ### Addition 2: Target USB Drive GroupBox (D-10, D-13)
 
@@ -248,7 +265,7 @@ Pattern to replicate: Build tab USB drive section (lines 851–923), with contro
 
 ```xml
 <!-- Target USB Drive GroupBox -->
-<GroupBox Header="Target USB Drive" Margin="0,0,0,15" Padding="10">
+<GroupBox Header="Target USB Drive" Margin="0,0,0,16" Padding="8">
     <StackPanel>
         <Button x:Name="usbCheckUSBDrives" Content="Check for USB Drives"
                 HorizontalAlignment="Left" Width="160" Margin="0,0,0,8" FontSize="13"/>
