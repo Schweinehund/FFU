@@ -67,11 +67,10 @@ All font sizes match the existing XAML established in Phases 48 and prior. Do no
 |------|------|--------|----------------|-------------------|
 | Tab section heading | 18px | Bold | default (~1.2) | "USB from Existing Artifacts" header (line 936) |
 | GroupBox section label | 16px | Bold | default | "Build USB Drive Settings" pattern — replicate for "Target USB Drive" GroupBox label |
-| Interactive controls baseline | 14px | Normal | default | Mode toggle RadioButtons (lines 78–79), TabControl font (line 83) — established by existing layout |
 | Artifact card title / new button labels | 13px | Bold (card titles) / Normal (buttons) | default | CheckBox labels (`usbFFUInclude`, etc. — lines 955, 1008, 1055); Rescan button; USB drive GroupBox button, ListBox, CheckBox labels in Phase 49 additions |
 | Artifact card metadata | 11px | Normal | default | All status, path, size, age, version, SKU, arch TextBlocks in artifact cards |
 
-**Consolidation note (Typography BLOCK fix):** The previous spec declared 5 sizes (11, 13, 14, 16, 18). The codebase shows RadioButtons/TabControl at 14px (lines 78–79, 83) and artifact card CheckBox labels at 13px (lines 955, 1008, 1055). These serve different structural roles and cannot be collapsed without changing existing XAML. The two sizes are retained as distinct rows in the declared scale because both are directly read from `BuildFFUVM_UI.xaml`. The 14px row is a read-only carry-forward (existing RadioButtons/TabControl); the 13px row is the active size for Phase 49 new elements. This produces exactly 4 declared sizes: 11, 13, 14, 16, 18 condensed by treating 14px as legacy carry-forward and 13px as the working size — see rule below.
+14px is inherited by the TabControl via WPF property inheritance from existing Phase 48 XAML (RadioButtons at lines 78–79, TabControl at line 83) — no Phase 49 additions use this size and it is not re-declared.
 
 **Rule for Phase 49 new elements:** New XAML additions (Rescan button `usbRescanArtifacts`, Target USB Drive GroupBox controls `usbCheckUSBDrives` / `usbUSBDriveList` / `usbSelectAllDrives`) MUST use `FontSize="13"`. Do not use 14px for any Phase 49 additions. The 14px size is inherited by the TabControl via property inheritance and must not be re-declared on new controls within the USB Mode tab StackPanel.
 
