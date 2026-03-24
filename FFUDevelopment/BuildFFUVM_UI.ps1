@@ -78,6 +78,7 @@ $script:uiState = [PSCustomObject]@{
             Autopilot = [PSCustomObject]@{ path = $null; source = 'auto' }
             AppsISO   = [PSCustomObject]@{ path = $null; source = 'auto' }
         }
+        usbDriveObjects             = @()    # Drive objects from USB Mode tab (parallel to usbUSBDriveList display strings)
     };
     Flags              = @{
         installAppsForcedByUpdates        = $false;
@@ -344,7 +345,8 @@ $script:uiState.Controls.btnRun.Add_Click({
                     $script:uiState.Controls.txtStatus.Text = "Build canceled. No config found for cleanup."
                     $script:uiState.Flags.isBuilding = $false
                     $script:uiState.Flags.isCleanupRunning = $false
-                    $btnRun.Content = "Build FFU"
+                    $isUSBMode = $null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked
+                    $btnRun.Content = if ($isUSBMode) { 'Create USB' } else { 'Build FFU' }
                     $btnRun.IsEnabled = $true
                     return
                 }
@@ -836,10 +838,11 @@ $script:uiState.Controls.btnRun.Add_Click({
                             $script:uiState.Controls.pbOverallProgress.Value = 100
                             $script:uiState.Controls.txtStatus.Text = "FFU build completed successfully."
 
-                            # Reset button and flags for next run
+                            # Reset button and flags for next run (mode-aware label)
                             $script:uiState.Flags.isBuilding = $false
                             $script:uiState.Flags.isCleanupRunning = $false
-                            $script:uiState.Controls.btnRun.Content = "Build FFU"
+                            $isUSBMode = $null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked
+                            $script:uiState.Controls.btnRun.Content = if ($isUSBMode) { 'Create USB' } else { 'Build FFU' }
                             $script:uiState.Controls.btnRun.IsEnabled = $true
                         }
                     }
