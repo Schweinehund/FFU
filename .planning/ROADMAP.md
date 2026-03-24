@@ -30,7 +30,7 @@ Phases 1-44 complete. See MILESTONES.md for details.
 - [x] **Phase 46: FFU.ArtifactScanner Module** - New module for artifact discovery, metadata extraction, and compatibility validation (completed 2026-03-14)
 - [x] **Phase 47: USB Mode Pipeline Entry** - Add `-USBOnlyMode` switch and artifact manifest reading block to BuildFFUVM.ps1 (completed 2026-03-20)
 - [x] **Phase 48: XAML Mode Toggle and USB Tab** - Add mode toggle RadioButton group and USB Mode TabItem to BuildFFUVM_UI.xaml (completed 2026-03-24)
-- [ ] **Phase 49: UI Event Wiring and Artifact Integration** - Wire scanner into UI with browse dialogs, per-artifact controls, and USB drive selection
+- [x] **Phase 49: UI Event Wiring and Artifact Integration** - Wire scanner into UI with browse dialogs, per-artifact controls, and USB drive selection (completed 2026-03-24)
 - [ ] **Phase 50: Selective Rebuild Pipeline** - User-controlled per-artifact rebuild disposition with selective phase execution
 
 ## Phase Details
@@ -111,7 +111,7 @@ Plans:
 - [x] 49-01-PLAN.md — XAML additions, state init, mode switch handlers, artifact scan function (DISC-02)
 - [x] 49-02-PLAN.md — Browse handlers, USB drive detection and select-all wiring (DISC-02, USB-02)
 - [x] 49-03-PLAN.md — Config persistence stubs replacement, mode-aware button labels (DISC-03)
-- [ ] 49-04-PLAN.md — btnRun USB Mode launch, pre-launch validation, Pester tests (USB-02, USB-03)
+- [x] 49-04-PLAN.md — btnRun USB Mode launch, pre-launch validation, Pester tests (USB-02, USB-03)
 
 ### Phase 50: Selective Rebuild Pipeline
 **Goal**: Users can mark each artifact as reuse, rebuild, or skip, and the pipeline executes only the build phases needed for marked-rebuild artifacts
@@ -137,7 +137,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 46. FFU.ArtifactScanner Module | v1.11.0 | 2/2 | Complete | 2026-03-14 |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
-| 49. UI Event Wiring and Artifact Integration | v1.11.0 | 3/4 | In Progress|  |
+| 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/4 | Complete   | 2026-03-24 |
 | 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
 
 ---

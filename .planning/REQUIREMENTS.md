@@ -30,7 +30,7 @@ Requirements for USB from Existing Components milestone. Each maps to roadmap ph
 
 - [x] **USB-01**: USB Mode blocks USB creation if WinPE deployment ISO is missing with actionable message
 - [x] **USB-02**: USB Mode reuses existing USB drive detection and selection
-- [ ] **USB-03**: User can select which artifacts to include on the USB (per-artifact checkboxes)
+- [x] **USB-03**: User can select which artifacts to include on the USB (per-artifact checkboxes)
 - [x] **USB-04**: USB Mode assembles selected artifacts into deployable USB via existing New-DeploymentUSB
 
 ### Selective Rebuild
@@ -79,7 +79,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VALID-04 | Phase 46 | Pending |
 | USB-01 | Phase 47 | Complete |
 | USB-02 | Phase 49 | Complete |
-| USB-03 | Phase 49 | Pending |
+| USB-03 | Phase 49 | Complete |
 | USB-04 | Phase 47 | Complete |
 | REBUILD-01 | Phase 50 | Pending |
 | REBUILD-02 | Phase 50 | Pending |

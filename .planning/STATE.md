@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 49-03-PLAN.md
-last_updated: "2026-03-24T21:37:48.363Z"
+stopped_at: Completed 49-04-PLAN.md
+last_updated: "2026-03-24T21:46:25.824Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State: FFU Builder
@@ -64,6 +64,8 @@ Plan: 4 of 4
 - [Phase 49]: isLoadingConfig flag added to uiState.Flags to guard Invoke-USBArtifactScan from premature scan during config load
 - [Phase 49]: 7 inline browse handlers chosen over shared helper to match established Add_Click pattern; usbDriveObjects parallel array stores drive PSCustomObjects for USB creation time lookup
 - [Phase 49]: Config load ordering: artifact paths loaded BEFORE ActiveMode RadioButton set to prevent premature scan overwriting user paths (Pitfall 5)
+- [Phase 49]: USB Mode branch placed after validation-errors check, before Full Build path, returns to skip Full Build
+- [Phase 49]: DispatcherTimer Tick handler copied verbatim from Full Build for mode-agnostic polling
 
 ### Research Flags for Planning
 
@@ -76,8 +78,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T21:37:48.355Z
-Stopped at: Completed 49-03-PLAN.md
+Last session: 2026-03-24T21:46:25.816Z
+Stopped at: Completed 49-04-PLAN.md
 Resume file: None
 Next action: Phase 49 — UI Event Wiring
 
