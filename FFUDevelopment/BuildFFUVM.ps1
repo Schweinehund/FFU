@@ -1739,6 +1739,38 @@ if ($USBOnlyMode) {
     # Step 1: Live scan artifacts (per D-02)
     $manifest = Find-FFUArtifacts -FFUDevelopmentPath $FFUDevelopmentPath
 
+    # Step 1b: Log user-specified path overrides from config (D-30, Pitfall 6)
+    # CRITICAL: variable is $configData (Issue #5), NOT $config
+    if ($null -ne $configData -and
+        $null -ne $configData.USBMode -and
+        $null -ne $configData.USBMode.Artifacts) {
+        $configArtifacts = $configData.USBMode.Artifacts
+
+        # FFU path override (logged here, applied below after copy flag initialization)
+        if ($null -ne $configArtifacts.FFU -and
+            -not [string]::IsNullOrWhiteSpace($configArtifacts.FFU.Path) -and
+            (Test-Path -LiteralPath $configArtifacts.FFU.Path)) {
+            WriteLog "USBOnlyMode: User-specified FFU path detected in config: $($configArtifacts.FFU.Path)"
+        }
+
+        # DeployISO path override
+        if ($null -ne $configArtifacts.DeployISO -and
+            -not [string]::IsNullOrWhiteSpace($configArtifacts.DeployISO.Path) -and
+            (Test-Path -LiteralPath $configArtifacts.DeployISO.Path)) {
+            WriteLog "USBOnlyMode: User-specified DeployISO path detected in config: $($configArtifacts.DeployISO.Path)"
+        }
+
+        # Optional artifact path overrides
+        foreach ($optType in @('Drivers', 'PPKG', 'Unattend', 'Autopilot')) {
+            $optEntry = $configArtifacts.$optType
+            if ($null -ne $optEntry -and
+                -not [string]::IsNullOrWhiteSpace($optEntry.Path) -and
+                (Test-Path -LiteralPath $optEntry.Path)) {
+                WriteLog "USBOnlyMode: User-specified $optType path detected in config: $($optEntry.Path)"
+            }
+        }
+    }
+
     # Step 2: Validate readiness — FFU + DeployISO must be Found (per D-10 step 1)
     if (-not $manifest.IsReady) {
         $missingTypes = @()
@@ -1814,6 +1846,68 @@ if ($USBOnlyMode) {
     # Deploy ISO path and USB build gate
     $DeployISO = $deployISOPath
     $BuildUSBDrive = $true
+
+    # Step 5b: Apply config path overrides and include flags (D-29, D-30)
+    # CRITICAL: variable is $configData (Issue #5), NOT $config
+    if ($null -ne $configData -and $null -ne $configData.USBMode -and $null -ne $configData.USBMode.Artifacts) {
+        $cfgArt = $configData.USBMode.Artifacts
+
+        # FFU path override — replace auto-scanned result with user-specified path
+        if ($null -ne $cfgArt.FFU -and -not [string]::IsNullOrWhiteSpace($cfgArt.FFU.Path) -and (Test-Path -LiteralPath $cfgArt.FFU.Path)) {
+            $SelectedFFUFile = @($cfgArt.FFU.Path)
+            WriteLog "USBOnlyMode: Overrode FFU path from config: $($cfgArt.FFU.Path)"
+        }
+
+        # DeployISO path override
+        if ($null -ne $cfgArt.DeployISO -and -not [string]::IsNullOrWhiteSpace($cfgArt.DeployISO.Path) -and (Test-Path -LiteralPath $cfgArt.DeployISO.Path)) {
+            $deployISOPath = $cfgArt.DeployISO.Path
+            $DeployISO = $cfgArt.DeployISO.Path
+            WriteLog "USBOnlyMode: Overrode DeployISO path from config: $($cfgArt.DeployISO.Path)"
+        }
+
+        # Drivers path override
+        if ($null -ne $cfgArt.Drivers -and -not [string]::IsNullOrWhiteSpace($cfgArt.Drivers.Path) -and (Test-Path -LiteralPath $cfgArt.Drivers.Path)) {
+            $DriversFolder = $cfgArt.Drivers.Path
+            $CopyDrivers = $true
+            WriteLog "USBOnlyMode: Overrode Drivers path from config: $($cfgArt.Drivers.Path)"
+        }
+
+        # Optional artifact path overrides
+        if ($null -ne $cfgArt.PPKG -and -not [string]::IsNullOrWhiteSpace($cfgArt.PPKG.Path) -and (Test-Path -LiteralPath $cfgArt.PPKG.Path)) {
+            $PPKGFolder = $cfgArt.PPKG.Path
+            $CopyPPKG = $true
+            WriteLog "USBOnlyMode: Overrode PPKG path from config: $($cfgArt.PPKG.Path)"
+        }
+        if ($null -ne $cfgArt.Unattend -and -not [string]::IsNullOrWhiteSpace($cfgArt.Unattend.Path) -and (Test-Path -LiteralPath $cfgArt.Unattend.Path)) {
+            $UnattendFolder = $cfgArt.Unattend.Path
+            $CopyUnattend = $true
+            WriteLog "USBOnlyMode: Overrode Unattend path from config: $($cfgArt.Unattend.Path)"
+        }
+        if ($null -ne $cfgArt.Autopilot -and -not [string]::IsNullOrWhiteSpace($cfgArt.Autopilot.Path) -and (Test-Path -LiteralPath $cfgArt.Autopilot.Path)) {
+            $AutopilotFolder = $cfgArt.Autopilot.Path
+            $CopyAutopilot = $true
+            WriteLog "USBOnlyMode: Overrode Autopilot path from config: $($cfgArt.Autopilot.Path)"
+        }
+
+        # Include flag overrides (D-29) -- user unchecked = don't copy even if Found
+        # NOTE: No $CopyAppsISO flag exists in this block (Issue #10) -- AppsISO is handled via path only
+        if ($null -ne $cfgArt.Drivers -and $cfgArt.Drivers.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.Drivers.Include) {
+            $CopyDrivers = $false
+            WriteLog "USBOnlyMode: Drivers unchecked by user -- skipping."
+        }
+        if ($null -ne $cfgArt.PPKG -and $cfgArt.PPKG.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.PPKG.Include) {
+            $CopyPPKG = $false
+            WriteLog "USBOnlyMode: PPKG unchecked by user -- skipping."
+        }
+        if ($null -ne $cfgArt.Unattend -and $cfgArt.Unattend.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.Unattend.Include) {
+            $CopyUnattend = $false
+            WriteLog "USBOnlyMode: Unattend unchecked by user -- skipping."
+        }
+        if ($null -ne $cfgArt.Autopilot -and $cfgArt.Autopilot.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.Autopilot.Include) {
+            $CopyAutopilot = $false
+            WriteLog "USBOnlyMode: Autopilot unchecked by user -- skipping."
+        }
+    }
 
     # Step 6: Detect USB drives (same function used by normal build at line 2303)
     WriteLog "USBOnlyMode: Detecting USB drives..."

@@ -454,6 +454,311 @@ $script:uiState.Controls.btnRun.Add_Click({
                 WriteLog "User chose to proceed with build despite validation errors."
             }
 
+            # ============================================================================
+            # USB MODE BRANCH (D-28)
+            # When rbUSBMode is checked, validate artifacts and launch USB assembly
+            # BEFORE falling through to the Full Build path below.
+            # ============================================================================
+            $isUSBMode = $null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked
+            if ($isUSBMode) {
+                # Pre-launch validation (D-19, D-20)
+                $ffuIncluded = $script:uiState.Controls.usbFFUInclude.IsChecked
+                $deployIncluded = $script:uiState.Controls.usbDeployISOInclude.IsChecked
+
+                # Gate 1: FFU must be Found and checked
+                $ffuStatus = $script:uiState.Controls.usbFFUStatus.Text
+                if (-not ($ffuStatus -match '^Found') -or -not $ffuIncluded) {
+                    [System.Windows.MessageBox]::Show(
+                        'An FFU image is required. Select an FFU file and ensure it is checked.',
+                        'Validation Error', 'OK', 'Warning') | Out-Null
+                    return
+                }
+
+                # Gate 2: Deploy ISO must be Found and checked
+                $deployStatus = $script:uiState.Controls.usbDeployISOStatus.Text
+                if (-not ($deployStatus -match '^Found') -or -not $deployIncluded) {
+                    [System.Windows.MessageBox]::Show(
+                        'The WinPE Deploy ISO is required to create a bootable USB. Select an ISO file and ensure it is checked.',
+                        'Validation Error', 'OK', 'Warning') | Out-Null
+                    return
+                }
+
+                # Gate 3: At least one USB drive selected
+                $selectedDrives = $script:uiState.Controls.usbUSBDriveList.SelectedItems
+                if ($null -eq $selectedDrives -or $selectedDrives.Count -eq 0) {
+                    [System.Windows.MessageBox]::Show(
+                        'Select at least one USB drive before creating USB media.',
+                        'Validation Error', 'OK', 'Warning') | Out-Null
+                    return
+                }
+
+                $btnRun.IsEnabled = $false
+
+                # Switch to Monitor Tab
+                $script:uiState.Controls.MainTabControl.SelectedItem = $script:uiState.Controls.MonitorTab
+
+                # Clear previous log data and reset autoscroll
+                if ($null -ne $script:uiState.Data.logData) {
+                    $script:uiState.Data.logData.Clear()
+                    $script:uiState.Flags.autoScrollLog = $true
+                }
+
+                $progressBar = $script:uiState.Controls.pbOverallProgress
+                $txtStatus = $script:uiState.Controls.txtStatus
+                $progressBar.Visibility = 'Visible'
+                $txtStatus.Text = "Starting USB creation..."
+
+                # Save config to file (reuse existing Full Build pattern).
+                # Build-UIConfiguration (Plan 03) writes USBMode.Artifacts with Path, Include, Disposition
+                # for all 7 artifact types. The Include field carries D-29 checkbox states to the build script.
+                $config = Build-UIConfiguration -State $script:uiState
+
+                # Ensure config directory exists (same guard as Full Build)
+                $configDir = Join-Path $config.FFUDevelopmentPath "\config"
+                if (-not (Test-Path -LiteralPath $configDir -PathType Container)) {
+                    try {
+                        New-Item -ItemType Directory -Path $configDir -Force -ErrorAction Stop | Out-Null
+                    }
+                    catch {
+                        $btnRun.IsEnabled = $true
+                        $script:uiState.Controls.txtStatus.Text = "USB creation canceled: Could not create config subdirectory."
+                        return
+                    }
+                }
+
+                # Use same config path pattern as Full Build (Issue #8)
+                $configFilePath = Join-Path $config.FFUDevelopmentPath "\config\FFUConfig.json"
+                $sortedConfig = [ordered]@{}
+                foreach ($k in ($config.Keys | Sort-Object)) { $sortedConfig[$k] = $config[$k] }
+
+                # Save config file with error handling
+                try {
+                    $sortedConfig | ConvertTo-Json -Depth 10 | Set-Content -Path $configFilePath -Encoding UTF8 -ErrorAction Stop
+                    $script:uiState.Data.lastConfigFilePath = $configFilePath
+                    WriteLog "USB Mode configuration saved to: $configFilePath"
+                }
+                catch {
+                    $errorMsg = "Failed to save configuration: $($_.Exception.Message)"
+                    WriteLog "ERROR: $errorMsg"
+                    [System.Windows.MessageBox]::Show($errorMsg, "Configuration Save Error", "OK", "Error") | Out-Null
+                    $btnRun.IsEnabled = $true
+                    $script:uiState.Controls.txtStatus.Text = "USB creation canceled: Could not save configuration."
+                    return
+                }
+
+                $ffuDevPath = $script:uiState.Data.ffuDevelopmentPath
+                $txtStatus.Text = "Executing BuildFFUVM.ps1 -USBOnlyMode in the background..."
+                WriteLog "Executing BuildFFUVM.ps1 -USBOnlyMode in the background..."
+
+                # Define main log path for monitoring
+                $mainLogPath = Join-Path $ffuDevPath "FFUDevelopment.log"
+
+                # Initialize messaging context (same as Full Build)
+                $script:uiState.Data.messagingContext = New-FFUMessagingContext -EnableFileLogging -LogFilePath $mainLogPath
+                WriteLog "Messaging context initialized for USB Mode."
+
+                # Build parameters -- USBOnlyMode flag carries the mode to the build script
+                $buildParams = @{
+                    ConfigFile  = $configFilePath
+                    USBOnlyMode = $true
+                }
+
+                # Define the script block to run in the background job
+                # Replicates the FULL structure from the Full Build section (Issue #6)
+                $scriptBlock = {
+                    param($buildParams, $ScriptRoot, $SyncContext)
+
+                    Set-Location $ScriptRoot
+
+                    Import-Module "$ScriptRoot\Modules\FFU.Messaging" -Force -DisableNameChecking
+                    Import-Module "$ScriptRoot\FFU.Common\FFU.Common.Core.psm1" -Force -DisableNameChecking
+                    if ($SyncContext) {
+                        Set-CommonCoreMessagingContext -Context $SyncContext
+                    }
+                    if ($SyncContext) {
+                        Set-FFUBuildState -Context $SyncContext -State Running -SendMessage
+                    }
+
+                    try {
+                        & "$ScriptRoot\BuildFFUVM.ps1" @buildParams -MessagingContext $SyncContext
+
+                        if ($SyncContext) {
+                            Set-FFUBuildState -Context $SyncContext -State Completed -SendMessage
+                        }
+                    }
+                    catch {
+                        if ($SyncContext) {
+                            Write-FFUError -Context $SyncContext -Message "USB creation failed: $($_.Exception.Message)" -Source 'BuildFFUVM-USBMode'
+                            Set-FFUBuildState -Context $SyncContext -State Failed -SendMessage
+                        }
+                        throw
+                    }
+                }
+
+                # FIX: Delete old log file BEFORE starting the background job (same as Full Build)
+                if (Test-Path $mainLogPath) {
+                    try {
+                        Remove-Item -Path $mainLogPath -Force -ErrorAction Stop
+                        WriteLog "Removed previous log file."
+                        Start-Sleep -Milliseconds 100
+                    }
+                    catch {
+                        WriteLog "Warning: Could not remove old log file: $($_.Exception.Message)"
+                    }
+                }
+
+                # Start ThreadJob (same pattern as Full Build -- Issue #7: use currentBuildJob, Issue #14: -ArgumentList not $using:)
+                if (Get-Command Start-ThreadJob -ErrorAction SilentlyContinue) {
+                    $script:uiState.Data.currentBuildJob = Start-ThreadJob -ScriptBlock $scriptBlock -ArgumentList @($buildParams, $PSScriptRoot, $script:uiState.Data.messagingContext)
+                    WriteLog "USB Mode job started using ThreadJob."
+                }
+                else {
+                    $script:uiState.Data.currentBuildJob = Start-Job -ScriptBlock $scriptBlock -ArgumentList @($buildParams, $PSScriptRoot, $script:uiState.Data.messagingContext)
+                    WriteLog "WARNING: USB Mode job started using Start-Job (ThreadJob unavailable)."
+                }
+
+                # Create DispatcherTimer (50ms) for real-time UI updates -- identical to Full Build timer
+                $script:uiState.Data.pollTimer = New-Object System.Windows.Threading.DispatcherTimer
+                $script:uiState.Data.pollTimer.Interval = [TimeSpan]::FromMilliseconds(50)
+
+                $script:uiState.Data.pollTimer.Add_Tick({
+                        param($sender, $e)
+                        $currentJob = $script:uiState.Data.currentBuildJob
+                        $msgContext = $script:uiState.Data.messagingContext
+                        $lastLine = $null
+
+                        # PRIMARY: Read from messaging queue (real-time, lock-free)
+                        if ($null -ne $msgContext -and $null -ne $msgContext.MessageQueue) {
+                            $messages = Read-FFUMessages -Context $msgContext -MaxMessages 50
+                            foreach ($msg in $messages) {
+                                $displayText = $msg.ToLogString()
+                                $script:uiState.Data.logData.Add($displayText)
+                                $lastLine = $displayText
+
+                                if ($msg.Level.ToString() -eq 'Progress' -or $msg.Data.ContainsKey('PercentComplete')) {
+                                    $percentage = if ($msg.Data.ContainsKey('PercentComplete')) { $msg.Data['PercentComplete'] } else { 0 }
+                                    $statusMsg = if ($msg.Data.ContainsKey('CurrentOperation')) { $msg.Data['CurrentOperation'] } else { $msg.Message }
+
+                                    $script:uiState.Controls.pbOverallProgress.Value = $percentage
+                                    $script:uiState.Controls.txtStatus.Text = $statusMsg
+                                }
+                            }
+
+                            if ($messages.Count -gt 0 -and $script:uiState.Flags.autoScrollLog -and $lastLine) {
+                                $script:uiState.Controls.lstLogOutput.ScrollIntoView($lastLine)
+                                $script:uiState.Controls.lstLogOutput.SelectedIndex = $script:uiState.Controls.lstLogOutput.Items.Count - 1
+                            }
+                        }
+
+                        if ($null -eq $currentJob -or $null -eq $script:uiState.Data.pollTimer) {
+                            if ($null -ne $sender) {
+                                $sender.Stop()
+                            }
+                            $script:uiState.Data.pollTimer = $null
+                            return
+                        }
+
+                        if ($currentJob.State -in 'Completed', 'Failed', 'Stopped') {
+                            if ($null -ne $sender) {
+                                $sender.Stop()
+                            }
+                            $script:uiState.Data.pollTimer = $null
+
+                            if ($null -ne $msgContext -and $null -ne $msgContext.MessageQueue) {
+                                $finalMessages = Read-FFUMessages -Context $msgContext -MaxMessages 1000
+                                foreach ($msg in $finalMessages) {
+                                    $displayText = $msg.ToLogString()
+                                    $script:uiState.Data.logData.Add($displayText)
+                                    $lastLine = $displayText
+
+                                    if ($msg.Level.ToString() -eq 'Progress' -or $msg.Data.ContainsKey('PercentComplete')) {
+                                        $percentage = if ($msg.Data.ContainsKey('PercentComplete')) { $msg.Data['PercentComplete'] } else { 0 }
+                                        $statusMsg = if ($msg.Data.ContainsKey('CurrentOperation')) { $msg.Data['CurrentOperation'] } else { $msg.Message }
+                                        $script:uiState.Controls.pbOverallProgress.Value = $percentage
+                                        $script:uiState.Controls.txtStatus.Text = $statusMsg
+                                    }
+                                }
+
+                                Close-FFUMessagingContext -Context $msgContext
+                                $script:uiState.Data.messagingContext = $null
+                            }
+
+                            if ($script:uiState.Flags.autoScrollLog -and $null -ne $lastLine) {
+                                $script:uiState.Controls.lstLogOutput.ScrollIntoView($lastLine)
+                                $script:uiState.Controls.lstLogOutput.SelectedIndex = $script:uiState.Controls.lstLogOutput.Items.Count - 1
+                            }
+
+                            $jobOutput = Receive-Job -Job $currentJob -Keep -ErrorVariable jobErrors -ErrorAction SilentlyContinue
+
+                            $successMarker = $null
+                            if ($jobOutput) {
+                                $successMarker = $jobOutput | Where-Object {
+                                    $_ -is [PSCustomObject] -and $_.PSObject.Properties['FFUBuildSuccess'] -and $_.FFUBuildSuccess -eq $true
+                                } | Select-Object -Last 1
+                            }
+
+                            if ($successMarker) {
+                                $hasErrors = $false
+                                WriteLog "USB Mode success marker detected: $($successMarker.Message)"
+                            }
+                            else {
+                                $hasErrors = ($jobErrors.Count -gt 0) -or ($currentJob.State -eq 'Failed') -or ($currentJob.State -eq 'Stopped')
+                            }
+
+                            $mainLogPath = Join-Path $script:uiState.FFUDevelopmentPath "FFUDevelopment.log"
+                            if (-not (Test-Path -LiteralPath $mainLogPath)) {
+                                $hasErrors = $true
+                            }
+
+                            if ($hasErrors) {
+                                $errorInfo = Get-FFUJobError -Job $currentJob `
+                                    -MessagingContext $script:uiState.Data.messagingContext `
+                                    -LogPath $mainLogPath
+
+                                WriteLog "USB Mode job failed. Type: $($errorInfo.ErrorType). Source: $($errorInfo.Source). Message: $($errorInfo.Message)"
+
+                                Show-FFUError -Severity 'Error' `
+                                    -Title $errorInfo.Title `
+                                    -Description $errorInfo.Message `
+                                    -Remediation $errorInfo.Remediation `
+                                    -LogPath $errorInfo.LogPath `
+                                    -Details $errorInfo.Details
+
+                                $currentJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
+                                Remove-Job -Job $currentJob -Force
+                                $script:uiState.Data.currentBuildJob = $null
+
+                                Reset-FFUUIToIdle -State $script:uiState -StatusMessage "USB creation failed. Check log for details."
+                            }
+                            else {
+                                WriteLog "USB Mode job completed successfully."
+
+                                $currentJob | Receive-Job -ErrorAction SilentlyContinue | Out-Null
+                                Remove-Job -Job $currentJob -Force
+                                $script:uiState.Data.currentBuildJob = $null
+
+                                $script:uiState.Controls.pbOverallProgress.Value = 100
+                                $script:uiState.Controls.txtStatus.Text = "USB creation completed successfully."
+
+                                $script:uiState.Flags.isBuilding = $false
+                                $script:uiState.Flags.isCleanupRunning = $false
+                                $script:uiState.Controls.btnRun.Content = 'Create USB'
+                                $script:uiState.Controls.btnRun.IsEnabled = $true
+                            }
+                        }
+                    })
+
+                $script:uiState.Data.pollTimer.Start()
+
+                # Mark building and toggle button to Cancel
+                $script:uiState.Flags.isBuilding = $true
+                $btnRun.Content = "Cancel"
+                $btnRun.IsEnabled = $true
+
+                return
+            }
+            # End USB Mode branch -- Full Build path follows below
+
             $btnRun.IsEnabled = $false
 
             # Switch to Monitor Tab
