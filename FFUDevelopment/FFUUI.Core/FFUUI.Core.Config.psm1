@@ -163,19 +163,27 @@ function Get-UIConfig {
         WindowsVersion                 = $State.Controls.cmbWindowsVersion.SelectedItem
     }
 
-    # USB Mode fields — Phase 48 will write ActiveMode from mode toggle,
-    # Phase 49 will populate artifact paths from browse dialogs.
-    # Stubs write defaults so config round-trips without error.
-    $config.ActiveMode = 'FullBuild'
+    # USB Mode fields (D-22, D-29) -- write ActiveMode, user-browsed artifact paths, and include flags
+    $config.ActiveMode = if ($null -ne $State.Controls.rbUSBMode -and $State.Controls.rbUSBMode.IsChecked) { 'USBMode' } else { 'FullBuild' }
     $config.USBMode = @{
-        Artifacts = @{
-            FFU       = @{ Path = $null; Disposition = 'Reuse' }
-            DeployISO = @{ Path = $null; Disposition = 'Reuse' }
-            Drivers   = @{ Path = $null; Disposition = 'Reuse' }
-            PPKG      = @{ Path = $null; Disposition = 'Reuse' }
-            Unattend  = @{ Path = $null; Disposition = 'Reuse' }
-            Autopilot = @{ Path = $null; Disposition = 'Reuse' }
-            AppsISO   = @{ Path = $null; Disposition = 'Reuse' }
+        Artifacts = @{}
+    }
+    foreach ($artifactType in @('FFU', 'DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')) {
+        $artState = $State.Data.usbArtifactState[$artifactType]
+        $pathToSave = $null
+        if ($null -ne $artState -and $artState.source -eq 'user' -and -not [string]::IsNullOrWhiteSpace($artState.path)) {
+            $pathToSave = $artState.path
+        }
+        # Read include checkbox state (D-29) -- Plan 04 reads these at ThreadJob launch
+        $includeCtrlName = "usb${artifactType}Include"
+        $includeChecked = $true  # default to included
+        if ($null -ne $State.Controls[$includeCtrlName]) {
+            $includeChecked = [bool]$State.Controls[$includeCtrlName].IsChecked
+        }
+        $config.USBMode.Artifacts[$artifactType] = @{
+            Path        = $pathToSave
+            Disposition = 'Reuse'
+            Include     = $includeChecked
         }
     }
 
@@ -456,8 +464,17 @@ function Invoke-LoadConfiguration {
             }
         }
 
-        # Continue with existing Update-UIFromConfig call
-        Update-UIFromConfig -ConfigContent $configContent -State $State
+        # Apply config to UI with isLoadingConfig guard (prevents premature USB scan during load)
+        $State.Flags.isLoadingConfig = $true
+        try {
+            Update-UIFromConfig -ConfigContent $configContent -State $State
+        } finally {
+            $State.Flags.isLoadingConfig = $false
+        }
+        # If USB Mode was restored, fire initial scan now that config is fully loaded
+        if ($null -ne $State.Controls.rbUSBMode -and $State.Controls.rbUSBMode.IsChecked) {
+            Invoke-USBArtifactScan -State $State
+        }
         $State.Data.lastConfigFilePath = $filePath
         Import-ConfigSupplementalAssets -ConfigContent $configContent -State $State -ShowWarnings:$true
     }
@@ -619,13 +636,44 @@ function Update-UIFromConfig {
         }
     }
 
-    # USB Mode fields - controls added in Phase 48/49
-    # Stub: read and log for now; Phase 48 will apply ActiveMode to mode toggle
-    if ($ConfigContent.PSObject.Properties.Match('ActiveMode').Count -gt 0) {
-        WriteLog "LoadConfig: ActiveMode='$($ConfigContent.ActiveMode)' (Phase 48 will apply to toggle)."
+    # USB Mode fields (D-23) -- IMPORTANT: load artifact paths BEFORE setting ActiveMode
+    # because setting rbUSBMode.IsChecked fires the Checked handler which triggers scan,
+    # and the scan must see pre-loaded user paths to avoid overwriting them (Pitfall 5).
+    if ($ConfigContent.PSObject.Properties.Match('USBMode').Count -gt 0 -and
+        $null -ne $ConfigContent.USBMode -and
+        $null -ne $ConfigContent.USBMode.Artifacts) {
+        foreach ($key in @('FFU', 'DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')) {
+            $entry = $ConfigContent.USBMode.Artifacts.$key
+            if ($null -ne $entry -and -not [string]::IsNullOrWhiteSpace($entry.Path)) {
+                $State.Data.usbArtifactState[$key].path   = $entry.Path
+                $State.Data.usbArtifactState[$key].source = 'user'
+                # Update path TextBlock immediately so it shows during scan
+                $pathCtrlName = "usb${key}Path"
+                if ($null -ne $State.Controls[$pathCtrlName]) {
+                    $State.Controls[$pathCtrlName].Text = $entry.Path
+                }
+                WriteLog "LoadConfig: Restored user-overridden path for $key = '$($entry.Path)'."
+            }
+            # Restore include checkbox state (D-29)
+            if ($null -ne $entry -and $entry.PSObject.Properties.Match('Include').Count -gt 0) {
+                $includeCtrlName = "usb${key}Include"
+                if ($null -ne $State.Controls[$includeCtrlName]) {
+                    $State.Controls[$includeCtrlName].IsChecked = [bool]$entry.Include
+                }
+            }
+        }
     }
-    if ($ConfigContent.PSObject.Properties.Match('USBMode').Count -gt 0) {
-        WriteLog "LoadConfig: USBMode section present (Phase 49 will apply to artifact controls)."
+
+    # Set ActiveMode AFTER artifact paths are loaded (fires Checked event which triggers scan)
+    if ($ConfigContent.PSObject.Properties.Match('ActiveMode').Count -gt 0) {
+        if ($ConfigContent.ActiveMode -eq 'USBMode') {
+            if ($null -ne $State.Controls.rbUSBMode) {
+                $State.Controls.rbUSBMode.IsChecked = $true
+                WriteLog 'LoadConfig: Restored ActiveMode=USBMode (mode switch handler will fire).'
+            }
+        } else {
+            WriteLog "LoadConfig: ActiveMode='$($ConfigContent.ActiveMode)' (FullBuild is default, no action needed)."
+        }
     }
 
     Select-VMSwitchFromConfig -State $State -ConfigContent $ConfigContent
@@ -1327,7 +1375,17 @@ function Invoke-AutoLoadPreviousEnvironment {
         }
 
         WriteLog "AutoLoad: Applying core configuration."
-        Update-UIFromConfig -ConfigContent $configContent -State $State
+        # Apply config to UI with isLoadingConfig guard (prevents premature USB scan during load)
+        $State.Flags.isLoadingConfig = $true
+        try {
+            Update-UIFromConfig -ConfigContent $configContent -State $State
+        } finally {
+            $State.Flags.isLoadingConfig = $false
+        }
+        # If USB Mode was restored, fire initial scan now that config is fully loaded
+        if ($null -ne $State.Controls.rbUSBMode -and $State.Controls.rbUSBMode.IsChecked) {
+            Invoke-USBArtifactScan -State $State
+        }
         $State.Data.lastConfigFilePath = $configPath
         Import-ConfigSupplementalAssets -ConfigContent $configContent -State $State -ShowWarnings:$false
         WriteLog "AutoLoad: Completed supplemental import with warnings disabled."
