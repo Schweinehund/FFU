@@ -106,12 +106,13 @@ Plans:
   4. USB drive selection uses the existing drive detection mechanism from the Full Build tab
   5. Mode-aware cancel/reset correctly labels the button and cleans up state for both Full Build and USB Mode
   6. User-specified artifact paths survive a session restart (persisted via config)
-**Plans**: 4 plans
+**Plans**: 5 plans
 Plans:
 - [x] 49-01-PLAN.md — XAML additions, state init, mode switch handlers, artifact scan function (DISC-02)
 - [x] 49-02-PLAN.md — Browse handlers, USB drive detection and select-all wiring (DISC-02, USB-02)
 - [x] 49-03-PLAN.md — Config persistence stubs replacement, mode-aware button labels (DISC-03)
 - [x] 49-04-PLAN.md — btnRun USB Mode launch, pre-launch validation, Pester tests (USB-02, USB-03)
+- [ ] 49-05-PLAN.md — Gap closure: cleanup timer mode-aware label fix + regression test
 
 ### Phase 50: Selective Rebuild Pipeline
 **Goal**: Users can mark each artifact as reuse, rebuild, or skip, and the pipeline executes only the build phases needed for marked-rebuild artifacts
@@ -137,7 +138,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 46. FFU.ArtifactScanner Module | v1.11.0 | 2/2 | Complete | 2026-03-14 |
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
-| 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/4 | Complete   | 2026-03-24 |
+| 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/5 | Gap closure   | 2026-03-24 |
 | 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
 
 ---
