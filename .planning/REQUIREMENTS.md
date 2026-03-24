@@ -9,9 +9,9 @@ Requirements for USB from Existing Components milestone. Each maps to roadmap ph
 
 ### UI Mode
 
-- [ ] **UIMODE-01**: User can toggle between "Full Build" and "USB Mode" via a mode switch in the UI
-- [ ] **UIMODE-02**: Build-specific controls (VM settings, Windows version, etc.) hide or disable when USB Mode is active
-- [ ] **UIMODE-03**: USB Mode panel displays artifact-focused controls when active
+- [x] **UIMODE-01**: User can toggle between "Full Build" and "USB Mode" via a mode switch in the UI
+- [x] **UIMODE-02**: Build-specific controls (VM settings, Windows version, etc.) hide or disable when USB Mode is active
+- [x] **UIMODE-03**: USB Mode panel displays artifact-focused controls when active
 
 ### Artifact Discovery
 
@@ -67,9 +67,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UIMODE-01 | Phase 48 | Pending |
-| UIMODE-02 | Phase 48 | Pending |
-| UIMODE-03 | Phase 48 | Pending |
+| UIMODE-01 | Phase 48 | Complete |
+| UIMODE-02 | Phase 48 | Complete |
+| UIMODE-03 | Phase 48 | Complete |
 | DISC-01 | Phase 46 | Pending |
 | DISC-02 | Phase 49 | Pending |
 | DISC-03 | Phase 49 | Pending |

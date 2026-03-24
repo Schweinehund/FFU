@@ -29,7 +29,7 @@ Phases 1-44 complete. See MILESTONES.md for details.
 - [x] **Phase 45: Config Schema Extension** - Extend config schema with USB Mode fields and migration for existing configs (completed 2026-03-20)
 - [x] **Phase 46: FFU.ArtifactScanner Module** - New module for artifact discovery, metadata extraction, and compatibility validation (completed 2026-03-14)
 - [x] **Phase 47: USB Mode Pipeline Entry** - Add `-USBOnlyMode` switch and artifact manifest reading block to BuildFFUVM.ps1 (completed 2026-03-20)
-- [ ] **Phase 48: XAML Mode Toggle and USB Tab** - Add mode toggle RadioButton group and USB Mode TabItem to BuildFFUVM_UI.xaml
+- [x] **Phase 48: XAML Mode Toggle and USB Tab** - Add mode toggle RadioButton group and USB Mode TabItem to BuildFFUVM_UI.xaml (completed 2026-03-24)
 - [ ] **Phase 49: UI Event Wiring and Artifact Integration** - Wire scanner into UI with browse dialogs, per-artifact controls, and USB drive selection
 - [ ] **Phase 50: Selective Rebuild Pipeline** - User-controlled per-artifact rebuild disposition with selective phase execution
 
@@ -93,7 +93,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 48-01-PLAN.md — Mode toggle RadioButton group, x:Name on all Full Build tabs (UIMODE-01, UIMODE-02)
-- [ ] 48-02-PLAN.md — USB Mode TabItem with artifact card layout (UIMODE-03)
+- [x] 48-02-PLAN.md — USB Mode TabItem with artifact card layout (UIMODE-03)
 
 ### Phase 49: UI Event Wiring and Artifact Integration
 **Goal**: USB Mode is fully interactive — users can browse to artifact paths, see artifact status, select per-artifact inclusions, and initiate USB creation

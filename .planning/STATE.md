@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
-status: unknown
-stopped_at: Completed 48-01-PLAN.md
-last_updated: "2026-03-24T12:31:28.509Z"
+status: executing
+stopped_at: Completed 48-02-PLAN.md
+last_updated: "2026-03-24T12:43:00Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State: FFU Builder
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 48 — xaml-mode-toggle-usb-tab
+**Current focus:** Phase 49 — ui-event-wiring
 
 ## Current Position
 
-Phase: 48 (xaml-mode-toggle-usb-tab) — EXECUTING
-Plan: 2 of 2
+Phase: 48 (xaml-mode-toggle-usb-tab) — COMPLETE
+Plan: 2 of 2 (all plans complete)
 
 ## Shipped Milestones
 
@@ -59,6 +59,7 @@ Plan: 2 of 2
 - [Phase 45]: ActiveMode and USBMode added to JSON schema root properties with ArtifactEntry definition; stubs in FFUUI.Core.Config.psm1 ensure config round-trip; fallback version updated to 1.3
 - [Phase 47-usb-mode-pipeline-entry]: Get-USBDrive (not Get-FFUUSBDrives) is the correct function — returns tuple ($USBDrives, $USBDrivesCount)
 - [Phase 48]: RadioButton GroupName=ActiveMode aligns with config schema field from Phase 45; rbFullBuild IsChecked=True matches FullBuild default
+- [Phase 48-02]: usbModeTab Visibility=Collapsed by default; required artifact CheckBoxes IsChecked=True (FFU, DeployISO); optional CheckBoxes IsChecked=False; all 46 named controls use usb{ArtifactType}{Property} convention for Phase 49 wiring
 
 ### Research Flags for Planning
 
@@ -71,10 +72,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T12:31:28.501Z
-Stopped at: Completed 48-01-PLAN.md
+Last session: 2026-03-24T12:43:00Z
+Stopped at: Completed 48-02-PLAN.md
 Resume file: None
-Next action: `/gsd:discuss-phase 47`
+Next action: Phase 49 — UI Event Wiring
 
 ---
 *State updated: 2026-03-20 — corrected position after phases 45+46 completed (46 shipped 2026-03-14, 45 shipped 2026-03-20)*
