@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 49-01-PLAN.md
-last_updated: "2026-03-24T21:30:45.463Z"
+stopped_at: Completed 49-02-PLAN.md
+last_updated: "2026-03-24T21:36:37.638Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State: FFU Builder
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 49 (ui-event-wiring-and-artifact-integration) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Shipped Milestones
 
@@ -62,6 +62,7 @@ Plan: 2 of 4
 - [Phase 48-02]: usbModeTab Visibility=Collapsed by default; required artifact CheckBoxes IsChecked=True (FFU, DeployISO); optional CheckBoxes IsChecked=False; all 46 named controls use usb{ArtifactType}{Property} convention for Phase 49 wiring
 - [Phase 49]: Typed WPF Brushes/FontStyles used exclusively in Invoke-USBArtifactScan — no bare strings to avoid WPF type conversion failures
 - [Phase 49]: isLoadingConfig flag added to uiState.Flags to guard Invoke-USBArtifactScan from premature scan during config load
+- [Phase 49]: 7 inline browse handlers chosen over shared helper to match established Add_Click pattern; usbDriveObjects parallel array stores drive PSCustomObjects for USB creation time lookup
 
 ### Research Flags for Planning
 
@@ -74,8 +75,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T21:30:45.455Z
-Stopped at: Completed 49-01-PLAN.md
+Last session: 2026-03-24T21:36:37.630Z
+Stopped at: Completed 49-02-PLAN.md
 Resume file: None
 Next action: Phase 49 — UI Event Wiring
 
