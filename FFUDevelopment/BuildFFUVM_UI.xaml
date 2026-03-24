@@ -55,6 +55,7 @@
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -71,8 +72,15 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Mode Toggle: Full Build vs USB from Existing (per D-01, D-06) -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,5,10,5" VerticalAlignment="Center">
+            <TextBlock Text="Mode:" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <RadioButton x:Name="rbFullBuild" Content="Full Build" GroupName="ActiveMode" IsChecked="True" FontSize="14" VerticalAlignment="Center" Margin="0,0,15,0"/>
+            <RadioButton x:Name="rbUSBMode" Content="USB from Existing" GroupName="ActiveMode" FontSize="14" VerticalAlignment="Center"/>
+        </StackPanel>
+
         <!-- TabControl with multiple tabs -->
-        <TabControl x:Name="MainTabControl" TabStripPlacement="Left" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="14" Padding="10" Grid.Row="0">
+        <TabControl x:Name="MainTabControl" TabStripPlacement="Left" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="14" Padding="10" Grid.Row="1">
             <!-- TAB: Home -->
             <TabItem Header="Home" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -83,7 +91,7 @@
             </TabItem>
 
             <!-- TAB: VM Settings (Hypervisor) -->
-            <TabItem Header="VM Settings" Padding="20">
+            <TabItem Header="VM Settings" x:Name="tabVMSettings" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
@@ -220,7 +228,7 @@
             </TabItem>
 
             <!-- TAB: Windows Settings -->
-            <TabItem Header="Windows Settings" Padding="20">
+            <TabItem Header="Windows Settings" x:Name="tabWindowsSettings" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
@@ -298,7 +306,7 @@
             </TabItem>
 
             <!-- TAB: Updates -->
-            <TabItem Header="Updates" Padding="20">
+            <TabItem Header="Updates" x:Name="tabUpdates" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="5">
                         <CheckBox x:Name="chkUpdateLatestCU" Content="Update Latest Cumulative Update" Margin="5" VerticalAlignment="Center" ToolTip="When set to $true, will download and install the latest cumulative update for Windows 10/11. Default is $false."/>
@@ -331,7 +339,7 @@
             </TabItem>
 
             <!-- TAB: Applications -->
-            <TabItem Header="Applications" Padding="20">
+            <TabItem Header="Applications" x:Name="tabApplications" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
@@ -538,7 +546,7 @@
             </TabItem>
 
             <!-- TAB: M365 Apps/Office -->
-            <TabItem Header="M365 Apps/Office" Padding="20">
+            <TabItem Header="M365 Apps/Office" x:Name="tabM365AppsOffice" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
@@ -584,7 +592,7 @@
             </TabItem>
 
             <!-- TAB: Drivers -->
-            <TabItem Header="Drivers" Padding="20">
+            <TabItem Header="Drivers" x:Name="tabDrivers" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
@@ -732,7 +740,7 @@
             </TabItem>
 
             <!-- TAB: Build -->
-            <TabItem Header="Build" Padding="20">
+            <TabItem Header="Build" x:Name="tabBuild" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="10">
                         <!-- Define 10 rows for the Build tab -->
@@ -990,11 +998,11 @@
         </TabControl>
 
         <!-- Progress Bar -->
-        <ProgressBar x:Name="progressBar" Height="20" Margin="0,10,0,0" Grid.Row="1" Visibility="Collapsed"/>
+        <ProgressBar x:Name="progressBar" Height="20" Margin="0,10,0,0" Grid.Row="2" Visibility="Collapsed"/>
         <!-- Status Text -->
-        <TextBlock x:Name="txtStatus" Grid.Row="2" Margin="0,5,0,0"/>
+        <TextBlock x:Name="txtStatus" Grid.Row="3" Margin="0,5,0,0"/>
         <!-- Buttons (Build Config File / Load Config File / Build FFU) -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,20,20">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,20,20">
             <Button x:Name="btnRestoreDefaults" Content="Restore Defaults" Width="150" Margin="0,0,10,0" FontSize="14" Padding="10,5"/>
             <Button x:Name="btnBuildConfig" Content="Save Config File" Width="150" Margin="0,0,10,0" FontSize="14" Padding="10,5"/>
             <Button x:Name="btnLoadConfig" Content="Load Config File" Width="150" Margin="0,0,10,0" FontSize="14" Padding="10,5"/>
