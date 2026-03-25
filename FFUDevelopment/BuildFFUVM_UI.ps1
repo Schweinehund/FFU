@@ -342,10 +342,10 @@ $script:uiState.Controls.btnRun.Add_Click({
                 $lastConfigPath = $script:uiState.Data.lastConfigFilePath
                 if ([string]::IsNullOrWhiteSpace($lastConfigPath)) {
                     WriteLog "No stored config file path found. Cleanup cannot proceed."
-                    $script:uiState.Controls.txtStatus.Text = "Build canceled. No config found for cleanup."
+                    $isUSBMode = $null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked
+                    $script:uiState.Controls.txtStatus.Text = if ($isUSBMode) { 'USB creation canceled. No config found for cleanup.' } else { 'Build canceled. No config found for cleanup.' }
                     $script:uiState.Flags.isBuilding = $false
                     $script:uiState.Flags.isCleanupRunning = $false
-                    $isUSBMode = $null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked
                     $btnRun.Content = if ($isUSBMode) { 'Create USB' } else { 'Build FFU' }
                     $btnRun.IsEnabled = $true
                     return
