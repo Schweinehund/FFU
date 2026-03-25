@@ -209,8 +209,10 @@ Describe 'Phase 49: UI Event Wiring and Artifact Integration' -Tag 'Phase49' {
 
         It 'Should NOT have CopyAppsISO variable in USBOnlyMode block' {
             # Issue #10: CopyAppsISO does not exist in the codebase
+            # Filter out comment lines before checking (comments may reference the variable name)
             $buildScriptContent | Should -Not -BeNullOrEmpty
-            $buildScriptContent | Should -Not -Match '\$CopyAppsISO'
+            $nonCommentLines = ($buildScriptContent -split "`n" | Where-Object { $_ -notmatch '^\s*#' }) -join "`n"
+            $nonCommentLines | Should -Not -Match '\$CopyAppsISO'
         }
 
         It 'Should use -ArgumentList pattern not dollar-sign-using in USB ThreadJob' {
