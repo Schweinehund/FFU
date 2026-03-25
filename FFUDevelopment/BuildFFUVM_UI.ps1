@@ -414,7 +414,7 @@ $script:uiState.Controls.btnRun.Add_Click({
                             if ($null -ne $sender) { $sender.Stop() }
                             $script:uiState.Data.pollTimer = $null
 
-                            $script:uiState.Controls.txtStatus.Text = "Build canceled. Environment cleaned."
+                            $script:uiState.Controls.txtStatus.Text = if ($null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked) { 'USB creation canceled. Environment cleaned.' } else { 'Build canceled. Environment cleaned.' }
                             $script:uiState.Controls.pbOverallProgress.Visibility = 'Collapsed'
                             $script:uiState.Controls.pbOverallProgress.Value = 0
 
@@ -427,7 +427,7 @@ $script:uiState.Controls.btnRun.Add_Click({
                             $script:uiState.Flags.isCleanupRunning = $false
                             $script:uiState.Flags.isBuilding = $false
                             $btn = $script:uiState.Controls.btnRun
-                            $btn.Content = "Build FFU"
+                            $btn.Content = if ($null -ne $script:uiState.Controls.rbUSBMode -and $script:uiState.Controls.rbUSBMode.IsChecked) { 'Create USB' } else { 'Build FFU' }
                             $btn.IsEnabled = $true
                         }
                     })
