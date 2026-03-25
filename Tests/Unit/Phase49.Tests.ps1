@@ -251,6 +251,13 @@ Describe 'Phase 49: UI Event Wiring and Artifact Integration' -Tag 'Phase49' {
             $stateRecoveryContent | Should -Not -Match "btnRun\.Content\s*=\s*[`'`"]Build FFU[`'`"]"
         }
 
+        It 'Should not have hardcoded Build FFU assignment in BuildFFUVM_UI cancel cleanup path' {
+            # BuildFFUVM_UI.ps1 cleanup timer must be mode-aware (not hardcode "Build FFU")
+            # Broad pattern catches all variable forms: $btn.Content, $btnRun.Content, $script:uiState.Controls.btnRun.Content
+            $buildUIContent | Should -Not -BeNullOrEmpty
+            $buildUIContent | Should -Not -Match "\.Content\s*=\s*[`'`"]Build FFU[`'`"]"
+        }
+
         It 'Should contain Create USB label in StateRecovery' {
             $stateRecoveryContent | Should -Not -BeNullOrEmpty
             $stateRecoveryContent | Should -Match 'Create USB'
