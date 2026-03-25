@@ -112,7 +112,7 @@ Plans:
 - [x] 49-02-PLAN.md — Browse handlers, USB drive detection and select-all wiring (DISC-02, USB-02)
 - [x] 49-03-PLAN.md — Config persistence stubs replacement, mode-aware button labels (DISC-03)
 - [x] 49-04-PLAN.md — btnRun USB Mode launch, pre-launch validation, Pester tests (USB-02, USB-03)
-- [ ] 49-05-PLAN.md — Gap closure: cleanup timer mode-aware label fix + regression test
+- [x] 49-05-PLAN.md — Gap closure: cleanup timer mode-aware label fix + regression test (completed 2026-03-25)
 
 ### Phase 50: Selective Rebuild Pipeline
 **Goal**: Users can mark each artifact as reuse, rebuild, or skip, and the pipeline executes only the build phases needed for marked-rebuild artifacts

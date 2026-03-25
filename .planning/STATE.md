@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 49-04-PLAN.md
-last_updated: "2026-03-24T21:46:25.824Z"
+stopped_at: Completed 49-05-PLAN.md
+last_updated: "2026-03-25T03:40:43Z"
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 12
 ---
 
 # Project State: FFU Builder
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 49 (ui-event-wiring-and-artifact-integration) — EXECUTING
-Plan: 4 of 4
+Phase: 49 (ui-event-wiring-and-artifact-integration) — COMPLETE
+Plan: 5 of 5 (all plans complete)
 
 ## Shipped Milestones
 
@@ -66,6 +66,7 @@ Plan: 4 of 4
 - [Phase 49]: Config load ordering: artifact paths loaded BEFORE ActiveMode RadioButton set to prevent premature scan overwriting user paths (Pitfall 5)
 - [Phase 49]: USB Mode branch placed after validation-errors check, before Full Build path, returns to skip Full Build
 - [Phase 49]: DispatcherTimer Tick handler copied verbatim from Full Build for mode-agnostic polling
+- [Phase 49-05]: Pre-build validation "Build canceled" messages (lines 451, 785-879) left as-is — they occur before USB mode is relevant; cancel/cleanup paths (lines 345, 417) made mode-aware
 
 ### Research Flags for Planning
 
@@ -78,10 +79,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T21:46:25.816Z
-Stopped at: Completed 49-04-PLAN.md
+Last session: 2026-03-25T03:40:43Z
+Stopped at: Completed 49-05-PLAN.md
 Resume file: None
-Next action: Phase 49 — UI Event Wiring
+Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
 
 ---
 *State updated: 2026-03-20 — corrected position after phases 45+46 completed (46 shipped 2026-03-14, 45 shipped 2026-03-20)*
