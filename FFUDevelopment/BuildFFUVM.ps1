@@ -1891,50 +1891,71 @@ if ($USBOnlyMode) {
             # Do NOT hand-roll a download loop -- the existing parallel infrastructure handles all OEM providers.
             Import-Module "$PSScriptRoot\FFUUI.Core\FFUUI.Core.psm1" -ErrorAction SilentlyContinue
             $driversToProcess = @()
-            $jsonData = Get-Content -Path $driversJsonPath -Raw | ConvertFrom-Json
-            foreach ($makeEntry in $jsonData.PSObject.Properties) {
-                $makeName = $makeEntry.Name
-                if ($makeEntry.Value.PSObject.Properties['Models']) {
-                    foreach ($modelEntry in $makeEntry.Value.Models) {
-                        $driverItem = [PSCustomObject]@{
-                            Make        = $makeName
-                            Model       = $modelEntry.Name
-                            Link        = if ($modelEntry.PSObject.Properties['Link']) { $modelEntry.Link } else { $null }
-                            ProductName = if ($modelEntry.PSObject.Properties['ProductName']) { $modelEntry.ProductName } else { $null }
-                            MachineType = if ($modelEntry.PSObject.Properties['MachineType']) { $modelEntry.MachineType } else { $null }
-                        }
-                        $driversToProcess += $driverItem
-                    }
-                }
+            # WR-04: guard JSON parse -- malformed file must not terminate USB Mode (matches AppsISO/DeployISO try/catch pattern)
+            try {
+                $jsonData = Get-Content -Path $driversJsonPath -Raw | ConvertFrom-Json
             }
-
-            if ($driversToProcess.Count -eq 0) {
-                WriteLog "WARNING: No driver entries found in $driversJsonPath. Nothing to rebuild."
+            catch {
+                WriteLog "WARNING: Failed to parse drivers JSON at '$driversJsonPath': $($_.Exception.Message). Degrading to Reuse/existing drivers."
                 $rebuildDrivers = $false
             }
-            else {
-                WriteLog "USBOnlyMode: Found $($driversToProcess.Count) driver entries to process from $driversJsonPath."
-                $taskArguments = @{
-                    DriversFolder            = $DriversFolder
-                    WindowsRelease           = $WindowsRelease
-                    WindowsArch              = $WindowsArch
-                    WindowsVersion           = $WindowsVersion
-                    Headers                  = $Headers
-                    UserAgent                = $UserAgent
-                    CompressToWim            = $CompressDownloadedDriversToWim
-                    PreserveSourceOnCompress = ($UseDriversAsPEDrivers -and $CompressDownloadedDriversToWim)
+            if ($rebuildDrivers) {
+                foreach ($makeEntry in $jsonData.PSObject.Properties) {
+                    $makeName = $makeEntry.Name
+                    if ($makeEntry.Value.PSObject.Properties['Models']) {
+                        foreach ($modelEntry in $makeEntry.Value.Models) {
+                            $driverItem = [PSCustomObject]@{
+                                Make        = $makeName
+                                Model       = $modelEntry.Name
+                                Link        = if ($modelEntry.PSObject.Properties['Link']) { $modelEntry.Link } else { $null }
+                                ProductName = if ($modelEntry.PSObject.Properties['ProductName']) { $modelEntry.ProductName } else { $null }
+                                MachineType = if ($modelEntry.PSObject.Properties['MachineType']) { $modelEntry.MachineType } else { $null }
+                            }
+                            $driversToProcess += $driverItem
+                        }
+                    }
                 }
-                $parallelResults = Invoke-ParallelProcessing -ItemsToProcess $driversToProcess `
-                    -TaskType 'DownloadDriverByMake' `
-                    -TaskArguments $taskArguments `
-                    -IdentifierProperty 'Model' `
-                    -WindowObject $null `
-                    -ListViewControl $null `
-                    -MainThreadLogPath $LogFile
-                # Reconcile: rebuilt drivers folder is the canonical source
-                $CopyDrivers = $true
-                WriteLog "USBOnlyMode: Drivers rebuilt into $DriversFolder"
-            }
+
+                if ($driversToProcess.Count -eq 0) {
+                    WriteLog "WARNING: No driver entries found in $driversJsonPath. Nothing to rebuild."
+                    $rebuildDrivers = $false
+                }
+                else {
+                    WriteLog "USBOnlyMode: Found $($driversToProcess.Count) driver entries to process from $driversJsonPath."
+                    $taskArguments = @{
+                        DriversFolder            = $DriversFolder
+                        WindowsRelease           = $WindowsRelease
+                        WindowsArch              = $WindowsArch
+                        WindowsVersion           = $WindowsVersion
+                        Headers                  = $Headers
+                        UserAgent                = $UserAgent
+                        CompressToWim            = $CompressDownloadedDriversToWim
+                        PreserveSourceOnCompress = ($UseDriversAsPEDrivers -and $CompressDownloadedDriversToWim)
+                    }
+                    # CR-03: inspect parallel result before asserting $CopyDrivers (a total failure must not produce a silent empty copy)
+                    $parallelResults = Invoke-ParallelProcessing -ItemsToProcess $driversToProcess `
+                        -TaskType 'DownloadDriverByMake' `
+                        -TaskArguments $taskArguments `
+                        -IdentifierProperty 'Model' `
+                        -WindowObject $null `
+                        -ListViewControl $null `
+                        -MainThreadLogPath $LogFile
+                    $successCount = @($parallelResults | Where-Object { $_ -is [hashtable] -and $_.ResultCode -eq 0 }).Count
+                    $failCount    = $driversToProcess.Count - $successCount
+                    if ($failCount -gt 0) {
+                        WriteLog "WARNING: $failCount of $($driversToProcess.Count) driver download(s) failed."
+                    }
+                    if ($successCount -gt 0) {
+                        # Reconcile: rebuilt drivers folder is the canonical source
+                        $CopyDrivers = $true
+                        WriteLog "USBOnlyMode: $successCount of $($driversToProcess.Count) driver entries rebuilt into $DriversFolder"
+                    }
+                    else {
+                        WriteLog "WARNING: All driver downloads failed. Skipping driver copy to USB."
+                        $rebuildDrivers = $false
+                    }
+                }
+            } # end if ($rebuildDrivers) — JSON-parse guard
         }
     }
 
