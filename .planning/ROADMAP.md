@@ -31,7 +31,7 @@ Phases 1-44 complete. See MILESTONES.md for details.
 - [x] **Phase 47: USB Mode Pipeline Entry** - Add `-USBOnlyMode` switch and artifact manifest reading block to BuildFFUVM.ps1 (completed 2026-03-20)
 - [x] **Phase 48: XAML Mode Toggle and USB Tab** - Add mode toggle RadioButton group and USB Mode TabItem to BuildFFUVM_UI.xaml (completed 2026-03-24)
 - [x] **Phase 49: UI Event Wiring and Artifact Integration** - Wire scanner into UI with browse dialogs, per-artifact controls, and USB drive selection (completed 2026-03-24)
-- [ ] **Phase 50: Selective Rebuild Pipeline** - User-controlled per-artifact rebuild disposition with selective phase execution
+- [x] **Phase 50: Selective Rebuild Pipeline** - User-controlled per-artifact rebuild disposition with selective phase execution (completed 2026-06-22)
 
 ## Phase Details
 
@@ -164,7 +164,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 50-06-PLAN.md — Version bumps + CHANGELOG + BLOCKING verify-app/manual sign-off (REBUILD-01/02/03)
+- [x] 50-06-PLAN.md — Version bumps + CHANGELOG + BLOCKING verify-app/manual sign-off (REBUILD-01/02/03)
 
 ## Progress
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/5 | Gap closure   | 2026-03-24 |
-| 50. Selective Rebuild Pipeline | v1.11.0 | 5/6 | In Progress|  |
+| 50. Selective Rebuild Pipeline | v1.11.0 | 6/6 | Complete   | 2026-06-22 |
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*
