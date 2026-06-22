@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-last_updated: "2026-06-22T13:09:38.607Z"
+last_updated: "2026-06-22T13:21:42.002Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 18
-  completed_plans: 12
-  percent: 67
+  completed_plans: 13
+  percent: 72
 ---
 
 # Project State: FFU Builder
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 49 — ui-event-wiring-and-artifact-integration
+**Current focus:** Phase 50 — selective-rebuild-pipeline
 
 ## Current Position
 
-Phase: 49 (ui-event-wiring-and-artifact-integration) — COMPLETE
-Plan: 5 of 5 (all plans complete)
+Phase: 50 (selective-rebuild-pipeline) — EXECUTING
+Plan: 2 of 6
 
 ## Shipped Milestones
 
@@ -79,10 +79,16 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22T12:34:03.148Z
+Last session: 2026-06-22T13:21:41.985Z
 Stopped at: Phase 50 UI-SPEC approved
-Resume file: .planning/phases/50-selective-rebuild-pipeline/50-UI-SPEC.md
+Resume file: None
 Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
 
 ---
 *State updated: 2026-03-20 — corrected position after phases 45+46 completed (46 shipped 2026-03-14, 45 shipped 2026-03-20)*
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 50 P01 | 720 | 3 tasks | 4 files |
