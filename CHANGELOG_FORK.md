@@ -8,6 +8,90 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.11.0] - 2026-06-22
+
+### Phase 50: Selective Rebuild Pipeline (REBUILD-01/02/03)
+
+Implements the Selective Rebuild Pipeline for USB Mode, allowing users to control exactly which artifacts are rebuilt versus reused when creating deployment USB drives. Instead of always rebuilding all artifacts from scratch, users can selectively mark individual artifacts as Reuse, Rebuild, or Skip — enabling fast iteration when only one component (e.g., Drivers) has changed.
+
+#### Changes
+
+- **REBUILD-01: Per-artifact disposition ComboBox** — Replaces the binary include checkbox on each USB Mode artifact card with a disposition ComboBox. Item sets are tier-appropriate per artifact type:
+  - FFU card: single disabled "Reuse" item + helper text ("To rebuild the OS image, switch to Full Build")
+  - WinPE Deploy ISO: Reuse / Rebuild (no Skip — required artifact)
+  - Drivers and Applications ISO: Reuse / Rebuild / Skip (full control)
+  - Provisioning Package, Unattend.xml, Autopilot Profile: Reuse / Skip
+- **REBUILD-02: Selective per-phase rebuild execution** — `New-DeploymentUSB` reads each artifact's Disposition from config and executes only the rebuild phases that are marked Rebuild. Drivers rebuild reuses `Invoke-ParallelProcessing` with the `DownloadDriverByMake` action; AppsISO rebuild copies the ISO from the Apps ISO path; DeployISO rebuild recreates WinPE media. Reused artifacts are copied from their source paths without rebuilding. Rebuilt and reused artifacts combine into the final USB.
+- **REBUILD-03: 4-status artifact scanner UI + Disposition config round-trip**
+  - `Invoke-USBArtifactScan` renders four status states: Found (Green), Degraded/zero-byte (DarkOrange with warning TextBlock), Error (Red), Missing (Gray)
+  - `Build-UIConfiguration` reads `usb{Type}Disposition` ComboBox `SelectedItem.Tag` for all 7 artifact types and persists to config
+  - `Update-UIFromConfig` restores Disposition by `ComboBoxItem.Tag` match; `PSObject.Properties.Match('Disposition')` guard provides backward-compatibility with pre-Phase-50 configs
+  - `Include` field completely removed from USB artifact save/restore (D-01)
+  - `isLoadingConfig` flag prevents `SelectionChanged` from triggering premature scans during config load (Pitfall 3)
+
+#### Testing
+
+- `Tests/Unit/SelectiveRebuild.Tests.ps1` — 30 Pester tests for BuildFFUVM.ps1 Disposition-driven copy gate
+- `Tests/Unit/USBOnlyMode.Tests.ps1` — 77 Pester tests for New-DeploymentUSB pipeline
+- `Tests/Unit/FFUUI.Core.Handlers.Tests.ps1` — 52 Pester tests for Invoke-USBArtifactScan (4-status rendering)
+- `Tests/Unit/FFUUI.Core.ConfigValidation.Tests.ps1` — 53 Pester tests for Build-UIConfiguration disposition round-trip
+- `Tests/Unit/FFU.ArtifactScanner.Tests.ps1` — 63 Pester tests for artifact discovery and metadata
+- All 275 Phase 50 tests pass (0 failures)
+
+#### Files Modified
+
+- `FFUDevelopment/BuildFFUVM.ps1` — Disposition-driven copy gate in USB Mode path
+- `FFUDevelopment/BuildFFUVM_UI.ps1` — 7 disposition ComboBoxes in USB Mode tab
+- `FFUDevelopment/BuildFFUVM_UI.xaml` — XAML markup for disposition ComboBox controls
+- `FFUDevelopment/FFUUI.Core/FFUUI.Core.Handlers.psm1` — Invoke-USBArtifactScan 4-status rendering
+- `FFUDevelopment/FFUUI.Core/FFUUI.Core.Config.psm1` — Build-UIConfiguration + Update-UIFromConfig disposition round-trip
+- `FFUDevelopment/FFUUI.Core/FFUUI.Core.psd1` (v0.0.21 with Phase 50 release notes)
+- `FFUDevelopment/version.json` (1.10.3 → 1.11.0)
+
+#### Requirements Closed
+
+- REBUILD-01: Per-artifact Reuse/Rebuild/Skip disposition control
+- REBUILD-02: Selective per-phase rebuild execution from cold USB-Mode start
+- REBUILD-03: Combined rebuilt + reused artifact assembly into final USB
+
+#### Main version
+
+- **Main version:** 1.10.3 → 1.11.0 (MINOR — new user-facing Selective Rebuild Pipeline feature)
+
+---
+
+## [1.10.2] - 2026-06-21
+
+### Upstream Sync — High-Impact Bug-Fix Bundle
+
+Ported self-contained, high-impact fixes from upstream `rbalsleyMSFT/FFU` (branch `UI`) identified in the 2026-06-21 upstream sync audit (`.planning/reports/upstream-sync-audit-2026-06-21.md`). Larger upstream items (Windows SKU refresh-after-fallback `5aaa1ad`, SerialNumber→UniqueId migration `417be73`, deploy-time 8-OEM detection `d6688de`, LTSC driver normalization `04dfb5f`, ADK BCDBoot `6c0ee8a`, Win10 LTSC in-VM CU `42b0b0c`) were deferred to dedicated phases because they are multi-file refactors and/or config-breaking.
+
+#### Changes
+
+- **MSI path quoting (upstream `2a77cf1`):** Added `Format-MsiArguments` to `Apps/Orchestration/Install-Win32Apps.ps1`. Auto-quotes unquoted `/i <path>.msi` paths in msiexec arguments so Win32 MSI apps with spaces in their path install reliably. Invoked in `Install-Applications` before process dispatch.
+- **Disk size in VHDX cache validation (upstream `96603f0`):** Added `[uint64]$Disksize` to `VhdxCacheItem`; cache lookup now rejects a cached VHDX when the requested `Disksize` differs (or is missing/invalid in the cached config), and the save path persists `Disksize`. Prevents silently reusing a wrongly-sized cached image.
+- **Defender Windows Security Platform delay (upstream `c6088d9`):** Seed the in-VM Defender update command with `Start-Sleep -Seconds 30` to let AppxSVC / Windows Security Platform finish installing in audit mode before applying Defender updates (prevents intermittent failures).
+- **USB detection hardening (upstream `6df32b6`, `63ef35a`):** Replaced deprecated `Get-WmiObject -Class Win32_DiskDrive` with `Get-CimInstance -ClassName Win32_DiskDrive` in `Get-USBDrive`; changed the no-drive guard from `$null -eq $USBDrives` to `$USBDrives.Count -eq 0` so an empty (but non-null) array is correctly treated as "no USB drive found".
+
+#### Testing
+
+- New `Tests/Unit/Upstream.SyncPorts.Tests.ps1` — 15 Pester tests (AST extraction for `Format-MsiArguments` behavior + content verification for the BuildFFUVM.ps1 changes). All pass.
+- Modified files parse clean; no new PSScriptAnalyzer **Error**-severity findings.
+
+#### Files Modified
+
+- `FFUDevelopment/Apps/Orchestration/Install-Win32Apps.ps1`
+- `FFUDevelopment/BuildFFUVM.ps1`
+- `FFUDevelopment/version.json` (1.10.1 → 1.10.2)
+- `Tests/Unit/Upstream.SyncPorts.Tests.ps1` (new)
+- `.planning/reports/upstream-sync-audit-2026-06-21.md` (new — full backlog)
+
+#### Main version
+
+- **Main version:** 1.10.1 → 1.10.2 (PATCH — bug-fix ports)
+
+---
+
 ## [1.10.1] - 2026-03-14
 
 ### Phase 46-01: FFU.ArtifactScanner Module - Data Contract and Get-ArtifactMetadata
