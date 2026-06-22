@@ -163,7 +163,8 @@ function Get-UIConfig {
         WindowsVersion                 = $State.Controls.cmbWindowsVersion.SelectedItem
     }
 
-    # USB Mode fields (D-22, D-29) -- write ActiveMode, user-browsed artifact paths, and include flags
+    # USB Mode fields (Phase 50, D-01) -- write ActiveMode, user-browsed artifact paths, and Disposition from ComboBox
+    # Include field removed -- Disposition is the canonical schema field (D-01)
     $config.ActiveMode = if ($null -ne $State.Controls.rbUSBMode -and $State.Controls.rbUSBMode.IsChecked) { 'USBMode' } else { 'FullBuild' }
     $config.USBMode = @{
         Artifacts = @{}
@@ -174,16 +175,20 @@ function Get-UIConfig {
         if ($null -ne $artState -and $artState.source -eq 'user' -and -not [string]::IsNullOrWhiteSpace($artState.path)) {
             $pathToSave = $artState.path
         }
-        # Read include checkbox state (D-29) -- Plan 04 reads these at ThreadJob launch
-        $includeCtrlName = "usb${artifactType}Include"
-        $includeChecked = $true  # default to included
-        if ($null -ne $State.Controls[$includeCtrlName]) {
-            $includeChecked = [bool]$State.Controls[$includeCtrlName].IsChecked
+        # Read Disposition from ComboBox SelectedItem.Tag (Phase 50 -- replaces Include checkbox, D-01)
+        # Default is 'Reuse' when control absent or has no selected item.
+        $dispCtrlName = "usb${artifactType}Disposition"
+        $disposition  = if ($null -ne $State.Controls[$dispCtrlName] -and
+                            $null -ne $State.Controls[$dispCtrlName].SelectedItem) {
+            $State.Controls[$dispCtrlName].SelectedItem.Tag
+        }
+        else {
+            'Reuse'
         }
         $config.USBMode.Artifacts[$artifactType] = @{
             Path        = $pathToSave
-            Disposition = 'Reuse'
-            Include     = $includeChecked
+            Disposition = $disposition
+            # Include field removed -- Disposition is canonical (D-01)
         }
     }
 
@@ -654,11 +659,20 @@ function Update-UIFromConfig {
                 }
                 WriteLog "LoadConfig: Restored user-overridden path for $key = '$($entry.Path)'."
             }
-            # Restore include checkbox state (D-29)
-            if ($null -ne $entry -and $entry.PSObject.Properties.Match('Include').Count -gt 0) {
-                $includeCtrlName = "usb${key}Include"
-                if ($null -ne $State.Controls[$includeCtrlName]) {
-                    $State.Controls[$includeCtrlName].IsChecked = [bool]$entry.Include
+            # Restore Disposition ComboBox state (Phase 50, plan 50-03 -- replaces Include checkbox restore, D-01)
+            # Mirrors cmbVMwareNicType Tag-based restore pattern (Config.psm1 lines 621-636).
+            # Executes within isLoadingConfig=$true window -- SelectionChanged handler short-circuits (Pitfall 3).
+            if ($null -ne $entry -and $entry.PSObject.Properties.Match('Disposition').Count -gt 0) {
+                $dispCtrlName = "usb${key}Disposition"
+                if ($null -ne $State.Controls[$dispCtrlName]) {
+                    $targetDisp = $entry.Disposition
+                    foreach ($item in $State.Controls[$dispCtrlName].Items) {
+                        if ($item -is [System.Windows.Controls.ComboBoxItem] -and $item.Tag -eq $targetDisp) {
+                            $State.Controls[$dispCtrlName].SelectedItem = $item
+                            WriteLog "LoadConfig: Set usb${key}Disposition to '$targetDisp'."
+                            break
+                        }
+                    }
                 }
             }
         }
@@ -1645,6 +1659,71 @@ function Import-ConfigSupplementalAssets {
     }
 
     WriteLog ("SupplementalImport: Complete. Winget={0} BYO={1} Drivers={2} Missing={3}" -f $loadedWinget, $loadedBYO, $loadedDrivers, $missing.Count)
+}
+
+function Build-UIConfiguration {
+    <#
+    .SYNOPSIS
+        Builds the USB Mode artifact configuration entries from current UI control state.
+    .DESCRIPTION
+        Returns a PSCustomObject with ActiveMode and USBMode.Artifacts keyed by artifact type.
+        Each artifact entry contains Path (user-browsed or $null) and Disposition (read from
+        usb{Type}Disposition ComboBox SelectedItem.Tag). Include field is not written (D-01).
+        Phase 50 (plan 50-03): replaces the Include/hardcoded-Reuse write with ComboBox Tag read.
+        Called by the pipeline (plans 50-04/05) to get per-artifact disposition at build time.
+    .PARAMETER State
+        The UI state object containing Controls (usb{Type}Disposition, rbUSBMode) and
+        Data (usbArtifactState).
+    .OUTPUTS
+        PSCustomObject with .USBMode.Artifacts hashtable.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [psobject]$State
+    )
+
+    $activeMode = if ($null -ne $State.Controls.rbUSBMode -and $State.Controls.rbUSBMode.IsChecked) {
+        'USBMode'
+    }
+    else {
+        'FullBuild'
+    }
+
+    $artifacts = @{}
+    foreach ($artifactType in @('FFU', 'DeployISO', 'Drivers', 'PPKG', 'Unattend', 'Autopilot', 'AppsISO')) {
+        $artState = $null
+        if ($null -ne $State.Data -and $null -ne $State.Data.usbArtifactState) {
+            $artState = $State.Data.usbArtifactState[$artifactType]
+        }
+        $pathToSave = $null
+        if ($null -ne $artState -and $artState.source -eq 'user' -and -not [string]::IsNullOrWhiteSpace($artState.path)) {
+            $pathToSave = $artState.path
+        }
+        # Read Disposition from ComboBox SelectedItem.Tag (Phase 50 -- replaces Include checkbox, D-01)
+        # Default is 'Reuse' when control absent or has no selected item.
+        $dispCtrlName = "usb${artifactType}Disposition"
+        $disposition  = if ($null -ne $State.Controls[$dispCtrlName] -and
+                            $null -ne $State.Controls[$dispCtrlName].SelectedItem) {
+            $State.Controls[$dispCtrlName].SelectedItem.Tag
+        }
+        else {
+            'Reuse'
+        }
+        $artifacts[$artifactType] = @{
+            Path        = $pathToSave
+            Disposition = $disposition
+            # Include field removed -- Disposition is canonical (D-01)
+        }
+    }
+
+    WriteLog "Build-UIConfiguration: ActiveMode=$activeMode; Disposition snapshot built for 7 artifact types."
+
+    [PSCustomObject]@{
+        ActiveMode = $activeMode
+        USBMode    = [PSCustomObject]@{
+            Artifacts = $artifacts
+        }
+    }
 }
 
 Export-ModuleMember -Function *

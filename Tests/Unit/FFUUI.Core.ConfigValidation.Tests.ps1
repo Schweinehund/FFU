@@ -443,7 +443,8 @@ Describe 'FFUUI.Core.Config — Phase 50 Disposition round-trip (Wave-0 RED)' -T
 
         It 'Source does NOT write Include key to USB artifact entry (D-01 removes Include)' {
             # Wave-0 RED: Include key still written alongside Disposition until plan 50-02
-            $script:configContent50 | Should -Not -Match "Include\s*=\s*\$includeChecked"
+            # Single-quoted pattern: $includeChecked is a regex literal, not a PS variable
+            $script:configContent50 | Should -Not -Match 'Include\s*=\s*\$includeChecked'
         }
 
         It 'Source does NOT read includeChecked from CheckBox IsChecked for USB artifacts' {

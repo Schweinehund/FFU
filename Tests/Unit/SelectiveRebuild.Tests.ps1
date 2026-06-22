@@ -205,7 +205,8 @@ Describe 'Disposition Config Round-Trip' -Tag 'Unit', 'SelectiveRebuild', 'REBUI
 
         It 'Config module source does NOT write Include key for USB artifacts (D-01 removes Include)' {
             # Wave-0 RED: Include key still present until plan 50-02
-            $script:configContent | Should -Not -Match "Include\s*=\s*\$includeChecked"
+            # Single-quoted pattern: $includeChecked is a regex literal, not a PS variable
+            $script:configContent | Should -Not -Match 'Include\s*=\s*\$includeChecked'
         }
 
         It 'Config module source references usb{Type}Disposition control name for ComboBox read' {
