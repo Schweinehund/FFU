@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-last_updated: "2026-06-22T14:27:46.505Z"
+last_updated: "2026-06-22T14:47:30.432Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 83
 ---
 
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 50 (selective-rebuild-pipeline) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 
 ## Shipped Milestones
 
@@ -67,6 +67,7 @@ Plan: 5 of 6
 - [Phase 49]: USB Mode branch placed after validation-errors check, before Full Build path, returns to skip Full Build
 - [Phase 49]: DispatcherTimer Tick handler copied verbatim from Full Build for mode-agnostic polling
 - [Phase 49-05]: Pre-build validation "Build canceled" messages (lines 451, 785-879) left as-is — they occur before USB mode is relevant; cancel/cleanup paths (lines 345, 417) made mode-aware
+- [Phase ?]: Phase 50-05: Rebuild execution block placed before ISO mount check;  reads configData directly for early placement before Step 4; Invoke-ParallelProcessing DownloadDriverByMake reused for Drivers rebuild (no new loop)
 
 ### Research Flags for Planning
 
@@ -79,8 +80,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22T14:27:46.486Z
-Stopped at: Phase 50 UI-SPEC approved
+Last session: 2026-06-22T14:47:30.417Z
+Stopped at: Completed 50-05-PLAN.md
 Resume file: None
 Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
 
@@ -93,3 +94,4 @@ Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
 |-------|------|----------|-------|
 | Phase 50 P01 | 720 | 3 tasks | 4 files |
 | Phase 50 P03 | 15 | 2 tasks | 5 files |
+| Phase 50 P05 | 876 | 2 tasks | 2 files |
