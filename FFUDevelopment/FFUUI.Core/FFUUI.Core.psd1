@@ -122,13 +122,23 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
-v0.0.21: Phase 50-03 - Disposition config round-trip in FFUUI.Core.Config
-- Build-UIConfiguration: reads usb{Type}Disposition ComboBox SelectedItem.Tag per artifact
-- Added Build-UIConfiguration as dedicated exported function for pipeline callers (plan 50-04)
-- Update-UIFromConfig: restores Disposition by ComboBoxItem.Tag match (mirrors cmbVMwareNicType)
-- PSObject.Properties.Match('Disposition') guards backward-compat with old configs
-- Include field completely removed from USB artifact save/restore (D-01)
-- isLoadingConfig guard covers Disposition restore to prevent SelectionChanged corruption (Pitfall 3)
+v0.0.21: Phase 50 Selective Rebuild Pipeline (REBUILD-01/02/03)
+- REBUILD-01: Per-artifact disposition ComboBox (Reuse/Rebuild/Skip) replacing include checkbox
+  - 7 artifact cards each have a disposition ComboBox with tier-appropriate item sets
+  - FFU card: single disabled "Reuse" item + helper text (requires Full Build to rebuild OS)
+  - WinPE Deploy ISO: Reuse/Rebuild (no Skip — required artifact)
+  - Drivers/Applications ISO: Reuse/Rebuild/Skip (full control)
+  - Provisioning Package, Unattend.xml, Autopilot Profile: Reuse/Skip
+- REBUILD-02: 4-status artifact scanner rendering (Found/Degraded/Error/Missing)
+  - Found: Green; Degraded: DarkOrange with warning TextBlock; Error: Red; Missing: Gray
+  - Invoke-USBArtifactScan wired to SelectionChanged + browse-confirm events
+- REBUILD-03: Disposition config round-trip and pipeline integration
+  - Build-UIConfiguration: reads usb{Type}Disposition ComboBox SelectedItem.Tag per artifact
+  - Update-UIFromConfig: restores Disposition by ComboBoxItem.Tag match
+  - PSObject.Properties.Match('Disposition') guards backward-compat with old configs
+  - Include field completely removed from USB artifact save/restore (D-01)
+  - isLoadingConfig guard prevents SelectionChanged corruption during restore (Pitfall 3)
+  - Build-UIConfiguration exported as dedicated function for pipeline callers (plan 50-04)
 
 v0.0.20: BUG-WINGET-02 - Winget Source package registration for elevated admin
 - Fixed: Install-WingetComponents now also registers Microsoft.Winget.Source package
