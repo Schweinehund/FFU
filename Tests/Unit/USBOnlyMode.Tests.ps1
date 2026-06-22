@@ -257,4 +257,51 @@ Describe 'BuildFFUVM.ps1 USBOnlyMode' {
             $rebuildIdx | Should -BeLessThan $gateIdx -Because 'rebuild execution block must precede the Disposition gate'
         }
     }
+
+    Context "Rebuild copy-flag finalization (CR-01/CR-02 regression)" -Tag 'Phase50', 'SelectiveRebuild', 'CR-01', 'CR-02' {
+        # Regression assertions proving the Disposition gate 'Rebuild' case finalizes copy flags
+        # (not a log-only no-op), and does so gated by the per-type rebuild success flag.
+        # These assertions verify fix for the data-flow bug where Step 5 manifest-based init
+        # clobbers $CopyDrivers/$CopyAppsISO after the rebuild execution block sets them to $true.
+
+        It "Disposition gate 'Rebuild' case sets \$CopyDrivers = \$true gated by \$rebuildDrivers" {
+            # Assert the source contains $CopyDrivers = $true inside a block that tests $rebuildDrivers
+            $scriptContent | Should -Match '\$rebuildDrivers\s*\)\s*\{[^}]*\$CopyDrivers\s*=\s*\$true'
+        }
+
+        It "Disposition gate 'Rebuild' case sets \$CopyAppsISO = \$true gated by \$rebuildAppsISO" {
+            # Assert the source contains $CopyAppsISO = $true inside a block that tests $rebuildAppsISO
+            $scriptContent | Should -Match '\$rebuildAppsISO\s*\)\s*\{[^}]*\$CopyAppsISO\s*=\s*\$true'
+        }
+
+        It "Disposition gate 'Rebuild' case sets \$AppsISOPath = \$AppsISO when rebuild succeeded" {
+            # Assert $AppsISOPath is reassigned to $AppsISO in the Rebuild branch
+            $scriptContent | Should -Match '\$AppsISOPath\s*=\s*\$AppsISO'
+        }
+
+        It "Disposition gate 'Rebuild' case is not a log-only no-op (contains per-type switch)" {
+            # Before the fix, the 'Rebuild' case body was a single WriteLog with no assignment.
+            # After the fix it contains a nested switch ($dType) with copy-flag assignments.
+            # Assert that a nested switch inside the 'Rebuild' case body exists.
+            $rebuildCaseIdx = $scriptContent.IndexOf("'Rebuild' {")
+            $rebuildCaseIdx | Should -BeGreaterOrEqual 0 -Because "'Rebuild' case must exist in Disposition gate"
+            # The text following the 'Rebuild' case opening must contain 'switch ($dType)'
+            $afterRebuild = $scriptContent.Substring($rebuildCaseIdx)
+            # Find the first occurrence of a nested switch immediately after the Rebuild case
+            $afterRebuild | Should -Match 'switch\s*\(\$dType\)'
+        }
+
+        It "Disposition gate 'Rebuild' Drivers branch re-asserts \$CopyDrivers AFTER Step 5 init" {
+            # Step 5 init sets $CopyDrivers from manifest (which is pre-rebuild state).
+            # The Disposition gate runs after Step 5, so its Rebuild branch is the final word.
+            # Assert the ordering: Step 5 init ($CopyDrivers = ($manifest...)) appears BEFORE
+            # the Disposition gate ($dispositionCheckTypes = @(...)).
+            # Use the assignment forms to avoid matching comment-only occurrences.
+            $step5Idx  = $scriptContent.IndexOf('$CopyDrivers = ($manifest.Drivers.Status')
+            $gateIdx   = $scriptContent.IndexOf('$dispositionCheckTypes = @(')
+            $step5Idx  | Should -BeGreaterOrEqual 0 -Because 'Step 5 manifest-based CopyDrivers init must exist'
+            $gateIdx   | Should -BeGreaterOrEqual 0 -Because 'Disposition gate assignment must exist'
+            $step5Idx  | Should -BeLessThan $gateIdx -Because 'Step 5 manifest init (clobber) precedes Disposition gate (fix)'
+        }
+    }
 }
