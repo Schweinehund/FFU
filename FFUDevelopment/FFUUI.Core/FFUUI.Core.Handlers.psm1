@@ -1436,6 +1436,92 @@ function Register-EventHandlers {
         })
 
     # --------------------------------------------------------------------------
+    # SECTION: USB Mode — Disposition ComboBox SelectionChanged Handlers (Phase 50)
+    # --------------------------------------------------------------------------
+    # Each handler mirrors the cmbBitsPriority idiom:
+    #   1. Retrieve $localState via Window.Tag (never closure-capture $State)
+    #   2. Guard: return if isLoadingConfig (Pitfall 3 — prevents config-load writes)
+    #   3. Guard: return if AddedItems.Count -eq 0
+    #   4. Write SelectedItem.Tag to usbArtifactState[Type].disposition
+
+    # FFU disposition — IsEnabled=False in XAML; handler fires only during programmatic load; isLoadingConfig guard suppresses writes
+    $State.Controls.usbFFUDisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['FFU'].disposition = $selectedTag
+    })
+
+    # DeployISO disposition — ENABLED (required-buildable per BLOCKER-3); fires on genuine user Reuse/Rebuild selection
+    $State.Controls.usbDeployISODisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['DeployISO'].disposition = $selectedTag
+    })
+
+    # Drivers disposition — enabled by scan when Found/Degraded
+    $State.Controls.usbDriversDisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['Drivers'].disposition = $selectedTag
+    })
+
+    # AppsISO disposition — enabled by scan when Found/Degraded
+    $State.Controls.usbAppsISODisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['AppsISO'].disposition = $selectedTag
+    })
+
+    # PPKG disposition — enabled by scan when Found/Degraded
+    $State.Controls.usbPPKGDisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['PPKG'].disposition = $selectedTag
+    })
+
+    # Unattend disposition — enabled by scan when Found/Degraded
+    $State.Controls.usbUnattendDisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['Unattend'].disposition = $selectedTag
+    })
+
+    # Autopilot disposition — enabled by scan when Found/Degraded
+    $State.Controls.usbAutopilotDisposition.Add_SelectionChanged({
+        param($eventSource, $selectionChangedEventArgs)
+        $window = [System.Windows.Window]::GetWindow($eventSource)
+        $localState = $window.Tag
+        if ($localState.Flags.isLoadingConfig) { return }
+        if ($selectionChangedEventArgs.AddedItems.Count -eq 0) { return }
+        $selectedTag = $eventSource.SelectedItem.Tag
+        $localState.Data.usbArtifactState['Autopilot'].disposition = $selectedTag
+    })
+
+    # --------------------------------------------------------------------------
     # SECTION: USB Mode — Browse Button Handlers (DISC-02)
     # --------------------------------------------------------------------------
     # Each handler opens a type-specific dialog, updates usbArtifactState with

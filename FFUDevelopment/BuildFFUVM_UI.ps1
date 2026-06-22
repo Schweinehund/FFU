@@ -70,13 +70,13 @@ $script:uiState = [PSCustomObject]@{
         configValidationResult      = $null;   # REL-UI-05: Stores validation result from config loading
         hasValidationErrors         = $false;  # REL-UI-05: Quick flag for build-time check
         usbArtifactState            = @{
-            FFU       = [PSCustomObject]@{ path = $null; source = 'auto' }
-            DeployISO = [PSCustomObject]@{ path = $null; source = 'auto' }
-            Drivers   = [PSCustomObject]@{ path = $null; source = 'auto' }
-            PPKG      = [PSCustomObject]@{ path = $null; source = 'auto' }
-            Unattend  = [PSCustomObject]@{ path = $null; source = 'auto' }
-            Autopilot = [PSCustomObject]@{ path = $null; source = 'auto' }
-            AppsISO   = [PSCustomObject]@{ path = $null; source = 'auto' }
+            FFU       = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
+            DeployISO = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
+            Drivers   = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
+            PPKG      = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
+            Unattend  = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
+            Autopilot = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
+            AppsISO   = [PSCustomObject]@{ path = $null; source = 'auto'; disposition = 'Reuse' }
         }
         usbDriveObjects             = @()    # Drive objects from USB Mode tab (parallel to usbUSBDriveList display strings)
     };
