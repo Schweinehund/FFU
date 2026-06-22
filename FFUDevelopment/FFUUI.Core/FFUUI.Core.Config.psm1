@@ -669,6 +669,12 @@ function Update-UIFromConfig {
                     foreach ($item in $State.Controls[$dispCtrlName].Items) {
                         if ($item -is [System.Windows.Controls.ComboBoxItem] -and $item.Tag -eq $targetDisp) {
                             $State.Controls[$dispCtrlName].SelectedItem = $item
+                            # WR-02: also sync in-memory state -- SelectionChanged is suppressed by isLoadingConfig=$true,
+                            # so usbArtifactState[type].disposition would remain at its default 'Reuse' without this line.
+                            if ($null -ne $State.Data.usbArtifactState -and
+                                $null -ne $State.Data.usbArtifactState[$key]) {
+                                $State.Data.usbArtifactState[$key].disposition = $targetDisp
+                            }
                             WriteLog "LoadConfig: Set usb${key}Disposition to '$targetDisp'."
                             break
                         }
