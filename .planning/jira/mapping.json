@@ -2,93 +2,91 @@
   "cloudId": "a04fcb6a-ae5a-4f81-95e7-83941226b47b",
   "projectKey": "RTS",
   "epicIssueTypeId": "10000",
+  "phaseIssueType": "Story",
+  "assigneeAccountId": "712020:70012a54-aa0a-46d8-bf7a-4b5eab5925bb",
   "requiredFields": {
     "duedate": "YYYY-MM-DD (system field)",
     "customfield_10553": "Epic start date (YYYY-MM-DD)",
     "customfield_10224": "Account ID - integer only (4=New Dev, 5=Maintenance, 6=Small)"
   },
   "transitions": {
+    "toDo": { "id": "2", "name": "To Do" },
+    "inProgress": { "id": "31", "name": "In Progress" },
     "done": { "id": "41", "name": "Done" },
     "canceled": { "id": "7", "name": "Canceled" },
-    "inProgress": { "id": "31", "name": "In Progress" },
-    "toDo": { "id": "2", "name": "To Do" },
     "backlog": { "id": "11", "name": "Backlog" }
   },
   "milestones": {
     "v1.0.x": {
       "epicKey": "RTS-75",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.0.x - Foundation & Initial Release",
       "shipped": "2025-12-04"
     },
     "v1.1.0": {
       "epicKey": "RTS-76",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.1.0 - Parallel Windows Update Downloads",
       "shipped": "2025-12-08"
     },
     "v1.2.x": {
       "epicKey": "RTS-77",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.2.x - Centralized Versioning",
       "shipped": "2025-12-10"
     },
     "v1.3.x": {
       "epicKey": "RTS-78",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.3.x - WinPE & WimMount Improvements",
       "shipped": "2025-12-17"
     },
     "v1.4.0": {
       "epicKey": "RTS-79",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.4.0 - FFU.Hypervisor Module",
       "shipped": "2026-01-06"
     },
     "v1.5.0": {
       "epicKey": "RTS-80",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.5.0 - Full VMware Provider",
       "shipped": "2026-01-07"
     },
     "v1.6.0": {
       "epicKey": "RTS-81",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.6.0 - VMware UI Integration",
       "shipped": "2026-01-07"
     },
     "v1.8.0": {
       "epicKey": "RTS-82",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.8.0 - Codebase Health Initiative",
       "shipped": "2026-01-20"
     },
     "v1.8.1": {
       "epicKey": "RTS-97",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.8.1 Bug Fixes",
       "shipped": "2026-01-20"
     },
     "v1.8.3": {
       "epicKey": "RTS-101",
-      "status": "Done",
+      "status": "completed",
       "summary": "Phase 14: VMware UI Settings",
       "shipped": "2026-01-21",
-      "stories": [
-        {
-          "key": "RTS-103",
-          "summary": "Plan 14-02: Config migration schema v1.1 → v1.2",
-          "status": "Done"
-        }
-      ]
+      "phases": {
+        "14": { "issueKey": "RTS-103", "status": "done", "name": "Plan 14-02: Config migration schema v1.1 -> v1.2" }
+      }
     },
     "v1.9.0": {
       "epicKey": "RTS-105",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.9.0 - Reliability Hardening",
       "created": "2026-01-23",
       "shipped": "2026-01-24",
-      "phases": "15-25",
+      "phaseRange": "15-25",
       "requirements": 44,
       "deliverables": {
         "truthsVerified": 54,
@@ -101,11 +99,11 @@
     },
     "v1.9.1": {
       "epicKey": "RTS-106",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.9.1 - Build Phase Integration",
       "created": "2026-01-24",
       "shipped": "2026-01-24",
-      "phases": "26",
+      "phaseRange": "26",
       "requirements": 4,
       "deliverables": {
         "buildPhaseWrappers": 9,
@@ -118,11 +116,11 @@
     },
     "v1.9.2": {
       "epicKey": "RTS-107",
-      "status": "Done",
+      "status": "completed",
       "summary": "FFU Builder v1.9.2 - Smart Configuration & Bug Fixes",
       "created": "2026-01-25",
       "shipped": "2026-01-25",
-      "phases": "27-30",
+      "phaseRange": "27-30",
       "requirements": 13,
       "deliverables": {
         "bugFixes": 5,
@@ -132,8 +130,46 @@
         "commits": 47,
         "filesModified": 50
       }
+    },
+    "v1.9.3": {
+      "epicKey": "RTS-108",
+      "status": "completed",
+      "summary": "FFU Builder v1.9.3 - OEM Driver Bug Fixes",
+      "created": "2026-01-25",
+      "started": "2026-01-26",
+      "shipped": "2026-01-27",
+      "phaseRange": "31-33",
+      "requirements": 14
+    },
+    "v1.10.0": {
+      "epicKey": "RTS-117",
+      "status": "completed",
+      "summary": "FFU Builder v1.10.0 - Upstream Cherry-Pick",
+      "created": "2026-01-29",
+      "started": "2026-01-29",
+      "shipped": "2026-02-02",
+      "phaseRange": "34-43",
+      "requirements": 20
+    },
+    "v1.11.0": {
+      "epicKey": "RTS-424",
+      "status": "completed",
+      "summary": "FFU Builder v1.11.0 - USB from Existing Components",
+      "created": "2026-03-20",
+      "started": "2026-03-20",
+      "shipped": "2026-06-22",
+      "phaseRange": "45-50",
+      "requirements": 10,
+      "phases": {
+        "45": { "issueKey": "RTS-647", "status": "done", "name": "Config Schema Extension" },
+        "46": { "issueKey": "RTS-648", "status": "done", "name": "FFU.ArtifactScanner Module" },
+        "47": { "issueKey": "RTS-649", "status": "done", "name": "USB Mode Pipeline Entry" },
+        "48": { "issueKey": "RTS-650", "status": "done", "name": "XAML Mode Toggle and USB Tab" },
+        "49": { "issueKey": "RTS-651", "status": "done", "name": "UI Event Wiring and Artifact Integration" },
+        "50": { "issueKey": "RTS-652", "status": "done", "name": "Selective Rebuild Pipeline" }
+      }
     }
   },
-  "lastAudit": "2026-01-25",
-  "notes": "v1.9.2 complete - Jira epic RTS-107 transitioned to Done on 2026-01-25"
+  "lastAudit": "2026-06-22",
+  "notes": "Schema migrated 2026-06-21 to the jira-milestone-gate.cjs hook format: lowercase statuses (created|in_progress|completed), per-phase 'phases' object map (phaseNum -> {issueKey,status,name}), top-level assigneeAccountId. Historical milestone phase ranges preserved under 'phaseRange'. v1.11.0 (RTS-424) COMPLETED 2026-06-22: all phases 45-50 Done (RTS-647..RTS-652); phase 50 (Selective Rebuild Pipeline) closed REBUILD-01/02/03; epic transitioned to Done with audit-summary comment. 4 human-UAT items tracked in 50-HUMAN-UAT.md (physical WPF-UI/hardware verification, non-blocking)."
 }
