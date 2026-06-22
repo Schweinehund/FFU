@@ -154,7 +154,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 50-02-PLAN.md — XAML disposition ComboBoxes (7 cards) + Handlers $artifactMap rework, 4-status rendering, SelectionChanged (REBUILD-01)
+- [x] 50-02-PLAN.md — XAML disposition ComboBoxes (7 cards) + Handlers $artifactMap rework, 4-status rendering, SelectionChanged (REBUILD-01)
 - [ ] 50-04-PLAN.md — Pipeline F1 AppsISO copy path + F2 Disposition copy gate (REBUILD-02/03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -179,7 +179,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/5 | Gap closure   | 2026-03-24 |
-| 50. Selective Rebuild Pipeline | v1.11.0 | 1/6 | In Progress|  |
+| 50. Selective Rebuild Pipeline | v1.11.0 | 2/6 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*
