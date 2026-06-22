@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.20'
+ModuleVersion = '0.0.21'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -122,6 +122,14 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.21: Phase 50-03 - Disposition config round-trip in FFUUI.Core.Config
+- Build-UIConfiguration: reads usb{Type}Disposition ComboBox SelectedItem.Tag per artifact
+- Added Build-UIConfiguration as dedicated exported function for pipeline callers (plan 50-04)
+- Update-UIFromConfig: restores Disposition by ComboBoxItem.Tag match (mirrors cmbVMwareNicType)
+- PSObject.Properties.Match('Disposition') guards backward-compat with old configs
+- Include field completely removed from USB artifact save/restore (D-01)
+- isLoadingConfig guard covers Disposition restore to prevent SelectionChanged corruption (Pitfall 3)
+
 v0.0.20: BUG-WINGET-02 - Winget Source package registration for elevated admin
 - Fixed: Install-WingetComponents now also registers Microsoft.Winget.Source package
 - Root cause: Source package (winget repository index) also needs registration for elevated admin
