@@ -1184,7 +1184,7 @@ Function Get-USBDrive {
     # Check if external hard disk media is allowed and user has not specified USB drives
     If ($AllowExternalHardDiskMedia -and (-not($USBDriveList))) {
         # Get all removable and external hard disk media drives
-        [array]$USBDrives = (Get-WmiObject -Class Win32_DiskDrive -Filter "MediaType='Removable Media' OR MediaType='External hard disk media'")
+        [array]$USBDrives = (Get-CimInstance -ClassName Win32_DiskDrive -Filter "MediaType='Removable Media' OR MediaType='External hard disk media'")
         [array]$ExternalHardDiskDrives = $USBDrives | Where-Object { $_.MediaType -eq 'External hard disk media' }
         $ExternalCount = $ExternalHardDiskDrives.Count
         $USBDrivesCount = $USBDrives.Count
@@ -1309,13 +1309,13 @@ Function Get-USBDrive {
     }
     else {
         # Get only removable media drives
-        [array]$USBDrives = (Get-WmiObject -Class Win32_DiskDrive -Filter "MediaType='Removable Media'")
+        [array]$USBDrives = (Get-CimInstance -ClassName Win32_DiskDrive -Filter "MediaType='Removable Media'")
         $USBDrivesCount = $USBDrives.Count
         WriteLog "Found $USBDrivesCount Removable USB drives"
     }
 
     # Check if any USB drives were found
-    if ($null -eq $USBDrives) {
+    if ($USBDrives.Count -eq 0) {
         WriteLog "No USB drive found. Exiting"
         Write-Error "No USB drive found. Exiting"
         exit 1
@@ -1546,6 +1546,14 @@ Function New-DeploymentUSB {
             Test-RobocopySuccess -Operation "Autopilot files to USB"
         }
 
+        if ($using:CopyAppsISO) {
+            $AppsISODest = Join-Path $DeployPartitionDriveLetter "Apps"
+            New-Item -Path $AppsISODest -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+            WriteLog "Copying Apps ISO to $AppsISODest"
+            robocopy (Split-Path $using:AppsISOPath -Parent) $AppsISODest (Split-Path $using:AppsISOPath -Leaf) /J /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+            Test-RobocopySuccess -Operation "AppsISO to USB"
+        }
+
         # Rename volumes
         WriteLog "Renaming volumes for disk $DiskNumber"
         Set-Volume -DriveLetter $BootPartition.DriveLetter -NewFileSystemLabel "Boot"
@@ -1568,6 +1576,7 @@ Function New-DeploymentUSB {
 class VhdxCacheItem {
     [string]$VhdxFileName = ""
     [uint32]$LogicalSectorSizeBytes = ""
+    [uint64]$Disksize = ""
     [string]$WindowsSKU = ""
     [string]$WindowsRelease = ""
     [string]$WindowsVersion = ""
@@ -1843,6 +1852,17 @@ if ($USBOnlyMode) {
     if (-not $UnattendFolder) { $UnattendFolder = "$FFUDevelopmentPath\Unattend" }
     if (-not $AutopilotFolder) { $AutopilotFolder = "$FFUDevelopmentPath\Autopilot" }
 
+    # AppsISO copy gate and path (F1 — REBUILD-03)
+    $CopyAppsISO = $false
+    $AppsISOPath = "$FFUDevelopmentPath\Apps\Apps.iso"
+    if ($null -ne $manifest.AppsISO -and $manifest.AppsISO.Status.ToString() -eq 'Found') {
+        $CopyAppsISO = $true
+        if (-not [string]::IsNullOrWhiteSpace($manifest.AppsISO.FilePath)) {
+            $AppsISOPath = $manifest.AppsISO.FilePath
+        }
+    }
+    if (-not $CopyAppsISO) { WriteLog "WARNING: Skipping AppsISO -- not found at $AppsISOPath" }
+
     # Deploy ISO path and USB build gate
     $DeployISO = $deployISOPath
     $BuildUSBDrive = $true
@@ -1889,23 +1909,47 @@ if ($USBOnlyMode) {
             WriteLog "USBOnlyMode: Overrode Autopilot path from config: $($cfgArt.Autopilot.Path)"
         }
 
-        # Include flag overrides (D-29) -- user unchecked = don't copy even if Found
-        # NOTE: No $CopyAppsISO flag exists in this block (Issue #10) -- AppsISO is handled via path only
-        if ($null -ne $cfgArt.Drivers -and $cfgArt.Drivers.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.Drivers.Include) {
-            $CopyDrivers = $false
-            WriteLog "USBOnlyMode: Drivers unchecked by user -- skipping."
+        # AppsISO path override (F1 — REBUILD-03)
+        if ($null -ne $cfgArt.AppsISO -and -not [string]::IsNullOrWhiteSpace($cfgArt.AppsISO.Path) -and (Test-Path -LiteralPath $cfgArt.AppsISO.Path)) {
+            $AppsISOPath = $cfgArt.AppsISO.Path
+            $CopyAppsISO = $true
+            WriteLog "USBOnlyMode: Overrode AppsISO path from config: $($cfgArt.AppsISO.Path)"
         }
-        if ($null -ne $cfgArt.PPKG -and $cfgArt.PPKG.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.PPKG.Include) {
-            $CopyPPKG = $false
-            WriteLog "USBOnlyMode: PPKG unchecked by user -- skipping."
-        }
-        if ($null -ne $cfgArt.Unattend -and $cfgArt.Unattend.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.Unattend.Include) {
-            $CopyUnattend = $false
-            WriteLog "USBOnlyMode: Unattend unchecked by user -- skipping."
-        }
-        if ($null -ne $cfgArt.Autopilot -and $cfgArt.Autopilot.PSObject.Properties.Match('Include').Count -gt 0 -and -not [bool]$cfgArt.Autopilot.Include) {
-            $CopyAutopilot = $false
-            WriteLog "USBOnlyMode: Autopilot unchecked by user -- skipping."
+
+        # Disposition-based copy gate (Phase 50 — replaces Include-flag gate)
+        # Applied AFTER path overrides, BEFORE USB assembly.
+        # Validates Disposition against the {Reuse,Rebuild,Skip} allow-list (V5 input validation).
+        $dispositionCheckTypes = @('FFU', 'DeployISO', 'Drivers', 'AppsISO', 'PPKG', 'Unattend', 'Autopilot')
+        foreach ($dType in $dispositionCheckTypes) {
+            $dEntry = $cfgArt.$dType
+            if ($null -eq $dEntry) { continue }
+            $disp = if ($dEntry.PSObject.Properties.Match('Disposition').Count -gt 0) {
+                $dEntry.Disposition
+            }
+            else { 'Reuse' }
+            # Validate enum value (security: malformed config value must not reach execution)
+            if ($disp -notin @('Reuse', 'Rebuild', 'Skip')) {
+                WriteLog "WARNING: Unknown Disposition '$disp' for $dType -- treating as Reuse."
+                $disp = 'Reuse'
+            }
+            switch ($disp) {
+                'Skip' {
+                    # Only optional artifacts can be Skip; FFU and DeployISO are required (D-03, D-10)
+                    switch ($dType) {
+                        'Drivers'   { $CopyDrivers   = $false; WriteLog "USBOnlyMode: Drivers disposition=Skip -- excluding." }
+                        'AppsISO'   { $CopyAppsISO   = $false; WriteLog "USBOnlyMode: AppsISO disposition=Skip -- excluding." }
+                        'PPKG'      { $CopyPPKG      = $false; WriteLog "USBOnlyMode: PPKG disposition=Skip -- excluding." }
+                        'Unattend'  { $CopyUnattend  = $false; WriteLog "USBOnlyMode: Unattend disposition=Skip -- excluding." }
+                        'Autopilot' { $CopyAutopilot = $false; WriteLog "USBOnlyMode: Autopilot disposition=Skip -- excluding." }
+                        # FFU and DeployISO cannot be Skip (required; enforced by UI and IsReady gate)
+                    }
+                }
+                'Rebuild' {
+                    # Rebuild handled by plan 50-05 selective execution block (inserted before this gate)
+                    WriteLog "USBOnlyMode: $dType disposition=Rebuild -- using freshly built artifact."
+                }
+                default { } # Reuse: no change; copy flags already set from scan/override above
+            }
         }
     }
 
@@ -3153,6 +3197,11 @@ if ($InstallApps) {
                         }
                     )
 
+                    # Add 30 second delay to allow for Windows Security Platform to install
+                    # I suspect this is related to AppxSVC not being immediately ready when booting to audit mode
+                    # Long-term solution would be the check for AppxSVC being started, but for now the 30 second sleep seems to work consistently
+                    $installDefenderCommand = "Start-Sleep -Seconds 30`r`n"
+
                     # Download each update
                     foreach ($update in $defenderUpdates) {
                         WriteLog "Searching for $($update.Name) from Microsoft Update Catalog and saving to $DefenderPath"
@@ -3785,6 +3834,10 @@ try {
                     if ($vhdxCacheItem.WindowsRelease -ne $WindowsRelease) { WriteLog 'WindowsRelease mismatch, continuing'; continue }
                     if ($vhdxCacheItem.WindowsVersion -ne $WindowsVersion) { WriteLog 'WindowsVersion mismatch, continuing'; continue }
                     if ($vhdxCacheItem.OptionalFeatures -ne $OptionalFeatures) { WriteLog 'OptionalFeatures mismatch, continuing'; continue }
+                    if ($vhdxCacheItem.PSObject.Properties.Name -notcontains 'Disksize') { WriteLog 'Disksize missing in cached config, continuing'; continue }
+                    [uint64]$cachedDisksize = 0
+                    if (-not [uint64]::TryParse([string]$vhdxCacheItem.Disksize, [ref]$cachedDisksize)) { WriteLog "Disksize invalid in cached config ($($vhdxCacheItem.Disksize)), continuing"; continue }
+                    if ($cachedDisksize -ne $Disksize) { WriteLog "Disksize mismatch (cached: $cachedDisksize, current: $Disksize), continuing"; continue }
 
                     $cachedUpdateNames = @()
                     if ($vhdxCacheItem.IncludedUpdates -and $vhdxCacheItem.IncludedUpdates.Count -gt 0) {
@@ -4331,6 +4384,7 @@ DIAGNOSTIC: Run 'fltmc filters | Select-String WimMount' to verify WIMMount stat
         }
         $cachedVHDXInfo.VhdxFileName = $diskFileName
         $cachedVHDXInfo.LogicalSectorSizeBytes = $LogicalSectorSizeBytes
+        $cachedVHDXInfo.Disksize = $Disksize
         $cachedVHDXInfo.WindowsSKU = $WindowsSKU
         $cachedVHDXInfo.WindowsRelease = $WindowsRelease
         $cachedVHDXInfo.WindowsVersion = $WindowsVersion
