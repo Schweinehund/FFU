@@ -821,28 +821,33 @@ if ($using:CopyAppsISO) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> RESOLVED: All four questions are answered by the Phase 50 plans. Inline RESOLVED notes are added per question below.
 
 1. **Where does usbArtifactState.disposition live in $State.Data?**
    - What we know: `$State.Data.usbArtifactState` is a hashtable keyed by artifact type (e.g., `Drivers`, `FFU`) with `path` and `source` properties (Handlers.psm1 lines 38, 83).
    - What's unclear: Does the planner add `disposition` as a third property on the existing hashtable entries, or create a separate `$State.Data.usbArtifactDisposition` hashtable?
    - Recommendation: Add `disposition = 'Reuse'` as a third property on each `usbArtifactState` entry. It parallels `source` semantically and is already read/written in the same code locations.
+   - RESOLVED (plan 50-02 Task 3): added `disposition = 'Reuse'` as a third property on each entry at the init site BuildFFUVM_UI.ps1:72-80.
 
 2. **Should DeployISO rebuild happen BEFORE or AFTER the ISO mountability pre-check (Step 4)?**
    - What we know: The pre-check at line 1789 validates the existing ISO. After rebuild, a new ISO exists.
    - What's unclear: The pre-check needs to test the ISO that will actually be used for USB assembly.
    - Recommendation: Place the selective rebuild block BETWEEN Step 3 (log warnings) and Step 4 (ISO mount check). This ensures the mount check always validates the final ISO (rebuilt or reused). Requires reordering lines slightly.
+   - RESOLVED (plan 50-05 Task 2): DeployISO rebuild runs BEFORE the ISO mount pre-check, and the whole rebuild block precedes the Disposition gate (enforced by a structural Pester ordering assertion).
 
 3. **How should the Drivers card present the Rebuild option when driversJsonPath is not in config?**
    - What we know: D-07 says Drivers Rebuild is gated on input availability and degrades to Reuse/Skip if inputs cannot be sourced.
    - What's unclear: Should the Rebuild item be hidden from the ComboBox, or shown but disabled/greyed?
-   - Recommendation: Show it as a standard item but on selection, immediately log a warning and optionally show a card-level warning: "Rebuild requires DriversJsonPath in config. Load a Full Build config first." This avoids per-card dynamic XAML manipulation while giving the user a clear signal.
+   - Recommendation: Show it as a standard item but on selection, immediately log a warning and optionally show a card-level warning. This avoids per-card dynamic XAML manipulation while giving the user a clear signal.
+   - RESOLVED (plan 50-02/50-05, D-07): Rebuild item is shown; degradation is surfaced via the Monitor-tab log during pipeline execution rather than per-card dynamic XAML.
 
 4. **Does New-AppsISO run safely inside a ThreadJob?**
    - What we know: `New-AppsISO` uses `Invoke-Process` (FFU.Common) and oscdimg.exe. `Invoke-Process` is ThreadJob-safe per CLAUDE.md.
    - What's unclear: Whether oscdimg.exe has any interactive/elevated requirements that would break in ThreadJob context.
    - Recommendation: Assume safe (consistent with all other external tool calls); wrap in `try/catch` and log failure as non-blocking warning (same pattern as deployment media at line 5369-5373).
-
+   - RESOLVED (plan 50-05 Task 2): New-AppsISO/New-PEMedia calls are wrapped in try/catch and logged as non-blocking warnings, matching the deployment-media pattern.
 ---
 
 ## Environment Availability
