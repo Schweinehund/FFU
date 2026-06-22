@@ -22,15 +22,43 @@ function Invoke-USBArtifactScan {
         return
     }
 
-    # Artifact type to control name prefix mapping
+    # Artifact type to control name prefix mapping (Phase 50: dispCtrl replaces prior checkbox, tier and warnCtrl keys added)
     $artifactMap = @{
-        FFU       = @{ statusCtrl = 'usbFFUStatus'; pathCtrl = 'usbFFUPath'; sizeCtrl = 'usbFFUSize'; ageCtrl = 'usbFFUAge'; browseCtrl = 'usbFFUBrowse'; includeCtrl = 'usbFFUInclude'; hasMetadata = $true }
-        DeployISO = @{ statusCtrl = 'usbDeployISOStatus'; pathCtrl = 'usbDeployISOPath'; sizeCtrl = 'usbDeployISOSize'; ageCtrl = 'usbDeployISOAge'; browseCtrl = 'usbDeployISOBrowse'; includeCtrl = 'usbDeployISOInclude'; hasMetadata = $false }
-        Drivers   = @{ statusCtrl = 'usbDriversStatus'; pathCtrl = 'usbDriversPath'; sizeCtrl = 'usbDriversSize'; ageCtrl = 'usbDriversAge'; browseCtrl = 'usbDriversBrowse'; includeCtrl = 'usbDriversInclude'; hasMetadata = $false }
-        PPKG      = @{ statusCtrl = 'usbPPKGStatus'; pathCtrl = 'usbPPKGPath'; sizeCtrl = 'usbPPKGSize'; ageCtrl = 'usbPPKGAge'; browseCtrl = 'usbPPKGBrowse'; includeCtrl = 'usbPPKGInclude'; hasMetadata = $false }
-        Unattend  = @{ statusCtrl = 'usbUnattendStatus'; pathCtrl = 'usbUnattendPath'; sizeCtrl = 'usbUnattendSize'; ageCtrl = 'usbUnattendAge'; browseCtrl = 'usbUnattendBrowse'; includeCtrl = 'usbUnattendInclude'; hasMetadata = $false }
-        Autopilot = @{ statusCtrl = 'usbAutopilotStatus'; pathCtrl = 'usbAutopilotPath'; sizeCtrl = 'usbAutopilotSize'; ageCtrl = 'usbAutopilotAge'; browseCtrl = 'usbAutopilotBrowse'; includeCtrl = 'usbAutopilotInclude'; hasMetadata = $false }
-        AppsISO   = @{ statusCtrl = 'usbAppsISOStatus'; pathCtrl = 'usbAppsISOPath'; sizeCtrl = 'usbAppsISOSize'; ageCtrl = 'usbAppsISOAge'; browseCtrl = 'usbAppsISOBrowse'; includeCtrl = 'usbAppsISOInclude'; hasMetadata = $false }
+        FFU       = @{ statusCtrl = 'usbFFUStatus';       pathCtrl = 'usbFFUPath';
+                       sizeCtrl = 'usbFFUSize';           ageCtrl = 'usbFFUAge';
+                       browseCtrl = 'usbFFUBrowse';       dispCtrl = 'usbFFUDisposition';
+                       tier = 'required';                  warnCtrl = 'usbFFUWarning';
+                       hasMetadata = $true }
+        DeployISO = @{ statusCtrl = 'usbDeployISOStatus'; pathCtrl = 'usbDeployISOPath';
+                       sizeCtrl = 'usbDeployISOSize';     ageCtrl = 'usbDeployISOAge';
+                       browseCtrl = 'usbDeployISOBrowse'; dispCtrl = 'usbDeployISODisposition';
+                       tier = 'required-buildable';        warnCtrl = 'usbDeployISOWarning';
+                       hasMetadata = $false }
+        Drivers   = @{ statusCtrl = 'usbDriversStatus';   pathCtrl = 'usbDriversPath';
+                       sizeCtrl = 'usbDriversSize';       ageCtrl = 'usbDriversAge';
+                       browseCtrl = 'usbDriversBrowse';   dispCtrl = 'usbDriversDisposition';
+                       tier = 'buildable';                 warnCtrl = 'usbDriversWarning';
+                       hasMetadata = $false }
+        PPKG      = @{ statusCtrl = 'usbPPKGStatus';       pathCtrl = 'usbPPKGPath';
+                       sizeCtrl = 'usbPPKGSize';           ageCtrl = 'usbPPKGAge';
+                       browseCtrl = 'usbPPKGBrowse';       dispCtrl = 'usbPPKGDisposition';
+                       tier = 'user-authored';              warnCtrl = 'usbPPKGWarning';
+                       hasMetadata = $false }
+        Unattend  = @{ statusCtrl = 'usbUnattendStatus';  pathCtrl = 'usbUnattendPath';
+                       sizeCtrl = 'usbUnattendSize';      ageCtrl = 'usbUnattendAge';
+                       browseCtrl = 'usbUnattendBrowse';  dispCtrl = 'usbUnattendDisposition';
+                       tier = 'user-authored';             warnCtrl = 'usbUnattendWarning';
+                       hasMetadata = $false }
+        Autopilot = @{ statusCtrl = 'usbAutopilotStatus'; pathCtrl = 'usbAutopilotPath';
+                       sizeCtrl = 'usbAutopilotSize';     ageCtrl = 'usbAutopilotAge';
+                       browseCtrl = 'usbAutopilotBrowse'; dispCtrl = 'usbAutopilotDisposition';
+                       tier = 'user-authored';             warnCtrl = 'usbAutopilotWarning';
+                       hasMetadata = $false }
+        AppsISO   = @{ statusCtrl = 'usbAppsISOStatus';   pathCtrl = 'usbAppsISOPath';
+                       sizeCtrl = 'usbAppsISOSize';       ageCtrl = 'usbAppsISOAge';
+                       browseCtrl = 'usbAppsISOBrowse';   dispCtrl = 'usbAppsISODisposition';
+                       tier = 'buildable';                 warnCtrl = 'usbAppsISOWarning';
+                       hasMetadata = $false }
     }
 
     # Set (scanning...) on auto-detect cards only
@@ -91,12 +119,12 @@ function Invoke-USBArtifactScan {
                     $statusCtrl.Text = 'Found (user path)'
                     $statusCtrl.Foreground = [System.Windows.Media.Brushes]::Green
                     $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
-                    if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $true }
+                    if ($null -ne $State.Controls[$map.dispCtrl]) { $State.Controls[$map.dispCtrl].IsEnabled = $true }
                 } else {
                     $statusCtrl.Text = 'Missing (user path)'
                     $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
                     $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
-                    if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $false }
+                    if ($null -ne $State.Controls[$map.dispCtrl]) { $State.Controls[$map.dispCtrl].IsEnabled = $false }
                 }
             }
             # Enable browse button regardless
@@ -110,49 +138,153 @@ function Invoke-USBArtifactScan {
         $sizeCtrl = $State.Controls[$map.sizeCtrl]
         $ageCtrl = $State.Controls[$map.ageCtrl]
 
-        if ($null -ne $result -and $result.Status.ToString() -eq 'Found') {
-            $artState.path = $result.FilePath
-            if ($null -ne $statusCtrl) {
-                $statusCtrl.Text = 'Found'
-                $statusCtrl.Foreground = [System.Windows.Media.Brushes]::Green
-                $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+        # 4-status rendering switch (Phase 50 — D-10/D-11, F7)
+        # Helper: set ComboBox default disposition by matching Tag value
+        $setDisposition = {
+            param([string]$Tag)
+            $dispCtrlRef = $State.Controls[$map.dispCtrl]
+            if ($null -ne $dispCtrlRef) {
+                foreach ($item in $dispCtrlRef.Items) {
+                    if ($item -is [System.Windows.Controls.ComboBoxItem] -and $item.Tag -eq $Tag) {
+                        $dispCtrlRef.SelectedItem = $item
+                        break
+                    }
+                }
             }
-            if ($null -ne $pathCtrl) { $pathCtrl.Text = $result.FilePath }
-            if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '{0:F2} GB' -f ($result.FileSizeBytes / 1GB) }
-            if ($null -ne $ageCtrl) {
-                $ageCtrl.Text = if ($result.AgeDays -eq 0) { 'Today' } elseif ($result.AgeDays -eq 1) { '1 day ago' } else { "$($result.AgeDays) days ago" }
-            }
-            if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $true }
+        }
 
-            # FFU-specific metadata (Issue #3 fix: WindowsSKU not SKU)
-            if ($map.hasMetadata -and $null -ne $result.Metadata) {
-                # Null guards on metadata controls (Issue #13)
-                if ($null -ne $State.Controls.usbFFUVersion) {
-                    $State.Controls.usbFFUVersion.Text = if ($result.Metadata.WindowsVersion) { $result.Metadata.WindowsVersion } else { '--' }
-                }
-                if ($null -ne $State.Controls.usbFFUSKU) {
-                    $State.Controls.usbFFUSKU.Text = if ($result.Metadata.WindowsSKU) { $result.Metadata.WindowsSKU } else { '--' }
-                }
-                if ($null -ne $State.Controls.usbFFUArch) {
-                    $State.Controls.usbFFUArch.Text = if ($result.Metadata.Architecture) { $result.Metadata.Architecture } else { '--' }
-                }
+        # Helper: hide warning TextBlock
+        $hideWarn = {
+            $warnCtrlRef = $State.Controls[$map.warnCtrl]
+            if ($null -ne $warnCtrlRef) {
+                $warnCtrlRef.Text = ''
+                $warnCtrlRef.Visibility = [System.Windows.Visibility]::Collapsed
             }
-        } else {
-            $artState.path = $null
-            if ($null -ne $statusCtrl) {
-                $statusCtrl.Text = 'Missing'
-                $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
-                $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
-            }
-            if ($null -ne $pathCtrl) { $pathCtrl.Text = '(not found)' }
-            if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '--' }
-            if ($null -ne $ageCtrl) { $ageCtrl.Text = '--' }
-            if ($null -ne $State.Controls[$map.includeCtrl]) { $State.Controls[$map.includeCtrl].IsEnabled = $false }
+        }
 
-            if ($map.hasMetadata) {
-                if ($null -ne $State.Controls.usbFFUVersion) { $State.Controls.usbFFUVersion.Text = '--' }
-                if ($null -ne $State.Controls.usbFFUSKU) { $State.Controls.usbFFUSKU.Text = '--' }
-                if ($null -ne $State.Controls.usbFFUArch) { $State.Controls.usbFFUArch.Text = '--' }
+        # When result is null (artifact not in manifest), treat as Missing
+        if ($null -eq $result) {
+            $result = [PSCustomObject]@{ Status = 'Missing'; FilePath = $null; FileSizeBytes = 0; AgeDays = 0; ErrorMessage = ''; Metadata = $null }
+        }
+        switch ($result.Status.ToString()) {
+            'Found' {
+                $artState.path = $result.FilePath
+                if ($null -ne $statusCtrl) {
+                    $statusCtrl.Text = 'Found'
+                    $statusCtrl.Foreground = [System.Windows.Media.Brushes]::Green
+                    $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+                }
+                if ($null -ne $pathCtrl) { $pathCtrl.Text = $result.FilePath }
+                if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '{0:F2} GB' -f ($result.FileSizeBytes / 1GB) }
+                if ($null -ne $ageCtrl) {
+                    $ageCtrl.Text = if ($result.AgeDays -eq 0) { 'Today' } elseif ($result.AgeDays -eq 1) { '1 day ago' } else { "$($result.AgeDays) days ago" }
+                }
+                # Enable disposition ComboBox (FFU stays IsEnabled=False from XAML — no-op for required)
+                if ($null -ne $State.Controls[$map.dispCtrl]) { $State.Controls[$map.dispCtrl].IsEnabled = $true }
+                & $hideWarn
+                & $setDisposition -Tag 'Reuse'
+                $artState.disposition = 'Reuse'
+
+                # FFU-specific metadata (Issue #3 fix: WindowsSKU not SKU)
+                if ($map.hasMetadata -and $null -ne $result.Metadata) {
+                    # Null guards on metadata controls (Issue #13)
+                    if ($null -ne $State.Controls.usbFFUVersion) {
+                        $State.Controls.usbFFUVersion.Text = if ($result.Metadata.WindowsVersion) { $result.Metadata.WindowsVersion } else { '--' }
+                    }
+                    if ($null -ne $State.Controls.usbFFUSKU) {
+                        $State.Controls.usbFFUSKU.Text = if ($result.Metadata.WindowsSKU) { $result.Metadata.WindowsSKU } else { '--' }
+                    }
+                    if ($null -ne $State.Controls.usbFFUArch) {
+                        $State.Controls.usbFFUArch.Text = if ($result.Metadata.Architecture) { $result.Metadata.Architecture } else { '--' }
+                    }
+                }
+            }
+            'Degraded' {
+                # Artifact present but suspect — enable ComboBox, show warning, default Reuse (D-11)
+                $artState.path = $result.FilePath
+                if ($null -ne $statusCtrl) {
+                    $statusCtrl.Text = 'Found (degraded)'
+                    $statusCtrl.Foreground = [System.Windows.Media.Brushes]::DarkOrange
+                    $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+                }
+                if ($null -ne $pathCtrl) { $pathCtrl.Text = $result.FilePath }
+                if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '{0:F2} GB' -f ($result.FileSizeBytes / 1GB) }
+                if ($null -ne $ageCtrl) {
+                    $ageCtrl.Text = if ($result.AgeDays -eq 0) { 'Today' } elseif ($result.AgeDays -eq 1) { '1 day ago' } else { "$($result.AgeDays) days ago" }
+                }
+                # Enable disposition ComboBox (FFU stays IsEnabled=False from XAML — no-op for required)
+                if ($null -ne $State.Controls[$map.dispCtrl]) { $State.Controls[$map.dispCtrl].IsEnabled = $true }
+                # Show degraded warning text from ArtifactResult.ErrorMessage
+                $warnCtrlRef = $State.Controls[$map.warnCtrl]
+                if ($null -ne $warnCtrlRef) {
+                    $warnMessage = if (-not [string]::IsNullOrWhiteSpace($result.ErrorMessage)) { $result.ErrorMessage } else { 'Artifact may be degraded or incomplete.' }
+                    $warnCtrlRef.Text = $warnMessage
+                    $warnCtrlRef.Visibility = [System.Windows.Visibility]::Visible
+                }
+                & $setDisposition -Tag 'Reuse'
+                $artState.disposition = 'Reuse'
+
+                if ($map.hasMetadata -and $null -ne $result.Metadata) {
+                    if ($null -ne $State.Controls.usbFFUVersion) {
+                        $State.Controls.usbFFUVersion.Text = if ($result.Metadata.WindowsVersion) { $result.Metadata.WindowsVersion } else { '--' }
+                    }
+                    if ($null -ne $State.Controls.usbFFUSKU) {
+                        $State.Controls.usbFFUSKU.Text = if ($result.Metadata.WindowsSKU) { $result.Metadata.WindowsSKU } else { '--' }
+                    }
+                    if ($null -ne $State.Controls.usbFFUArch) {
+                        $State.Controls.usbFFUArch.Text = if ($result.Metadata.Architecture) { $result.Metadata.Architecture } else { '--' }
+                    }
+                }
+            }
+            'Error' {
+                # Scanner error — disable ComboBox; optional tier defaults to Skip, required stays Reuse
+                $artState.path = $null
+                if ($null -ne $statusCtrl) {
+                    $statusCtrl.Text = 'Error (scanner)'
+                    $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+                    $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+                }
+                if ($null -ne $pathCtrl) { $pathCtrl.Text = '(not found)' }
+                if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '--' }
+                if ($null -ne $ageCtrl) { $ageCtrl.Text = '--' }
+                if ($null -ne $State.Controls[$map.dispCtrl]) { $State.Controls[$map.dispCtrl].IsEnabled = $false }
+                & $hideWarn
+                # Required/required-buildable tiers leave Reuse (IsReady gate blocks launch); optional tiers default Skip
+                if ($map.'tier' -in @('buildable', 'user-authored')) {
+                    & $setDisposition -Tag 'Skip'
+                    $artState.disposition = 'Skip'
+                }
+
+                if ($map.hasMetadata) {
+                    if ($null -ne $State.Controls.usbFFUVersion) { $State.Controls.usbFFUVersion.Text = '--' }
+                    if ($null -ne $State.Controls.usbFFUSKU) { $State.Controls.usbFFUSKU.Text = '--' }
+                    if ($null -ne $State.Controls.usbFFUArch) { $State.Controls.usbFFUArch.Text = '--' }
+                }
+            }
+            default {
+                # Missing (or any other unrecognized status)
+                $artState.path = $null
+                if ($null -ne $statusCtrl) {
+                    $statusCtrl.Text = 'Missing'
+                    $statusCtrl.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+                    $statusCtrl.FontStyle = [System.Windows.FontStyles]::Normal
+                }
+                if ($null -ne $pathCtrl) { $pathCtrl.Text = '(not found)' }
+                if ($null -ne $sizeCtrl) { $sizeCtrl.Text = '--' }
+                if ($null -ne $ageCtrl) { $ageCtrl.Text = '--' }
+                if ($null -ne $State.Controls[$map.dispCtrl]) { $State.Controls[$map.dispCtrl].IsEnabled = $false }
+                & $hideWarn
+                # Required/required-buildable tiers leave Reuse (IsReady gate blocks launch); optional tiers default Skip
+                if ($map.'tier' -in @('buildable', 'user-authored')) {
+                    & $setDisposition -Tag 'Skip'
+                    $artState.disposition = 'Skip'
+                }
+
+                if ($map.hasMetadata) {
+                    if ($null -ne $State.Controls.usbFFUVersion) { $State.Controls.usbFFUVersion.Text = '--' }
+                    if ($null -ne $State.Controls.usbFFUSKU) { $State.Controls.usbFFUSKU.Text = '--' }
+                    if ($null -ne $State.Controls.usbFFUArch) { $State.Controls.usbFFUArch.Text = '--' }
+                }
             }
         }
 
