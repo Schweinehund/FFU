@@ -124,7 +124,14 @@ Plans:
   3. Artifacts marked reuse are taken from their current paths with no build phase execution
   4. Artifacts marked skip are excluded from USB assembly entirely
   5. Rebuilt artifacts are combined with reused artifacts and assembled into the final USB drive
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 50-01-PLAN.md — Wave-0 test scaffolds (SelectiveRebuild.Tests + F1/F2/F3 + 4-status assertions) (REBUILD-01/02/03)
+- [ ] 50-02-PLAN.md — XAML disposition ComboBoxes (7 cards) + Handlers $artifactMap rework, 4-status rendering, SelectionChanged (REBUILD-01)
+- [ ] 50-03-PLAN.md — Config disposition round-trip (Build-UIConfiguration save + Update-UIFromConfig restore) (REBUILD-01)
+- [ ] 50-04-PLAN.md — Pipeline F1 AppsISO copy path + F2 Disposition copy gate (REBUILD-02/03)
+- [ ] 50-05-PLAN.md — Pipeline F3 selective per-phase rebuild execution + mini path-init + F6 drivers config (REBUILD-02/03)
+- [ ] 50-06-PLAN.md — Version bumps + CHANGELOG + BLOCKING verify-app/manual sign-off (REBUILD-01/02/03)
 
 ## Progress
 
@@ -139,8 +146,8 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/5 | Gap closure   | 2026-03-24 |
-| 50. Selective Rebuild Pipeline | v1.11.0 | 0/TBD | Not started | - |
+| 50. Selective Rebuild Pipeline | v1.11.0 | 0/6 | Not started | - |
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*
-*Last updated: 2026-03-24*
+*Last updated: 2026-06-22 — Phase 50 planned (6 plans)*
