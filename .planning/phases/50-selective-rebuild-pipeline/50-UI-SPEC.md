@@ -125,14 +125,14 @@ All copy values are prescriptive. Do not paraphrase.
 | Artifact | Tier | ComboBox item labels (in order) | Enabled? |
 |----------|------|--------------------------------|---------|
 | FFU Image | required | `Reuse` (only item) | `IsEnabled="False"` |
-| WinPE Deploy ISO | required | `Reuse` (only item) | `IsEnabled="False"` |
+| WinPE Deploy ISO | required-buildable | `Reuse`, `Rebuild` | Enabled when Found or Degraded (scan-driven, like Drivers) |
 | Drivers | buildable | `Reuse`, `Rebuild`, `Skip` | `IsEnabled="False"` until scan; enabled when Found or Degraded |
 | Applications ISO | buildable | `Reuse`, `Rebuild`, `Skip` | `IsEnabled="False"` until scan; enabled when Found or Degraded |
 | Provisioning Package | user-authored | `Reuse`, `Skip` | `IsEnabled="False"` until scan; enabled when Found or Degraded |
 | Unattend.xml | user-authored | `Reuse`, `Skip` | `IsEnabled="False"` until scan; enabled when Found or Degraded |
 | Autopilot Profile | user-authored | `Reuse`, `Skip` | `IsEnabled="False"` until scan; enabled when Found or Degraded |
 
-**Note on DeployISO tier:** Per 50-CONTEXT.md D-03/D-04 and the conservative reading in the `<locked_decisions>` block: DeployISO is treated as required-locked `Reuse` only (`IsEnabled="False"`, single item). This matches the existing `usbDeployISOInclude IsEnabled=False IsChecked=True` hard-lock. The planner should confirm this reading before implementing. Source: locked\_decisions block in orchestrator prompt + D-03.
+**Note on DeployISO tier (BLOCKER-3 resolved ruling):** DeployISO is `required-buildable`. It is BOTH required (a deployment USB cannot ship without boot media — never Skip) AND buildable (the pipeline can regenerate it via ADK/New-PEMedia, and plan-05 implements `$rebuildDeployISO`). Its ComboBox offers exactly TWO items — `Reuse` and `Rebuild` — and is ENABLED (scan-driven enable/disable like Drivers and AppsISO). It does NOT offer `Skip`. The FFU Image remains unchanged: a single disabled `Reuse` item only (D-06/D-08 — no inline FFU rebuild). Source: BLOCKER-3 orchestrator ruling; D-04/D-12 (CONTEXT.md).
 
 ### FFU Card Helper Text
 
@@ -201,7 +201,7 @@ This section describes state machine transitions and interaction sequences requi
 
 **XAML control name pattern:** `usb{Type}Disposition` where `{Type}` is one of: `FFU`, `DeployISO`, `Drivers`, `AppsISO`, `PPKG`, `Unattend`, `Autopilot`.
 
-**Initial state (before scan):** All ComboBoxes `IsEnabled="False"`. Required-artifact ComboBoxes (FFU, DeployISO) are permanently `IsEnabled="False"`. All others enabled/disabled by scan result.
+**Initial state (before scan):** FFU ComboBox is permanently `IsEnabled="False"` (required, single Reuse item). DeployISO ComboBox is initially ENABLED at XAML level but scan-driven (enabled on Found/Degraded, disabled on Error/Missing). All other ComboBoxes start `IsEnabled="False"` in XAML and are enabled/disabled by scan result. (BLOCKER-3: DeployISO = required-buildable, not permanently locked.)
 
 **Scan result → ComboBox enable rule:**
 
@@ -374,16 +374,17 @@ Add warning TextBlock as a new final row (after existing metadata rows):
 
 Add the corresponding `<RowDefinition Height="Auto"/>` entries to `<Grid.RowDefinitions>`.
 
-#### Required artifact tier — DeployISO card (lines 1010–1013 area)
+#### Required-buildable artifact tier — DeployISO card (lines 1010–1013 area)
 
-Replace Row 0 with:
+Replace Row 0 with (BLOCKER-3: enabled ComboBox with Reuse/Rebuild — no Skip, no IsEnabled="False" hard-lock):
 ```xml
-<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
     <TextBlock Text="WinPE Deploy ISO" FontWeight="Bold" FontSize="13"
                VerticalAlignment="Center" Margin="0,0,8,0"/>
     <ComboBox x:Name="usbDeployISODisposition" Width="120" FontSize="11"
-              SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
-        <ComboBoxItem Content="Reuse" Tag="Reuse"/>
+              SelectedIndex="0" VerticalAlignment="Center">
+        <ComboBoxItem Content="Reuse"   Tag="Reuse"/>
+        <ComboBoxItem Content="Rebuild" Tag="Rebuild"/>
     </ComboBox>
 </StackPanel>
 ```

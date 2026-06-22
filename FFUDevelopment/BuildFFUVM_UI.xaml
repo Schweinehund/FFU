@@ -952,21 +952,33 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Row 0: Label + Include checkbox -->
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbFFUInclude" Content="FFU Image" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="True" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (required tier — single Reuse item, disabled) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,3">
+                                        <TextBlock Text="FFU Image" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbFFUDisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse" Tag="Reuse"/>
+                                        </ComboBox>
                                     </StackPanel>
 
-                                    <!-- Row 1: Status -->
-                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
+                                    <!-- Row 1: FFU helper text (D-09) — always visible -->
+                                    <TextBlock Grid.Row="1" Text="To rebuild the OS image, switch to Full Build"
+                                               FontSize="11" Foreground="#888888" FontStyle="Italic"
+                                               Margin="0,0,0,8"/>
+
+                                    <!-- Row 2: Status -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="20,0,0,3">
                                         <TextBlock Text="Status: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbFFUStatus" Text="(scanning...)" FontSize="11" Foreground="#888888" FontStyle="Italic"/>
                                     </StackPanel>
 
-                                    <!-- Row 2: Path + Browse button -->
-                                    <Grid Grid.Row="2" Margin="20,0,0,3">
+                                    <!-- Row 3: Path + Browse button -->
+                                    <Grid Grid.Row="3" Margin="20,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
@@ -977,16 +989,16 @@
                                         <Button x:Name="usbFFUBrowse" Grid.Column="2" Content="Browse..." Width="75" FontSize="11" IsEnabled="False" VerticalAlignment="Center"/>
                                     </Grid>
 
-                                    <!-- Row 3: Size + Age -->
-                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,3">
+                                    <!-- Row 4: Size + Age -->
+                                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,0,0,3">
                                         <TextBlock Text="Size: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbFFUSize" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,15,0"/>
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbFFUAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
 
-                                    <!-- Row 4: FFU-specific metadata -->
-                                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,3,0,0">
+                                    <!-- Row 5: FFU-specific metadata -->
+                                    <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="20,3,0,0">
                                         <TextBlock Text="Version: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbFFUVersion" Text="--" FontSize="11" Foreground="#888888" Margin="0,0,10,0"/>
                                         <TextBlock Text="SKU: " Foreground="#888888" FontSize="11"/>
@@ -994,6 +1006,10 @@
                                         <TextBlock Text="Arch: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbFFUArch" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 6: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbFFUWarning" Grid.Row="6" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                                 <Separator Margin="0,10"/>
@@ -1005,11 +1021,18 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Row 0: Label + Include checkbox -->
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbDeployISOInclude" Content="WinPE Deploy ISO" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="True" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (required-buildable tier — Reuse/Rebuild, ENABLED) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="WinPE Deploy ISO" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbDeployISODisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse" Tag="Reuse"/>
+                                            <ComboBoxItem Content="Rebuild" Tag="Rebuild"/>
+                                        </ComboBox>
                                     </StackPanel>
 
                                     <!-- Row 1: Status -->
@@ -1037,6 +1060,10 @@
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbDeployISOAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 4: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbDeployISOWarning" Grid.Row="4" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                             </StackPanel>
@@ -1053,10 +1080,19 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbDriversInclude" Content="Drivers" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (buildable tier — Reuse/Rebuild/Skip) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="Drivers" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbDriversDisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse"   Tag="Reuse"/>
+                                            <ComboBoxItem Content="Rebuild" Tag="Rebuild"/>
+                                            <ComboBoxItem Content="Skip"    Tag="Skip"/>
+                                        </ComboBox>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
@@ -1081,6 +1117,10 @@
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbDriversAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 4: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbDriversWarning" Grid.Row="4" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                                 <Separator Margin="0,10"/>
@@ -1092,10 +1132,18 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbPPKGInclude" Content="Provisioning Package" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (user-authored tier — Reuse/Skip) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="Provisioning Package" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbPPKGDisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse" Tag="Reuse"/>
+                                            <ComboBoxItem Content="Skip"  Tag="Skip"/>
+                                        </ComboBox>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
@@ -1120,6 +1168,10 @@
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbPPKGAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 4: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbPPKGWarning" Grid.Row="4" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                                 <Separator Margin="0,10"/>
@@ -1131,10 +1183,18 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbUnattendInclude" Content="Unattend.xml" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (user-authored tier — Reuse/Skip) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="Unattend.xml" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbUnattendDisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse" Tag="Reuse"/>
+                                            <ComboBoxItem Content="Skip"  Tag="Skip"/>
+                                        </ComboBox>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
@@ -1159,6 +1219,10 @@
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbUnattendAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 4: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbUnattendWarning" Grid.Row="4" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                                 <Separator Margin="0,10"/>
@@ -1170,10 +1234,18 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbAutopilotInclude" Content="Autopilot Profile" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (user-authored tier — Reuse/Skip) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="Autopilot Profile" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbAutopilotDisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse" Tag="Reuse"/>
+                                            <ComboBoxItem Content="Skip"  Tag="Skip"/>
+                                        </ComboBox>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
@@ -1198,6 +1270,10 @@
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbAutopilotAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 4: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbAutopilotWarning" Grid.Row="4" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                                 <Separator Margin="0,10"/>
@@ -1209,10 +1285,19 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <CheckBox x:Name="usbAppsISOInclude" Content="Applications ISO" FontWeight="Bold" FontSize="13" IsEnabled="False" IsChecked="False" VerticalAlignment="Center"/>
+                                    <!-- Row 0: Label + Disposition ComboBox (buildable tier — Reuse/Rebuild/Skip) -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="Applications ISO" FontWeight="Bold" FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="usbAppsISODisposition" Width="120" FontSize="11"
+                                                  SelectedIndex="0" IsEnabled="False" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Reuse"   Tag="Reuse"/>
+                                            <ComboBoxItem Content="Rebuild" Tag="Rebuild"/>
+                                            <ComboBoxItem Content="Skip"    Tag="Skip"/>
+                                        </ComboBox>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,3">
@@ -1237,6 +1322,10 @@
                                         <TextBlock Text="Age: " Foreground="#888888" FontSize="11"/>
                                         <TextBlock x:Name="usbAppsISOAge" Text="--" FontSize="11" Foreground="#888888"/>
                                     </StackPanel>
+
+                                    <!-- Row 4: Warning TextBlock (D-11 — visible when Degraded) -->
+                                    <TextBlock x:Name="usbAppsISOWarning" Grid.Row="4" Text="" FontSize="11" Foreground="DarkOrange"
+                                               Visibility="Collapsed" TextWrapping="Wrap" Margin="20,0,0,3"/>
                                 </Grid>
 
                             </StackPanel>
