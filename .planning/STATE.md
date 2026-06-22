@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
 status: unknown
-stopped_at: Completed 49-05-PLAN.md
-last_updated: "2026-03-25T03:40:43Z"
+last_updated: "2026-06-22T12:13:14.080Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
   completed_plans: 12
+  percent: 83
 ---
 
 # Project State: FFU Builder
@@ -79,9 +79,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T03:40:43Z
-Stopped at: Completed 49-05-PLAN.md
-Resume file: None
+Last session: 2026-06-22T12:13:14.058Z
+Stopped at: Phase 50 context gathered
+Resume file: .planning/phases/50-selective-rebuild-pipeline/50-CONTEXT.md
 Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
 
 ---
