@@ -36,78 +36,98 @@ Phases 1-44 complete. See MILESTONES.md for details.
 ## Phase Details
 
 ### Phase 45: Config Schema Extension
+
 **Goal**: Config schema and migration support USB Mode state so artifact paths and dispositions persist across sessions
 **Depends on**: Nothing (first phase of milestone)
 **Requirements**: CONFIG-01, CONFIG-02
 **Success Criteria** (what must be TRUE):
+
   1. Config schema includes a `USBMode` section with artifact path overrides and per-artifact disposition fields
   2. Loading an existing v1.10.0 config automatically migrates to v1.11.0 schema without data loss
   3. USB Mode artifact paths saved in one session are present when the UI is reloaded
   4. `Get-UIConfig` and `Set-UIConfig` read and write USB Mode fields without error
   5. Pester migration test passes with before/after config fixture files
+
 **Plans**: 2 plans
 Plans:
+
 - [x] 45-01-PLAN.md — v1.3 migration logic, Pester tests, version bumps (CONFIG-02)
 - [x] 45-02-PLAN.md — JSON schema definitions, UI config I/O stubs, fallback version (CONFIG-01)
 
 ### Phase 46: FFU.ArtifactScanner Module
+
 **Goal**: A tested, isolated module that discovers all deployable artifacts, extracts metadata, and validates cross-artifact compatibility
 **Depends on**: Phase 45 (schema defines artifact manifest structure)
 **Requirements**: DISC-01, VALID-01, VALID-02, VALID-03, VALID-04
 **Success Criteria** (what must be TRUE):
+
   1. `Find-FFUArtifacts` discovers FFU, boot ISO, drivers, PPKG, unattend, Autopilot, and Apps.iso from a given FFUDevelopmentPath
   2. `Get-ArtifactMetadata` extracts Windows version, SKU, and architecture from an FFU file via DISM without mounting
   3. `Test-ArtifactCompatibility` returns an architecture-mismatch warning when FFU arch and boot ISO arch differ
   4. Each artifact result includes found/missing status, file path, and file size
   5. Each artifact result includes a staleness indicator (age in days from file last-write time)
   6. All DISM calls run with explicit `Import-Module DISM` and WIMMount filter service validation
+
 **Plans**: 2 plans
 Plans:
+
 - [x] 46-01-PLAN.md — Module scaffold, data contract classes, Get-ArtifactMetadata
 - [x] 46-02-PLAN.md — Find-FFUArtifacts scanner, Test-ArtifactCompatibility, integration tests
 
 ### Phase 47: USB Mode Pipeline Entry
+
 **Goal**: BuildFFUVM.ps1 accepts a USB-only invocation that reads an artifact manifest, sets skip flags for all build phases, and runs only USB assembly
 **Depends on**: Phase 46 (manifest schema must be stable)
 **Requirements**: USB-01, USB-04
 **Success Criteria** (what must be TRUE):
+
   1. Invoking `BuildFFUVM.ps1 -USBOnlyMode` with a valid artifact manifest assembles a USB drive without running any build phases
   2. Missing WinPE deployment ISO causes USB creation to halt with an actionable error message before any USB writes occur
   3. All `$using:` variable names required by `New-DeploymentUSB` are correctly populated from the manifest-reading block
   4. A Pester test launches `BuildFFUVM.ps1 -USBOnlyMode` via `Start-ThreadJob` and verifies no parse-time failures
   5. No new param block defaults use `[FFUConstants]::` expressions
+
 **Plans**: 1 plan
 Plans:
+
 - [x] 47-01-PLAN.md — Pester test scaffold, -USBOnlyMode switch, ArtifactScanner import, short-circuit block (USB-01, USB-04)
 
 ### Phase 48: XAML Mode Toggle and USB Tab
+
 **Goal**: The UI has a mode toggle that switches between Full Build and USB Mode views, and a USB Mode tab with artifact display structure
 **Depends on**: Phase 45 (schema defines what fields exist), Phase 46 (artifact data model drives ListView columns)
 **Requirements**: UIMODE-01, UIMODE-02, UIMODE-03
 **Success Criteria** (what must be TRUE):
+
   1. A mode toggle control (RadioButton group or equivalent) is visible at the top level of the UI
   2. Selecting USB Mode hides or disables all Full Build-specific controls (VM settings, Windows version picker, etc.)
   3. Selecting USB Mode makes the USB Mode tab and artifact-focused controls visible
   4. Selecting Full Build restores the standard tab layout with no USB Mode controls visible
   5. The XAML file passes a `[Windows.Markup.XamlReader]::Load()` parse test with no exceptions
+
 **Plans**: 2 plans
 Plans:
+
 - [x] 48-01-PLAN.md — Mode toggle RadioButton group, x:Name on all Full Build tabs (UIMODE-01, UIMODE-02)
 - [x] 48-02-PLAN.md — USB Mode TabItem with artifact card layout (UIMODE-03)
 
 ### Phase 49: UI Event Wiring and Artifact Integration
+
 **Goal**: USB Mode is fully interactive — users can browse to artifact paths, see artifact status, select per-artifact inclusions, and initiate USB creation
 **Depends on**: Phase 46 (scanner), Phase 47 (pipeline entry), Phase 48 (XAML controls exist)
 **Requirements**: DISC-02, DISC-03, USB-02, USB-03
 **Success Criteria** (what must be TRUE):
+
   1. Activating USB Mode triggers synchronous artifact scanning (UI thread, <2s filesystem scan)
   2. Browse buttons open file/folder dialogs for each artifact type and update the artifact path display
   3. Per-artifact include/exclude checkboxes control which artifacts are copied to the USB drive
   4. USB drive selection uses the existing drive detection mechanism from the Full Build tab
   5. Mode-aware cancel/reset correctly labels the button and cleans up state for both Full Build and USB Mode
   6. User-specified artifact paths survive a session restart (persisted via config)
+
 **Plans**: 5 plans
 Plans:
+
 - [x] 49-01-PLAN.md — XAML additions, state init, mode switch handlers, artifact scan function (DISC-02)
 - [x] 49-02-PLAN.md — Browse handlers, USB drive detection and select-all wiring (DISC-02, USB-02)
 - [x] 49-03-PLAN.md — Config persistence stubs replacement, mode-aware button labels (DISC-03)
@@ -115,22 +135,35 @@ Plans:
 - [x] 49-05-PLAN.md — Gap closure: cleanup timer mode-aware label fix + regression test (completed 2026-03-25)
 
 ### Phase 50: Selective Rebuild Pipeline
+
 **Goal**: Users can mark each artifact as reuse, rebuild, or skip, and the pipeline executes only the build phases needed for marked-rebuild artifacts
 **Depends on**: Phase 49 (full USB Mode end-to-end must work before adding selective rebuild)
 **Requirements**: REBUILD-01, REBUILD-02, REBUILD-03
 **Success Criteria** (what must be TRUE):
+
   1. USB Mode artifact display shows a per-artifact disposition control (reuse / rebuild / skip)
   2. Marking an artifact as rebuild causes only the corresponding build phase(s) to run before USB assembly
   3. Artifacts marked reuse are taken from their current paths with no build phase execution
   4. Artifacts marked skip are excluded from USB assembly entirely
   5. Rebuilt artifacts are combined with reused artifacts and assembled into the final USB drive
-**Plans**: 6 plans
-Plans:
+
+**Plans**: 6 plansPlans:
+**Wave 1**
+
 - [ ] 50-01-PLAN.md — Wave-0 test scaffolds (SelectiveRebuild.Tests + F1/F2/F3 + 4-status assertions) (REBUILD-01/02/03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 50-02-PLAN.md — XAML disposition ComboBoxes (7 cards) + Handlers $artifactMap rework, 4-status rendering, SelectionChanged (REBUILD-01)
-- [ ] 50-03-PLAN.md — Config disposition round-trip (Build-UIConfiguration save + Update-UIFromConfig restore) (REBUILD-01)
 - [ ] 50-04-PLAN.md — Pipeline F1 AppsISO copy path + F2 Disposition copy gate (REBUILD-02/03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 50-03-PLAN.md — Config disposition round-trip (Build-UIConfiguration save + Update-UIFromConfig restore) (REBUILD-01)
 - [ ] 50-05-PLAN.md — Pipeline F3 selective per-phase rebuild execution + mini path-init + F6 drivers config (REBUILD-02/03)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 50-06-PLAN.md — Version bumps + CHANGELOG + BLOCKING verify-app/manual sign-off (REBUILD-01/02/03)
 
 ## Progress
