@@ -1794,6 +1794,81 @@ if ($USBOnlyMode) {
         WriteLog "WARNING: $($warning.Message)"
     }
 
+    # === PHASE 50: USB Mode Mini Path-Init ===
+    # The normal default-value initialization block (~lines 2050-2090) runs AFTER the
+    # USBOnlyMode 'return' at line 1924 and is never reached in USB Mode.
+    # This compact block sets only the variables needed by selective rebuild (Pitfall 1).
+    # Uses 'if (-not $Var)' form so user-supplied params are never overridden.
+    if (-not $AppsISO)        { $AppsISO        = "$FFUDevelopmentPath\Apps\Apps.iso" }
+    if (-not $AppsPath)       { $AppsPath        = "$FFUDevelopmentPath\Apps" }
+    if (-not $DeployISO)      { $DeployISO       = "$FFUDevelopmentPath\WinPE_FFU_Deploy_$WindowsArch.iso" }
+    if (-not $PEDriversFolder) { $PEDriversFolder = "$FFUDevelopmentPath\PEDrivers" }
+    if (-not $DriversFolder)  { $DriversFolder   = "$FFUDevelopmentPath\Drivers" }
+
+    # Resolve ADK path (needed for AppsISO + DeployISO rebuild — null if ADK not installed)
+    $adkPath = $null
+    try {
+        $adkPath = Get-ADKPath
+    }
+    catch {
+        WriteLog "USBOnlyMode: Get-ADKPath threw an exception -- ADK path will be treated as unavailable: $($_.Exception.Message)"
+        $adkPath = $null
+    }
+
+    # === PHASE 50: Selective Rebuild Gate ===
+    # Parallel to $skip* pattern (lines 2696-2705) but NOT tied to $script:IsResuming.
+    # Active on cold USB-Mode start; each flag is true only when Disposition=='Rebuild'.
+    # FFU/PPKG/Unattend/Autopilot cannot be Rebuild in USB Mode (D-05, D-06, D-08).
+    $rebuildDrivers   = $false
+    $rebuildAppsISO   = $false
+    $rebuildDeployISO = $false
+    if ($null -ne $configData -and
+        $null -ne $configData.USBMode -and
+        $null -ne $configData.USBMode.Artifacts) {
+        $cfgArtEarly = $configData.USBMode.Artifacts
+        $rebuildDrivers   = (
+            $null -ne $cfgArtEarly.Drivers -and
+            $cfgArtEarly.Drivers.PSObject.Properties.Match('Disposition').Count -gt 0 -and
+            $cfgArtEarly.Drivers.Disposition -eq 'Rebuild'
+        )
+        $rebuildAppsISO   = (
+            $null -ne $cfgArtEarly.AppsISO -and
+            $cfgArtEarly.AppsISO.PSObject.Properties.Match('Disposition').Count -gt 0 -and
+            $cfgArtEarly.AppsISO.Disposition -eq 'Rebuild'
+        )
+        $rebuildDeployISO = (
+            $null -ne $cfgArtEarly.DeployISO -and
+            $cfgArtEarly.DeployISO.PSObject.Properties.Match('Disposition').Count -gt 0 -and
+            $cfgArtEarly.DeployISO.Disposition -eq 'Rebuild'
+        )
+    }
+
+    # === PHASE 50: F6 — Driver Rebuild Input Sourcing ===
+    # Source $driversJsonPath / $Make / $Model from config when not supplied as params.
+    # The normal config-reading block (~line 2000-2050) runs after the 'return' at line 1924
+    # and is never reached in USB Mode, so we read the top-level config fields here.
+    if ([string]::IsNullOrWhiteSpace($driversJsonPath) -and
+        $null -ne $configData -and
+        $configData.PSObject.Properties.Match('DriversJsonPath').Count -gt 0 -and
+        -not [string]::IsNullOrWhiteSpace($configData.DriversJsonPath)) {
+        $driversJsonPath = $configData.DriversJsonPath
+        WriteLog "USBOnlyMode: Using DriversJsonPath from config: $driversJsonPath"
+    }
+    if ([string]::IsNullOrWhiteSpace($Make) -and
+        $null -ne $configData -and
+        $configData.PSObject.Properties.Match('Make').Count -gt 0 -and
+        -not [string]::IsNullOrWhiteSpace($configData.Make)) {
+        $Make  = $configData.Make
+        WriteLog "USBOnlyMode: Using Make from config: $Make"
+    }
+    if ([string]::IsNullOrWhiteSpace($Model) -and
+        $null -ne $configData -and
+        $configData.PSObject.Properties.Match('Model').Count -gt 0 -and
+        -not [string]::IsNullOrWhiteSpace($configData.Model)) {
+        $Model = $configData.Model
+        WriteLog "USBOnlyMode: Using Model from config: $Model"
+    }
+
     # Step 4: ISO mountability pre-validation (per D-10 step 2, D-12, USB-01)
     $deployISOPath = $manifest.DeployISO.FilePath
     WriteLog "USBOnlyMode: Verifying deployment ISO is mountable: $deployISOPath"
