@@ -244,5 +244,17 @@ Describe 'BuildFFUVM.ps1 USBOnlyMode' {
         It 'Calls New-PEMedia inside $rebuildDeployISO block' {
             $scriptContent | Should -Match 'New-PEMedia'
         }
+
+        It 'Rebuild-execution block precedes Disposition gate (BLOCKER-1 structural ordering assertion)' {
+            # BLOCKER-1: The selective rebuild execution block MUST appear at a lower line number
+            # than the $dispositionCheckTypes gate so rebuilt artifacts reconcile copy variables
+            # BEFORE the Skip/copy gate reads them. Without this ordering, a Skip default could
+            # suppress a just-rebuilt artifact.
+            $rebuildIdx = $scriptContent.IndexOf('$rebuildDrivers')
+            $gateIdx    = $scriptContent.IndexOf('$dispositionCheckTypes')
+            $rebuildIdx | Should -BeGreaterOrEqual 0 -Because 'rebuildDrivers must exist in the script'
+            $gateIdx    | Should -BeGreaterOrEqual 0 -Because 'dispositionCheckTypes gate must exist in the script'
+            $rebuildIdx | Should -BeLessThan $gateIdx -Because 'rebuild execution block must precede the Disposition gate'
+        }
     }
 }

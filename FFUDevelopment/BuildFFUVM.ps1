@@ -1869,8 +1869,129 @@ if ($USBOnlyMode) {
         WriteLog "USBOnlyMode: Using Model from config: $Model"
     }
 
+    # === PHASE 50: Selective Rebuild Execution ===
+    # Runs ONLY the build phases for artifacts marked Rebuild. Order: Drivers -> AppsISO -> DeployISO.
+    # ORDERING (BLOCKER-1): This entire block MUST appear before $dispositionCheckTypes (further below)
+    # so rebuilt outputs reconcile copy variables before the Skip/copy gate reads them.
+    # ORDERING (Pitfall 6): DeployISO rebuild runs here, BEFORE Step 4 (ISO mount check), so the
+    # mount test validates the freshly rebuilt ISO, not the old one.
+
+    if ($rebuildDrivers) {
+        WriteLog "USBOnlyMode: Rebuilding Drivers (disposition=Rebuild)..."
+        WriteLog "WARNING: Drivers Rebuild will download into $DriversFolder. Existing files may be overwritten."
+        Set-Progress -Percentage 20 -Message "Rebuilding drivers..."
+
+        # D-07: gate on input availability; degrade gracefully when driversJsonPath unavailable
+        if ([string]::IsNullOrWhiteSpace($driversJsonPath) -or -not (Test-Path -LiteralPath $driversJsonPath)) {
+            WriteLog "WARNING: Drivers Rebuild requested but driversJsonPath is not available or does not exist ($driversJsonPath). Degrading to Reuse/existing drivers."
+            $rebuildDrivers = $false
+        }
+        else {
+            # Reuse the EXISTING driver-download machinery (Invoke-ParallelProcessing -TaskType DownloadDriverByMake)
+            # Do NOT hand-roll a download loop -- the existing parallel infrastructure handles all OEM providers.
+            Import-Module "$PSScriptRoot\FFUUI.Core\FFUUI.Core.psm1" -ErrorAction SilentlyContinue
+            $driversToProcess = @()
+            $jsonData = Get-Content -Path $driversJsonPath -Raw | ConvertFrom-Json
+            foreach ($makeEntry in $jsonData.PSObject.Properties) {
+                $makeName = $makeEntry.Name
+                if ($makeEntry.Value.PSObject.Properties['Models']) {
+                    foreach ($modelEntry in $makeEntry.Value.Models) {
+                        $driverItem = [PSCustomObject]@{
+                            Make        = $makeName
+                            Model       = $modelEntry.Name
+                            Link        = if ($modelEntry.PSObject.Properties['Link']) { $modelEntry.Link } else { $null }
+                            ProductName = if ($modelEntry.PSObject.Properties['ProductName']) { $modelEntry.ProductName } else { $null }
+                            MachineType = if ($modelEntry.PSObject.Properties['MachineType']) { $modelEntry.MachineType } else { $null }
+                        }
+                        $driversToProcess += $driverItem
+                    }
+                }
+            }
+
+            if ($driversToProcess.Count -eq 0) {
+                WriteLog "WARNING: No driver entries found in $driversJsonPath. Nothing to rebuild."
+                $rebuildDrivers = $false
+            }
+            else {
+                WriteLog "USBOnlyMode: Found $($driversToProcess.Count) driver entries to process from $driversJsonPath."
+                $taskArguments = @{
+                    DriversFolder            = $DriversFolder
+                    WindowsRelease           = $WindowsRelease
+                    WindowsArch              = $WindowsArch
+                    WindowsVersion           = $WindowsVersion
+                    Headers                  = $Headers
+                    UserAgent                = $UserAgent
+                    CompressToWim            = $CompressDownloadedDriversToWim
+                    PreserveSourceOnCompress = ($UseDriversAsPEDrivers -and $CompressDownloadedDriversToWim)
+                }
+                $parallelResults = Invoke-ParallelProcessing -ItemsToProcess $driversToProcess `
+                    -TaskType 'DownloadDriverByMake' `
+                    -TaskArguments $taskArguments `
+                    -IdentifierProperty 'Model' `
+                    -WindowObject $null `
+                    -ListViewControl $null `
+                    -MainThreadLogPath $LogFile
+                # Reconcile: rebuilt drivers folder is the canonical source
+                $CopyDrivers = $true
+                WriteLog "USBOnlyMode: Drivers rebuilt into $DriversFolder"
+            }
+        }
+    }
+
+    if ($rebuildAppsISO) {
+        WriteLog "USBOnlyMode: Rebuilding AppsISO (disposition=Rebuild)..."
+        Set-Progress -Percentage 40 -Message "Rebuilding Apps ISO..."
+        # Pitfall 5: null-check $adkPath before calling New-AppsISO
+        if ([string]::IsNullOrWhiteSpace($adkPath)) {
+            WriteLog "WARNING: ADK not found. Cannot rebuild AppsISO. Continuing with existing artifact."
+            $rebuildAppsISO = $false
+        }
+        else {
+            try {
+                New-AppsISO -ADKPath $adkPath -AppsPath $AppsPath -AppsISO $AppsISO
+                # Reconcile: rebuilt ISO path becomes the copy source
+                $AppsISOPath  = $AppsISO
+                $CopyAppsISO  = $true
+                WriteLog "USBOnlyMode: AppsISO rebuilt at $AppsISO"
+            }
+            catch {
+                WriteLog "WARNING: AppsISO rebuild failed: $($_.Exception.Message). Continuing with existing artifact."
+                $rebuildAppsISO = $false
+            }
+        }
+    }
+
+    if ($rebuildDeployISO) {
+        WriteLog "USBOnlyMode: Rebuilding DeployISO (disposition=Rebuild)..."
+        Set-Progress -Percentage 60 -Message "Rebuilding deployment ISO..."
+        # Pitfall 5: null-check $adkPath before calling New-PEMedia
+        if ([string]::IsNullOrWhiteSpace($adkPath)) {
+            WriteLog "WARNING: ADK not found. Cannot rebuild DeployISO. Continuing with existing artifact."
+            $rebuildDeployISO = $false
+        }
+        else {
+            try {
+                New-PEMedia -Capture $false -Deploy $true -adkPath $adkPath `
+                            -FFUDevelopmentPath $FFUDevelopmentPath `
+                            -WindowsArch $WindowsArch -CaptureISO $null -DeployISO $DeployISO `
+                            -CopyPEDrivers $false -UseDriversAsPEDrivers $false `
+                            -PEDriversFolder $PEDriversFolder -DriversFolder $DriversFolder `
+                            -CompressDownloadedDriversToWim $false
+                # Reconcile: update the path variable used by the ISO mount pre-check below
+                # (Pitfall 6: mount check at Step 4 validates the rebuilt ISO, not the old one)
+                $DeployISO = "$FFUDevelopmentPath\WinPE_FFU_Deploy_$WindowsArch.iso"
+                WriteLog "USBOnlyMode: DeployISO rebuilt at $DeployISO"
+            }
+            catch {
+                WriteLog "WARNING: DeployISO rebuild failed: $($_.Exception.Message). Continuing with existing artifact."
+                $rebuildDeployISO = $false
+            }
+        }
+    }
+
     # Step 4: ISO mountability pre-validation (per D-10 step 2, D-12, USB-01)
-    $deployISOPath = $manifest.DeployISO.FilePath
+    # NOTE: if $rebuildDeployISO ran above, $DeployISO now points to the freshly built ISO.
+    $deployISOPath = if ($rebuildDeployISO) { $DeployISO } else { $manifest.DeployISO.FilePath }
     WriteLog "USBOnlyMode: Verifying deployment ISO is mountable: $deployISOPath"
     $testMounted = $false
     try {
