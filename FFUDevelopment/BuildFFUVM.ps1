@@ -2141,8 +2141,46 @@ if ($USBOnlyMode) {
                     }
                 }
                 'Rebuild' {
-                    # Rebuild handled by plan 50-05 selective execution block (inserted before this gate)
-                    WriteLog "USBOnlyMode: $dType disposition=Rebuild -- using freshly built artifact."
+                    # CR-01/CR-02: re-assert copy flags here (AFTER Step 5 manifest-based clobber, AFTER path overrides).
+                    # This gate runs LAST so it is the correct place to finalize the rebuilt copy state.
+                    # Only re-assert when the rebuild actually succeeded ($rebuild* flag still $true after the
+                    # rebuild execution block above; flags are set to $false on degradation/failure).
+                    switch ($dType) {
+                        'Drivers' {
+                            if ($rebuildDrivers) {
+                                $CopyDrivers = $true
+                                WriteLog "USBOnlyMode: Drivers disposition=Rebuild -- copy flag finalized (rebuild succeeded)."
+                            }
+                            else {
+                                WriteLog "USBOnlyMode: Drivers disposition=Rebuild -- rebuild degraded; retaining manifest copy state."
+                            }
+                        }
+                        'AppsISO' {
+                            if ($rebuildAppsISO) {
+                                $CopyAppsISO  = $true
+                                $AppsISOPath  = $AppsISO
+                                WriteLog "USBOnlyMode: AppsISO disposition=Rebuild -- copy flag and path finalized (rebuild succeeded)."
+                            }
+                            else {
+                                WriteLog "USBOnlyMode: AppsISO disposition=Rebuild -- rebuild degraded; retaining manifest copy state."
+                            }
+                        }
+                        'DeployISO' {
+                            if ($rebuildDeployISO) {
+                                # DeployISO has no separate copy flag; ensure path variable points to the rebuilt ISO
+                                $DeployISO = $deployISOPath
+                                WriteLog "USBOnlyMode: DeployISO disposition=Rebuild -- path finalized to rebuilt ISO: $DeployISO"
+                            }
+                            else {
+                                WriteLog "USBOnlyMode: DeployISO disposition=Rebuild -- rebuild degraded; retaining manifest ISO path."
+                            }
+                        }
+                        # FFU: cannot be Rebuild in USB Mode (D-08); no case needed
+                        # PPKG/Unattend/Autopilot: not rebuildable in USB Mode; no case needed
+                        default {
+                            WriteLog "USBOnlyMode: $dType disposition=Rebuild -- no rebuild action defined for this type."
+                        }
+                    }
                 }
                 default { } # Reuse: no change; copy flags already set from scan/override above
             }
