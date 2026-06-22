@@ -410,3 +410,74 @@ Describe 'Error and warning count handling' {
         }
     }
 }
+
+# =============================================================================
+# Phase 50 — Disposition round-trip in FFUUI.Core.Config (Wave-0 RED)
+# Source: FFUUI.Core.Config.psm1 (structural source-text assertions)
+# =============================================================================
+
+Describe 'FFUUI.Core.Config — Phase 50 Disposition round-trip (Wave-0 RED)' -Tag 'Unit', 'FFUUI.Core', 'Phase50', 'SelectiveRebuild' {
+
+    BeforeAll {
+        $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $configModulePath = Join-Path $projectRoot 'FFUDevelopment\FFUUI.Core\FFUUI.Core.Config.psm1'
+        $script:configContent50 = Get-Content -Path $configModulePath -Raw
+    }
+
+    Context 'Build-UIConfiguration — Disposition write (replaces Include, plan 50-02)' {
+        <#
+        Source: FFUUI.Core.Config.psm1 lines 166-188 (Build-UIConfiguration USB artifact save block)
+        Phase 50 removes the Include checkbox read and replaces with ComboBox SelectedItem.Tag read.
+        Wave-0 RED: changes not yet present until plan 50-02.
+        #>
+
+        It 'Source reads usb{Type}Disposition ComboBox SelectedItem.Tag for disposition value' {
+            # Wave-0 RED: dispCtrlName with Disposition suffix not yet present
+            $script:configContent50 | Should -Match 'usb\$\{?artifactType\}?Disposition'
+        }
+
+        It 'Source does NOT write hardcoded Disposition = ''Reuse'' (must read from ComboBox)' {
+            # Wave-0 RED: Config still writes hardcoded Reuse until plan 50-02
+            $script:configContent50 | Should -Not -Match "Disposition\s*=\s*'Reuse'"
+        }
+
+        It 'Source does NOT write Include key to USB artifact entry (D-01 removes Include)' {
+            # Wave-0 RED: Include key still written alongside Disposition until plan 50-02
+            $script:configContent50 | Should -Not -Match "Include\s*=\s*\$includeChecked"
+        }
+
+        It 'Source does NOT read includeChecked from CheckBox IsChecked for USB artifacts' {
+            # Wave-0 RED: includeChecked / includeCtrlName still present until plan 50-02
+            $script:configContent50 | Should -Not -Match 'includeCtrlName'
+        }
+    }
+
+    Context 'Update-UIFromConfig — Disposition restore (replaces Include checkbox, plan 50-02)' {
+        <#
+        Source: FFUUI.Core.Config.psm1 lines 639-665 (Update-UIFromConfig USB artifact restore block)
+        Phase 50 replaces Include checkbox restore with ComboBox SelectedItem restore by Tag.
+        Analog: cmbVMwareNicType restore (Config.psm1 lines 621-636) — Tag-based item selection.
+        Wave-0 RED: changes not yet present until plan 50-02.
+        #>
+
+        It 'Source restores Disposition via PSObject.Properties.Match check' {
+            # Wave-0 RED: Disposition property-check restore not yet present
+            $script:configContent50 | Should -Match "PSObject\.Properties\.Match\('Disposition'\)"
+        }
+
+        It 'Source does NOT restore Include property for USB artifacts' {
+            # Wave-0 RED: Include restore still present until plan 50-02
+            $script:configContent50 | Should -Not -Match "PSObject\.Properties\.Match\('Include'\)"
+        }
+
+        It 'Source selects ComboBox item by Tag match during restore (mirrors cmbVMwareNicType pattern)' {
+            # Wave-0 RED: Tag-based ComboBox restore not yet present for disposition controls
+            $script:configContent50 | Should -Match '\$item\.Tag\s*-eq\s*\$targetDisp'
+        }
+
+        It 'Source references usb{Key}Disposition control name in restore loop' {
+            # Wave-0 RED: dispCtrlName with Disposition suffix in restore not yet present
+            $script:configContent50 | Should -Match 'usb\$\{?key\}?Disposition'
+        }
+    }
+}

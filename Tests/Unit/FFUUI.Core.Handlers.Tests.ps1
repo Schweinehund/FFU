@@ -554,3 +554,81 @@ Describe 'FFUUI.Core.Handlers Business Logic' -Tag 'Unit', 'FFUUI.Core', 'Handle
         }
     }
 }
+
+# =============================================================================
+# Phase 50 — Disposition Controls and 4-Status Rendering (Wave-0 RED)
+# Source: FFUUI.Core.Handlers.psm1 (structural source-text assertions)
+# =============================================================================
+
+Describe 'FFUUI.Core.Handlers — Phase 50 Disposition and 4-status (Wave-0 RED)' -Tag 'Unit', 'FFUUI.Core', 'Phase50', 'SelectiveRebuild' {
+
+    BeforeAll {
+        $testDir    = Split-Path $PSCommandPath -Parent       # .../Tests/Unit
+        $testsDir   = Split-Path $testDir -Parent             # .../Tests
+        $repoRoot   = Split-Path $testsDir -Parent            # .../<repo>
+        $handlersPath = Join-Path $repoRoot 'FFUDevelopment\FFUUI.Core\FFUUI.Core.Handlers.psm1'
+        $script:handlersContent = Get-Content -Path $handlersPath -Raw
+    }
+
+    Context 'Phase 50 — $artifactMap disposition keys' {
+        <#
+        Source: FFUUI.Core.Handlers.psm1 lines 26-34
+        Phase 50 renames includeCtrl to dispCtrl and adds tier + warnCtrl keys.
+        Wave-0 RED: changes not yet present until plan 50-03.
+        #>
+
+        It '$artifactMap source contains dispCtrl key (renamed from includeCtrl in plan 50-03)' {
+            # Wave-0 RED: includeCtrl still present; dispCtrl not yet added
+            $script:handlersContent | Should -Match 'dispCtrl'
+        }
+
+        It '$artifactMap source contains tier key for scope classification (plan 50-03)' {
+            # Wave-0 RED: tier key not yet present
+            $script:handlersContent | Should -Match "'tier'"
+        }
+
+        It '$artifactMap source contains warnCtrl key for Degraded warning TextBlock (plan 50-03)' {
+            # Wave-0 RED: warnCtrl key not yet present
+            $script:handlersContent | Should -Match 'warnCtrl'
+        }
+
+        It '$artifactMap source does NOT contain includeCtrl (must be renamed to dispCtrl)' {
+            # Wave-0 RED: includeCtrl still present until plan 50-03
+            $script:handlersContent | Should -Not -Match 'includeCtrl'
+        }
+    }
+
+    Context 'Phase 50 — 4-status rendering switch (D-10/D-11)' {
+        <#
+        Source: FFUUI.Core.Handlers.psm1 lines 107-161
+        Phase 50 replaces the binary if/else Found/else block with a switch
+        on $result.Status.ToString() adding Degraded and Error cases.
+        Wave-0 RED: switch not yet present until plan 50-03.
+        #>
+
+        It 'Source contains switch on result Status string (replaces binary if/else)' {
+            # Wave-0 RED: binary if/else still present
+            $script:handlersContent | Should -Match 'switch\s*\(\$result\.Status\.ToString\(\)\)'
+        }
+
+        It "Source contains 'Degraded' case in status switch (D-11)" {
+            # Wave-0 RED: Degraded case not yet present
+            $script:handlersContent | Should -Match "'Degraded'"
+        }
+
+        It "Source contains 'Error' case in status switch (D-10)" {
+            # Wave-0 RED: Error case not yet present in rendering switch
+            $script:handlersContent | Should -Match "'Error'"
+        }
+
+        It 'Source references DarkOrange foreground for Degraded status' {
+            # Wave-0 RED: DarkOrange not yet referenced
+            $script:handlersContent | Should -Match 'DarkOrange'
+        }
+
+        It 'Source references usb{Type}Warning-pattern control name for Degraded warning TextBlock' {
+            # Wave-0 RED: warnCtrl references not yet present; pattern usb\w+Warning expected
+            $script:handlersContent | Should -Match 'usb\w+Warning'
+        }
+    }
+}
