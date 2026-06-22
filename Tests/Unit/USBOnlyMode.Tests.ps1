@@ -174,4 +174,75 @@ Describe 'BuildFFUVM.ps1 USBOnlyMode' {
             $parseErrors | Should -BeNullOrEmpty
         }
     }
+
+    Context 'F1 — AppsISO Copy Path' -Tag 'Phase50', 'SelectiveRebuild', 'F1' {
+        # Wave-0 RED: $CopyAppsISO and $AppsISOPath variables not yet added to BuildFFUVM.ps1.
+        # These assertions turn GREEN when plan 50-04 adds the AppsISO copy path to
+        # New-DeploymentUSB and the USBOnlyMode variable-population block.
+
+        It 'Declares $CopyAppsISO variable in USBOnlyMode block' {
+            $scriptContent | Should -Match '\$CopyAppsISO\s*='
+        }
+
+        It 'Declares $AppsISOPath variable in USBOnlyMode block' {
+            $scriptContent | Should -Match '\$AppsISOPath\s*='
+        }
+
+        It 'New-DeploymentUSB parallel block contains $using:CopyAppsISO guard' {
+            $scriptContent | Should -Match '\$using:CopyAppsISO'
+        }
+
+        It 'New-DeploymentUSB parallel block contains $using:AppsISOPath' {
+            $scriptContent | Should -Match '\$using:AppsISOPath'
+        }
+    }
+
+    Context 'F2 — Disposition Gate' -Tag 'Phase50', 'SelectiveRebuild', 'F2' {
+        # Wave-0 RED: Include-flag gate (lines 1893-1911) still present; Disposition gate
+        # not yet written. These assertions turn GREEN when plan 50-04 replaces the Include
+        # gate with the Disposition foreach/switch block.
+
+        It 'Does not contain Include-flag gate (replaced by Disposition gate)' {
+            $scriptContent | Should -Not -Match "PSObject\.Properties\.Match\('Include'\)"
+        }
+
+        It 'Contains Disposition-based gate foreach loop (dispositionCheckTypes)' {
+            $scriptContent | Should -Match 'dispositionCheckTypes'
+        }
+
+        It 'Contains Disposition property existence check' {
+            $scriptContent | Should -Match "PSObject\.Properties\.Match\('Disposition'\)"
+        }
+    }
+
+    Context 'F3 — Selective Rebuild Flags' -Tag 'Phase50', 'SelectiveRebuild', 'F3' {
+        # Wave-0 RED: $rebuildDrivers/$rebuildAppsISO/$rebuildDeployISO flags and the
+        # selective rebuild execution block do not yet exist. These assertions turn GREEN
+        # when plan 50-05 adds the rebuild flag initialization and execution block to
+        # the USBOnlyMode short-circuit.
+
+        It 'Declares $rebuildDrivers flag' {
+            $scriptContent | Should -Match '\$rebuildDrivers\s*='
+        }
+
+        It 'Declares $rebuildAppsISO flag' {
+            $scriptContent | Should -Match '\$rebuildAppsISO\s*='
+        }
+
+        It 'Declares $rebuildDeployISO flag' {
+            $scriptContent | Should -Match '\$rebuildDeployISO\s*='
+        }
+
+        It 'Contains if ($rebuildDrivers) selective rebuild block' {
+            $scriptContent | Should -Match 'if\s*\(\$rebuildDrivers\)'
+        }
+
+        It 'Calls New-AppsISO inside $rebuildAppsISO block' {
+            $scriptContent | Should -Match 'New-AppsISO'
+        }
+
+        It 'Calls New-PEMedia inside $rebuildDeployISO block' {
+            $scriptContent | Should -Match 'New-PEMedia'
+        }
+    }
 }
