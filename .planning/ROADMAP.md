@@ -179,7 +179,7 @@ Phases execute in numeric order: 45 → 46 → 47 → 48 → 49 → 50
 | 47. USB Mode Pipeline Entry | v1.11.0 | 1/1 | Complete    | 2026-03-20 |
 | 48. XAML Mode Toggle and USB Tab | v1.11.0 | 2/2 | Complete    | 2026-03-24 |
 | 49. UI Event Wiring and Artifact Integration | v1.11.0 | 4/5 | Gap closure   | 2026-03-24 |
-| 50. Selective Rebuild Pipeline | v1.11.0 | 6/6 | Complete   | 2026-06-22 |
+| 50. Selective Rebuild Pipeline | v1.11.0 | 6/6 | Complete    | 2026-06-22 |
 
 ---
 *Roadmap created: 2026-03-12 for v1.11.0 USB from Existing Components*

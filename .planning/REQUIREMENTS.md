@@ -35,9 +35,9 @@ Requirements for USB from Existing Components milestone. Each maps to roadmap ph
 
 ### Selective Rebuild
 
-- [ ] **REBUILD-01**: User can mark each artifact as reuse, rebuild, or skip
-- [ ] **REBUILD-02**: Pipeline executes only the build phases needed for artifacts marked "rebuild"
-- [ ] **REBUILD-03**: Rebuilt artifacts are combined with reused artifacts for final USB assembly
+- [x] **REBUILD-01**: User can mark each artifact as reuse, rebuild, or skip
+- [x] **REBUILD-02**: Pipeline executes only the build phases needed for artifacts marked "rebuild"
+- [x] **REBUILD-03**: Rebuilt artifacts are combined with reused artifacts for final USB assembly
 
 ### Configuration
 
@@ -81,9 +81,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USB-02 | Phase 49 | Complete |
 | USB-03 | Phase 49 | Complete |
 | USB-04 | Phase 47 | Complete |
-| REBUILD-01 | Phase 50 | Pending |
-| REBUILD-02 | Phase 50 | Pending |
-| REBUILD-03 | Phase 50 | Pending |
+| REBUILD-01 | Phase 50 | Complete |
+| REBUILD-02 | Phase 50 | Complete |
+| REBUILD-03 | Phase 50 | Complete |
 | CONFIG-01 | Phase 45 | Complete |
 | CONFIG-02 | Phase 45 | Complete |
 
