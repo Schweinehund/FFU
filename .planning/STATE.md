@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
-status: roadmapped
-last_updated: "2026-06-25T00:00:00.000Z"
-last_activity: 2026-06-25
+status: planning
+last_updated: "2026-06-26T22:55:09.477Z"
+last_activity: 2026-06-25 — Roadmap created for v1.12.0 (8 phases, 30 requirements, 100% coverage)
 progress:
   total_phases: 8
   completed_phases: 0
@@ -130,9 +130,9 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 
 ## Session Continuity
 
-Last session: 2026-06-25 — v1.12.0 roadmap created (Phases 51-58)
-Stopped at: Roadmap complete, REQUIREMENTS traceability filled (30/30 mapped)
-Resume file: None
+Last session: 2026-06-26T22:55:09.451Z
+Stopped at: Phase 51 context gathered
+Resume file: .planning/phases/51-capture-boot-correctness/51-CONTEXT.md
 Next action: Plan Phase 51 with /gsd-plan-phase 51
 
 ---
