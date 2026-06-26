@@ -8,6 +8,21 @@ FFU Builder is a PowerShell-based Windows deployment tool that creates pre-confi
 
 Enable rapid, reliable Windows deployment through pre-configured FFU images with minimal manual intervention.
 
+## Current Milestone: v1.12.0 Upstream Sync — Correctness, Drivers & Device Naming
+
+**Goal:** Selectively port the remaining high-value upstream changes (`rbalsleyMSFT/FFU` branch `UI`) into the fork's modular architecture — correctness fixes that prevent wrong/unbootable artifacts, driver-grid bug fixes, the device-naming/unattend feature family, and shell-independent UI improvements — while skipping the Fluent shell rewrite and anything that would regress fork-specific work.
+
+**Target features:**
+- Capture/boot correctness: SKU refresh after fallback, LTSC driver normalization, ADK BCDBoot, robust image-index selection
+- Driver/UI bug fixes: sort-after-filter, save-scope data leak, CopyDrivers guard, Surface SKU matching, cached MS driver links, ReTrim
+- Update cache + capture naming: OS-scoped cache + stale-MSU prune, param-driven naming, 8-OEM deploy-time precision
+- Device-Naming / Unattend family: DeviceNamingMode framework, SerialComputerNames CSV editor, auto ComputerName, custom unattend paths, USB UniqueId migration (config-breaking, atomic)
+- Shell-independent UI: ESD/ISO radios, expandable sections, ListView auto-resize, BYO app-list UI control
+
+**Out (this milestone):** Tier-4 Fluent/sidebar shell overhaul (separate future project); regression-risk ports (host-VHDX capture, Dell name sanitization, ARM64 Office, FileBackups schema). Deferred verify-first: Win10 LTSC in-VM CU, experimental VM networking.
+
+**Scoping basis:** `.planning/reports/upstream-sync-verdict-2026-06-25.md` (adversarial review of the 2026-06-21 audit).
+
 ## Requirements
 
 ### Validated
@@ -111,10 +126,10 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ### Active
 
-(None — planning next milestone. Run `/gsd-new-milestone`.)
+- **v1.12.0 Upstream Sync** — see Current Milestone above; requirements in `.planning/REQUIREMENTS.md`, scoping in `.planning/reports/upstream-sync-verdict-2026-06-25.md`
 
-**Carry-forward into next milestone:**
-- USB Mode GUI UAT (Phase 49 + 50) and DISC-01/VALID-01→04 verification — deferred pending upcoming USB Mode changes; re-run as one full test pass
+**Carry-forward (not in v1.12.0 scope):**
+- USB Mode GUI UAT (Phase 49 + 50) and DISC-01/VALID-01→04 verification — still deferred pending USB Mode changes (this milestone is upstream sync, not USB Mode work); re-run as one full test pass when those land
 - expand.exe fails on large MSU files (fallback works — explicitly out of scope)
 
 ### Out of Scope
@@ -180,4 +195,4 @@ Key files:
 | Defer USB Mode GUI UAT at v1.11.0 close | Upcoming USB Mode changes will invalidate test runs | — Pending |
 
 ---
-*Last updated: 2026-06-26 after v1.11.0 USB from Existing Components shipped — second UI mode assembling USB from pre-existing artifacts with selective rebuild. GUI UAT (Phase 49/50) and DISC-01/VALID-01→04 verification deferred to next milestone.*
+*Last updated: 2026-06-25 — started milestone v1.12.0 Upstream Sync (Correctness, Drivers & Device Naming). Scope set via adversarial review of the 2026-06-21 upstream audit (`.planning/reports/upstream-sync-verdict-2026-06-25.md`): ~30 PORT/ADAPT items across 5 work groups; Fluent shell deferred to a separate project; regression-risk ports skipped.*

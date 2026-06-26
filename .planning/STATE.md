@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.11.0
-milestone_name: USB from Existing Components
-status: Awaiting next milestone
-stopped_at: Completed 50-05-PLAN.md
-last_updated: "2026-06-26T01:15:34.797Z"
-last_activity: 2026-06-26 — Milestone v1.11.0 completed and archived
+milestone: v1.12.0
+milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
+status: planning
+last_updated: "2026-06-26T02:59:45.611Z"
+last_activity: 2026-06-26
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: FFU Builder
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: Milestone v1.11.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-26 — Milestone v1.11.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-26 — Milestone v1.12.0 started
 
 ## Shipped Milestones
 
