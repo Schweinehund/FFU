@@ -3,7 +3,7 @@
     RootModule = 'FFU.Imaging.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.3'
+    ModuleVersion = '1.4.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
@@ -37,7 +37,8 @@
         'Test-WimSourceAccessibility',
         'Invoke-ExpandWindowsImageWithRetry',
         'Get-WimFromISO',
-        'Get-Index',
+        'Get-WindowsImageSelection',
+        'Get-ResolvedWindowsSKUFromImage',
         'New-ScratchVhdx',
         'New-ScratchVhd',
         'New-SystemPartition',
@@ -93,6 +94,16 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+v1.4.0 - Phase 51 CORRECT-01/04: Capture/Boot Correctness
+- Get-WindowsImageSelection: replaces Get-Index with EditionId-based matching (locale-independent, D-05)
+- Get-ResolvedWindowsSKUFromImage: new companion for reverse EditionId->SKU resolution (D-04)
+- Deleted interactive prompt fallback loop — eliminates ThreadJob deadlock (D-01)
+- Auto-selects on single relevant candidate; throws with full edition log on ambiguity (D-02/D-03)
+- Full SKU->EditionId map covers all 24 entries in $clientSKUs/$LTSCSKUs/$ServerSKUs (D-06)
+- Server Desktop Experience vs Core disambiguation via InstallationType filter (D-07)
+- Exact ImageName -eq fallback retained as zero-cost salvage for map gaps (D-08)
+- Returns rich PSCustomObject {ImageIndex, ImageName, ImageSize, EditionId, InstallationType, ResolvedWindowsSKU}
+
 v1.3.3 - Phase 38 PATH-01: SUBST Drive Mapping Integration
 - New-FFU: Driver injection now uses Invoke-DismDriverInjectionWithSubstLoop for MAX_PATH safety
 - Replaces direct Add-WindowsDriver with SUBST-based sequential loop

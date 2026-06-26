@@ -487,33 +487,117 @@ function Get-WimFromISO {
     $wimPath
 }
 
-function Get-Index {
+function Get-ResolvedWindowsSKUFromImage {
     <#
     .SYNOPSIS
-    Determines the correct Windows image index for specified SKU
+    Resolves a DISM EditionId back to the friendly Windows SKU name.
 
     .DESCRIPTION
-    Analyzes a Windows image file (WIM/ESD) to find the image index that matches
-    the specified SKU. Uses different index selection logic for ISO vs ESD media.
-    Prompts user to select if exact match is not found.
+    Maps DISM EditionId tokens (e.g., 'Professional', 'Core', 'EnterpriseS') back to
+    the friendly SKU names used in $clientSKUs/$LTSCSKUs/$ServerSKUs. Returns $null
+    for unknown EditionIds. Used by Get-WindowsImageSelection to populate ResolvedWindowsSKU.
+    Source: upstream commit 5aaa1ad (verified from GitHub API).
 
-    .PARAMETER WindowsImagePath
-    Full path to the Windows image file (install.wim or install.esd)
+    .PARAMETER EditionId
+    DISM EditionId string (e.g., 'Professional', 'Core', 'EnterpriseS').
 
-    .PARAMETER WindowsSKU
-    Target Windows SKU (e.g., "Pro", "Enterprise", "Home", "Education")
+    .PARAMETER InstallationType
+    DISM InstallationType string (e.g., 'Client', 'Server', 'Server Core').
 
-    .PARAMETER ISOPath
-    Optional path to source ISO file. When provided, uses ISO-specific index logic (starts at index 1).
-    When not provided, uses ESD/MCT-specific logic (starts at index 4).
+    .PARAMETER ImageName
+    Full ImageName string from DISM (used for LTSB/LTSC disambiguation).
 
-    .EXAMPLE
-    $index = Get-Index -WindowsImagePath "C:\mount\install.wim" -WindowsSKU "Pro" -ISOPath "C:\ISOs\Win11.iso"
+    .PARAMETER WindowsRelease
+    Windows release year/version number (used for 2016 LTSB disambiguation).
 
     .OUTPUTS
-    System.Int32 - Image index number matching the specified SKU
+    System.String - Friendly SKU name, or $null if EditionId is unknown.
     #>
     [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$EditionId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$InstallationType,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ImageName,
+
+        [Parameter(Mandatory = $true)]
+        [int]$WindowsRelease
+    )
+
+    $normalizedInstallationType = $InstallationType.Trim()
+
+    # Reverse EditionId->SKU map (source: upstream commit 5aaa1ad)
+    switch ($EditionId) {
+        'Core'                    { return 'Home' }
+        'CoreN'                   { return 'Home N' }
+        'CoreSingleLanguage'      { return 'Home Single Language' }
+        'Education'               { return 'Education' }
+        'EducationN'              { return 'Education N' }
+        'Professional'            { return 'Pro' }
+        'ProfessionalN'           { return 'Pro N' }
+        'ProfessionalEducation'   { return 'Pro Education' }
+        'ProfessionalEducationN'  { return 'Pro Education N' }
+        'ProfessionalWorkstation' { return 'Pro for Workstations' }
+        'ProfessionalWorkstationN' { return 'Pro N for Workstations' }
+        'Enterprise'              { return 'Enterprise' }
+        'EnterpriseN'             { return 'Enterprise N' }
+        'EnterpriseS'             {
+            if ($WindowsRelease -eq 2016 -or $ImageName -match 'LTSB') { return 'Enterprise 2016 LTSB' }
+            return 'Enterprise LTSC'
+        }
+        'EnterpriseSN'            {
+            if ($WindowsRelease -eq 2016 -or $ImageName -match 'LTSB') { return 'Enterprise N 2016 LTSB' }
+            return 'Enterprise N LTSC'
+        }
+        'IoTEnterpriseS'          { return 'IoT Enterprise LTSC' }
+        'IoTEnterpriseSN'         { return 'IoT Enterprise N LTSC' }
+        'ServerStandard'          {
+            if ($normalizedInstallationType -eq 'Server') { return 'Standard (Desktop Experience)' }
+            return 'Standard'
+        }
+        'ServerDatacenter'        {
+            if ($normalizedInstallationType -eq 'Server') { return 'Datacenter (Desktop Experience)' }
+            return 'Datacenter'
+        }
+    }
+    return $null
+}
+
+function Get-WindowsImageSelection {
+    <#
+    .SYNOPSIS
+    Determines the correct Windows image selection for the specified SKU using EditionId matching.
+
+    .DESCRIPTION
+    Analyzes a Windows image file (WIM/ESD) to find the image that matches the specified SKU.
+    Uses EditionId (primary) and InstallationType for locale-independent matching (D-05/D-07),
+    with an exact ImageName -eq fallback (D-08). Auto-selects a single relevant candidate
+    non-interactively (D-02); throws with a full editions log on ambiguity (D-03).
+    Replaces Get-Index: eliminates locale-fragile Substring derivation and the ThreadJob-deadlocking
+    interactive prompt loop (D-01). Source: upstream commits b2a7ef5 + 5aaa1ad.
+
+    .PARAMETER WindowsImagePath
+    Full path to the Windows image file (install.wim or install.esd).
+
+    .PARAMETER WindowsSKU
+    Target Windows SKU (e.g., "Pro", "Enterprise LTSC", "Standard (Desktop Experience)").
+
+    .PARAMETER WindowsRelease
+    Windows release year/version number (e.g., 10, 11, 2016, 2019, 2022, 2025).
+
+    .EXAMPLE
+    $selection = Get-WindowsImageSelection -WindowsImagePath "C:\mount\install.wim" -WindowsSKU "Pro" -WindowsRelease 11
+
+    .OUTPUTS
+    PSCustomObject with ImageIndex, ImageName, ImageSize, EditionId, InstallationType, ResolvedWindowsSKU
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory = $true)]
         [string]$WindowsImagePath,
@@ -521,69 +605,115 @@ function Get-Index {
         [Parameter(Mandatory = $true)]
         [string]$WindowsSKU,
 
-        [Parameter(Mandatory = $false)]
-        [string]$ISOPath
+        [Parameter(Mandatory = $true)]
+        [int]$WindowsRelease
     )
 
-    # Get the available indexes using Get-WindowsImage
+    # Get list of all image indexes from the WIM/ESD
     $imageIndexes = Get-WindowsImage -ImagePath $WindowsImagePath
 
-    # Get the ImageName of ImageIndex 1 if an ISO was specified, else use ImageIndex 4 - this is usually Home or Education SKU on ESD MCT media
-    if ($ISOPath) {
-        if ($WindowsSKU -notmatch "Standard|Datacenter") {
-            $imageIndex = $imageIndexes | Where-Object ImageIndex -eq 1
-            $WindowsImage = $imageIndex.ImageName.Substring(0, 10)
-        }
-        else {
-            $imageIndex = $imageIndexes | Where-Object ImageIndex -eq 1
-            $WindowsImage = $imageIndex.ImageName.Substring(0, 19)
-        }
+    # Normalize SKU and detect Desktop Experience suffix (D-07)
+    $normalizedWindowsSKU = $WindowsSKU.Trim()
+    $isDesktopExperienceRequested = $normalizedWindowsSKU -match '\(Desktop Experience\)'
+    $normalizedWindowsSKU = $normalizedWindowsSKU -replace '\s*\(Desktop Experience\)\s*', ''
+
+    # SKU->EditionId map (D-06): covers every entry in $clientSKUs/$LTSCSKUs/$ServerSKUs
+    # Source: upstream commit b2a7ef5 (verified from GitHub API)
+    $editionIdCandidates = switch ($normalizedWindowsSKU) {
+        'Home'                     { @('Core') }
+        'Home N'                   { @('CoreN') }
+        'Home Single Language'     { @('CoreSingleLanguage') }
+        'CoreSingleLanguage'       { @('CoreSingleLanguage') }
+        'Education'                { @('Education') }
+        'Education N'              { @('EducationN') }
+        'Pro'                      { @('Professional') }
+        'Pro N'                    { @('ProfessionalN') }
+        'Pro Education'            { @('ProfessionalEducation') }
+        'Pro Education N'          { @('ProfessionalEducationN') }
+        'Pro for Workstations'     { @('ProfessionalWorkstation') }
+        'Pro N for Workstations'   { @('ProfessionalWorkstationN') }
+        'Enterprise'               { @('Enterprise') }
+        'Enterprise N'             { @('EnterpriseN') }
+        'Enterprise LTSC'          { @('EnterpriseS') }
+        'Enterprise 2016 LTSB'     { @('EnterpriseS') }
+        'Enterprise N LTSC'        { @('EnterpriseSN') }
+        'Enterprise N 2016 LTSB'   { @('EnterpriseSN') }
+        'IoT Enterprise LTSC'      { @('IoTEnterpriseS') }
+        'IoT Enterprise N LTSC'    { @('IoTEnterpriseSN') }
+        'Standard'                 { @('ServerStandard') }
+        'Datacenter'               { @('ServerDatacenter') }
+        default                    { @() }
     }
-    else {
-        $imageIndex = $imageIndexes | Where-Object ImageIndex -eq 4
-        $WindowsImage = $imageIndex.ImageName.Substring(0, 10)
+
+    # Server Desktop Experience vs Server Core disambiguation (D-07)
+    $preferredInstallationType = $null
+    if ($normalizedWindowsSKU -in @('Standard', 'Datacenter')) {
+        $preferredInstallationType = if ($isDesktopExperienceRequested) { 'Server' } else { 'Server Core' }
     }
 
-    # Concatenate $WindowsImage and $WindowsSKU (E.g. Windows 11 Pro)
-    $ImageNameToFind = "$WindowsImage $WindowsSKU"
-
-    # Find the ImageName in all of the indexes in the image
-    $matchingImageIndex = $imageIndexes | Where-Object ImageName -eq $ImageNameToFind
-
-    # Return the index that matches exactly
-    if ($matchingImageIndex) {
-        $matchingImageIndex.ImageIndex
-        return
-    }
-    else {
-        # Look for the numbers 10, 11, 2016, 2019, 2022+ in the ImageName
-        $relevantImageIndexes = $imageIndexes | Where-Object { ($_.ImageName -match "(10|11|2016|2019|202\d)") }
-
-        while ($true) {
-            # Present list of ImageNames to the end user if no matching ImageIndex is found
-            Write-Host "No matching ImageIndex found for $ImageNameToFind. Please select an ImageName from the list below:"
-
-            $i = 1
-            $relevantImageIndexes | ForEach-Object {
-                Write-Host "$i. $($_.ImageName)"
-                $i++
+    # Read per-image EditionId and InstallationType metadata via Get-WindowsImage -Index N (D-05)
+    WriteLog "Inspecting $($imageIndexes.Count) image(s) in '$WindowsImagePath' for EditionId matching SKU '$WindowsSKU'..."
+    $imageMetadata = @(foreach ($imageIndex in $imageIndexes) {
+        try {
+            $details = Get-WindowsImage -ImagePath $WindowsImagePath -Index $imageIndex.ImageIndex
+            [PSCustomObject]@{
+                ImageIndex         = $details.ImageIndex
+                ImageName          = $details.ImageName
+                ImageSize          = $details.ImageSize
+                EditionId          = $details.EditionId
+                InstallationType   = $details.InstallationType
+                ResolvedWindowsSKU = Get-ResolvedWindowsSKUFromImage -EditionId $details.EditionId `
+                                     -InstallationType $details.InstallationType `
+                                     -ImageName $details.ImageName -WindowsRelease $WindowsRelease
             }
+        }
+        catch { $null }
+    }) | Where-Object { $null -ne $_ }
 
-            # Ask for user input
-            $inputValue = Read-Host "Enter the number of the ImageName you want to use"
-
-            # Get selected ImageName based on user input
-            $selectedImage = $relevantImageIndexes[$inputValue - 1]
-
-            if ($selectedImage) {
-                $selectedImage.ImageIndex
-                return
-            }
-            else {
-                Write-Host "Invalid selection, please try again."
+    # Tier 1: EditionId candidate match — locale-independent primary selection (D-05)
+    if ($editionIdCandidates.Count -gt 0) {
+        $imageMatches = @($imageMetadata | Where-Object { $_.EditionId -in $editionIdCandidates })
+        if ($null -ne $preferredInstallationType -and $imageMatches.Count -gt 0) {
+            $preferredMatches = @($imageMatches | Where-Object { $_.InstallationType -eq $preferredInstallationType })
+            if ($preferredMatches.Count -gt 0) {
+                $imageMatches = $preferredMatches
             }
         }
+        if ($imageMatches.Count -gt 0) {
+            $bestMatch = $imageMatches | Sort-Object -Property ImageSize -Descending | Select-Object -First 1
+            WriteLog "Selected image index $($bestMatch.ImageIndex) (SKU='$WindowsSKU', EditionId='$($bestMatch.EditionId)', ResolvedSKU='$($bestMatch.ResolvedWindowsSKU)'): $($bestMatch.ImageName)"
+            return $bestMatch
+        }
     }
+
+    # Tier 2: Exact ImageName -eq fallback — safe zero-cost salvage for map gaps (D-08)
+    $exactNameMatch = @($imageMetadata | Where-Object { $_.ImageName -eq $WindowsSKU })
+    if ($exactNameMatch.Count -gt 0) {
+        $bestMatch = $exactNameMatch[0]
+        WriteLog "Selected image index $($bestMatch.ImageIndex) via exact ImageName match: $($bestMatch.ImageName)"
+        return $bestMatch
+    }
+
+    # Log full available editions list to build log before fallback decisions (D-03)
+    $editionList = ($imageMetadata | ForEach-Object {
+        "  [$($_.ImageIndex)] $($_.ImageName) (EditionId=$($_.EditionId))"
+    }) -join [System.Environment]::NewLine
+    WriteLog "No exact EditionId or ImageName match found for SKU '$WindowsSKU'. Available editions:$([System.Environment]::NewLine)$editionList"
+
+    # Tier 3: Single relevant candidate auto-select (D-02) | multiple -> throw (D-03)
+    # No interactive prompt — that deadlocks ThreadJob builds (D-01)
+    $relevantCandidates = @($imageMetadata | Where-Object { $_.ImageName -match '(10|11|2016|2019|202\d)' })
+    if ($relevantCandidates.Count -eq 0) {
+        $relevantCandidates = $imageMetadata
+    }
+
+    if ($relevantCandidates.Count -eq 1) {
+        WriteLog "Auto-selecting single relevant candidate: $($relevantCandidates[0].ImageName)"
+        return $relevantCandidates[0]
+    }
+
+    # Throw with informative message — editions list already in log above (D-03)
+    throw "No matching Windows image found for SKU '$WindowsSKU' and $($relevantCandidates.Count) candidate(s) exist — cannot auto-select. Available editions logged above. Provide an ISO containing the exact requested SKU."
 }
 
 function New-ScratchVhdx {
