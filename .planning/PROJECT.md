@@ -101,23 +101,20 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
   - Empty driver folder auto-skip during deployment
   - 30-second Security Platform delay in audit mode
   - USB UniqueId identification and skip-driver option
+- **USB from Existing Components** — v1.11.0
+  - Config schema v1.3 with additive migration (ActiveMode + USBMode.Artifacts, 7 artifact types)
+  - FFU.ArtifactScanner module — typed data contracts, Find-FFUArtifacts, Get-ArtifactMetadata (DISM + filename fallback), Test-ArtifactCompatibility
+  - `-USBOnlyMode` pipeline entry — short-circuits the build and assembles a USB directly
+  - UI mode toggle (Full Build / USB Mode) with USB tab, 7 artifact cards, browse dialogs, USB drive selection
+  - Selective rebuild — per-artifact Reuse/Rebuild/Skip disposition drives selective per-phase rebuild; legacy Include field removed for schema-native Disposition enum
+  - ⚠ Artifact discovery/validation display (DISC-01, VALID-01→04) implemented but GUI verification deferred (see next milestone)
 
 ### Active
 
-## Current Milestone: v1.11.0 USB from Existing Components
+(None — planning next milestone. Run `/gsd-new-milestone`.)
 
-**Goal:** Enable USB deployment media creation from pre-existing build artifacts without running a full build pipeline.
-
-**Target features:**
-- UI mode toggle switching between "Full Build" and "USB Mode"
-- Artifact scanner detecting all deployable components (FFU, boot ISO, drivers, PPKG, unattend, Autopilot, Apps.iso)
-- Dual source support: auto-detect from FFUDevelopment folder or browse to arbitrary paths
-- Metadata extraction and cross-validation (architecture, Windows version compatibility)
-- Selective rebuild: user marks each artifact as reuse, rebuild, or skip
-- Selective pipeline execution — only rebuild phases that are needed
-- USB assembly from reused + rebuilt artifacts
-
-**Deferred bugs (carry forward):**
+**Carry-forward into next milestone:**
+- USB Mode GUI UAT (Phase 49 + 50) and DISC-01/VALID-01→04 verification — deferred pending upcoming USB Mode changes; re-run as one full test pass
 - expand.exe fails on large MSU files (fallback works — explicitly out of scope)
 
 ### Out of Scope
@@ -129,7 +126,7 @@ Enable rapid, reliable Windows deployment through pre-configured FFU images with
 
 ## Context
 
-FFU Builder is a mature codebase with 98.8% PowerShell, 13 modules (11 original + FFU.Checkpoint + FFU.ConfigMigration) totaling ~90,000+ lines of code. Through 8 milestones (v1.8.0 → v1.10.0), the project has shipped 133 plans across 43 phases. The v1.10.0 milestone selectively ported 60 upstream commits, adding 8 new OEM manufacturers, Dell CatalogIndexPC optimization, SUBST long-path support, and deployment UX improvements.
+FFU Builder is a mature codebase with 98.8% PowerShell, 14 modules (11 original + FFU.Checkpoint + FFU.ConfigMigration + FFU.ArtifactScanner) totaling ~90,000+ lines of code. Through 10 milestones (v1.8.0 → v1.11.0), the project has shipped 151 plans across 50 phases. The most recent milestone, v1.11.0 USB from Existing Components, added a second UI mode that assembles a deployable USB from pre-existing artifacts and selectively rebuilds only what the user marks — skipping the 40+ minute full build. Its GUI UAT was deferred at close pending a further round of USB Mode changes.
 
 Key files:
 - `BuildFFUVM.ps1` — Core build orchestrator
@@ -176,6 +173,11 @@ Key files:
 | Multi-disk menu with Format-Table | Clear disk identification prevents accidental wipes | ✓ Good |
 | Security Platform delay in Orchestrator | More maintainable than unattend.xml approach | ✓ Good |
 | BusType USB detection with fallback chain | Modern disk-level detection more reliable | ✓ Good |
+| Config schema first (Phase 45) in v1.11.0 | HIGH migration cost if deferred — saved configs need it | ✓ Good |
+| FFU.ArtifactScanner as isolated module | Define data contract before UI/pipeline consumers | ✓ Good |
+| Disposition enum replaces legacy Include flag | Schema-native per-artifact reuse/rebuild/skip | ✓ Good |
+| Selective rebuild deferred to last phase (50) | Highest complexity, depends on all prior phases | ✓ Good |
+| Defer USB Mode GUI UAT at v1.11.0 close | Upcoming USB Mode changes will invalidate test runs | — Pending |
 
 ---
-*Last updated: 2026-03-24 after Phase 48 (xaml-mode-toggle-usb-tab) complete — XAML structure for UI mode toggle (Full Build / USB Mode RadioButtons), x:Name on all Full Build tabs, and USB Mode TabItem with 7 artifact cards (46 named controls). Code-behind wiring deferred to Phase 49.*
+*Last updated: 2026-06-26 after v1.11.0 USB from Existing Components shipped — second UI mode assembling USB from pre-existing artifacts with selective rebuild. GUI UAT (Phase 49/50) and DISC-01/VALID-01→04 verification deferred to next milestone.*

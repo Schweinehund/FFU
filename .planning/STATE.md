@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.11.0
 milestone_name: USB from Existing Components
-status: milestone_complete
-last_updated: 2026-06-22T15:26:42.589Z
+status: Awaiting next milestone
+stopped_at: Completed 50-05-PLAN.md
+last_updated: "2026-06-26T01:15:34.797Z"
+last_activity: 2026-06-26 — Milestone v1.11.0 completed and archived
 progress:
   total_phases: 6
   completed_phases: 6
   total_plans: 18
-  completed_plans: 152
+  completed_plans: 18
   percent: 100
-stopped_at: Milestone complete (Phase 50 was final phase)
 ---
 
 # Project State: FFU Builder
@@ -24,8 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 50
-Plan: Not started
+Phase: Milestone v1.11.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-26 — Milestone v1.11.0 completed and archived
 
 ## Shipped Milestones
 
@@ -79,12 +82,33 @@ Plan: Not started
 
 None.
 
+### Deferred Verification (carry forward)
+
+- **Phase 50 Human UAT (4 items) — DEFERRED 2026-06-25.** All 4 GUI tests in `50-HUMAN-UAT.md` (ComboBox tier rendering, config round-trip, degraded-artifact rendering, end-to-end selective rebuild) were never executed. Deferred by user decision: upcoming USB Mode changes are expected to invalidate these scenarios, so they will be re-run as a single full test pass when those changes are ready. Pull into the next milestone's verification scope.
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most are the USB Mode GUI testing the user chose to defer until the next round of USB Mode changes is ready for a single full test pass; Phase 42/48 verification gaps and the 2 todos are pre-existing tech debt unrelated to v1.11.0.
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat | Phase 49 (49-HUMAN-UAT.md) | partial — 3 pending scenarios |
+| uat | Phase 50 (50-HUMAN-UAT.md) | deferred — 4 scenarios, re-run as one pass |
+| verification | Phase 49 (49-VERIFICATION.md) | human_needed |
+| verification | Phase 50 (50-VERIFICATION.md) | human_needed |
+| verification | Phase 42 (42-VERIFICATION.md) | gaps_found (pre-existing, v1.10.0) |
+| verification | Phase 48 (48-VERIFICATION.md) | gaps_found (placeholders wired in Phase 49) |
+| todo | 2026-03-12-evaluate-frontend-architecture-alternatives | pending |
+| todo | 2026-03-12-upstream-sync-check-for-new-commits | pending |
+
+**Requirement gaps (implemented, verification deferred):** DISC-01, VALID-01, VALID-02, VALID-03, VALID-04 — pull into the next milestone's verification scope alongside the USB Mode UAT.
+
 ## Session Continuity
 
-Last session: 2026-06-22T14:57:42.578Z
-Stopped at: Completed 50-05-PLAN.md
+Last session: 2026-06-26 — v1.11.0 milestone completed and archived
+Stopped at: Milestone v1.11.0 shipped
 Resume file: None
-Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
+Next action: Start the next milestone with /gsd-new-milestone
 
 ---
 *State updated: 2026-03-20 — corrected position after phases 45+46 completed (46 shipped 2026-03-14, 45 shipped 2026-03-20)*
@@ -97,3 +121,7 @@ Next action: Phase 49 complete — proceed to Phase 50 (Selective Rebuild)
 | Phase 50 P03 | 15 | 2 tasks | 5 files |
 | Phase 50 P05 | 876 | 2 tasks | 2 files |
 | Phase 50 P06 | 8 | 3 tasks | 3 files |
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

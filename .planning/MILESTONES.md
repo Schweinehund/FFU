@@ -1,5 +1,37 @@
 # Project Milestones: FFU Builder
 
+## v1.11.0 USB from Existing Components (Shipped: 2026-06-26)
+
+**Delivered:** A second UI mode that assembles a deployable USB from pre-existing build artifacts — and selectively rebuilds only the artifacts the user marks — skipping the 40+ minute full build pipeline.
+
+**Phases completed:** 6 phases (45-50), 18 plans, 20 tasks. Timeline: 2026-03-20 → 2026-06-26.
+
+**Key accomplishments:**
+
+- **Config schema v1.3** (Phase 45) — additive migration adds `ActiveMode` and `USBMode.Artifacts` (7 artifact types) to existing configs without data loss; JSON schema + UI round-trip.
+- **FFU.ArtifactScanner module** (Phase 46) — typed data contracts (ArtifactManifest/ArtifactResult/FFUMetadata), `Find-FFUArtifacts` scanning all 7 artifact types with graceful degradation, `Get-ArtifactMetadata` via DISM Get-WindowsImage with filename fallback, and `Test-ArtifactCompatibility` arch-mismatch detection.
+- **USB-only pipeline entry** (Phase 47) — `-USBOnlyMode` switch short-circuits the build, validating and populating all 14 `$using:` variables before `New-DeploymentUSB`.
+- **UI mode toggle + USB tab** (Phases 48-49) — Full Build / USB Mode RadioButton switch, USB Mode tab with 7 artifact cards, browse dialogs, USB drive selection, mode-aware cancel/reset labels, and config persistence of artifact paths.
+- **Selective rebuild pipeline** (Phase 50) — per-artifact Reuse/Rebuild/Skip disposition drives selective per-phase rebuild (Drivers/AppsISO/DeployISO); rebuilt artifacts combine with reused ones for final USB assembly. Legacy `Include` field fully removed in favor of the schema-native `Disposition` enum.
+- **Quality gate** — 275/275 Pester green at close; MINOR version bump to 1.11.0 with CHANGELOG and module release notes.
+
+**Requirements:** 14/19 v1.11.0 requirements checked off at close.
+
+### Known Gaps (proceeded with incomplete requirements)
+
+5 requirements implemented but not formally verified — their verification is the deferred USB Mode GUI UAT:
+- **DISC-01** — auto-detect all artifacts on USB Mode activation (Phase 46)
+- **VALID-01** — found/missing status with path and file size (Phase 46/49)
+- **VALID-02** — FFU metadata (version/SKU/arch) via DISM (Phase 46)
+- **VALID-03** — cross-artifact architecture-mismatch warning (Phase 46)
+- **VALID-04** — staleness indicator per artifact (Phase 46)
+
+### Known deferred items at close: 8 (see STATE.md "Deferred Items")
+
+Acknowledged and deferred per user decision (upcoming USB Mode changes expected to invalidate GUI testing): Phase 49 UAT (3 scenarios), Phase 50 UAT (4 scenarios, deferred), Phase 49/50 verification (human_needed), Phase 42/48 verification (gaps_found — pre-existing tech debt), and 2 pending todos (frontend-architecture evaluation, upstream-sync check).
+
+---
+
 ## v1.10.0 Upstream Cherry-Pick (Shipped: 2026-02-02)
 
 **Delivered:** Selectively ported 60 upstream commits into modular architecture — critical bug fixes, 8 new OEM manufacturers, Dell CatalogIndexPC optimization, SUBST long-path reliability, and deployment UX improvements.
