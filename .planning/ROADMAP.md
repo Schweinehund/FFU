@@ -58,99 +58,133 @@ Requirements archived in `.planning/milestones/v1.11.0-REQUIREMENTS.md`.
 ## Phase Details
 
 ### Phase 51: Capture/Boot Correctness
+
 **Goal**: Builds never produce a wrong-edition, unbootable, or LTSC-failing artifact — the captured FFU always matches the edition the user actually built, boots on modern Secure Boot devices, and supports LTSC driver downloads.
 **Depends on**: Phase 50 (prior milestone)
 **Requirements**: CORRECT-01, CORRECT-02, CORRECT-03, CORRECT-04
 **Success Criteria** (what must be TRUE):
+
   1. When a user picks a fallback image because their exact SKU isn't present, the resulting FFU is named, cached, and serviced as the *selected* edition (not the originally-requested one).
   2. A user can download OEM drivers for an LTSC build (2019/2021/2024) without the driver step failing on a release-year validation error.
   3. A captured image boots on a device with the Secure Boot 2023 certificate because boot files were written with the ADK's BCDBoot rather than the host's.
   4. The correct edition is captured from non-English / multi-edition media because the image index is selected via EditionId/InstallationType, not a localized name substring.
-**Plans**: 4 plans
-Plans:
+
+**Plans**: 4 plansPlans:
+**Wave 1**
+
 - [ ] 51-01-PLAN.md - Get-WindowsImageSelection EditionId selection + selected-edition propagation (CORRECT-01, CORRECT-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 51-02-PLAN.md - Add-BootFiles ADK bcdboot + Test-FFUADK bcdboot preflight check (CORRECT-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 51-03-PLAN.md - Get-EffectiveDriverWindowsRelease LTSC year normalization at driver dispatch (CORRECT-02)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 51-04-PLAN.md - version.json/ApplyFFU bump + CHANGELOG_FORK + verify-app gate (CORRECT-01..04)
 
 ### Phase 52: Driver-Grid UI Fixes
+
 **Goal**: The driver-selection grid behaves correctly under filtering, sorting, and saving — no selections are silently lost and invalid CopyDrivers configurations are blocked before a build starts.
 **Depends on**: Phase 51
 **Requirements**: DGRID-01, DGRID-02, DGRID-03
 **Success Criteria** (what must be TRUE):
+
   1. Sorting the driver list while a filter is active keeps the filter applied instead of resetting to all rows.
   2. Selecting/deselecting drivers while filtered and then saving preserves selections for the filtered-out (hidden) rows, and the select-all header checkbox is correctly aligned.
   3. The UI prevents an invalid CopyDrivers configuration by requiring BuildUSBDrive when CopyDrivers is enabled.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 53: Driver Build/Deploy Correctness
+
 **Goal**: OEM/Surface driver acquisition and deployment are precise and resilient — drivers match by hardware identifiers, download links survive page/proxy changes, captured artifacts are reclaimed to minimum size, and the 8 newer OEMs match with SystemID precision at deploy time.
 **Depends on**: Phase 51
 **Requirements**: DRVR-01, DRVR-02, DRVR-03, DRVR-04
 **Success Criteria** (what must be TRUE):
+
   1. A user can auto-match Microsoft Surface drivers by System SKU rather than relying on an exact model-name string match.
   2. Microsoft/Surface driver download links are cached so builds don't break or stall when the live page changes or a proxy blocks the scrape.
   3. The captured FFU / cached VHDX is reclaimed to minimum size via `Optimize-Volume -ReTrim` before compaction, producing a smaller deployable artifact.
   4. At deploy time, the 8 newer OEMs (Panasonic, Getac, Fujitsu, etc.) are matched with SystemID-level precision in addition to the existing model-name fallback (NICE/3-tier fallback preserved).
+
 **Plans**: TBD
 
 ### Phase 54: Update Cache & Capture Naming
+
 **Goal**: Update servicing uses only the correct OS-scoped packages, and FFU naming is derived from build parameters — fast and reliable — without ever servicing an image with a leftover update from a different release.
 **Depends on**: Phase 51
 **Requirements**: CACHE-01, CACHE-02
 **Success Criteria** (what must be TRUE):
+
   1. Update packages are cached per-OS and stale/cross-OS MSUs are pruned before servicing, so an image is never serviced with a leftover update from a different release.
   2. FFU file naming is driven by build parameters (avoiding the offline registry-hive read and its ~2 min of sleeps) while preserving the existing CBS/CSI corruption guards and DisplayVersion derivation.
+
 **Plans**: TBD
 
 ### Phase 55: Device-Naming Foundation & Migrations
+
 **Goal**: The DeviceNamingMode framework exists as the foundation for all naming modes, and USB drives are identified by UniqueId — with both config-schema migrations landing atomically so existing configs upgrade cleanly without data loss.
 **Depends on**: Phase 51
 **Requirements**: NAMING-01, NAMING-07
 **Success Criteria** (what must be TRUE):
+
   1. A user can choose a device-naming mode (Template / Prefixes / Serial mapping / Prompt / None) via a unified DeviceNamingMode framework.
   2. An existing config is migrated to the new schema (DeviceNamingMode + UniqueId identifiers) without losing data and without breaking an existing build.
   3. USB drives are identified by UniqueId instead of SerialNumber, eliminating mis-selection of duplicate/blank-serial drives.
   4. Both schema changes (naming framework and UniqueId) land together so a partially-migrated config never occurs.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 56: Device-Naming Consumers & Unattend
+
 **Goal**: The naming framework's consumers are fully wired — serial→name CSV authoring, auto-generated ComputerName, per-architecture custom unattend paths, correct UI state/labels, and a surgically-ported skippable menu with `*` fallback that preserves the fork's NICE-02 skip-drivers logic.
 **Depends on**: Phase 55
 **Requirements**: NAMING-02, NAMING-03, NAMING-04, NAMING-05, NAMING-06
 **Success Criteria** (what must be TRUE):
+
   1. A user can author, load, and save a SerialComputerNames CSV in the UI, and the builder stages it onto the USB for serial→name mapping at deploy time.
   2. A ComputerName is auto-generated into the Unattend XML when the user supplies a minimal template, instead of the deploy step throwing on a missing element.
   3. A user can select a custom Unattend XML file path per architecture (x64/arm64), wired through both the USB-copy and audit-mode injection paths.
   4. The DeviceNamingMode UI tracks state/defaults correctly and uses clear labels (prompt option, serial-mapping labels).
   5. Deployment menu prompts are skippable via a shared Read-MenuSelection helper and unattend supports the `*` default-name fallback, with the fork's NICE-02 skip-drivers logic verified intact.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 57: Shell-Independent UI
+
 **Goal**: Targeted UI usability improvements that don't depend on the (skipped) Fluent shell — media-source radios, collapsible dense sections, auto-resizing ListView columns, and a BYO app-list path control — expose existing backend capabilities cleanly.
 **Depends on**: Phase 51
 **Requirements**: UIX-01, UIX-02, UIX-03, UIX-04
 **Success Criteria** (what must be TRUE):
+
   1. A user can choose the Windows media source (download ESD vs supply ISO) via radio buttons that toggle the relevant fields.
   2. Dense option sections (General Build Options, USB Drive Options, Post-Build Cleanup) are collapsible via expandable controls.
   3. ListView columns resize automatically to fit content/window width.
   4. A user can select a custom (BYO) app-list file path in the UI, exposing the existing `-UserAppListPath` backend capability.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 58: Hygiene & Robustness
+
 **Goal**: Operational robustness and noise-reduction fixes — interrupted-run JSON recovery, working-directory-independent dirty marker, quieter tooling output, safe per-OEM cleanup, redundant-code removal, and an opt-in ESD retain — make builds more resilient and logs more readable.
 **Depends on**: Phase 51
 **Requirements**: HYG-01, HYG-02, HYG-03, HYG-04, HYG-05, HYG-06
 **Success Criteria** (what must be TRUE):
+
   1. A corrupt `WinGetWin32Apps.json` from an interrupted prior run is backed up and rebuilt rather than aborting the build.
   2. The `dirty.txt` marker is created at an absolute path so the dirty-environment check works regardless of current working directory (ThreadJob/UI contexts).
   3. Robocopy and Format-Volume calls in the USB tooling and cache paths run without spamming console/log output, and redundant Images-directory creation is removed from `USBImagingToolCreator.ps1`.
   4. Per-OEM driver folder cleanup uses a shared helper that guards against deleting outside the drivers tree or the drivers root.
   5. A user can opt to retain downloaded ESD files for reuse across builds instead of having them deleted unconditionally.
+
 **Plans**: TBD
 
 ## Progress

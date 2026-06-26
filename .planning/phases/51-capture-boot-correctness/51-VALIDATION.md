@@ -18,15 +18,22 @@ created: 2026-06-26
 
 ## Test Infrastructure
 
+> **Framework reconciliation (PATTERNS.md finding #4, confirmed by plan-checker):** the
+> fork's `FFUDevelopment/Tests/*.ps1` do NOT use Pester 5.x — they use a custom
+> `Write-TestResult` helper that `exit`s 0/1 (analog: `Test-OSPartitionLookup.ps1`).
+> The Pester references elsewhere are aspirational. Phase 51 tests therefore live in a
+> single new suite, `FFUDevelopment/Tests/Test-Phase51Correctness.ps1`, created in
+> Plan 51-01 and appended by Plans 02/03.
+
 | Property | Value |
 |----------|-------|
-| **Framework** | Pester 5.x (PowerShell) |
-| **Config file** | `FFUDevelopment/Tests/Unit/Invoke-PesterTests.ps1` |
-| **Quick run command** | `.\FFUDevelopment\Tests\Unit\Invoke-PesterTests.ps1 -Module 'FFU.Imaging'` |
-| **Full suite command** | `.\FFUDevelopment\Tests\Unit\Invoke-PesterTests.ps1` |
-| **Estimated runtime** | ~30–90 seconds (targeted module runs; full suite has known slow env-dependent reds — verify with targeted files) |
+| **Framework** | Custom `Write-TestResult` content-match harness (exit 0/1) — NOT Pester |
+| **Config file** | none — single suite `FFUDevelopment/Tests/Test-Phase51Correctness.ps1` |
+| **Quick run command** | `pwsh -File .\FFUDevelopment\Tests\Test-Phase51Correctness.ps1` |
+| **Full suite command** | `pwsh -File .\FFUDevelopment\Tests\Test-Phase51Correctness.ps1` + module-import + PSScriptAnalyzer (no new errors) |
+| **Estimated runtime** | < 30 seconds (content-match assertions, no real WIM/DISM) |
 
-> Note: module-internal functions (`Get-Index`/`Get-WindowsImageSelection`, `Add-BootFiles`, the year-normalization helper) require `InModuleScope` in Pester — module types/functions are not exported to caller scope (STATE.md Phase 46 note). `Get-WindowsImage` must be mocked (no real WIM in CI).
+> Verification is primarily content-match (`-match`) against module source plus module-import and PSScriptAnalyzer gates — the non-interactive correctness ports are asserted structurally; real-media / Secure-Boot-2023 behaviors are manual-only (see below).
 
 ---
 
@@ -56,12 +63,15 @@ created: 2026-06-26
 
 ## Wave 0 Requirements
 
-- [ ] `FFUDevelopment/Tests/Unit/FFU.Imaging.GetIndex.Tests.ps1` — InModuleScope tests for Get-Index/Get-WindowsImageSelection (EditionId selection + fallback branches), mocked `Get-WindowsImage`.
-- [ ] `FFUDevelopment/Tests/Unit/FFU.Imaging.AddBootFiles.Tests.ps1` — ADK bcdboot path resolution + hard-fail-on-missing.
-- [ ] Year-normalization tests (table-driven) for `Get-EffectiveDriverWindowsRelease` — LTSC vs Server 2019 collision.
-- [ ] SKU→EditionId map completeness assertion — every friendly SKU has a mapping (test gate per CONTEXT D-06).
+Single new suite `FFUDevelopment/Tests/Test-Phase51Correctness.ps1` (created Plan 51-01-T3, appended by 02-T3 / 03-T2), with sections:
 
-*Existing `FFUDevelopment/Tests/Unit` infrastructure (Invoke-PesterTests.ps1) covers framework/harness — only the per-function test files above are new.*
+- [ ] CORRECT-04 / Get-WindowsImageSelection — EditionId/InstallationType selection + exact-name fallback (content-match assertions on the rewritten function).
+- [ ] CORRECT-06 map completeness — every friendly SKU value has a SKU→EditionId mapping (test gate per CONTEXT D-06; ~19/24 EditionId tokens asserted present).
+- [ ] CORRECT-01 fallback — Read-Host/`while ($true)` absent; single-candidate auto-select returns `ResolvedWindowsSKU`; ≥2-candidate throw message present; caller propagation reassignment present.
+- [ ] CORRECT-03 — `Add-BootFiles` ADK bcdboot path + hard-fail string; `Test-FFUADK` bcdboot existence check.
+- [ ] CORRECT-02 — `Get-EffectiveDriverWindowsRelease` mapping (2016/2019/2021→10, 2024→11; Server 2019 stays 2019); global `$WindowsRelease` not reassigned.
+
+*No new harness needed — the `Write-TestResult` helper already exists in the Tests folder.*
 
 ---
 
