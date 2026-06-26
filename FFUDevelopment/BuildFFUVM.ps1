@@ -1161,6 +1161,86 @@ $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
 }
 
 # =============================================================================
+# Image Selection Helper Functions (Phase 51 CORRECT-01/04)
+# Source: upstream commits 5aaa1ad + b2a7ef5, adapted for ThreadJob/modular fork
+# =============================================================================
+
+function Get-WindowsTargetRuntimeState {
+    <#
+    .SYNOPSIS
+    Computes the effective runtime state (InstallationType, WindowsVersion, IsLTSC) for a
+    given WindowsSKU and WindowsRelease after an image selection resolves a different edition.
+
+    .DESCRIPTION
+    Called ONLY at the post-selection update site after Get-WindowsImageSelection resolves an
+    edition — NOT as a replacement for the initial installationType/isLTSC derivation at
+    BuildFFUVM.ps1:2388-2408. Recomputes $installationType, $WindowsVersion, $isLTSC,
+    $isWindows10LtscClient, and $installLatestCuInVm when $WindowsSKU is reassigned to
+    the selected edition (D-04). Source: upstream commit 5aaa1ad.
+
+    .PARAMETER WindowsRelease
+    Windows release year/version number (e.g., 10, 11, 2016, 2019, 2022, 2025).
+
+    .PARAMETER WindowsSKU
+    The resolved Windows SKU string after image selection (e.g., "Pro", "Enterprise LTSC").
+
+    .PARAMETER CurrentWindowsVersion
+    The current $WindowsVersion value (passed through when no recalculation applies).
+
+    .PARAMETER UpdateLatestCU
+    Whether the build requests the latest cumulative update installation in the VM.
+
+    .OUTPUTS
+    PSCustomObject with InstallationType, WindowsVersion, IsLTSC, IsWindows10LtscClient, InstallLatestCuInVm
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$WindowsRelease,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WindowsSKU,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CurrentWindowsVersion,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$UpdateLatestCU
+    )
+
+    $localInstallationType = if ($WindowsSKU -like 'Standard*' -or $WindowsSKU -like 'Datacenter*') { 'Server' } else { 'Client' }
+    $localWindowsVersion   = $CurrentWindowsVersion
+    $localIsLTSC           = $false
+
+    if ($localInstallationType -eq 'Server') {
+        switch ($WindowsRelease) {
+            2016 { $localWindowsVersion = '1607' }
+            2019 { $localWindowsVersion = '1809' }
+            2022 { $localWindowsVersion = '21H2' }
+            2025 { $localWindowsVersion = '24H2' }
+        }
+    }
+    if ($WindowsSKU -like '*LTS*') {
+        switch ($WindowsRelease) {
+            2016 { $localWindowsVersion = '1607' }
+            2019 { $localWindowsVersion = '1809' }
+            2021 { $localWindowsVersion = '21H2' }
+            2024 { $localWindowsVersion = '24H2' }
+        }
+        $localIsLTSC = $true
+    }
+    $localIsWindows10LtscClient = ($localInstallationType -eq 'Client') -and ($WindowsRelease -in 2016, 2019, 2021) -and $localIsLTSC
+    return [PSCustomObject]@{
+        InstallationType      = $localInstallationType
+        WindowsVersion        = $localWindowsVersion
+        IsLTSC                = $localIsLTSC
+        IsWindows10LtscClient = $localIsWindows10LtscClient
+        InstallLatestCuInVm   = ($UpdateLatestCU -and $localIsWindows10LtscClient)
+    }
+}
+
+# =============================================================================
 # USB Drive Functions
 # These functions were intentionally kept in BuildFFUVM.ps1 (not modularized)
 # because New-DeploymentUSB uses ForEach-Object -Parallel with many $using:
@@ -4401,7 +4481,31 @@ DIAGNOSTIC: Run 'fltmc filters | Select-String WimMount' to verify WIMMount stat
         }
         #If index not specified by user, try and find based on WindowsSKU
         if (-not($index) -and ($WindowsSKU)) {
-            $index = Get-Index -WindowsImagePath $wimPath -WindowsSKU $WindowsSKU -ISOPath $ISOPath
+            $requestedWindowsSKU = $WindowsSKU
+            $windowsImageSelection = Get-WindowsImageSelection -WindowsImagePath $wimPath `
+                                                               -WindowsSKU $WindowsSKU `
+                                                               -WindowsRelease $WindowsRelease
+            $index = $windowsImageSelection.ImageIndex
+
+            # Propagate the actually-selected edition back into build context (CORRECT-01, D-04)
+            # This single reassignment fixes all downstream $WindowsSKU consumers:
+            # FFU naming (~5340), VHDX cache write (~4643)/read (~4087), checkpoints (~4339/4698/5192/5301/5636/5696)
+            if (-not [string]::IsNullOrWhiteSpace($windowsImageSelection.ResolvedWindowsSKU)) {
+                $WindowsSKU = $windowsImageSelection.ResolvedWindowsSKU
+                $windowsRuntimeState = Get-WindowsTargetRuntimeState -WindowsRelease $WindowsRelease `
+                                           -WindowsSKU $WindowsSKU `
+                                           -CurrentWindowsVersion $WindowsVersion `
+                                           -UpdateLatestCU:$UpdateLatestCU
+                $installationType      = $windowsRuntimeState.InstallationType
+                $WindowsVersion        = $windowsRuntimeState.WindowsVersion
+                $isLTSC                = $windowsRuntimeState.IsLTSC
+                $isWindows10LtscClient = $windowsRuntimeState.IsWindows10LtscClient
+                $installLatestCuInVm   = $windowsRuntimeState.InstallLatestCuInVm
+
+                if ($requestedWindowsSKU -ne $WindowsSKU) {
+                    WriteLog "Resolved WindowsSKU from '$requestedWindowsSKU' to '$WindowsSKU' based on image: '$($windowsImageSelection.ImageName)'."
+                }
+            }
         }
 
         # === CRITICAL PHASE: VHDX/VHD Creation (INT-BUILD-01, INT-BUILD-03) ===
