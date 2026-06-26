@@ -66,7 +66,12 @@ Requirements archived in `.planning/milestones/v1.11.0-REQUIREMENTS.md`.
   2. A user can download OEM drivers for an LTSC build (2019/2021/2024) without the driver step failing on a release-year validation error.
   3. A captured image boots on a device with the Secure Boot 2023 certificate because boot files were written with the ADK's BCDBoot rather than the host's.
   4. The correct edition is captured from non-English / multi-edition media because the image index is selected via EditionId/InstallationType, not a localized name substring.
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 51-01-PLAN.md - Get-WindowsImageSelection EditionId selection + selected-edition propagation (CORRECT-01, CORRECT-04)
+- [ ] 51-02-PLAN.md - Add-BootFiles ADK bcdboot + Test-FFUADK bcdboot preflight check (CORRECT-03)
+- [ ] 51-03-PLAN.md - Get-EffectiveDriverWindowsRelease LTSC year normalization at driver dispatch (CORRECT-02)
+- [ ] 51-04-PLAN.md - version.json/ApplyFFU bump + CHANGELOG_FORK + verify-app gate (CORRECT-01..04)
 
 ### Phase 52: Driver-Grid UI Fixes
 **Goal**: The driver-selection grid behaves correctly under filtering, sorting, and saving — no selections are silently lost and invalid CopyDrivers configurations are blocked before a build starts.
