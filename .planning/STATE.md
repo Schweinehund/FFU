@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
-status: planning
-last_updated: "2026-06-26T02:59:45.611Z"
-last_activity: 2026-06-26
+status: roadmapped
+last_updated: "2026-06-25T00:00:00.000Z"
+last_activity: 2026-06-25
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-12)
+See: .planning/PROJECT.md (updated 2026-06-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Milestone complete
+**Current focus:** v1.12.0 Upstream Sync — roadmap created (Phases 51-58), ready for phase planning
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 51 — Capture/Boot Correctness (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-26 — Milestone v1.12.0 started
+Status: Roadmapped — ready to plan Phase 51
+Last activity: 2026-06-25 — Roadmap created for v1.12.0 (8 phases, 30 requirements, 100% coverage)
 
 ## Shipped Milestones
 
@@ -42,13 +42,36 @@ Last activity: 2026-06-26 — Milestone v1.12.0 started
 | v1.9.3 OEM Driver Bug Fixes | SHIPPED | 31-33 (5 plans) | 2026-01-27 |
 | v1.10.0 Upstream Cherry-Pick | SHIPPED | 34-43 (31 plans) | 2026-02-02 |
 | Phase 44 DISM Resilience (ad-hoc) | SHIPPED | 44 | 2026-03-12 |
+| v1.11.0 USB from Existing Components | SHIPPED | 45-50 (18 plans) | 2026-06-26 |
 
-**Total shipped:** 44 phases, 133 plans across 9 milestones
+**Total shipped:** 50 phases, 151 plans across 10 milestones
+
+## Current Milestone: v1.12.0 Upstream Sync (Phases 51-58)
+
+**Goal:** Selectively port the remaining high-value upstream changes into the fork's modular architecture — correctness fixes, driver-grid bug fixes, the device-naming/unattend family, shell-independent UI, and hygiene — while skipping the Fluent shell rewrite and regression-risk ports.
+
+**Scoping basis:** `.planning/reports/upstream-sync-verdict-2026-06-25.md`
+
+| Phase | Goal | Requirements |
+|-------|------|--------------|
+| 51 Capture/Boot Correctness | No wrong-edition/unbootable/LTSC-failing artifacts (P1 core) | CORRECT-01..04 |
+| 52 Driver-Grid UI Fixes | Filter/sort/save-scope correctness + CopyDrivers validation | DGRID-01..03 |
+| 53 Driver Build/Deploy Correctness | Surface SKU match, cached MS links, ReTrim, 8-OEM deploy precision | DRVR-01..04 |
+| 54 Update Cache & Capture Naming | OS-scoped cache + prune, param-driven FFU naming | CACHE-01..02 |
+| 55 Device-Naming Foundation & Migrations | DeviceNamingMode framework + UniqueId, atomic config migrations | NAMING-01, NAMING-07 |
+| 56 Device-Naming Consumers & Unattend | Serial CSV, auto ComputerName, custom unattend, surgical menu/`*` | NAMING-02..06 |
+| 57 Shell-Independent UI | ESD/ISO radios, expandable sections, ListView resize, BYO app-list | UIX-01..04 |
+| 58 Hygiene & Robustness | JSON recovery, dirty.txt path, output silencing, cleanup guards, ESD retain | HYG-01..06 |
+
+**Coverage:** 30/30 requirements mapped ✓
 
 ## Accumulated Context
 
 ### Decisions
 
+- v1.12.0 roadmap: Device-Naming family kept in two tightly-ordered phases — Phase 55 (NAMING-01 framework + NAMING-07 UniqueId, both config-schema migrations landing atomically) before Phase 56 (NAMING-02/03/04/05/06 consumers that depend on the framework). NAMING-06 ported surgically to preserve the fork's NICE-02 skip-drivers logic.
+- v1.12.0 roadmap: P1 correctness (CORRECT-01..04) is the first phase (51) — must-ship core; all later phases depend on it.
+- v1.12.0 roadmap: Phases 52/53/54/57/58 are largely independent of one another (all depend only on Phase 51) — eligible for parallel planning per config.json.
 - Phase 44: DISM auto-repair (fltmc filters check, registry repair, service restart) implemented as ad-hoc work outside milestone
 - v1.11.0: Config schema first (HIGH cost if deferred — saved configs require migration)
 - v1.11.0: FFU.ArtifactScanner as isolated module (defines data contract before UI or pipeline work)
@@ -74,8 +97,11 @@ Last activity: 2026-06-26 — Milestone v1.12.0 started
 
 ### Research Flags for Planning
 
-- Phase 47: Requires line-by-line audit of `New-DeploymentUSB` ForEach-Object -Parallel block for complete `$using:` variable inventory
-- Phase 49: Cancel flow audit must verify hardcoded `btnRun.Content` assignment list is complete before implementation
+- Phase 53 (DRVR-04): Audit ApplyFFU.ps1 deploy-time 3-tier fallback before adding SystemID precision tier — must NOT regress the existing model-name fallback for the 8 newer OEMs (NICE work from v1.10.0).
+- Phase 54 (CACHE-02): Capture-naming change must preserve the two `Start-Sleep 60` CBS/CSI corruption guards and replicate the hive DisplayVersion derivation logic — these are documented guards, not removable.
+- Phase 55 (NAMING-01/07): Both carry config-schema migrations — follow the v1.11.0 additive-migration precedent (Phase 45) and FFU.ConfigMigration; ensure migration is atomic so a partially-migrated config never occurs.
+- Phase 56 (NAMING-06): Read-MenuSelection / `*` fallback port is surgical — verify the fork's NICE-02 skip-drivers logic in ApplyFFU.ps1 / Orchestrator is preserved.
+- Phase 51 (CORRECT-01): SKU refresh after fallback touches naming, caching, and servicing paths — trace all three consumers of the requested-vs-selected edition.
 
 ### Blockers
 
@@ -83,11 +109,11 @@ None.
 
 ### Deferred Verification (carry forward)
 
-- **Phase 50 Human UAT (4 items) — DEFERRED 2026-06-25.** All 4 GUI tests in `50-HUMAN-UAT.md` (ComboBox tier rendering, config round-trip, degraded-artifact rendering, end-to-end selective rebuild) were never executed. Deferred by user decision: upcoming USB Mode changes are expected to invalidate these scenarios, so they will be re-run as a single full test pass when those changes are ready. Pull into the next milestone's verification scope.
+- **Phase 50 Human UAT (4 items) — DEFERRED 2026-06-25.** All 4 GUI tests in `50-HUMAN-UAT.md` (ComboBox tier rendering, config round-trip, degraded-artifact rendering, end-to-end selective rebuild) were never executed. Deferred by user decision: upcoming USB Mode changes are expected to invalidate these scenarios, so they will be re-run as a single full test pass when those changes are ready. NOTE: v1.12.0 is upstream-sync work (not USB Mode changes), so this remains deferred — do not pull into v1.12.0 verification scope.
 
 ## Deferred Items
 
-Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most are the USB Mode GUI testing the user chose to defer until the next round of USB Mode changes is ready for a single full test pass; Phase 42/48 verification gaps and the 2 todos are pre-existing tech debt unrelated to v1.11.0.
+Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most are the USB Mode GUI testing the user chose to defer until the next round of USB Mode changes is ready for a single full test pass; Phase 42/48 verification gaps and the 2 todos are pre-existing tech debt unrelated to v1.11.0. None of these are in v1.12.0 scope (upstream sync, not USB Mode).
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -98,19 +124,19 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 | verification | Phase 42 (42-VERIFICATION.md) | gaps_found (pre-existing, v1.10.0) |
 | verification | Phase 48 (48-VERIFICATION.md) | gaps_found (placeholders wired in Phase 49) |
 | todo | 2026-03-12-evaluate-frontend-architecture-alternatives | pending |
-| todo | 2026-03-12-upstream-sync-check-for-new-commits | pending |
+| todo | 2026-03-12-upstream-sync-check-for-new-commits | addressed — v1.12.0 ports the audited backlog |
 
-**Requirement gaps (implemented, verification deferred):** DISC-01, VALID-01, VALID-02, VALID-03, VALID-04 — pull into the next milestone's verification scope alongside the USB Mode UAT.
+**Requirement gaps (implemented, verification deferred):** DISC-01, VALID-01, VALID-02, VALID-03, VALID-04 — USB Mode GUI verification, not in v1.12.0 scope; pull in alongside future USB Mode work.
 
 ## Session Continuity
 
-Last session: 2026-06-26 — v1.11.0 milestone completed and archived
-Stopped at: Milestone v1.11.0 shipped
+Last session: 2026-06-25 — v1.12.0 roadmap created (Phases 51-58)
+Stopped at: Roadmap complete, REQUIREMENTS traceability filled (30/30 mapped)
 Resume file: None
-Next action: Start the next milestone with /gsd-new-milestone
+Next action: Plan Phase 51 with /gsd-plan-phase 51
 
 ---
-*State updated: 2026-03-20 — corrected position after phases 45+46 completed (46 shipped 2026-03-14, 45 shipped 2026-03-20)*
+*State updated: 2026-06-25 — v1.12.0 roadmap created, 8 phases (51-58), 30 requirements mapped*
 
 ## Performance Metrics
 
@@ -123,4 +149,5 @@ Next action: Start the next milestone with /gsd-new-milestone
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan Phase 51 (Capture/Boot Correctness) with /gsd-plan-phase 51
+- Phases 52/53/54/57/58 depend only on Phase 51 and are eligible for parallel planning per config.json

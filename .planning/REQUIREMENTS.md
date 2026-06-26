@@ -80,46 +80,44 @@
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORRECT-01 | TBD | Pending |
-| CORRECT-02 | TBD | Pending |
-| CORRECT-03 | TBD | Pending |
-| CORRECT-04 | TBD | Pending |
-| DRVR-01 | TBD | Pending |
-| DRVR-02 | TBD | Pending |
-| DRVR-03 | TBD | Pending |
-| DRVR-04 | TBD | Pending |
-| DGRID-01 | TBD | Pending |
-| DGRID-02 | TBD | Pending |
-| DGRID-03 | TBD | Pending |
-| CACHE-01 | TBD | Pending |
-| CACHE-02 | TBD | Pending |
-| NAMING-01 | TBD | Pending |
-| NAMING-02 | TBD | Pending |
-| NAMING-03 | TBD | Pending |
-| NAMING-04 | TBD | Pending |
-| NAMING-05 | TBD | Pending |
-| NAMING-06 | TBD | Pending |
-| NAMING-07 | TBD | Pending |
-| UIX-01 | TBD | Pending |
-| UIX-02 | TBD | Pending |
-| UIX-03 | TBD | Pending |
-| UIX-04 | TBD | Pending |
-| HYG-01 | TBD | Pending |
-| HYG-02 | TBD | Pending |
-| HYG-03 | TBD | Pending |
-| HYG-04 | TBD | Pending |
-| HYG-05 | TBD | Pending |
-| HYG-06 | TBD | Pending |
+| CORRECT-01 | Phase 51 | Pending |
+| CORRECT-02 | Phase 51 | Pending |
+| CORRECT-03 | Phase 51 | Pending |
+| CORRECT-04 | Phase 51 | Pending |
+| DGRID-01 | Phase 52 | Pending |
+| DGRID-02 | Phase 52 | Pending |
+| DGRID-03 | Phase 52 | Pending |
+| DRVR-01 | Phase 53 | Pending |
+| DRVR-02 | Phase 53 | Pending |
+| DRVR-03 | Phase 53 | Pending |
+| DRVR-04 | Phase 53 | Pending |
+| CACHE-01 | Phase 54 | Pending |
+| CACHE-02 | Phase 54 | Pending |
+| NAMING-01 | Phase 55 | Pending |
+| NAMING-07 | Phase 55 | Pending |
+| NAMING-02 | Phase 56 | Pending |
+| NAMING-03 | Phase 56 | Pending |
+| NAMING-04 | Phase 56 | Pending |
+| NAMING-05 | Phase 56 | Pending |
+| NAMING-06 | Phase 56 | Pending |
+| UIX-01 | Phase 57 | Pending |
+| UIX-02 | Phase 57 | Pending |
+| UIX-03 | Phase 57 | Pending |
+| UIX-04 | Phase 57 | Pending |
+| HYG-01 | Phase 58 | Pending |
+| HYG-02 | Phase 58 | Pending |
+| HYG-03 | Phase 58 | Pending |
+| HYG-04 | Phase 58 | Pending |
+| HYG-05 | Phase 58 | Pending |
+| HYG-06 | Phase 58 | Pending |
 
 **Coverage:**
 - v1.12.0 requirements: 30 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 30 ⚠️ (resolved by roadmap)
+- Mapped to phases: 30 ✓ (Phases 51-58)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-25*
-*Last updated: 2026-06-25 after milestone v1.12.0 scoping (adversarial review)*
+*Last updated: 2026-06-25 after roadmap creation — all 30 requirements mapped to Phases 51-58, 100% coverage*
