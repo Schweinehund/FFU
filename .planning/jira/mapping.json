@@ -168,6 +168,24 @@
         "49": { "issueKey": "RTS-651", "status": "done", "name": "UI Event Wiring and Artifact Integration" },
         "50": { "issueKey": "RTS-652", "status": "done", "name": "Selective Rebuild Pipeline" }
       }
+    },
+    "v1.12.0": {
+      "epicKey": "RTS-674",
+      "status": "created",
+      "summary": "FFU Builder v1.12.0 - Upstream Sync (Correctness, Drivers & Device Naming)",
+      "created": "2026-06-25",
+      "phaseRange": "51-58",
+      "requirements": 30,
+      "phases": {
+        "51": { "issueKey": "RTS-675", "status": "todo", "name": "Capture/Boot Correctness" },
+        "52": { "issueKey": "RTS-676", "status": "todo", "name": "Driver-Grid UI Fixes" },
+        "53": { "issueKey": "RTS-677", "status": "todo", "name": "Driver Build/Deploy Correctness" },
+        "54": { "issueKey": "RTS-678", "status": "todo", "name": "Update Cache & Capture Naming" },
+        "55": { "issueKey": "RTS-679", "status": "todo", "name": "Device-Naming Foundation & Migrations" },
+        "56": { "issueKey": "RTS-680", "status": "todo", "name": "Device-Naming Consumers & Unattend" },
+        "57": { "issueKey": "RTS-681", "status": "todo", "name": "Shell-Independent UI" },
+        "58": { "issueKey": "RTS-682", "status": "todo", "name": "Hygiene & Robustness" }
+      }
     }
   },
   "lastAudit": "2026-06-22",
