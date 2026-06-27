@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.11.0",
-    "buildDate": "2026-06-22",
+    "version": "1.12.0",
+    "buildDate": "2026-06-26",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -54,9 +54,9 @@
             "description": "Phase 38 PATH-01: SUBST driver injection loop - Invoke-DismDriverInjectionWithSubstLoop with INF scanning, deduplication, path walk-up, sequential SUBST map->inject->unmap"
         },
         "FFU.Imaging": {
-            "version": "1.3.3",
+            "version": "1.4.0",
             "path": "Modules/FFU.Imaging/FFU.Imaging.psd1",
-            "description": "Phase 38 PATH-01: SUBST integration - New-FFU uses Invoke-DismDriverInjectionWithSubstLoop for MAX_PATH safety with backward-compatible fallback"
+            "description": "Phase 51 CORRECT-01/04: Get-WindowsImageSelection (EditionId-based, locale-independent), Get-ResolvedWindowsSKUFromImage reverse map, interactive prompt loop removed (ThreadJob fix)"
         },
         "FFU.Media": {
             "version": "1.8.0",

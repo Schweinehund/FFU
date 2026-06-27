@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
 status: executing
-last_updated: "2026-06-26T23:40:41.250Z"
-last_activity: 2026-06-26 -- Phase 51 planning complete
+last_updated: "2026-06-27T00:00:31.796Z"
+last_activity: 2026-06-26
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** v1.12.0 Upstream Sync — roadmap created (Phases 51-58), ready for phase planning
+**Current focus:** Phase 51 — Capture/Boot Correctness
 
 ## Current Position
 
-Phase: 51 — Capture/Boot Correctness (not started)
-Plan: —
+Phase: 51 (Capture/Boot Correctness) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-26 -- Phase 51 planning complete
+Last activity: 2026-06-26
 
 ## Shipped Milestones
 
@@ -94,6 +94,7 @@ Last activity: 2026-06-26 -- Phase 51 planning complete
 - [Phase 49]: DispatcherTimer Tick handler copied verbatim from Full Build for mode-agnostic polling
 - [Phase 49-05]: Pre-build validation "Build canceled" messages (lines 451, 785-879) left as-is — they occur before USB mode is relevant; cancel/cleanup paths (lines 345, 417) made mode-aware
 - [Phase ?]: Phase 50-05: Rebuild execution block placed before ISO mount check;  reads configData directly for early placement before Step 4; Invoke-ParallelProcessing DownloadDriverByMake reused for Drivers rebuild (no new loop)
+- [Phase ?]: [Phase 51-01]: Get-WindowsImageSelection uses EditionId (primary) then exact ImageName -eq (fallback) then auto-select or throw
 
 ### Research Flags for Planning
 
@@ -130,9 +131,9 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 
 ## Session Continuity
 
-Last session: 2026-06-26T22:55:09.451Z
-Stopped at: Phase 51 context gathered
-Resume file: .planning/phases/51-capture-boot-correctness/51-CONTEXT.md
+Last session: 2026-06-27T00:00:31.782Z
+Stopped at: Phase 51 Plan 01 complete
+Resume file: None
 Next action: Plan Phase 51 with /gsd-plan-phase 51
 
 ---
@@ -146,6 +147,7 @@ Next action: Plan Phase 51 with /gsd-plan-phase 51
 | Phase 50 P03 | 15 | 2 tasks | 5 files |
 | Phase 50 P05 | 876 | 2 tasks | 2 files |
 | Phase 50 P06 | 8 | 3 tasks | 3 files |
+| Phase 51 P01 | 45 | 3 tasks | 5 files |
 
 ## Operator Next Steps
 

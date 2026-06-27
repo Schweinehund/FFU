@@ -8,10 +8,10 @@
 
 ### Capture/Boot Correctness (P1)
 
-- [ ] **CORRECT-01**: When the user's exact Windows SKU isn't present and they pick a fallback image, the resulting FFU is named, cached, and serviced as the *selected* edition — not the originally-requested one *(T1-1 `5aaa1ad`, PORT)*
+- [x] **CORRECT-01**: When the user's exact Windows SKU isn't present and they pick a fallback image, the resulting FFU is named, cached, and serviced as the *selected* edition — not the originally-requested one *(T1-1 `5aaa1ad`, PORT)*
 - [ ] **CORRECT-02**: User can download OEM drivers for LTSC builds (2019/2021/2024) without the driver step failing on a release-year validation error *(T1-3 `04dfb5f`, PORT)*
 - [ ] **CORRECT-03**: Captured images boot on devices with updated Secure Boot 2023 certificates because boot files are written with the ADK's BCDBoot rather than the host's *(T1-4 `6c0ee8a`, PORT)*
-- [ ] **CORRECT-04**: The correct Windows edition is captured from non-English and multi-edition media by selecting the image index via EditionId/InstallationType instead of a localized name substring *(T2-1 `b2a7ef5`, PORT)*
+- [x] **CORRECT-04**: The correct Windows edition is captured from non-English and multi-edition media by selecting the image index via EditionId/InstallationType instead of a localized name substring *(T2-1 `b2a7ef5`, PORT)*
 
 ### Driver Build/Deploy Correctness (P2)
 
@@ -82,10 +82,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORRECT-01 | Phase 51 | Pending |
+| CORRECT-01 | Phase 51 | Complete |
 | CORRECT-02 | Phase 51 | Pending |
 | CORRECT-03 | Phase 51 | Pending |
-| CORRECT-04 | Phase 51 | Pending |
+| CORRECT-04 | Phase 51 | Complete |
 | DGRID-01 | Phase 52 | Pending |
 | DGRID-02 | Phase 52 | Pending |
 | DGRID-03 | Phase 52 | Pending |
