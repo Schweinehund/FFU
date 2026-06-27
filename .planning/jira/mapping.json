@@ -171,13 +171,14 @@
     },
     "v1.12.0": {
       "epicKey": "RTS-674",
-      "status": "created",
+      "status": "in_progress",
       "summary": "FFU Builder v1.12.0 - Upstream Sync (Correctness, Drivers & Device Naming)",
       "created": "2026-06-25",
+      "started": "2026-06-26",
       "phaseRange": "51-58",
       "requirements": 30,
       "phases": {
-        "51": { "issueKey": "RTS-675", "status": "todo", "name": "Capture/Boot Correctness" },
+        "51": { "issueKey": "RTS-675", "status": "done", "name": "Capture/Boot Correctness" },
         "52": { "issueKey": "RTS-676", "status": "todo", "name": "Driver-Grid UI Fixes" },
         "53": { "issueKey": "RTS-677", "status": "todo", "name": "Driver Build/Deploy Correctness" },
         "54": { "issueKey": "RTS-678", "status": "todo", "name": "Update Cache & Capture Naming" },
