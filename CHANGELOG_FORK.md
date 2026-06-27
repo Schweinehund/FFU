@@ -8,6 +8,49 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## [1.12.0] - 2026-06-26
+
+### Phase 51: Capture/Boot Correctness (CORRECT-01..04)
+
+Ports four upstream correctness fixes for image capture and boot reliability from `rbalsleyMSFT/FFU` (branch `UI_2510`). Fixes ensure the correct Windows edition is captured, LTSC builds use the right OEM driver release year, Secure Boot 2023 images boot correctly, and image selection is locale-independent.
+
+#### Changes
+
+- **CORRECT-01: Selected-edition propagation after fallback (upstream `5aaa1ad`)** — Rewrote `Get-Index` as `Get-WindowsImageSelection` returning a rich PSCustomObject (ImageIndex/EditionId/ResolvedWindowsSKU). Single guarded `$WindowsSKU` reassignment at the call site propagates the selected edition to all 9 downstream consumers: FFU naming, VHDX cache read/write, and 6 checkpoint sites. Deleted the `Read-Host`/`while($true)` fallback loop that deadlocked ThreadJob builds; replaced with auto-select for 1 candidate, WriteLog+throw for 2+ candidates. Added `Get-WindowsTargetRuntimeState` helper in `BuildFFUVM.ps1`.
+
+- **CORRECT-02: LTSC year normalization for OEM drivers (upstream `04dfb5f`)** — Added `Get-EffectiveDriverWindowsRelease` to `BuildFFUVM.ps1`: LTSC 2016/2019/2021 -> 10, LTSC 2024 -> 11, Server/non-LTSC pass-through. Injected dedicated `$driverWindowsRelease` at both OEM driver dispatch sites (driversJsonPath taskArguments and single-model Invoke-BuildPhase) without mutating the load-bearing global `$WindowsRelease`. All four OEM providers (HP/Microsoft/Lenovo/Dell) receive the normalized value.
+
+- **CORRECT-03: ADK bcdboot for Secure Boot 2023 (upstream `6c0ee8a`)** — Extended `Add-BootFiles` (FFU.Imaging) with mandatory `-AdkPath` and `-WindowsArch` parameters; resolves the arch-correct ADK bcdboot.exe path (`{AdkPath}\Assessment and Deployment Kit\Deployment Tools\{amd64|arm64}\BCDBoot\bcdboot.exe`) and hard-fails with a clear error if the tool is missing. Added `CHECK 5` to `Test-FFUADK` (FFU.Preflight) for early detection with `-UpdateADK` remediation. Updated `BuildFFUVM.ps1` Add-BootFiles call to pass `-AdkPath $adkPath -WindowsArch $WindowsArch`.
+
+- **CORRECT-04: EditionId/InstallationType locale-independent image selection (upstream `b2a7ef5`)** — Replaced Substring-based image name derivation with a complete 24-entry SKU->EditionId switch map in `Get-WindowsImageSelection`. InstallationType filter disambiguates Server Desktop Experience vs. Server Core. Exact ImageName -eq fallback retained as a zero-cost salvage path for map gaps.
+
+#### Testing
+
+- `Tests/Test-Phase51Correctness.ps1` — 68 content-match and pure-function tests covering all four fixes (map completeness gate enforced, LTSC table tests for 12 SKU/release combinations). All green, exits 0.
+
+#### Files Modified
+
+- `FFUDevelopment/Modules/FFU.Imaging/FFU.Imaging.psm1` — `Get-WindowsImageSelection` + `Get-ResolvedWindowsSKUFromImage`; `Add-BootFiles` ADK bcdboot path; module bumped to v1.4.0
+- `FFUDevelopment/Modules/FFU.Imaging/FFU.Imaging.psd1` — v1.4.0, updated FunctionsToExport
+- `FFUDevelopment/Modules/FFU.Preflight/FFU.Preflight.psm1` — Test-FFUADK CHECK 5 ADK bcdboot existence check
+- `FFUDevelopment/Modules/FFU.Preflight/FFU.Preflight.psd1` — v1.7.0, CORRECT-03 release notes
+- `FFUDevelopment/BuildFFUVM.ps1` — Get-WindowsTargetRuntimeState; SKU propagation; Get-EffectiveDriverWindowsRelease + $driverWindowsRelease at both dispatch sites; Add-BootFiles call updated
+- `FFUDevelopment/version.json` — Main version 1.11.0 -> 1.12.0; FFU.Imaging 1.4.0; FFU.Preflight 1.7.0
+- `FFUDevelopment/WinPEDeployFFUFiles/ApplyFFU.ps1` — Hardcoded `$version` updated to 1.12.0
+
+#### Requirements Closed
+
+- CORRECT-01: Selected-edition propagation after fallback (no stale SKU in naming/caching/servicing)
+- CORRECT-02: LTSC driver year normalization (LTSC builds now resolve correct OEM driver release)
+- CORRECT-03: ADK bcdboot for Secure Boot 2023 (arch-correct boot files; hard-fail on missing tool)
+- CORRECT-04: Locale-independent image selection (EditionId matching replaces fragile Substring derivation)
+
+#### Main version
+
+- **Main version:** 1.11.0 -> 1.12.0 (MINOR - Phase 51 Capture/Boot Correctness milestone)
+
+---
+
 ## [1.11.0] - 2026-06-22
 
 ### Phase 50: Selective Rebuild Pipeline (REBUILD-01/02/03)
