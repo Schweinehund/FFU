@@ -2002,16 +2002,35 @@ function Set-OSPartitionDriveLetter {
 }
 
 function Add-BootFiles {
+    # Source: upstream commit 6c0ee8a (CORRECT-03) - uses ADK bcdboot.exe instead of host
+    # bcdboot to ensure Secure Boot 2023-compatible cert variant is staged on the ESP.
     param(
         [Parameter(Mandatory = $true)]
         [string]$OsPartitionDriveLetter,
         [Parameter(Mandatory = $true)]
         [string]$SystemPartitionDriveLetter,
+        [Parameter(Mandatory = $true)]
+        [string]$AdkPath,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('x86', 'x64', 'arm64')]
+        [string]$WindowsArch,
         [string]$FirmwareType = 'UEFI'
     )
 
+    $bcdBootArchitecture = if ($WindowsArch -ieq 'arm64') { 'arm64' } else { 'amd64' }
+    $bcdBootPath = Join-Path $AdkPath "Assessment and Deployment Kit\Deployment Tools\$bcdBootArchitecture\BCDBoot\bcdboot.exe"
+
+    if (-not (Test-Path -Path $bcdBootPath)) {
+        throw "ADK BCDBoot was not found at '$bcdBootPath'. Install Windows ADK with Deployment Tools or run with -UpdateADK `$true."
+    }
+
+    # D-13: Log the ADK bcdboot path used as a diagnostic.
+    # The cert variant staged on the ESP depends on the bcdboot binary version:
+    # ADK 10.1.26100.2454 (Dec 2024) stages 2011 certs; later ADK builds may stage 2023 certs.
+    # A future ADK upgrade must be a conscious decision to avoid silent cert-variant drift.
+    WriteLog "Adding boot files using ADK bcdboot: $bcdBootPath"
     WriteLog "Adding boot files for `"$($OsPartitionDriveLetter):\Windows`" to System partition `"$($SystemPartitionDriveLetter):`"..."
-    Invoke-Process bcdboot "$($OsPartitionDriveLetter):\Windows /S $($SystemPartitionDriveLetter): /F $FirmwareType" | Out-Null
+    Invoke-Process $bcdBootPath "$($OsPartitionDriveLetter):\Windows /S $($SystemPartitionDriveLetter): /F $FirmwareType" | Out-Null
     WriteLog "Done."
 }
 

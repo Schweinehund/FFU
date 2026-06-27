@@ -4545,7 +4545,10 @@ DIAGNOSTIC: Run 'fltmc filters | Select-String WimMount' to verify WIMMount stat
 
         WriteLog 'All necessary partitions created.'
 
-        Add-BootFiles -OsPartitionDriveLetter $osPartitionDriveLetter -SystemPartitionDriveLetter $systemPartitionDriveLetter[1]
+        Add-BootFiles -OsPartitionDriveLetter $osPartitionDriveLetter `
+                      -SystemPartitionDriveLetter $systemPartitionDriveLetter[1] `
+                      -AdkPath $adkPath `
+                      -WindowsArch $WindowsArch
     
         #Add Windows packages
         if ($UpdateLatestCU -or $UpdateLatestNet -or $UpdatePreviewCU ) {
