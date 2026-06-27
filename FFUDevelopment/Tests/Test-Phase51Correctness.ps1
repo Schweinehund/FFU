@@ -65,9 +65,11 @@ function Write-TestResult {
 # =============================================================================
 $FFUDevelopmentPath = Split-Path $PSScriptRoot -Parent
 $ModulesPath = Join-Path $FFUDevelopmentPath "Modules"
-$ImagingPsd1 = Join-Path $ModulesPath "FFU.Imaging\FFU.Imaging.psd1"
-$ImagingPsm1 = Join-Path $ModulesPath "FFU.Imaging\FFU.Imaging.psm1"
-$BuildScript  = Join-Path $FFUDevelopmentPath "BuildFFUVM.ps1"
+$ImagingPsd1  = Join-Path $ModulesPath "FFU.Imaging\FFU.Imaging.psd1"
+$ImagingPsm1  = Join-Path $ModulesPath "FFU.Imaging\FFU.Imaging.psm1"
+$BuildScript   = Join-Path $FFUDevelopmentPath "BuildFFUVM.ps1"
+$PreflightPsm1 = Join-Path $ModulesPath "FFU.Preflight\FFU.Preflight.psm1"
+$PreflightPsd1 = Join-Path $ModulesPath "FFU.Preflight\FFU.Preflight.psd1"
 
 if ($env:PSModulePath -notlike "*$ModulesPath*") {
     $env:PSModulePath = "$ModulesPath;$env:PSModulePath"
@@ -298,13 +300,74 @@ Write-Host ""
 
 # =============================================================================
 # SECTION: CORRECT-03 (Plan 02) - ADK bcdboot for Secure Boot 2023 fix
-# PLACEHOLDER: Add assertions here when Plan 02 is implemented.
+# Source: upstream commit 6c0ee8a - Add-BootFiles must use ADK bcdboot.exe
+# (D-09/D-11/D-12/D-13)
 # =============================================================================
-Write-Host "CORRECT-03: ADK bcdboot for Secure Boot 2023 (Plan 02 - placeholder)" -ForegroundColor DarkGray
-Write-Host "  [PLACEHOLDER] Plan 02 will add assertions for:" -ForegroundColor DarkGray
-Write-Host "    - Add-BootFiles uses ADK bcdboot.exe (not host bcdboot)" -ForegroundColor DarkGray
-Write-Host "    - Add-BootFiles validates bcdboot.exe existence before invoking" -ForegroundColor DarkGray
-Write-Host "    - Test-FFUADK preflight validates ADK bcdboot.exe presence" -ForegroundColor DarkGray
+Write-Host "CORRECT-03: ADK bcdboot for Secure Boot 2023 (D-09/D-11/D-12/D-13)" -ForegroundColor Yellow
+Write-Host ""
+
+try {
+    if (-not $psm1Content) {
+        $psm1Content = Get-Content -Path $ImagingPsm1 -Raw -ErrorAction Stop
+    }
+
+    # (a) FFU.Imaging.psm1 references the BCDBoot\bcdboot.exe ADK path (D-11)
+    $hasAdkBCDBootPath = $psm1Content -match 'BCDBoot\\bcdboot\.exe'
+    Write-TestResult -TestName "Add-BootFiles references ADK BCDBoot path (BCDBoot\bcdboot.exe)" -Passed $hasAdkBCDBootPath `
+        -Message "$(if (-not $hasAdkBCDBootPath) { 'BCDBoot\bcdboot.exe ADK path not found in FFU.Imaging.psm1' })"
+
+    # (b) Add-BootFiles Test-Path validates bcdboot.exe existence before invoking (D-09)
+    $hasTestPathGuard = $psm1Content -match 'Test-Path.*bcdBootPath|Test-Path.*bcdboot'
+    Write-TestResult -TestName "Add-BootFiles Test-Path guards bcdboot existence before invoking (D-09)" -Passed $hasTestPathGuard `
+        -Message "$(if (-not $hasTestPathGuard) { 'No Test-Path guard on bcdboot path found in Add-BootFiles' })"
+
+    # (c) Add-BootFiles declares the $WindowsArch parameter (D-11 arch-awareness)
+    $hasWindowsArchParam = $psm1Content -match '\[ValidateSet.*x86.*x64.*arm64.*\]\s*\[string\]\s*\$WindowsArch|\[string\]\s*\$WindowsArch'
+    Write-TestResult -TestName "Add-BootFiles declares WindowsArch parameter for arch-aware bcdboot (D-11)" -Passed $hasWindowsArchParam `
+        -Message "$(if (-not $hasWindowsArchParam) { 'WindowsArch parameter not declared in Add-BootFiles' })"
+
+    # (d) Add-BootFiles no longer issues a bare `Invoke-Process bcdboot ` host call (D-09)
+    # Negative assertion: the bare host bcdboot invocation must be gone.
+    $hasNoBareHostBcdboot = $psm1Content -notmatch 'Invoke-Process bcdboot '
+    Write-TestResult -TestName "Add-BootFiles has no bare host bcdboot invocation (D-09 - host fallback removed)" -Passed $hasNoBareHostBcdboot `
+        -Message "$(if (-not $hasNoBareHostBcdboot) { 'Bare `Invoke-Process bcdboot ` host call still present - must use ADK path variable' })"
+
+    # (d2) And the ADK throw message is present (D-09 hard-fail)
+    $hasHardFail = $psm1Content -match 'throw.*ADK BCDBoot'
+    Write-TestResult -TestName "Add-BootFiles hard-fails with actionable throw when ADK bcdboot missing (D-09)" -Passed $hasHardFail `
+        -Message "$(if (-not $hasHardFail) { 'throw ADK BCDBoot message not found - hard-fail requirement not met' })"
+}
+catch {
+    Write-TestResult -TestName "Read FFU.Imaging.psm1 for CORRECT-03 checks" -Passed $false -Message $_.Exception.Message
+}
+
+try {
+    $prefContent = Get-Content -Path $PreflightPsm1 -Raw -ErrorAction Stop
+
+    # (e) FFU.Preflight.psm1 Test-FFUADK contains BCDBoot\bcdboot.exe existence check (D-12)
+    $prefHasBCDBootCheck = $prefContent -match 'BCDBoot\\bcdboot\.exe'
+    Write-TestResult -TestName "Test-FFUADK validates ADK bcdboot.exe existence (D-12 - early fail)" -Passed $prefHasBCDBootCheck `
+        -Message "$(if (-not $prefHasBCDBootCheck) { 'BCDBoot\bcdboot.exe check not found in FFU.Preflight.psm1' })"
+
+    $prefHasSecureBootMsg = $prefContent -match 'Secure Boot 2023'
+    Write-TestResult -TestName "Test-FFUADK check message references Secure Boot 2023 (D-12)" -Passed $prefHasSecureBootMsg `
+        -Message "$(if (-not $prefHasSecureBootMsg) { 'Secure Boot 2023 not mentioned in bcdboot check error message' })"
+}
+catch {
+    Write-TestResult -TestName "Read FFU.Preflight.psm1 for CORRECT-03 checks" -Passed $false -Message $_.Exception.Message
+}
+
+try {
+    $prefPsd1Content = Get-Content -Path $PreflightPsd1 -Raw -ErrorAction Stop
+
+    $prefIsV170 = $prefPsd1Content -match "ModuleVersion = '1\.7\.0'"
+    Write-TestResult -TestName "FFU.Preflight.psd1 bumped to 1.7.0 for CORRECT-03 (D-12)" -Passed $prefIsV170 `
+        -Message "$(if (-not $prefIsV170) { 'FFU.Preflight.psd1 ModuleVersion not updated to 1.7.0' })"
+}
+catch {
+    Write-TestResult -TestName "Read FFU.Preflight.psd1 for CORRECT-03 version check" -Passed $false -Message $_.Exception.Message
+}
+
 Write-Host ""
 
 # =============================================================================
@@ -330,7 +393,7 @@ Write-Host "Failed      : $script:FailCount" -ForegroundColor $(if ($script:Fail
 Write-Host ""
 
 if ($script:FailCount -eq 0) {
-    Write-Host "All Phase 51 Plan 01 tests passed. CORRECT-01 and CORRECT-04 implementation verified." -ForegroundColor Green
+    Write-Host "All Phase 51 tests passed. CORRECT-01, CORRECT-03, and CORRECT-04 implementation verified." -ForegroundColor Green
     exit 0
 }
 else {
