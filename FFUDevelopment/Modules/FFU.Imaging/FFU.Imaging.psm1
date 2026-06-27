@@ -667,7 +667,12 @@ function Get-WindowsImageSelection {
                                      -ImageName $details.ImageName -WindowsRelease $WindowsRelease
             }
         }
-        catch { $null }
+        catch {
+            # WR-01: never drop an index silently — a missing EditionId here could bypass
+            # Tier 1 matching and auto-select the wrong edition with no diagnostic.
+            WriteLog "WARNING: Failed to read metadata for image index $($imageIndex.ImageIndex) in '$WindowsImagePath': $($_.Exception.Message). This index is excluded from EditionId matching."
+            $null
+        }
     }) | Where-Object { $null -ne $_ }
 
     # Tier 1: EditionId candidate match — locale-independent primary selection (D-05)
@@ -2004,6 +2009,8 @@ function Set-OSPartitionDriveLetter {
 function Add-BootFiles {
     # Source: upstream commit 6c0ee8a (CORRECT-03) - uses ADK bcdboot.exe instead of host
     # bcdboot to ensure Secure Boot 2023-compatible cert variant is staged on the ESP.
+    [CmdletBinding()]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory = $true)]
         [string]$OsPartitionDriveLetter,
