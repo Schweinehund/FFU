@@ -1241,6 +1241,60 @@ function Get-WindowsTargetRuntimeState {
 }
 
 # =============================================================================
+# Driver Year Normalization Helper (Phase 51 CORRECT-02)
+# Source: upstream commit 04dfb5f, verbatim
+# =============================================================================
+
+function Get-EffectiveDriverWindowsRelease {
+    <#
+    .SYNOPSIS
+    Returns the base Windows release number for OEM driver downloads, normalizing LTSC
+    year-based release numbers to their corresponding base Windows release (10 or 11).
+
+    .DESCRIPTION
+    LTSC editions use the release year as the WindowsRelease value (2016, 2019, 2021, 2024)
+    but OEM driver catalogs index by base Windows release (10 or 11). Without normalization,
+    HP yields "Win2021"/"Win2024", Lenovo yields "_Win2021"/"_Win2024", and Dell falls to
+    the wrong server-OS code -- all failing to locate valid driver packages.
+
+    The 2019 collision (Windows 10 LTSC 1809 vs Windows Server 2019) is disambiguated by
+    the $isLTSC gate on the WindowsSKU "*LTS*" pattern -- Server SKUs ("Standard",
+    "Datacenter") never contain "LTS", so they pass through unchanged (D-15).
+
+    Do NOT use this function to normalize $WindowsRelease globally. It is scoped only to
+    driver dispatch ($driverWindowsRelease). The global $WindowsRelease feeds FFU naming,
+    release-to-SKU validation, MSRT naming, VHDX cache keys, and the Server WindowsVersion
+    switch -- it must never be reassigned here (D-16).
+
+    Source: upstream commit 04dfb5f (verbatim).
+
+    .PARAMETER WindowsRelease
+    The $WindowsRelease value from the build context (e.g. 10, 11, 2016, 2019, 2021, 2024).
+
+    .PARAMETER WindowsSKU
+    The $WindowsSKU string; must contain "*LTS*" for the LTSC remap to apply.
+
+    .OUTPUTS
+    [int] Normalized release number: 10 for LTSC 2016/2019/2021, 11 for LTSC 2024,
+    original value unchanged for non-LTSC and Server SKUs.
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$WindowsRelease,
+
+        [string]$WindowsSKU
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($WindowsSKU) -and $WindowsSKU -like '*LTS*') {
+        if ($WindowsRelease -in 2016, 2019, 2021) { return 10 }
+        if ($WindowsRelease -eq 2024)             { return 11 }
+    }
+    return $WindowsRelease
+}
+
+# =============================================================================
 # USB Drive Functions
 # These functions were intentionally kept in BuildFFUVM.ps1 (not modularized)
 # because New-DeploymentUSB uses ForEach-Object -Parallel with many $using:
@@ -3073,10 +3127,17 @@ if (-not $skipDriverDownload -and $driversJsonPath -and (Test-Path $driversJsonP
     else {
         WriteLog "Found $($driversToProcess.Count) driver entries to process from $driversJsonPath."
 
+        # CORRECT-02 (D-16): normalize LTSC year to base Windows release for OEM driver lookups.
+        # $WindowsRelease is intentionally NOT reassigned -- it is load-bearing for naming/cache/MSRT.
+        $driverWindowsRelease = Get-EffectiveDriverWindowsRelease -WindowsRelease $WindowsRelease -WindowsSKU $WindowsSKU
+        if ($driverWindowsRelease -ne $WindowsRelease) {
+            WriteLog "Normalized WindowsRelease for drivers JSON processing from $WindowsRelease to $driverWindowsRelease (SKU='$WindowsSKU')."
+        }
+
         $preserveSourceOnCompress = ($UseDriversAsPEDrivers -and $CompressDownloadedDriversToWim)
         $taskArguments = @{
             DriversFolder            = $DriversFolder
-            WindowsRelease           = $WindowsRelease
+            WindowsRelease           = $driverWindowsRelease
             WindowsArch              = $WindowsArch
             WindowsVersion           = $WindowsVersion 
             Headers                  = $Headers
@@ -3240,25 +3301,34 @@ elseif (($Make -and $Model) -and ($InstallDrivers -or $CopyDrivers)) {
     Set-Progress -Percentage 4 -Message "Downloading OEM drivers..."
 
     # === NON-CRITICAL PHASE: Driver Download (INT-BUILD-01, INT-BUILD-02) ===
+
+    # CORRECT-02 (D-16): normalize LTSC year to base Windows release for OEM driver lookups.
+    # Declared in outer scope BEFORE Invoke-BuildPhase so the scriptblock closure captures it (Pitfall 5).
+    # $WindowsRelease is intentionally NOT reassigned -- it is load-bearing for naming/cache/MSRT.
+    $driverWindowsRelease = Get-EffectiveDriverWindowsRelease -WindowsRelease $WindowsRelease -WindowsSKU $WindowsSKU
+    if ($driverWindowsRelease -ne $WindowsRelease) {
+        WriteLog "Normalized WindowsRelease for single-model driver processing from $WindowsRelease to $driverWindowsRelease (SKU='$WindowsSKU')."
+    }
+
     $driverStartTime = [DateTime]::Now
     $driverDownloadResult = Invoke-BuildPhase -PhaseName 'Driver Download' -Critical $false -Action {
         if ($Make -eq 'HP') {
             WriteLog "[HP][$Model][Download] Starting HP driver download"
-            Get-HPDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
+            Get-HPDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $driverWindowsRelease `
                           -WindowsVersion $WindowsVersion -DriversFolder $DriversFolder `
                           -FFUDevelopmentPath $FFUDevelopmentPath
             WriteLog "[HP][$Model][Download] HP driver download completed successfully"
         }
         if ($Make -eq 'Microsoft') {
             WriteLog "[Microsoft][$Model][Download] Starting Microsoft driver download"
-            Get-MicrosoftDrivers -Make $Make -Model $Model -WindowsRelease $WindowsRelease `
+            Get-MicrosoftDrivers -Make $Make -Model $Model -WindowsRelease $driverWindowsRelease `
                                 -Headers $Headers -UserAgent $UserAgent -DriversFolder $DriversFolder `
                                 -FFUDevelopmentPath $FFUDevelopmentPath
             WriteLog "[Microsoft][$Model][Download] Microsoft driver download completed successfully"
         }
         if ($Make -eq 'Lenovo') {
             WriteLog "[Lenovo][$Model][Download] Starting Lenovo driver download"
-            Get-LenovoDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
+            Get-LenovoDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $driverWindowsRelease `
                               -Headers $Headers -UserAgent $UserAgent -DriversFolder $DriversFolder `
                               -FFUDevelopmentPath $FFUDevelopmentPath
             WriteLog "[Lenovo][$Model][Download] Lenovo driver download completed successfully"
@@ -3266,7 +3336,7 @@ elseif (($Make -and $Model) -and ($InstallDrivers -or $CopyDrivers)) {
         if ($Make -eq 'Dell') {
             WriteLog "[Dell][$Model][Download] Starting Dell driver download"
             #Dell mixes Win10 and 11 drivers, hence no WindowsRelease parameter
-            Get-DellDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $WindowsRelease `
+            Get-DellDrivers -Make $Make -Model $Model -WindowsArch $WindowsArch -WindowsRelease $driverWindowsRelease `
                             -DriversFolder $DriversFolder -FFUDevelopmentPath $FFUDevelopmentPath `
                             -isServer $isServer
             WriteLog "[Dell][$Model][Download] Dell driver download completed successfully"
