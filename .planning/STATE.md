@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
 status: executing
-last_updated: "2026-06-27T00:09:25.821Z"
+last_updated: "2026-06-27T00:21:38.111Z"
 last_activity: 2026-06-27
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-06-25)
 ## Current Position
 
 Phase: 51 (Capture/Boot Correctness) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-27
 
@@ -98,6 +98,7 @@ Last activity: 2026-06-27
 - [Phase 51-02]: Add-BootFiles hard-fails (throw) when ADK bcdboot not found at {AdkPath}\...\BCDBoot\bcdboot.exe — no silent host bcdboot fallback; arch maps arm64->arm64, all else->amd64
 - [Phase 51-02]: Test-FFUADK CHECK 5 reuses $archPath from CHECK 4; errors/missingFiles feed existing result block; no new result-construction code needed
 - [Phase 51-02]: ADK bcdboot path logged at Add-BootFiles time (D-13); cert-variant caveat (Dec 2024 ADK stages 2011 certs) documented in inline comment
+- [Phase ?]: CORRECT-02 LTSC driver year normalization
 
 ### Research Flags for Planning
 
@@ -134,7 +135,7 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 
 ## Session Continuity
 
-Last session: 2026-06-27T00:09:25.807Z
+Last session: 2026-06-27T00:21:38.097Z
 Stopped at: Phase 51 Plan 02 complete
 Resume file: None
 Next action: Execute Phase 51 Plan 03 (CORRECT-02 - LTSC driver year normalization)
@@ -152,6 +153,7 @@ Next action: Execute Phase 51 Plan 03 (CORRECT-02 - LTSC driver year normalizati
 | Phase 50 P06 | 8 | 3 tasks | 3 files |
 | Phase 51 P01 | 45 | 3 tasks | 5 files |
 | Phase 51 P02 | 20 | 3 tasks | 5 files |
+| Phase 51-capture-boot-correctness P03 | 20 | 2 tasks | 2 files |
 
 ## Operator Next Steps
 
