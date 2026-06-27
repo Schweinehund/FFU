@@ -1111,6 +1111,17 @@ function Test-FFUADK {
                 $missingFiles += $efisysNoprompt
             }
 
+            # CHECK 5: ADK BCDBoot executable (CORRECT-03 - required for Add-BootFiles Secure Boot 2023 fix)
+            # $archPath already computed above at CHECK 4 -- reuse it here.
+            # The bcdboot binary version determines which Secure Boot cert variant lands on the ESP.
+            # A missing ADK bcdboot must fail early with remediation rather than being discovered
+            # deep in imaging (where it would waste a full build).
+            $bcdbootExe = Join-Path $adkPath "Assessment and Deployment Kit\Deployment Tools\$archPath\BCDBoot\bcdboot.exe"
+            if (-not (Test-Path -Path $bcdbootExe -PathType Leaf)) {
+                $errors += "ADK bcdboot.exe not found (required for Secure Boot 2023 compatibility)"
+                $missingFiles += $bcdbootExe
+            }
+
             # Try to get ADK version from registry
             try {
                 $uninstallPath = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'

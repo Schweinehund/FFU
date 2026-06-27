@@ -7,7 +7,7 @@
     RootModule = 'FFU.Preflight.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.6.0'
+    ModuleVersion = '1.7.0'
 
     # ID used to uniquely identify this module
     GUID = 'a7e8b3f2-c4d5-4e6a-9b8c-1d2e3f4a5b6c'
@@ -95,6 +95,17 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+# Release Notes - FFU.Preflight v1.7.0
+
+## v1.7.0 (2026-06-26)
+### Phase 51 CORRECT-03: ADK BCDBoot Preflight Check
+- **NEW**: Test-FFUADK now validates ADK BCDBoot\bcdboot.exe presence during ADK preflight
+- Checks `{ADKPath}\Assessment and Deployment Kit\Deployment Tools\{amd64|arm64}\BCDBoot\bcdboot.exe`
+- Hard-fails early with -UpdateADK $true remediation if bcdboot.exe is missing
+- Prevents silent Secure Boot 2023 cert failures that previously surfaced only at Add-BootFiles time
+- The bcdboot binary version determines which Secure Boot cert variant lands on the ESP;
+  a missing ADK bcdboot would allow fallback to the host binary, risking unbootable artifacts
+
 # Release Notes - FFU.Preflight v1.6.0
 
 ## v1.6.0 (2026-01-27)
