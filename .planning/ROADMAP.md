@@ -46,7 +46,7 @@ Requirements archived in `.planning/milestones/v1.11.0-REQUIREMENTS.md`.
 
 **Scoping basis:** `.planning/reports/upstream-sync-verdict-2026-06-25.md`
 
-- [ ] **Phase 51: Capture/Boot Correctness** - Prevent wrong-edition, unbootable, and LTSC-failing artifacts (P1 must-ship core)
+- [x] **Phase 51: Capture/Boot Correctness** - Prevent wrong-edition, unbootable, and LTSC-failing artifacts (P1 must-ship core) (completed 2026-06-27)
 - [ ] **Phase 52: Driver-Grid UI Fixes** - Fix filter/sort/save-scope bugs and CopyDrivers validation in the driver grid
 - [ ] **Phase 53: Driver Build/Deploy Correctness** - Surface SKU matching, cached MS links, ReTrim compaction, 8-OEM deploy precision
 - [ ] **Phase 54: Update Cache & Capture Naming** - OS-scoped update cache with stale prune and param-driven FFU naming
@@ -84,7 +84,7 @@ Requirements archived in `.planning/milestones/v1.11.0-REQUIREMENTS.md`.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 51-04-PLAN.md - version.json/ApplyFFU bump + CHANGELOG_FORK + verify-app gate (CORRECT-01..04)
+- [x] 51-04-PLAN.md - version.json/ApplyFFU bump + CHANGELOG_FORK + verify-app gate (CORRECT-01..04)
 
 ### Phase 52: Driver-Grid UI Fixes
 
@@ -196,7 +196,7 @@ Phases execute in numeric order: 51 → 52 → 53 → 54 → 55 → 56 → 57 �
 |-------|-----------|----------------|--------|-----------|
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45-50. USB from Existing Components | v1.11.0 | 18/18 | Complete | 2026-06-26 |
-| 51. Capture/Boot Correctness | v1.12.0 | 3/4 | In Progress|  |
+| 51. Capture/Boot Correctness | v1.12.0 | 4/4 | Complete   | 2026-06-27 |
 | 52. Driver-Grid UI Fixes | v1.12.0 | 0/TBD | Not started | - |
 | 53. Driver Build/Deploy Correctness | v1.12.0 | 0/TBD | Not started | - |
 | 54. Update Cache & Capture Naming | v1.12.0 | 0/TBD | Not started | - |
