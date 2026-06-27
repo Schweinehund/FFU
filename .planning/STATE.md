@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
 status: executing
-last_updated: "2026-06-27T00:00:31.796Z"
-last_activity: 2026-06-26
+last_updated: "2026-06-27T00:09:25.821Z"
+last_activity: 2026-06-27
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-25)
 ## Current Position
 
 Phase: 51 (Capture/Boot Correctness) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
-Last activity: 2026-06-26
+Last activity: 2026-06-27
 
 ## Shipped Milestones
 
@@ -95,6 +95,9 @@ Last activity: 2026-06-26
 - [Phase 49-05]: Pre-build validation "Build canceled" messages (lines 451, 785-879) left as-is — they occur before USB mode is relevant; cancel/cleanup paths (lines 345, 417) made mode-aware
 - [Phase ?]: Phase 50-05: Rebuild execution block placed before ISO mount check;  reads configData directly for early placement before Step 4; Invoke-ParallelProcessing DownloadDriverByMake reused for Drivers rebuild (no new loop)
 - [Phase ?]: [Phase 51-01]: Get-WindowsImageSelection uses EditionId (primary) then exact ImageName -eq (fallback) then auto-select or throw
+- [Phase 51-02]: Add-BootFiles hard-fails (throw) when ADK bcdboot not found at {AdkPath}\...\BCDBoot\bcdboot.exe — no silent host bcdboot fallback; arch maps arm64->arm64, all else->amd64
+- [Phase 51-02]: Test-FFUADK CHECK 5 reuses $archPath from CHECK 4; errors/missingFiles feed existing result block; no new result-construction code needed
+- [Phase 51-02]: ADK bcdboot path logged at Add-BootFiles time (D-13); cert-variant caveat (Dec 2024 ADK stages 2011 certs) documented in inline comment
 
 ### Research Flags for Planning
 
@@ -131,10 +134,10 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 
 ## Session Continuity
 
-Last session: 2026-06-27T00:00:31.782Z
-Stopped at: Phase 51 Plan 01 complete
+Last session: 2026-06-27T00:09:25.807Z
+Stopped at: Phase 51 Plan 02 complete
 Resume file: None
-Next action: Plan Phase 51 with /gsd-plan-phase 51
+Next action: Execute Phase 51 Plan 03 (CORRECT-02 - LTSC driver year normalization)
 
 ---
 *State updated: 2026-06-25 — v1.12.0 roadmap created, 8 phases (51-58), 30 requirements mapped*
@@ -148,6 +151,7 @@ Next action: Plan Phase 51 with /gsd-plan-phase 51
 | Phase 50 P05 | 876 | 2 tasks | 2 files |
 | Phase 50 P06 | 8 | 3 tasks | 3 files |
 | Phase 51 P01 | 45 | 3 tasks | 5 files |
+| Phase 51 P02 | 20 | 3 tasks | 5 files |
 
 ## Operator Next Steps
 
