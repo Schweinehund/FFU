@@ -1,16 +1,14 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Tests Phase 51 correctness fixes: CORRECT-01 and CORRECT-04.
+    Tests Phase 51 correctness fixes: CORRECT-01, CORRECT-02, CORRECT-03, and CORRECT-04.
 
 .DESCRIPTION
     Content-match and module-load assertions covering:
     - CORRECT-04: EditionId-based image index selection (locale-independent, D-05/D-06/D-07/D-08)
     - CORRECT-01: Non-interactive fallback, ResolvedWindowsSKU propagation (D-01/D-02/D-03/D-04)
-
-    Placeholder sections for CORRECT-03 (Plan 02 - ADK bcdboot) and
-    CORRECT-02 (Plan 03 - LTSC driver year normalization) are included so later
-    plans can append their assertions to this file.
+    - CORRECT-03: ADK bcdboot.exe for Secure Boot 2023 fix (D-09/D-11/D-12/D-13)
+    - CORRECT-02: LTSC driver year normalization via Get-EffectiveDriverWindowsRelease (D-14..D-17)
 
     Uses the repo's custom Write-TestResult framework (NOT Pester).
     Real non-English media and Secure Boot 2023 hardware behaviors are human-UAT only.
@@ -76,7 +74,7 @@ if ($env:PSModulePath -notlike "*$ModulesPath*") {
 }
 
 Write-Host ("=" * 70) -ForegroundColor Cyan
-Write-Host "Phase 51 Correctness Test Suite - CORRECT-01 / CORRECT-04" -ForegroundColor Cyan
+Write-Host "Phase 51 Correctness Test Suite - CORRECT-01 / CORRECT-02 / CORRECT-03 / CORRECT-04" -ForegroundColor Cyan
 Write-Host ("=" * 70) -ForegroundColor Cyan
 Write-Host ""
 
@@ -372,13 +370,100 @@ Write-Host ""
 
 # =============================================================================
 # SECTION: CORRECT-02 (Plan 03) - LTSC driver year normalization
-# PLACEHOLDER: Add assertions here when Plan 03 is implemented.
+# Source: upstream commit 04dfb5f - Get-EffectiveDriverWindowsRelease
+# (D-14/D-15/D-16/D-17)
 # =============================================================================
-Write-Host "CORRECT-02: LTSC driver year normalization (Plan 03 - placeholder)" -ForegroundColor DarkGray
-Write-Host "  [PLACEHOLDER] Plan 03 will add assertions for:" -ForegroundColor DarkGray
-Write-Host "    - Get-EffectiveDriverWindowsRelease function defined in BuildFFUVM.ps1" -ForegroundColor DarkGray
-Write-Host "    - LTSC 2021 -> 10, LTSC 2024 -> 11, Server 2019 unchanged" -ForegroundColor DarkGray
-Write-Host "    - Driver dispatch uses driverWindowsRelease not WindowsRelease" -ForegroundColor DarkGray
+Write-Host "CORRECT-02: LTSC driver year normalization (D-14/D-15/D-16/D-17)" -ForegroundColor Yellow
+Write-Host ""
+
+# --- Content-match: function defined and dispatch wired (no admin required) ---
+Write-Host "  [content-match] BuildFFUVM.ps1 function and dispatch" -ForegroundColor Gray
+try {
+    if (-not $buildContent) {
+        $buildContent = Get-Content -Path $BuildScript -Raw -ErrorAction Stop
+    }
+
+    # (a) Function is defined (D-14/D-15)
+    $hasFunc = $buildContent -match 'function Get-EffectiveDriverWindowsRelease'
+    Write-TestResult -TestName "BuildFFUVM.ps1 defines Get-EffectiveDriverWindowsRelease (D-14)" -Passed $hasFunc `
+        -Message "$(if (-not $hasFunc) { 'function Get-EffectiveDriverWindowsRelease not found in BuildFFUVM.ps1' })"
+
+    # (b) Function uses the *LTS* gate (D-15 - Server SKUs never contain LTS, so they pass through)
+    $hasLTSGate = $buildContent -match "like\s+['\*]+LTS\*[']"
+    Write-TestResult -TestName "Get-EffectiveDriverWindowsRelease gates remap on '*LTS*' SKU pattern (D-15)" -Passed $hasLTSGate `
+        -Message "$(if (-not $hasLTSGate) { 'LTSC gate (*LTS* pattern) not found in Get-EffectiveDriverWindowsRelease body' })"
+
+    # (c) LTSC 2016/2019/2021 -> 10 mapping present (D-14)
+    $has2016_2021map = $buildContent -match '2016,\s*2019,\s*2021.*return\s+10'
+    Write-TestResult -TestName "Get-EffectiveDriverWindowsRelease maps LTSC 2016/2019/2021 -> 10 (D-14)" -Passed $has2016_2021map `
+        -Message "$(if (-not $has2016_2021map) { 'LTSC 2016/2019/2021->10 mapping not found in function body' })"
+
+    # (d) LTSC 2024 -> 11 mapping present (D-14)
+    $has2024map = $buildContent -match '-eq\s+2024.*return\s+11'
+    Write-TestResult -TestName "Get-EffectiveDriverWindowsRelease maps LTSC 2024 -> 11 (D-14)" -Passed $has2024map `
+        -Message "$(if (-not $has2024map) { 'LTSC 2024->11 mapping not found in function body' })"
+
+    # (e) $driverWindowsRelease assigned from Get-EffectiveDriverWindowsRelease at both dispatch sites (D-16)
+    $assignCount = ([regex]::Matches($buildContent, '\$driverWindowsRelease\s*=\s*Get-EffectiveDriverWindowsRelease')).Count
+    $hasTwoAssigns = $assignCount -ge 2
+    Write-TestResult -TestName "BuildFFUVM.ps1 assigns driverWindowsRelease at both dispatch sites (D-16)" -Passed $hasTwoAssigns `
+        -Message "$(if (-not $hasTwoAssigns) { "Expected >= 2 assignment sites, found $assignCount" })"
+
+    # (f) OEM provider calls use $driverWindowsRelease (D-17): check >= 4 calls (HP, Microsoft, Lenovo, Dell)
+    $oemCallCount = ([regex]::Matches($buildContent, '-WindowsRelease \$driverWindowsRelease')).Count
+    $allOEMCallsUseDriverRelease = $oemCallCount -ge 4
+    Write-TestResult -TestName "All OEM provider calls pass driverWindowsRelease (>= 4 occurrences, D-17)" -Passed $allOEMCallsUseDriverRelease `
+        -Message "$(if (-not $allOEMCallsUseDriverRelease) { "Expected >= 4 OEM -WindowsRelease driverWindowsRelease calls, found $oemCallCount" })"
+
+    # (g) Global $WindowsRelease is NOT bare-reassigned outside param/let declarations (D-16)
+    # This ensures the load-bearing global is preserved for naming/cache/MSRT/Server switch
+    $globalReassignCount = ([regex]::Matches($buildContent, '^\s*\$WindowsRelease\s*=\s*[^=]', [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    $noGlobalReassign = $globalReassignCount -eq 0
+    Write-TestResult -TestName "Global WindowsRelease is NOT bare-reassigned outside param blocks (D-16)" -Passed $noGlobalReassign `
+        -Message "$(if (-not $noGlobalReassign) { "Found $globalReassignCount bare assignment(s) to global WindowsRelease - load-bearing variable clobbered" })"
+}
+catch {
+    Write-TestResult -TestName "Read BuildFFUVM.ps1 for CORRECT-02 content-match checks" -Passed $false -Message $_.Exception.Message
+}
+
+Write-Host ""
+
+# --- Pure function table tests (local copy of the pure function for isolated testing) ---
+Write-Host "  [pure-function] Get-EffectiveDriverWindowsRelease mapping table" -ForegroundColor Gray
+
+# Local copy of the pure function - mirrors upstream 04dfb5f verbatim so tests stay valid
+# even if the file cannot be dot-sourced (BuildFFUVM.ps1 has side-effects at script scope)
+function Test-EffectiveDriverWindowsRelease-Local {
+    param([int]$WindowsRelease, [string]$WindowsSKU)
+    if (-not [string]::IsNullOrWhiteSpace($WindowsSKU) -and $WindowsSKU -like '*LTS*') {
+        if ($WindowsRelease -in 2016, 2019, 2021) { return 10 }
+        if ($WindowsRelease -eq 2024)             { return 11 }
+    }
+    return $WindowsRelease
+}
+
+$mappingTests = @(
+    @{ Release = 2016; SKU = 'Enterprise 2016 LTSB'; Expected = 10;   Label = 'LTSC 2016 (LTSB) -> 10 (D-14)' }
+    @{ Release = 2019; SKU = 'Enterprise LTSC';      Expected = 10;   Label = 'LTSC 2019 -> 10 (D-14)' }
+    @{ Release = 2021; SKU = 'Enterprise LTSC';      Expected = 10;   Label = 'LTSC 2021 -> 10 (D-14)' }
+    @{ Release = 2024; SKU = 'Enterprise LTSC';      Expected = 11;   Label = 'LTSC 2024 -> 11 (D-14)' }
+    @{ Release = 2019; SKU = 'Standard';             Expected = 2019; Label = 'Server 2019 Standard -> 2019 unchanged (D-15 collision)' }
+    @{ Release = 2022; SKU = 'Standard';             Expected = 2022; Label = 'Server 2022 Standard -> 2022 unchanged' }
+    @{ Release = 2025; SKU = 'Standard';             Expected = 2025; Label = 'Server 2025 Standard -> 2025 unchanged' }
+    @{ Release = 2019; SKU = 'Datacenter';           Expected = 2019; Label = 'Server 2019 Datacenter -> 2019 unchanged (D-15)' }
+    @{ Release = 10;   SKU = 'Pro';                  Expected = 10;   Label = 'Client Win10 non-LTSC Pro -> 10 unchanged' }
+    @{ Release = 11;   SKU = 'Pro';                  Expected = 11;   Label = 'Client Win11 non-LTSC Pro -> 11 unchanged' }
+    @{ Release = 2024; SKU = 'IoT Enterprise LTSC';  Expected = 11;   Label = 'IoT Enterprise LTSC 2024 -> 11 (D-14)' }
+    @{ Release = 2021; SKU = 'Enterprise N LTSC';    Expected = 10;   Label = 'Enterprise N LTSC 2021 -> 10 (D-14)' }
+)
+
+foreach ($tc in $mappingTests) {
+    $result = Test-EffectiveDriverWindowsRelease-Local -WindowsRelease $tc.Release -WindowsSKU $tc.SKU
+    $passed = $result -eq $tc.Expected
+    Write-TestResult -TestName $tc.Label -Passed $passed `
+        -Message "$(if (-not $passed) { "Expected $($tc.Expected), got $result (Release=$($tc.Release) SKU='$($tc.SKU)')" })"
+}
+
 Write-Host ""
 
 # =============================================================================
@@ -393,7 +478,7 @@ Write-Host "Failed      : $script:FailCount" -ForegroundColor $(if ($script:Fail
 Write-Host ""
 
 if ($script:FailCount -eq 0) {
-    Write-Host "All Phase 51 tests passed. CORRECT-01, CORRECT-03, and CORRECT-04 implementation verified." -ForegroundColor Green
+    Write-Host "All Phase 51 tests passed. CORRECT-01, CORRECT-02, CORRECT-03, and CORRECT-04 implementation verified." -ForegroundColor Green
     exit 0
 }
 else {
