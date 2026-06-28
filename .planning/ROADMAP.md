@@ -115,7 +115,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 52-04-PLAN.md - Version bumps (FFUUI.Core 0.0.22 / main 1.12.1 / ApplyFFU) + CHANGELOG_FORK + verify-app BLOCKING gate (DGRID-01, DGRID-02, DGRID-03)
+- [x] 52-04-PLAN.md - Version bumps (FFUUI.Core 0.0.22 / main 1.12.1 / ApplyFFU) + CHANGELOG_FORK + verify-app BLOCKING gate (DGRID-01, DGRID-02, DGRID-03)
 
 **Wave 5** *(blocked on Wave 4)*
 
@@ -220,7 +220,7 @@ Phases execute in numeric order: 51 → 52 → 53 → 54 → 55 → 56 → 57 �
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45-50. USB from Existing Components | v1.11.0 | 18/18 | Complete | 2026-06-26 |
 | 51. Capture/Boot Correctness | v1.12.0 | 4/4 | Complete    | 2026-06-27 |
-| 52. Driver-Grid UI Fixes | v1.12.0 | 3/5 | In Progress|  |
+| 52. Driver-Grid UI Fixes | v1.12.0 | 4/5 | In Progress|  |
 | 53. Driver Build/Deploy Correctness | v1.12.0 | 0/TBD | Not started | - |
 | 54. Update Cache & Capture Naming | v1.12.0 | 0/TBD | Not started | - |
 | 55. Device-Naming Foundation & Migrations | v1.12.0 | 0/TBD | Not started | - |

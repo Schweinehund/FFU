@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
 status: executing
-last_updated: "2026-06-28T21:19:21.623Z"
+last_updated: "2026-06-28T21:26:33.536Z"
 last_activity: 2026-06-28
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 13
 ---
 
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-06-25)
 ## Current Position
 
 Phase: 52 (driver-grid-ui-fixes) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-06-28
 
@@ -100,6 +100,7 @@ Last activity: 2026-06-28
 - [Phase 51-02]: ADK bcdboot path logged at Add-BootFiles time (D-13); cert-variant caveat (Dec 2024 ADK stages 2011 certs) documented in inline comment
 - [Phase ?]: CORRECT-02 LTSC driver year normalization
 - [Phase ?]: [Phase 52-01]: b4305a1 DGRID-01 applied to SHARED Invoke-ListViewSort - backward compatible; no-filter path unchanged; DGRID-01 assertions GREEN
+- [Phase 52-04]: FFUUI.Core bumped 0.0.21→0.0.22, main 1.12.0→1.12.1; all four version touchpoints synchronized (psd1+version.json+ApplyFFU.ps1+CHANGELOG); verify-app BLOCKING gate passed (14/14 phase tests, 0 new PSScriptAnalyzer errors, module imports cleanly)
 
 ### Research Flags for Planning
 
@@ -136,7 +137,7 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 
 ## Session Continuity
 
-Last session: 2026-06-28T21:19:21.604Z
+Last session: 2026-06-28T21:26:33.518Z
 Stopped at: Phase 52 context gathered
 Resume file: None
 Next action: Plan/execute Phase 52 (Driver-Grid UI Fixes - DGRID-01..03)
@@ -159,9 +160,11 @@ Next action: Plan/execute Phase 52 (Driver-Grid UI Fixes - DGRID-01..03)
 | Phase 52 P01 | 20 | - tasks | - files |
 | Phase 52-driver-grid-ui-fixes P02 | 20 | 3 tasks | 3 files |
 | Phase 52 P03 | 5 | 1 tasks | 1 files |
+| Phase 52-driver-grid-ui-fixes P04 | 10 | 2 tasks | 4 files |
 
 ## Operator Next Steps
 
 - Phase 51 COMPLETE (v1.12.0 correctness fixes CORRECT-01..04 shipped)
-- Plan Phase 52 (Driver-Grid UI Fixes - DGRID-01..03) with /gsd-plan-phase 52
-- Phases 52/53/54/57/58 are independent of each other (depend only on Phase 51) — eligible for parallel planning per config.json
+- Phase 52 P04 COMPLETE — version bump FFUUI.Core 0.0.22/main 1.12.1; verify-app gate passed (14/14 tests green)
+- Phase 52 Plan 05 pending (manual UAT for DGRID-01/02/03 WPF visual behavior)
+- Phases 53/54/57/58 are independent of each other (depend only on Phase 51) — eligible for parallel planning per config.json
