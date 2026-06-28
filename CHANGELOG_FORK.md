@@ -8,6 +8,18 @@ This changelog documents all enhancements and fixes made in this fork, separate 
 
 ---
 
+## v1.12.1 - 2026-06-28
+
+### Fixed
+
+- DGRID-01: Sorting the driver list while a filter is active now preserves the filter (port b4305a1)
+- DGRID-02: Selecting/deselecting drivers under a filter and saving now preserves hidden-row selections (port f09c989)
+- DGRID-02: Header select-all checkbox correctly scoped to visible/filtered rows only for the driver grid (port f09c989)
+- DGRID-02: Header checkbox alignment fixed — now centers consistently with row checkboxes (port 42ed281)
+- DGRID-03: CLI and UI now throw a clear error when CopyDrivers=true but BuildUSBDrive=false (port dc801e9, fork-adapted with USBOnlyMode guard)
+
+---
+
 ## [1.12.0] - 2026-06-26
 
 ### Phase 51: Capture/Boot Correctness (CORRECT-01..04)

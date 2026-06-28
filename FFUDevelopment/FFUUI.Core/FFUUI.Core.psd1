@@ -12,7 +12,7 @@
 RootModule = 'FFUUI.Core.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.21'
+ModuleVersion = '0.0.22'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -122,6 +122,20 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+v0.0.22: Phase 52 Driver-Grid UI Fixes (DGRID-01/02/03)
+- DGRID-01: Sorting the driver list while a filter is active now preserves the filter (port b4305a1)
+  - Invoke-ListViewSort captures and reapplies CollectionView filter predicate around sort
+  - No-filter sort path unchanged (backward compatible for all grids)
+- DGRID-02: Select-all header checkbox scoped to visible/filtered rows for the driver grid (port f09c989)
+  - Add-SelectableGridViewColumn gains -HeaderSelectionAffectsVisibleItemsOnly switch; driver grid opts in
+  - Update-SelectAllHeaderCheckBoxState reads HeaderSelectionAffectsVisibleItemsOnly from Tag
+  - Save-DriversJson reads from $State.Data.allDriverModels (master list) with null-guard fallback
+    preserving hidden-row selections under an active filter
+- DGRID-02: Header checkbox alignment fixed (port 42ed281)
+  - Wraps header checkbox in Border/Grid/GridViewColumnHeader with zeroed padding/margin + Stretch alignment
+- DGRID-03: CLI and UI throw a clear error when CopyDrivers=true but BuildUSBDrive=false (port dc801e9)
+  - Throw placed in BuildFFUVM.ps1 END block (post config-load) with -not $USBOnlyMode guard
+
 v0.0.21: Phase 50 Selective Rebuild Pipeline (REBUILD-01/02/03)
 - REBUILD-01: Per-artifact disposition ComboBox (Reuse/Rebuild/Skip) replacing include checkbox
   - 7 artifact cards each have a disposition ComboBox with tier-appropriate item sets

@@ -2,8 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "_comment": "FFU Builder Version Configuration - Single source of truth for all versioning",
 
-    "version": "1.12.0",
-    "buildDate": "2026-06-26",
+    "version": "1.12.1",
+    "buildDate": "2026-06-28",
 
     "versioningPolicy": {
         "scheme": "SemVer",
@@ -24,9 +24,9 @@
             "description": "Structured logging with levels, JSON output, session correlation"
         },
         "FFUUI.Core": {
-            "version": "0.0.21",
+            "version": "0.0.22",
             "path": "FFUUI.Core/FFUUI.Core.psd1",
-            "description": "Phase 50: Selective Rebuild Pipeline - disposition ComboBox (Reuse/Rebuild/Skip) per artifact tier, 4-status scanner rendering (Found/Degraded/Error/Missing), Disposition config round-trip, Build-UIConfiguration pipeline integration"
+            "description": "Phase 52 Driver-Grid UI Fixes (DGRID-01/02/03): filter-sort coexistence, select-all visible scope, save-path master-list read, header alignment, CopyDrivers/BuildUSBDrive validation throw"
         },
         "FFU.Core": {
             "version": "1.0.23",
