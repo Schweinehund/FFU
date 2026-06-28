@@ -111,7 +111,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 52-03-PLAN.md - DGRID-03 CopyDrivers/BuildUSBDrive dependency throw in BuildFFUVM.ps1 END block, USBOnlyMode-guarded (dc801e9) (DGRID-03)
+- [x] 52-03-PLAN.md - DGRID-03 CopyDrivers/BuildUSBDrive dependency throw in BuildFFUVM.ps1 END block, USBOnlyMode-guarded (dc801e9) (DGRID-03)
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -220,7 +220,7 @@ Phases execute in numeric order: 51 → 52 → 53 → 54 → 55 → 56 → 57 �
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45-50. USB from Existing Components | v1.11.0 | 18/18 | Complete | 2026-06-26 |
 | 51. Capture/Boot Correctness | v1.12.0 | 4/4 | Complete    | 2026-06-27 |
-| 52. Driver-Grid UI Fixes | v1.12.0 | 2/5 | In Progress|  |
+| 52. Driver-Grid UI Fixes | v1.12.0 | 3/5 | In Progress|  |
 | 53. Driver Build/Deploy Correctness | v1.12.0 | 0/TBD | Not started | - |
 | 54. Update Cache & Capture Naming | v1.12.0 | 0/TBD | Not started | - |
 | 55. Device-Naming Foundation & Migrations | v1.12.0 | 0/TBD | Not started | - |

@@ -24,7 +24,7 @@
 
 - [x] **DGRID-01**: Sorting the driver list while a filter is active keeps the filter applied instead of resetting to all rows *(T4-S2 `b4305a1`, PORT — live bug)*
 - [x] **DGRID-02**: Selecting/deselecting drivers while filtered, then saving, preserves selections for filtered-out (hidden) rows; the select-all header checkbox is correctly aligned *(T4-S3 `f09c989` + T4-8 `42ed281`, PORT — save-path data leak)*
-- [ ] **DGRID-03**: The UI prevents an invalid CopyDrivers configuration by requiring BuildUSBDrive when CopyDrivers is enabled *(T4-S1 `dc801e9`, PORT)*
+- [x] **DGRID-03**: The UI prevents an invalid CopyDrivers configuration by requiring BuildUSBDrive when CopyDrivers is enabled *(T4-S1 `dc801e9`, PORT)*
 
 ### Update Cache & Capture Naming (P2)
 
@@ -88,7 +88,7 @@
 | CORRECT-04 | Phase 51 | Complete |
 | DGRID-01 | Phase 52 | Complete |
 | DGRID-02 | Phase 52 | Complete |
-| DGRID-03 | Phase 52 | Pending |
+| DGRID-03 | Phase 52 | Complete |
 | DRVR-01 | Phase 53 | Pending |
 | DRVR-02 | Phase 53 | Pending |
 | DRVR-03 | Phase 53 | Pending |
