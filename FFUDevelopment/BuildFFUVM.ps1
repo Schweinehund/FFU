@@ -2605,6 +2605,12 @@ if ($LongPathsEnabled -ne 1) {
 Set-Progress -Percentage 2 -Message "Validating parameters..."
 ###PARAMETER VALIDATION
 
+#Validate CopyDrivers dependency on BuildUSBDrive
+if ($CopyDrivers -and (-not $BuildUSBDrive) -and (-not $USBOnlyMode)) {
+    WriteLog "-CopyDrivers is set to `$true, but -BuildUSBDrive is not set to `$true"
+    throw "-CopyDrivers is set to `$true, but -BuildUSBDrive is not set to `$true. Please set -BuildUSBDrive to `$true and try again."
+}
+
 #Validate drivers folder
 if ($InstallDrivers -or $CopyDrivers) {
     WriteLog 'Doing driver validation'
