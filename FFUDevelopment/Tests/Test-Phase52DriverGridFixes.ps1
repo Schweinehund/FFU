@@ -230,10 +230,15 @@ try {
         }
     }
 
-    $throwAfterConfigLoad = ($throwLine -gt 775)
-    Write-TestResult -TestName "BuildFFUVM.ps1 CopyDrivers throw is in END block after config load (line $throwLine > 775)" `
+    # Structural assertion (WR-02): throw must sit at/after the PARAMETER VALIDATION
+    # marker, which itself lives in the END block past the config-load point (line ~775).
+    # Asserting against the dynamically-located marker (not a bare magic number) keeps the
+    # test honest if line numbers shift, while the > 775 floor guards against a BEGIN-block
+    # regression (Decision D-02).
+    $throwAfterConfigLoad = ($configLoadLine -gt 775) -and ($throwLine -ge $configLoadLine)
+    Write-TestResult -TestName "BuildFFUVM.ps1 CopyDrivers throw is in END block after config load (throw line $throwLine >= PARAMETER VALIDATION line $configLoadLine > 775)" `
         -Passed $throwAfterConfigLoad `
-        -Message "$(if (-not $throwAfterConfigLoad) { "Throw found at line $throwLine, expected > 775 (config load). May be in BEGIN block (Decision D-02)" })"
+        -Message "$(if (-not $throwAfterConfigLoad) { "Throw at line $throwLine, PARAMETER VALIDATION marker at line $configLoadLine; expected throw at/after marker and marker > 775 (config load). May be in BEGIN block (Decision D-02)" })"
 }
 catch {
     Write-TestResult -TestName "Read BuildFFUVM.ps1 (DGRID-03)" -Passed $false -Message $_.Exception.Message
