@@ -69,7 +69,8 @@ Requirements archived in `.planning/milestones/v1.11.0-REQUIREMENTS.md`.
   3. A captured image boots on a device with the Secure Boot 2023 certificate because boot files were written with the ADK's BCDBoot rather than the host's.
   4. The correct edition is captured from non-English / multi-edition media because the image index is selected via EditionId/InstallationType, not a localized name substring.
 
-**Plans**: 4 plansPlans:
+**Plans**: 4 plans
+Plans:
 **Wave 1**
 
 - [x] 51-01-PLAN.md - Get-WindowsImageSelection EditionId selection + selected-edition propagation (CORRECT-01, CORRECT-04)
@@ -97,7 +98,29 @@ Requirements archived in `.planning/milestones/v1.11.0-REQUIREMENTS.md`.
   2. Selecting/deselecting drivers while filtered and then saving preserves selections for the filtered-out (hidden) rows, and the select-all header checkbox is correctly aligned.
   3. The UI prevents an invalid CopyDrivers configuration by requiring BuildUSBDrive when CopyDrivers is enabled.
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 52-01-PLAN.md - Test scaffold (Test-Phase52DriverGridFixes.ps1) + DGRID-01 Invoke-ListViewSort filter capture/reapply (b4305a1) (DGRID-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 52-02-PLAN.md - DGRID-02 select-all visible scope + Save-DriversJson master-list source + driver-grid opt-in + header alignment (f09c989, 42ed281) (DGRID-02)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 52-03-PLAN.md - DGRID-03 CopyDrivers/BuildUSBDrive dependency throw in BuildFFUVM.ps1 END block, USBOnlyMode-guarded (dc801e9) (DGRID-03)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 52-04-PLAN.md - Version bumps (FFUUI.Core 0.0.22 / main 1.12.1 / ApplyFFU) + CHANGELOG_FORK + verify-app BLOCKING gate (DGRID-01, DGRID-02, DGRID-03)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 52-05-PLAN.md - Manual UAT checkpoint: six WPF driver-grid behaviors (DGRID-01, DGRID-02, DGRID-03)
+
 **UI hint**: yes
 
 ### Phase 53: Driver Build/Deploy Correctness
