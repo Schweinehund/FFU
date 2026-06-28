@@ -317,7 +317,8 @@ function Add-SelectableGridViewColumn {
     # Create the "Select All" CheckBox for the header
     $headerCheckBox = New-Object System.Windows.Controls.CheckBox
     $headerCheckBox.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
-    
+    $headerCheckBox.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+
     # MODIFICATION: Store the actual ListView object in the header's Tag
     $headerTagObject = [PSCustomObject]@{
         PropertyName                           = $IsSelectedPropertyName
@@ -386,11 +387,32 @@ function Add-SelectableGridViewColumn {
             }
         })
 
+    # Wrap the header checkbox in a stretched container so it centers the same way as row cells.
+    $headerBorder = New-Object System.Windows.Controls.Border
+    $headerBorder.Padding = New-Object System.Windows.Thickness(12, 0, 0, 0)
+    $headerBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+    $headerBorder.VerticalAlignment = [System.Windows.VerticalAlignment]::Stretch
+
+    $headerGrid = New-Object System.Windows.Controls.Grid
+    $headerGrid.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+    $headerGrid.VerticalAlignment = [System.Windows.VerticalAlignment]::Stretch
+    $headerGrid.Children.Add($headerCheckBox) | Out-Null
+    $headerBorder.Child = $headerGrid
+
+    # Use an explicit GridViewColumnHeader so we can remove the default header padding
+    # and control the checkbox alignment explicitly.
+    $selectableHeader = New-Object System.Windows.Controls.GridViewColumnHeader
+    $selectableHeader.HorizontalContentAlignment = [System.Windows.HorizontalAlignment]::Stretch
+    $selectableHeader.VerticalContentAlignment = [System.Windows.VerticalAlignment]::Stretch
+    $selectableHeader.Padding = New-Object System.Windows.Thickness(0)
+    $selectableHeader.Margin = New-Object System.Windows.Thickness(0)
+    $selectableHeader.Content = $headerBorder
+
     $State.Controls[$HeaderCheckBoxKeyName] = $headerCheckBox
     WriteLog "Add-SelectableGridViewColumn: Stored header checkbox in State.Controls with key '$HeaderCheckBoxKeyName'."
 
     $selectableColumn = New-Object System.Windows.Controls.GridViewColumn
-    $selectableColumn.Header = $headerCheckBox
+    $selectableColumn.Header = $selectableHeader
     $selectableColumn.Width = $ColumnWidth
 
     $cellTemplate = New-Object System.Windows.DataTemplate
