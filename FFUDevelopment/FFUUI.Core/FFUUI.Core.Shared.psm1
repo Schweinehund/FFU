@@ -505,6 +505,16 @@ function Invoke-ListViewSort {
         [PSCustomObject]$State
     )
 
+    # Preserve any active CollectionView filter so sorting does not reset a filtered driver model list
+    $existingFilter = $null
+    $existingCollectionView = $null
+    if ($null -ne $listView.ItemsSource) {
+        $existingCollectionView = [System.Windows.Data.CollectionViewSource]::GetDefaultView($listView.ItemsSource)
+        if ($null -ne $existingCollectionView -and $existingCollectionView.Filter) {
+            $existingFilter = $existingCollectionView.Filter
+        }
+    }
+
     # Ensure $State.Flags is a hashtable and contains the required sort properties
     if ($State.Flags -is [hashtable]) {
         if (-not $State.Flags.ContainsKey('lastSortProperty')) {
@@ -534,10 +544,15 @@ function Invoke-ListViewSort {
     }
     $State.Flags.lastSortProperty = $property
 
-    # Get items from ItemsSource or Items collection
+    # Build the set of items to sort, enumerating the filtered view if a filter is active
     $currentItemsSource = $listView.ItemsSource
     $itemsToSort = @()
-    if ($null -ne $currentItemsSource) {
+    if ($null -ne $existingCollectionView -and $null -ne $existingFilter) {
+        foreach ($vItem in $existingCollectionView) {
+            $itemsToSort += $vItem
+        }
+    }
+    elseif ($null -ne $currentItemsSource) {
         $itemsToSort = @($currentItemsSource)
     }
     else {
@@ -627,6 +642,14 @@ function Invoke-ListViewSort {
     # Try nulling out ItemsSource first to force a more complete refresh
     $listView.ItemsSource = $null
     $listView.ItemsSource = $newSortedList.ToArray()
+
+    # Reapply preserved filter to maintain the user's filtered view
+    if ($null -ne $existingFilter) {
+        $newView = [System.Windows.Data.CollectionViewSource]::GetDefaultView($listView.ItemsSource)
+        if ($null -ne $newView) {
+            $newView.Filter = $existingFilter
+        }
+    }
 }
 
 # --------------------------------------------------------------------------
