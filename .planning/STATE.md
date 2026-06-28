@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.12.0
 milestone_name: Upstream Sync — Correctness, Drivers & Device Naming
 status: executing
-last_updated: "2026-06-28T20:50:33.039Z"
-last_activity: 2026-06-28 -- Phase 52 planning complete
+last_updated: "2026-06-28T21:02:08.488Z"
+last_activity: 2026-06-28
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
   percent: 13
 ---
 
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25)
 
 **Core value:** Enable rapid, reliable Windows deployment through pre-configured FFU images
-**Current focus:** Phase 52 — driver grid ui fixes
+**Current focus:** Phase 52 — driver-grid-ui-fixes
 
 ## Current Position
 
-Phase: 52
-Plan: Not started
+Phase: 52 (driver-grid-ui-fixes) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-28 -- Phase 52 planning complete
+Last activity: 2026-06-28
 
 ## Shipped Milestones
 
@@ -99,6 +99,7 @@ Last activity: 2026-06-28 -- Phase 52 planning complete
 - [Phase 51-02]: Test-FFUADK CHECK 5 reuses $archPath from CHECK 4; errors/missingFiles feed existing result block; no new result-construction code needed
 - [Phase 51-02]: ADK bcdboot path logged at Add-BootFiles time (D-13); cert-variant caveat (Dec 2024 ADK stages 2011 certs) documented in inline comment
 - [Phase ?]: CORRECT-02 LTSC driver year normalization
+- [Phase ?]: [Phase 52-01]: b4305a1 DGRID-01 applied to SHARED Invoke-ListViewSort - backward compatible; no-filter path unchanged; DGRID-01 assertions GREEN
 
 ### Research Flags for Planning
 
@@ -135,9 +136,9 @@ Items acknowledged and deferred at v1.11.0 milestone close on 2026-06-26. Most a
 
 ## Session Continuity
 
-Last session: 2026-06-28T20:15:39.881Z
+Last session: 2026-06-28T21:01:44.351Z
 Stopped at: Phase 52 context gathered
-Resume file: .planning/phases/52-driver-grid-ui-fixes/52-CONTEXT.md
+Resume file: None
 Next action: Plan/execute Phase 52 (Driver-Grid UI Fixes - DGRID-01..03)
 
 ---
@@ -155,6 +156,7 @@ Next action: Plan/execute Phase 52 (Driver-Grid UI Fixes - DGRID-01..03)
 | Phase 51 P02 | 20 | 3 tasks | 5 files |
 | Phase 51-capture-boot-correctness P03 | 20 | 2 tasks | 2 files |
 | Phase 51-capture-boot-correctness P04 | 15 | 2 tasks | 3 files |
+| Phase 52 P01 | 20 | - tasks | - files |
 
 ## Operator Next Steps
 

@@ -103,7 +103,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 52-01-PLAN.md - Test scaffold (Test-Phase52DriverGridFixes.ps1) + DGRID-01 Invoke-ListViewSort filter capture/reapply (b4305a1) (DGRID-01)
+- [x] 52-01-PLAN.md - Test scaffold (Test-Phase52DriverGridFixes.ps1) + DGRID-01 Invoke-ListViewSort filter capture/reapply (b4305a1) (DGRID-01)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -220,7 +220,7 @@ Phases execute in numeric order: 51 → 52 → 53 → 54 → 55 → 56 → 57 �
 | 1-44. Previous Milestones | v1.8.0-v1.10.0 | 133/133 | Complete | 2026-03-12 |
 | 45-50. USB from Existing Components | v1.11.0 | 18/18 | Complete | 2026-06-26 |
 | 51. Capture/Boot Correctness | v1.12.0 | 4/4 | Complete    | 2026-06-27 |
-| 52. Driver-Grid UI Fixes | v1.12.0 | 0/TBD | Not started | - |
+| 52. Driver-Grid UI Fixes | v1.12.0 | 1/5 | In Progress|  |
 | 53. Driver Build/Deploy Correctness | v1.12.0 | 0/TBD | Not started | - |
 | 54. Update Cache & Capture Naming | v1.12.0 | 0/TBD | Not started | - |
 | 55. Device-Naming Foundation & Migrations | v1.12.0 | 0/TBD | Not started | - |
