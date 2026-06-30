@@ -1,8 +1,9 @@
 ---
-status: verifying
+status: resolved
 trigger: "BUG-WINGET-02: Winget source package not registered for elevated admin"
 created: 2026-01-24T20:00:00Z
 updated: 2026-01-24T20:15:00Z
+resolved: 2026-03-11T00:00:00Z
 ---
 
 ## Current Focus

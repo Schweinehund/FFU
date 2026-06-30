@@ -1,6 +1,5 @@
 {
   "mode": "yolo",
-  "depth": "comprehensive",
   "parallelization": {
     "enabled": true,
     "max_concurrent_agents": 3,
@@ -34,5 +33,10 @@
       "Module import failures",
       "Coverage decreased below baseline"
     ]
+  },
+  "granularity": "fine",
+  "workflow": {
+    "research": true,
+    "_auto_chain_active": true
   }
 }

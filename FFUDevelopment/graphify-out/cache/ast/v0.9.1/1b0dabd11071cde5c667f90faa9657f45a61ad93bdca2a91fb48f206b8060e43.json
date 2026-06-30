@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_claude_ffubuilder_ffudevelopment_intune_wingetremediation_detect_wingetregistration_ps1", "label": "Detect-WingetRegistration.ps1", "file_type": "code", "source_file": "Intune/WingetRemediation/Detect-WingetRegistration.ps1", "source_location": "L1"}], "edges": [], "raw_calls": []}

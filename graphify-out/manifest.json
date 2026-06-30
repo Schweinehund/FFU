@@ -1,0 +1,742 @@
+{
+  ".security/orchestration-hashes.json": {
+    "mtime": 1768850383.0477054,
+    "ast_hash": "52a069f596f2029a3b65968d6cf9e38d",
+    "semantic_hash": "52a069f596f2029a3b65968d6cf9e38d"
+  },
+  "Apps/AppList_InboxAppsSample_Win11_24H2.json": {
+    "mtime": 1761309108.4569554,
+    "ast_hash": "0fad53872bbba2ae8e01f98afda6adc4",
+    "semantic_hash": "0fad53872bbba2ae8e01f98afda6adc4"
+  },
+  "Apps/AppList_Sample.json": {
+    "mtime": 1761309108.4579835,
+    "ast_hash": "1491b11a16ac68659e9e893158edd90b",
+    "semantic_hash": "1491b11a16ac68659e9e893158edd90b"
+  },
+  "Apps/Orchestration/AppsScriptVariables_Sample.json": {
+    "mtime": 1761309108.461002,
+    "ast_hash": "382f6e170266de83532b9bb1d4a11a07",
+    "semantic_hash": "382f6e170266de83532b9bb1d4a11a07"
+  },
+  "Apps/Orchestration/Install-StoreApps.ps1": {
+    "mtime": 1761309108.461002,
+    "ast_hash": "f7283bb1e092d341804cb4117cf97e1f",
+    "semantic_hash": "f7283bb1e092d341804cb4117cf97e1f"
+  },
+  "Apps/Orchestration/Install-Win32Apps.ps1": {
+    "mtime": 1782139475.228512,
+    "ast_hash": "92159890ee29ce561384b2779ecf8a6d",
+    "semantic_hash": "92159890ee29ce561384b2779ecf8a6d"
+  },
+  "Apps/Orchestration/Invoke-AppsScript.ps1": {
+    "mtime": 1761309108.4629834,
+    "ast_hash": "f83be7f100226df807e16fd8a976abed",
+    "semantic_hash": "f83be7f100226df807e16fd8a976abed"
+  },
+  "Apps/Orchestration/Orchestrator.ps1": {
+    "mtime": 1770063753.4067528,
+    "ast_hash": "774803cf0f7a476e4bcd00e8d2d3ced9",
+    "semantic_hash": "774803cf0f7a476e4bcd00e8d2d3ced9"
+  },
+  "Apps/Orchestration/Run-DiskCleanup.ps1": {
+    "mtime": 1761309108.4649901,
+    "ast_hash": "57b9fff3f2e2264ac99bc6f0c230fd55",
+    "semantic_hash": "57b9fff3f2e2264ac99bc6f0c230fd55"
+  },
+  "Apps/Orchestration/Run-Sysprep.ps1": {
+    "mtime": 1761309108.4649901,
+    "ast_hash": "05df5c9c51ffdb4c3ffacb757157671c",
+    "semantic_hash": "05df5c9c51ffdb4c3ffacb757157671c"
+  },
+  "BuildFFUVM.ps1": {
+    "mtime": 1782681389.9842834,
+    "ast_hash": "4abd922e87b09d85f658e9074020afd3",
+    "semantic_hash": "4abd922e87b09d85f658e9074020afd3"
+  },
+  "BuildFFUVM_UI.ps1": {
+    "mtime": 1782135235.3288589,
+    "ast_hash": "629516705cf434bddb87ebe0f48e0441",
+    "semantic_hash": "629516705cf434bddb87ebe0f48e0441"
+  },
+  "BuildFFUVM_UI.xaml": {
+    "mtime": 1782134804.5398142,
+    "ast_hash": "b8a461322d551474a8efa3a69de335b4",
+    "semantic_hash": "b8a461322d551474a8efa3a69de335b4"
+  },
+  "Check-ModuleExports.ps1": {
+    "mtime": 1764185133.0863492,
+    "ast_hash": "71f7102fa362b8a3c40bb002ce2e24bb",
+    "semantic_hash": "71f7102fa362b8a3c40bb002ce2e24bb"
+  },
+  "Create-PEMedia.ps1": {
+    "mtime": 1769716326.8840165,
+    "ast_hash": "9c4578443755fa3642ae0c6033d04200",
+    "semantic_hash": "9c4578443755fa3642ae0c6033d04200"
+  },
+  "Diagnostics/Analyze-VMwareBridgeOptions.ps1": {
+    "mtime": 1768621027.666296,
+    "ast_hash": "22323c66335b9158409ff6447db60942",
+    "semantic_hash": "22323c66335b9158409ff6447db60942"
+  },
+  "Diagnostics/Get-VMnetConfig.ps1": {
+    "mtime": 1768620941.4411004,
+    "ast_hash": "f7eba2462d6d630c31fc5484277a95bf",
+    "semantic_hash": "f7eba2462d6d630c31fc5484277a95bf"
+  },
+  "Diagnostics/Test-DriveLetterStability.ps1": {
+    "mtime": 1769091839.1196783,
+    "ast_hash": "4f14aa585351579ab633713e73bd509b",
+    "semantic_hash": "4f14aa585351579ab633713e73bd509b"
+  },
+  "Diagnostics/Test-FFUVMwareBridgeConfiguration.ps1": {
+    "mtime": 1768622254.3933084,
+    "ast_hash": "792edf7e38ed599155110cf260337f29",
+    "semantic_hash": "792edf7e38ed599155110cf260337f29"
+  },
+  "Diagnostics/Test-NetworkAdapter.ps1": {
+    "mtime": 1768615475.5575597,
+    "ast_hash": "3c0eaf435605add6cf672f7159d21748",
+    "semantic_hash": "3c0eaf435605add6cf672f7159d21748"
+  },
+  "Diagnostics/Test-VMnet0BridgeConfig.ps1": {
+    "mtime": 1768620973.6196647,
+    "ast_hash": "2e0ce1af348b021c3321ef84dd6a6018",
+    "semantic_hash": "2e0ce1af348b021c3321ef84dd6a6018"
+  },
+  "Diagnostics/Test-VMwareBridgeRegistry.ps1": {
+    "mtime": 1768620851.3054376,
+    "ast_hash": "ea465a19be7546c70f02ae1d3339f266",
+    "semantic_hash": "ea465a19be7546c70f02ae1d3339f266"
+  },
+  "Diagnostics/Test-VMwareStartup.ps1": {
+    "mtime": 1768311433.7636192,
+    "ast_hash": "cbf29248a9f4156f1e1f47b1ad41a9e4",
+    "semantic_hash": "cbf29248a9f4156f1e1f47b1ad41a9e4"
+  },
+  "Diagnostics/Test-VmrunList.ps1": {
+    "mtime": 1768275531.109888,
+    "ast_hash": "fe908f828e07beaad424e6bffa2da2c8",
+    "semantic_hash": "fe908f828e07beaad424e6bffa2da2c8"
+  },
+  "FFU.Common/FFU.Common.Classes.psm1": {
+    "mtime": 1768847510.2285557,
+    "ast_hash": "d4097b4f3d024c38146ba399a6e93c5f",
+    "semantic_hash": "d4097b4f3d024c38146ba399a6e93c5f"
+  },
+  "FFU.Common/FFU.Common.Cleanup.psm1": {
+    "mtime": 1761309108.5299816,
+    "ast_hash": "788cc73bc08ef5100a01577715fb66b4",
+    "semantic_hash": "788cc73bc08ef5100a01577715fb66b4"
+  },
+  "FFU.Common/FFU.Common.Core.psm1": {
+    "mtime": 1769640177.989962,
+    "ast_hash": "f17247c05ce4e281feeabd46d26fcd49",
+    "semantic_hash": "f17247c05ce4e281feeabd46d26fcd49"
+  },
+  "FFU.Common/FFU.Common.Download.psm1": {
+    "mtime": 1770083681.6941707,
+    "ast_hash": "b5603309ce528539da669e88f6af41f3",
+    "semantic_hash": "b5603309ce528539da669e88f6af41f3"
+  },
+  "FFU.Common/FFU.Common.Drivers.psm1": {
+    "mtime": 1769704251.79027,
+    "ast_hash": "5ed523f12ec3f93da9be7f2ca2277413",
+    "semantic_hash": "5ed523f12ec3f93da9be7f2ca2277413"
+  },
+  "FFU.Common/FFU.Common.Logging.psd1": {
+    "mtime": 1765229015.5015438,
+    "ast_hash": "a12a7066ea3a48b3355adc540760246a",
+    "semantic_hash": "a12a7066ea3a48b3355adc540760246a"
+  },
+  "FFU.Common/FFU.Common.Logging.psm1": {
+    "mtime": 1765808196.2137063,
+    "ast_hash": "3c814f58fbae2e857375b7f22bd598df",
+    "semantic_hash": "3c814f58fbae2e857375b7f22bd598df"
+  },
+  "FFU.Common/FFU.Common.Parallel.psm1": {
+    "mtime": 1761309108.5329568,
+    "ast_hash": "251f580d34f02447733e368e068df20a",
+    "semantic_hash": "251f580d34f02447733e368e068df20a"
+  },
+  "FFU.Common/FFU.Common.ParallelDownload.psm1": {
+    "mtime": 1768054061.1152666,
+    "ast_hash": "9e1d9dc26c0bb2d4292799f8960f272d",
+    "semantic_hash": "9e1d9dc26c0bb2d4292799f8960f272d"
+  },
+  "FFU.Common/FFU.Common.Winget.psm1": {
+    "mtime": 1769650621.3601208,
+    "ast_hash": "346d55b24cc344fb28a97df36a4d5173",
+    "semantic_hash": "346d55b24cc344fb28a97df36a4d5173"
+  },
+  "FFU.Common/FFU.Common.psd1": {
+    "mtime": 1769298989.7417085,
+    "ast_hash": "7fc24e966997aeba4530a733dd60fde4",
+    "semantic_hash": "7fc24e966997aeba4530a733dd60fde4"
+  },
+  "FFUUI.Core/FFUUI.Core.Applications.psm1": {
+    "mtime": 1761309108.5379844,
+    "ast_hash": "3412de95bfff536161fed5f375f986fa",
+    "semantic_hash": "3412de95bfff536161fed5f375f986fa"
+  },
+  "FFUUI.Core/FFUUI.Core.Config.psm1": {
+    "mtime": 1782141818.168373,
+    "ast_hash": "062a808f532c6acd77e50bf0058d36d8",
+    "semantic_hash": "062a808f532c6acd77e50bf0058d36d8"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.ASUS.psm1": {
+    "mtime": 1770059461.8810022,
+    "ast_hash": "16137d39e84e556e85dac005a1e48269",
+    "semantic_hash": "16137d39e84e556e85dac005a1e48269"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Acer.psm1": {
+    "mtime": 1770059481.3564157,
+    "ast_hash": "a4a6820f64bff826037abb5f376662a8",
+    "semantic_hash": "a4a6820f64bff826037abb5f376662a8"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Dell.psm1": {
+    "mtime": 1769710703.376887,
+    "ast_hash": "638661d2de3cfb1695c16826f18e9844",
+    "semantic_hash": "638661d2de3cfb1695c16826f18e9844"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Dynabook.psm1": {
+    "mtime": 1770059541.1819422,
+    "ast_hash": "2221a8af795666ac5fc7d980425e6979",
+    "semantic_hash": "2221a8af795666ac5fc7d980425e6979"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Fujitsu.psm1": {
+    "mtime": 1770059556.9025779,
+    "ast_hash": "4e8047aeb7c58192ea7073d203fcc55f",
+    "semantic_hash": "4e8047aeb7c58192ea7073d203fcc55f"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Getac.psm1": {
+    "mtime": 1770059472.0745203,
+    "ast_hash": "7c3bc7f2aeef52e0b82ffa18d5156523",
+    "semantic_hash": "7c3bc7f2aeef52e0b82ffa18d5156523"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.HP.psm1": {
+    "mtime": 1770059857.391782,
+    "ast_hash": "e37653322befefba67d250caf6fb322e",
+    "semantic_hash": "e37653322befefba67d250caf6fb322e"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Lenovo.CatalogFallback.psm1": {
+    "mtime": 1768912409.1928387,
+    "ast_hash": "19e3940b08002c5cf7ef738f816ee793",
+    "semantic_hash": "19e3940b08002c5cf7ef738f816ee793"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Lenovo.psm1": {
+    "mtime": 1768912572.8493712,
+    "ast_hash": "a76ab0f4acb9e25753df379a1cfcc56d",
+    "semantic_hash": "a76ab0f4acb9e25753df379a1cfcc56d"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.MSI.psm1": {
+    "mtime": 1770059465.9501228,
+    "ast_hash": "578a1e149347e4ed1fafcdad16f1733d",
+    "semantic_hash": "578a1e149347e4ed1fafcdad16f1733d"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Microsoft.psm1": {
+    "mtime": 1768054396.0198302,
+    "ast_hash": "07522c7a456b5bbfa68790225d5fe63a",
+    "semantic_hash": "07522c7a456b5bbfa68790225d5fe63a"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Panasonic.psm1": {
+    "mtime": 1770059547.0046518,
+    "ast_hash": "7bab489f93ce80da9ced465b32ec5fd3",
+    "semantic_hash": "7bab489f93ce80da9ced465b32ec5fd3"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.Samsung.psm1": {
+    "mtime": 1770059518.6841683,
+    "ast_hash": "56558e9e23547fedceda5a45609c9b46",
+    "semantic_hash": "56558e9e23547fedceda5a45609c9b46"
+  },
+  "FFUUI.Core/FFUUI.Core.Drivers.psm1": {
+    "mtime": 1782680907.9013438,
+    "ast_hash": "b87db114d5e08a16ef85fac42f2c904d",
+    "semantic_hash": "b87db114d5e08a16ef85fac42f2c904d"
+  },
+  "FFUUI.Core/FFUUI.Core.ErrorDisplay.psm1": {
+    "mtime": 1769273932.3048806,
+    "ast_hash": "62fdaa4f17db3d3db443d26af76b2aee",
+    "semantic_hash": "62fdaa4f17db3d3db443d26af76b2aee"
+  },
+  "FFUUI.Core/FFUUI.Core.Handlers.psm1": {
+    "mtime": 1782135254.4381733,
+    "ast_hash": "c9a1b3837ebbe42e7c3863e8692227ae",
+    "semantic_hash": "c9a1b3837ebbe42e7c3863e8692227ae"
+  },
+  "FFUUI.Core/FFUUI.Core.Initialize.psm1": {
+    "mtime": 1782680915.3074827,
+    "ast_hash": "09d917916e1acda6e3aedc098900418e",
+    "semantic_hash": "09d917916e1acda6e3aedc098900418e"
+  },
+  "FFUUI.Core/FFUUI.Core.JobErrors.psm1": {
+    "mtime": 1769274943.0545824,
+    "ast_hash": "3ed1dc5257c82bfb088fb451e354ce00",
+    "semantic_hash": "3ed1dc5257c82bfb088fb451e354ce00"
+  },
+  "FFUUI.Core/FFUUI.Core.Shared.psm1": {
+    "mtime": 1782680984.323823,
+    "ast_hash": "8aee5101391f3c1ef04017c6e4956e1c",
+    "semantic_hash": "8aee5101391f3c1ef04017c6e4956e1c"
+  },
+  "FFUUI.Core/FFUUI.Core.StateRecovery.psm1": {
+    "mtime": 1774388086.2760916,
+    "ast_hash": "aff7c42635e63efac97caaf3640c9b5f",
+    "semantic_hash": "aff7c42635e63efac97caaf3640c9b5f"
+  },
+  "FFUUI.Core/FFUUI.Core.WindowsSettings.psm1": {
+    "mtime": 1768054360.391213,
+    "ast_hash": "780769179fca81218fc1545a73f744c9",
+    "semantic_hash": "780769179fca81218fc1545a73f744c9"
+  },
+  "FFUUI.Core/FFUUI.Core.Winget.psm1": {
+    "mtime": 1769315054.716153,
+    "ast_hash": "eaff6da015633f187eb272f1653243b4",
+    "semantic_hash": "eaff6da015633f187eb272f1653243b4"
+  },
+  "FFUUI.Core/FFUUI.Core.psd1": {
+    "mtime": 1782681677.573325,
+    "ast_hash": "adcb8b8641966b1e7cf1e61eab1e43cd",
+    "semantic_hash": "adcb8b8641966b1e7cf1e61eab1e43cd"
+  },
+  "FFUUI.Core/FFUUI.Core.psm1": {
+    "mtime": 1769716767.5872607,
+    "ast_hash": "ce9078de4542ae9e67c03befd495ea54",
+    "semantic_hash": "ce9078de4542ae9e67c03befd495ea54"
+  },
+  "Force-WimMountLoad.ps1": {
+    "mtime": 1765907593.4700751,
+    "ast_hash": "2d81f96c49bae9d8c1e1db8197943a39",
+    "semantic_hash": "2d81f96c49bae9d8c1e1db8197943a39"
+  },
+  "Get-WimMountDiagnostics.ps1": {
+    "mtime": 1765894283.1174726,
+    "ast_hash": "acc8ce6a0096f12cf42fbef2384a4578",
+    "semantic_hash": "acc8ce6a0096f12cf42fbef2384a4578"
+  },
+  "Intune/WingetRemediation/Detect-WingetRegistration.ps1": {
+    "mtime": 1769316210.1512282,
+    "ast_hash": "a15f5b1a6ef89f7ce52fd91fb2907555",
+    "semantic_hash": "a15f5b1a6ef89f7ce52fd91fb2907555"
+  },
+  "Intune/WingetRemediation/Remediate-WingetRegistration.ps1": {
+    "mtime": 1769316250.0636575,
+    "ast_hash": "4a14094d9538eabe4064e1a746669d20",
+    "semantic_hash": "4a14094d9538eabe4064e1a746669d20"
+  },
+  "List-ExportedFunctions.ps1": {
+    "mtime": 1763790954.1823208,
+    "ast_hash": "010fa84b0ab136d559a6e5f99c7100de",
+    "semantic_hash": "010fa84b0ab136d559a6e5f99c7100de"
+  },
+  "Modules/FFU.ADK/FFU.ADK.psd1": {
+    "mtime": 1768716365.4450684,
+    "ast_hash": "eb4adbd76e14a68195b76dbab25177b9",
+    "semantic_hash": "eb4adbd76e14a68195b76dbab25177b9"
+  },
+  "Modules/FFU.ADK/FFU.ADK.psm1": {
+    "mtime": 1768716255.1215878,
+    "ast_hash": "784713d363e31d06fc04502c635465fc",
+    "semantic_hash": "784713d363e31d06fc04502c635465fc"
+  },
+  "Modules/FFU.Apps/FFU.Apps.psd1": {
+    "mtime": 1769364431.2398653,
+    "ast_hash": "1c47536486156197c4ad982bccb39c54",
+    "semantic_hash": "1c47536486156197c4ad982bccb39c54"
+  },
+  "Modules/FFU.Apps/FFU.Apps.psm1": {
+    "mtime": 1769364264.9729192,
+    "ast_hash": "754bd3566ae192355cad5a55914f268b",
+    "semantic_hash": "754bd3566ae192355cad5a55914f268b"
+  },
+  "Modules/FFU.ArtifactScanner/Classes/ArtifactScanner.Classes.ps1": {
+    "mtime": 1773493810.6970174,
+    "ast_hash": "a981ec3424ea91c1c56f9c9986b79de6",
+    "semantic_hash": "a981ec3424ea91c1c56f9c9986b79de6"
+  },
+  "Modules/FFU.ArtifactScanner/FFU.ArtifactScanner.psd1": {
+    "mtime": 1773493904.0185907,
+    "ast_hash": "87ced11743a200626cda1b2dede739bf",
+    "semantic_hash": "87ced11743a200626cda1b2dede739bf"
+  },
+  "Modules/FFU.ArtifactScanner/FFU.ArtifactScanner.psm1": {
+    "mtime": 1773495262.4128804,
+    "ast_hash": "55ec6b18de8edc41e0ec79483ec53bca",
+    "semantic_hash": "55ec6b18de8edc41e0ec79483ec53bca"
+  },
+  "Modules/FFU.BuildTest/FFU.BuildTest.psd1": {
+    "mtime": 1768068485.9058616,
+    "ast_hash": "ee1b23a154bbd131cb54dd51359c3056",
+    "semantic_hash": "ee1b23a154bbd131cb54dd51359c3056"
+  },
+  "Modules/FFU.BuildTest/FFU.BuildTest.psm1": {
+    "mtime": 1768069789.254234,
+    "ast_hash": "3e2282eb24d5f49d003f53be57f7d910",
+    "semantic_hash": "3e2282eb24d5f49d003f53be57f7d910"
+  },
+  "Modules/FFU.Checkpoint/FFU.Checkpoint.psd1": {
+    "mtime": 1768873423.2777452,
+    "ast_hash": "811404befe3c44807341f8f12e262487",
+    "semantic_hash": "811404befe3c44807341f8f12e262487"
+  },
+  "Modules/FFU.Checkpoint/FFU.Checkpoint.psm1": {
+    "mtime": 1769046950.685329,
+    "ast_hash": "d93f41da6bdebf6ef9e31f90f8a6e058",
+    "semantic_hash": "d93f41da6bdebf6ef9e31f90f8a6e058"
+  },
+  "Modules/FFU.ConfigMigration/FFU.ConfigMigration.psd1": {
+    "mtime": 1774034053.9333987,
+    "ast_hash": "2f5d2f71e2819e9e16b4f3dd2a8dfc62",
+    "semantic_hash": "2f5d2f71e2819e9e16b4f3dd2a8dfc62"
+  },
+  "Modules/FFU.ConfigMigration/FFU.ConfigMigration.psm1": {
+    "mtime": 1774034040.916177,
+    "ast_hash": "c91141553e8c030db126d497d8517b0c",
+    "semantic_hash": "c91141553e8c030db126d497d8517b0c"
+  },
+  "Modules/FFU.Constants/FFU.Constants.psd1": {
+    "mtime": 1768847512.040154,
+    "ast_hash": "a0239e1483ed8eeaf0f0c9813afd917e",
+    "semantic_hash": "a0239e1483ed8eeaf0f0c9813afd917e"
+  },
+  "Modules/FFU.Constants/FFU.Constants.psm1": {
+    "mtime": 1770059460.8344977,
+    "ast_hash": "84c85dc8a1e3058cb8a5f34ae7985f3b",
+    "semantic_hash": "84c85dc8a1e3058cb8a5f34ae7985f3b"
+  },
+  "Modules/FFU.Core/FFU.Core.psd1": {
+    "mtime": 1769693364.8636048,
+    "ast_hash": "bf781ba6709f4ebe52f56e5c68be88ac",
+    "semantic_hash": "bf781ba6709f4ebe52f56e5c68be88ac"
+  },
+  "Modules/FFU.Core/FFU.Core.psm1": {
+    "mtime": 1769693350.9344933,
+    "ast_hash": "20777d703e910935450c0eb4c8b90066",
+    "semantic_hash": "20777d703e910935450c0eb4c8b90066"
+  },
+  "Modules/FFU.Drivers/FFU.Drivers.psd1": {
+    "mtime": 1770060045.0600922,
+    "ast_hash": "7331dc0398c9ea76e72e3300646be24b",
+    "semantic_hash": "7331dc0398c9ea76e72e3300646be24b"
+  },
+  "Modules/FFU.Drivers/FFU.Drivers.psm1": {
+    "mtime": 1770061802.2434826,
+    "ast_hash": "4e88c586b10cf575e0009c53e7df4eb8",
+    "semantic_hash": "4e88c586b10cf575e0009c53e7df4eb8"
+  },
+  "Modules/FFU.Hypervisor/Classes/IHypervisorProvider.ps1": {
+    "mtime": 1768852712.9756653,
+    "ast_hash": "3ba867c28261648bc4e482da51878caa",
+    "semantic_hash": "3ba867c28261648bc4e482da51878caa"
+  },
+  "Modules/FFU.Hypervisor/Classes/VMConfiguration.ps1": {
+    "mtime": 1768953957.1716707,
+    "ast_hash": "8354b14684b9519ee68783da6dd246a6",
+    "semantic_hash": "8354b14684b9519ee68783da6dd246a6"
+  },
+  "Modules/FFU.Hypervisor/Classes/VMInfo.ps1": {
+    "mtime": 1769211877.0856018,
+    "ast_hash": "d242b0914f491422ee5c451011b7b963",
+    "semantic_hash": "d242b0914f491422ee5c451011b7b963"
+  },
+  "Modules/FFU.Hypervisor/FFU.Hypervisor.psd1": {
+    "mtime": 1769212989.5177357,
+    "ast_hash": "41cec3621d43974146b265cc15ea2139",
+    "semantic_hash": "41cec3621d43974146b265cc15ea2139"
+  },
+  "Modules/FFU.Hypervisor/FFU.Hypervisor.psm1": {
+    "mtime": 1769212983.4356322,
+    "ast_hash": "d77b75088724997afe19143ef6e732d7",
+    "semantic_hash": "d77b75088724997afe19143ef6e732d7"
+  },
+  "Modules/FFU.Hypervisor/Private/Invoke-VMwareRestMethod.ps1": {
+    "mtime": 1769212194.9078522,
+    "ast_hash": "3adf4a1f1436fab40bac6f3cef9b33fa",
+    "semantic_hash": "3adf4a1f1436fab40bac6f3cef9b33fa"
+  },
+  "Modules/FFU.Hypervisor/Private/New-VHDWithDiskpart.ps1": {
+    "mtime": 1768072159.8741815,
+    "ast_hash": "86b0437aa885af2298af6889252f2a24",
+    "semantic_hash": "86b0437aa885af2298af6889252f2a24"
+  },
+  "Modules/FFU.Hypervisor/Private/New-VMwareVMX.ps1": {
+    "mtime": 1768937788.0403845,
+    "ast_hash": "5cf40d785953f2fd95628cb097f8548e",
+    "semantic_hash": "5cf40d785953f2fd95628cb097f8548e"
+  },
+  "Modules/FFU.Hypervisor/Providers/HyperVProvider.ps1": {
+    "mtime": 1769212741.1262403,
+    "ast_hash": "47dd04db71d51cfa550c8ce5a271b351",
+    "semantic_hash": "47dd04db71d51cfa550c8ce5a271b351"
+  },
+  "Modules/FFU.Hypervisor/Providers/VMwareProvider.ps1": {
+    "mtime": 1769212791.401363,
+    "ast_hash": "7d9fdd8cd6f3b2eb8cd4fdb8c8903034",
+    "semantic_hash": "7d9fdd8cd6f3b2eb8cd4fdb8c8903034"
+  },
+  "Modules/FFU.Hypervisor/Public/Get-AvailableHypervisors.ps1": {
+    "mtime": 1767842369.7348435,
+    "ast_hash": "29a3d839cb127b58943619d9b17aea09",
+    "semantic_hash": "29a3d839cb127b58943619d9b17aea09"
+  },
+  "Modules/FFU.Hypervisor/Public/Get-HypervisorProvider.ps1": {
+    "mtime": 1769212725.629134,
+    "ast_hash": "9cb3aef488a48ce952ee2d1837f69deb",
+    "semantic_hash": "9cb3aef488a48ce952ee2d1837f69deb"
+  },
+  "Modules/FFU.Hypervisor/Public/Invoke-WithHypervisorRetry.ps1": {
+    "mtime": 1769213260.0331848,
+    "ast_hash": "7f3b5126961758523595e188c8175d6d",
+    "semantic_hash": "7f3b5126961758523595e188c8175d6d"
+  },
+  "Modules/FFU.Hypervisor/Public/New-VMConfiguration.ps1": {
+    "mtime": 1768953980.0033937,
+    "ast_hash": "826e9e617acdf4ad56ff8685a22c521e",
+    "semantic_hash": "826e9e617acdf4ad56ff8685a22c521e"
+  },
+  "Modules/FFU.Hypervisor/Public/Test-HypervisorAvailable.ps1": {
+    "mtime": 1769212054.522512,
+    "ast_hash": "97c97abfb418bea00cf650bae271642d",
+    "semantic_hash": "97c97abfb418bea00cf650bae271642d"
+  },
+  "Modules/FFU.Hypervisor/Public/Test-HypervisorService.ps1": {
+    "mtime": 1769212621.5934472,
+    "ast_hash": "4a7570449d0a42bfcb541eee9e981dc6",
+    "semantic_hash": "4a7570449d0a42bfcb541eee9e981dc6"
+  },
+  "Modules/FFU.Hypervisor/Public/Test-ProviderSwitch.ps1": {
+    "mtime": 1769212649.7795794,
+    "ast_hash": "2dd16b0a2b776638dd61931273bca67d",
+    "semantic_hash": "2dd16b0a2b776638dd61931273bca67d"
+  },
+  "Modules/FFU.Hypervisor/Public/Wait-VMStateChange.ps1": {
+    "mtime": 1769212159.695951,
+    "ast_hash": "eb71c6bee2ead90752ba2caba8c024a9",
+    "semantic_hash": "eb71c6bee2ead90752ba2caba8c024a9"
+  },
+  "Modules/FFU.Imaging/FFU.Imaging.psd1": {
+    "mtime": 1782517714.0481231,
+    "ast_hash": "7134bd558621391fb9f42babf8c61b16",
+    "semantic_hash": "7134bd558621391fb9f42babf8c61b16"
+  },
+  "Modules/FFU.Imaging/FFU.Imaging.psm1": {
+    "mtime": 1782520967.3674078,
+    "ast_hash": "3206359e0cafd7103330671b1e6313c4",
+    "semantic_hash": "3206359e0cafd7103330671b1e6313c4"
+  },
+  "Modules/FFU.Media/FFU.Media.psd1": {
+    "mtime": 1769228774.0183651,
+    "ast_hash": "994c48a001f4231ba5a4fa8783355858",
+    "semantic_hash": "994c48a001f4231ba5a4fa8783355858"
+  },
+  "Modules/FFU.Media/FFU.Media.psm1": {
+    "mtime": 1769716217.8666158,
+    "ast_hash": "40924dfe2da9d226fd35d2e905639e55",
+    "semantic_hash": "40924dfe2da9d226fd35d2e905639e55"
+  },
+  "Modules/FFU.Messaging/Examples/UIIntegration-Example.ps1": {
+    "mtime": 1765391002.8807251,
+    "ast_hash": "0ee8ab04ed4f779cde84f4a7ef88bf2d",
+    "semantic_hash": "0ee8ab04ed4f779cde84f4a7ef88bf2d"
+  },
+  "Modules/FFU.Messaging/FFU.Messaging.psd1": {
+    "mtime": 1765460385.5125494,
+    "ast_hash": "6b78727dbd6081cdc7e75ae7da3e6ce3",
+    "semantic_hash": "6b78727dbd6081cdc7e75ae7da3e6ce3"
+  },
+  "Modules/FFU.Messaging/FFU.Messaging.psm1": {
+    "mtime": 1765460329.2777798,
+    "ast_hash": "da711b2a56a918cac64b80c3cb5ab674",
+    "semantic_hash": "da711b2a56a918cac64b80c3cb5ab674"
+  },
+  "Modules/FFU.Preflight/FFU.Preflight.psd1": {
+    "mtime": 1782518695.9771576,
+    "ast_hash": "6a042cf062947126b667928ae54c3b99",
+    "semantic_hash": "6a042cf062947126b667928ae54c3b99"
+  },
+  "Modules/FFU.Preflight/FFU.Preflight.psm1": {
+    "mtime": 1782520977.672044,
+    "ast_hash": "b8eda041073b83e5f667bfaecd5efe34",
+    "semantic_hash": "b8eda041073b83e5f667bfaecd5efe34"
+  },
+  "Modules/FFU.Updates/FFU.Updates.psd1": {
+    "mtime": 1770071276.6741092,
+    "ast_hash": "4773071012865ded64d579eb53c92691",
+    "semantic_hash": "4773071012865ded64d579eb53c92691"
+  },
+  "Modules/FFU.Updates/FFU.Updates.psm1": {
+    "mtime": 1770070942.3813956,
+    "ast_hash": "9a70e297d0a9a155aef577cdaa656333",
+    "semantic_hash": "9a70e297d0a9a155aef577cdaa656333"
+  },
+  "Modules/FFU.VM/FFU.VM.psd1": {
+    "mtime": 1769553144.133329,
+    "ast_hash": "e8ad3f1f649a8314c59e469d5e3424c8",
+    "semantic_hash": "e8ad3f1f649a8314c59e469d5e3424c8"
+  },
+  "Modules/FFU.VM/FFU.VM.psm1": {
+    "mtime": 1769553103.5378377,
+    "ast_hash": "adfff47be7bf358c1dd2bfa4941f95de",
+    "semantic_hash": "adfff47be7bf358c1dd2bfa4941f95de"
+  },
+  "Reinstall-WimMountDriver.ps1": {
+    "mtime": 1765907714.01432,
+    "ast_hash": "7c384469961eb8f063dd08ffd537dff3",
+    "semantic_hash": "7c384469961eb8f063dd08ffd537dff3"
+  },
+  "Repair-WimMountService.ps1": {
+    "mtime": 1765902382.5720196,
+    "ast_hash": "6f5f91d690acb3ccf5f84b23874b82b6",
+    "semantic_hash": "6f5f91d690acb3ccf5f84b23874b82b6"
+  },
+  "Restore-WimMountComplete.ps1": {
+    "mtime": 1765902437.9555132,
+    "ast_hash": "d4dbe24f07a2e582d9ad16386f538c40",
+    "semantic_hash": "d4dbe24f07a2e582d9ad16386f538c40"
+  },
+  "Set-WimMountAutoStart.ps1": {
+    "mtime": 1765979740.31534,
+    "ast_hash": "64ab31f3550e9f3bd6c96b44590075a2",
+    "semantic_hash": "64ab31f3550e9f3bd6c96b44590075a2"
+  },
+  "Tests/Test-ArchAgnosticUpdateDetection.ps1": {
+    "mtime": 1764908494.1041276,
+    "ast_hash": "0dfa04f4ae94a3062d2ddb27ecbf6353",
+    "semantic_hash": "0dfa04f4ae94a3062d2ddb27ecbf6353"
+  },
+  "Tests/Test-CleanupParameterDefaults.ps1": {
+    "mtime": 1764881204.4331996,
+    "ast_hash": "79fa59a63fa438495c42b3a390aad89a",
+    "semantic_hash": "79fa59a63fa438495c42b3a390aad89a"
+  },
+  "Tests/Test-CleanupRegistry.ps1": {
+    "mtime": 1764853793.4321463,
+    "ast_hash": "62e541d0a71b697b6238f7ef1a6ec8aa",
+    "semantic_hash": "62e541d0a71b697b6238f7ef1a6ec8aa"
+  },
+  "Tests/Test-CredentialSecurity.ps1": {
+    "mtime": 1764857259.2120752,
+    "ast_hash": "99b964f3ae2ddb4f470049c5a2d59f38",
+    "semantic_hash": "99b964f3ae2ddb4f470049c5a2d59f38"
+  },
+  "Tests/Test-DriverValidationMessages.ps1": {
+    "mtime": 1764880487.9340062,
+    "ast_hash": "b52cc4c367cb638ed88ed62ad29424e0",
+    "semantic_hash": "b52cc4c367cb638ed88ed62ad29424e0"
+  },
+  "Tests/Test-ErrorHandling.ps1": {
+    "mtime": 1764823422.8855183,
+    "ast_hash": "cd4170ef1fc617ba92c1cd5b3a440c16",
+    "semantic_hash": "cd4170ef1fc617ba92c1cd5b3a440c16"
+  },
+  "Tests/Test-FFULoggingModule.ps1": {
+    "mtime": 1765229068.5179615,
+    "ast_hash": "35bd8ef1929bbf511339395e904afca7",
+    "semantic_hash": "35bd8ef1929bbf511339395e904afca7"
+  },
+  "Tests/Test-ModuleFunctionExports.ps1": {
+    "mtime": 1765375739.4338095,
+    "ast_hash": "d5466ebfc60f2a6b37e28b59c688427e",
+    "semantic_hash": "d5466ebfc60f2a6b37e28b59c688427e"
+  },
+  "Tests/Test-OSPartitionLookup.ps1": {
+    "mtime": 1764875665.6538708,
+    "ast_hash": "e9b28e719966e3bc886432802614b8d9",
+    "semantic_hash": "e9b28e719966e3bc886432802614b8d9"
+  },
+  "Tests/Test-PathParameterValidation.ps1": {
+    "mtime": 1764879411.0674267,
+    "ast_hash": "225a5b76eaed66e10e29f1205bbb9378",
+    "semantic_hash": "225a5b76eaed66e10e29f1205bbb9378"
+  },
+  "Tests/Test-Phase51Correctness.ps1": {
+    "mtime": 1782519475.0524938,
+    "ast_hash": "17810bd441b92978d4b70a2f6e9c38c8",
+    "semantic_hash": "17810bd441b92978d4b70a2f6e9c38c8"
+  },
+  "Tests/Test-Phase52DriverGridFixes.ps1": {
+    "mtime": 1782682700.2663553,
+    "ast_hash": "71f2f178b68ae8eac37d67e3a916a5c1",
+    "semantic_hash": "71f2f178b68ae8eac37d67e3a916a5c1"
+  },
+  "Tests/Test-SyntaxCheck.ps1": {
+    "mtime": 1764857071.9431336,
+    "ast_hash": "6ef9388254df7cc25f1becd6ae05a5d4",
+    "semantic_hash": "6ef9388254df7cc25f1becd6ae05a5d4"
+  },
+  "Tests/Test-TrapErrorPropagation.ps1": {
+    "mtime": 1764875552.9077196,
+    "ast_hash": "fee9c18397cb8ab6734c69215f289fd6",
+    "semantic_hash": "fee9c18397cb8ab6734c69215f289fd6"
+  },
+  "USBImagingToolCreator.ps1": {
+    "mtime": 1768054499.4348562,
+    "ast_hash": "dfa422e2984b4ef9ce88a9217ab8518b",
+    "semantic_hash": "dfa422e2984b4ef9ce88a9217ab8518b"
+  },
+  "WinPECaptureFFUFiles/CaptureFFU.ps1": {
+    "mtime": 1769576090.6086726,
+    "ast_hash": "7264b07748c7460fb76835f759ef23d6",
+    "semantic_hash": "7264b07748c7460fb76835f759ef23d6"
+  },
+  "WinPEDeployFFUFiles/ApplyFFU.ps1": {
+    "mtime": 1782681702.6462781,
+    "ast_hash": "4808c38b4d0172c49160dcbd28b0c12e",
+    "semantic_hash": "4808c38b4d0172c49160dcbd28b0c12e"
+  },
+  "config/Sample_default.json": {
+    "mtime": 1765374639.4145222,
+    "ast_hash": "bdd06bc802c533f4923217d2fa9c8e50",
+    "semantic_hash": "bdd06bc802c533f4923217d2fa9c8e50"
+  },
+  "config/ffubuilder-config.schema.json": {
+    "mtime": 1774034743.1166184,
+    "ast_hash": "d253c7b8a482afbd91fb4b408069112c",
+    "semantic_hash": "d253c7b8a482afbd91fb4b408069112c"
+  },
+  "config/test/test-minimal.json": {
+    "mtime": 1768998986.3250902,
+    "ast_hash": "a92b63d2c5a39efeac213ecfaa57a602",
+    "semantic_hash": "a92b63d2c5a39efeac213ecfaa57a602"
+  },
+  "config/test/test-standard.json": {
+    "mtime": 1768998993.847787,
+    "ast_hash": "a4c698f78b13739c53c17b2acdda5584",
+    "semantic_hash": "a4c698f78b13739c53c17b2acdda5584"
+  },
+  "version.json": {
+    "mtime": 1782681690.9780884,
+    "ast_hash": "2c866345d0d97006965874b4d014b88a",
+    "semantic_hash": "2c866345d0d97006965874b4d014b88a"
+  },
+  "Docs/BuildFFUVM_flowchart.md": {
+    "mtime": 1761309108.5279849,
+    "ast_hash": "08d5fb0ab8a317918951fbf9ddadb9ba",
+    "semantic_hash": "08d5fb0ab8a317918951fbf9ddadb9ba"
+  },
+  "Intune/WingetRemediation/KB-Winget-Troubleshooting.md": {
+    "mtime": 1769348352.2352166,
+    "ast_hash": "cfd3f20caff278ba651d80e6f4ea2ecb",
+    "semantic_hash": "cfd3f20caff278ba651d80e6f4ea2ecb"
+  },
+  "Intune/WingetRemediation/README.md": {
+    "mtime": 1769316281.9724696,
+    "ast_hash": "2a87f49a318d7a33d6e64707a0687901",
+    "semantic_hash": "2a87f49a318d7a33d6e64707a0687901"
+  },
+  "Modules/MODULE-REFACTORING-PLAN.md": {
+    "mtime": 1763675476.551086,
+    "ast_hash": "c391a5f19f516b586c8bef2820c13e2c",
+    "semantic_hash": "c391a5f19f516b586c8bef2820c13e2c"
+  },
+  "WinPECaptureFFUFiles/AssignDriveLetter.txt": {
+    "mtime": 1761309108.5549557,
+    "ast_hash": "750106f897a34a2c52dab836183791f0",
+    "semantic_hash": "750106f897a34a2c52dab836183791f0"
+  },
+  "unattend/SamplePrefixes.txt": {
+    "mtime": 1761309108.5619836,
+    "ast_hash": "c2132144e560c7c7d037d5cc5b97ce11",
+    "semantic_hash": "c2132144e560c7c7d037d5cc5b97ce11"
+  }
+}

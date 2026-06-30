@@ -15,5 +15,18 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/jira-milestone-gate.cjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
   }
 }
